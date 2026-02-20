@@ -1199,18 +1199,171 @@ class ValueSetExpander {
 
     this.worker.opContext.log('compose #2');
 
+    // Process excludes first (populates this.excluded as safety net)
     let i = 0;
     for (const c of source.jsonObj.compose.exclude || []) {
       this.worker.deadCheck('handleCompose#4');
       await this.excludeCodes(c, "ValueSet.compose.exclude["+i+"]", source, filter, expansion, this.excludeInactives(source), notClosed);
     }
 
+    // Try expandForValueSet: group includes+excludes by system
+    const excludeInactive = this.excludeInactives(source);
+    const handledIncludes = await this._tryExpandForValueSet(
+      source, filter, expansion, excludeInactive, notClosed
+    );
+
+    // Fall back to per-include processing for anything not handled
     i = 0;
     for (const c of source.jsonObj.compose.include || []) {
       this.worker.deadCheck('handleCompose#5');
-      await this.includeCodes(c, "ValueSet.compose.include["+i+"]", source, filter, expansion, this.excludeInactives(source), notClosed);
+      if (!handledIncludes.has(i)) {
+        await this.includeCodes(c, "ValueSet.compose.include["+i+"]", source, filter, expansion, excludeInactive, notClosed);
+      }
       i++;
     }
+  }
+
+  /**
+   * Group includes/excludes by code system and try expandForValueSet on each.
+   * Returns a Set of include indices that were successfully handled.
+   */
+  async _tryExpandForValueSet(source, filter, expansion, excludeInactive, notClosed) {
+    const handled = new Set();
+    const includes = source.jsonObj.compose.include || [];
+    const excludes = source.jsonObj.compose.exclude || [];
+
+    // Group eligible includes by system
+    const bySystem = new Map(); // system → { cs, indices, includes, excludes }
+    for (let idx = 0; idx < includes.length; idx++) {
+      const cset = includes[idx];
+      // Only eligible if it has a system and no valueSet references
+      if (!cset.system || (cset.valueSet && cset.valueSet.length > 0)) continue;
+      // Must have concept or filter (not bare "whole code system" which has
+      // special enumeration / iterator logic)
+      if (!cset.concept && !cset.filter) continue;
+
+      let entry = bySystem.get(cset.system);
+      if (!entry) {
+        entry = { indices: [], includes: [], excludes: [] };
+        bySystem.set(cset.system, entry);
+      }
+      entry.indices.push(idx);
+      entry.includes.push({
+        concepts: cset.concept || null,
+        filters: (cset.filter || []).map(f => ({ property: f.property, op: f.op, value: f.value })),
+      });
+    }
+
+    if (bySystem.size === 0) return handled;
+
+    // Add matching excludes to each system's group
+    for (const cset of excludes) {
+      if (!cset.system) continue;
+      const entry = bySystem.get(cset.system);
+      if (!entry) continue;
+      entry.excludes.push({
+        concepts: cset.concept || null,
+        filters: (cset.filter || []).map(f => ({ property: f.property, op: f.op, value: f.value })),
+      });
+    }
+
+    // Try expandForValueSet for each system
+    for (const [system, group] of bySystem) {
+      const cset0 = includes[group.indices[0]];
+      const cs = await this.worker.findCodeSystem(
+        system, cset0.version, this.params,
+        ['complete', 'fragment'], false, false, true, null, this.requiredSupplements
+      );
+      if (!cs || !cs.expandForValueSet) continue;
+
+      const spec = {
+        includes: group.includes,
+        excludes: group.excludes,
+        activeOnly: !!(this.params.activeOnly || excludeInactive),
+        searchText: filter.isNull ? null : filter.text,
+        includeDesignations: !!this.params.includeDesignations,
+        properties: this.params.properties || [],
+        offsetHint: this.offset > 0 ? this.offset : null,
+        countHint: this.count > 0 ? this.count : null,
+      };
+
+      const _t = perfCounters.begin('expandForValueSet');
+      let result;
+      try {
+        result = await cs.expandForValueSet(spec);
+      } catch (e) {
+        perfCounters.end(_t);
+        throw e;
+      }
+      perfCounters.end(_t);
+
+      if (result == null) {
+        perfCounters.bump('expandForValueSet.fallback');
+        continue;
+      }
+
+      perfCounters.bump('expandForValueSet.handled');
+      this.worker.opContext.log('expandForValueSet handled ' + system);
+
+      // Pre-flight: supplements, canonical status, used-codesystem
+      for (const idx of group.indices) {
+        this.worker.checkSupplements(cs, includes[idx], this.requiredSupplements, this.usedSupplements);
+      }
+      this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
+      const sv = this.canonical(await cs.system(), await cs.version());
+      this.addParamUri(expansion, 'used-codesystem', sv);
+
+      // Hierarchy is not possible with expandForValueSet
+      this.canBeHierarchy = false;
+      this.noTotal();
+
+      // Iterate results through includeCode
+      try {
+        for await (const entry of result) {
+          this.worker.deadCheck('expandForValueSet#iter');
+          const cds = new Designations(this.worker.i18n.languageDefinitions);
+          if (entry.designations) {
+            for (const d of entry.designations) {
+              cds.addDesignation(d.language, d.use, d.value);
+            }
+          }
+          if (entry.display) {
+            cds.addDesignation('en', null, entry.display);
+          }
+          await this.includeCode(
+            cs, null,
+            entry.system || await cs.system(),
+            entry.version || await cs.version(),
+            entry.code,
+            entry.isAbstract || false,
+            entry.isInactive || false,
+            entry.isDeprecated || false,
+            entry.status || null,
+            cds,
+            entry.definition || null,
+            entry.itemWeight || null,
+            expansion, null,
+            entry.extensions || null, null,
+            entry.properties || null, null,
+            excludeInactive,
+            source.url
+          );
+        }
+      } catch (e) {
+        if (e.finished) {
+          // setFinished sentinel — paging limit reached, normal
+        } else {
+          throw e;
+        }
+      }
+
+      // Mark all includes for this system as handled
+      for (const idx of group.indices) {
+        handled.add(idx);
+      }
+    }
+
+    return handled;
   }
 
   excludeInactives(source) {
