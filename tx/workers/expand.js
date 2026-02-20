@@ -772,11 +772,15 @@ class ValueSetExpander {
           this.worker.opContext.log('iterate concepts');
           const cds = new Designations(this.worker.i18n.languageDefinitions);
 
+          // Prefetch all codes via locateMany if supported
+          const codes = cset.concept.map(cc => cc.code);
+          const bulkResults = await cs.locateMany(codes, this.allAltCodes);
+
           for (const cc of cset.concept) {
             this.worker.deadCheck('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-            const cctxt = await cs.locate(cc.code, this.allAltCodes);
+            const cctxt = bulkResults ? (bulkResults.get(cc.code) || null) : await cs.locate(cc.code, this.allAltCodes);
             if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
               await this.listDisplaysFromProvider(cds, cs, cctxt.context);
               this.listDisplaysFromIncludeConcept(cds, cc, vsSrc);
@@ -977,11 +981,16 @@ class ValueSetExpander {
       if (cset.concept) {
         this.worker.opContext.log('iterate concepts');
         const cds = new Designations(this.worker.i18n.languageDefinitions);
+
+        // Prefetch all codes via locateMany if supported
+        const codes = cset.concept.map(cc => cc.code);
+        const bulkResults = await cs.locateMany(codes, this.allAltCodes);
+
         for (const cc of cset.concept) {
           this.worker.deadCheck('processCodes#3');
           cds.clear();
           Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-          const cctxt = await cs.locate(cc.code, this.allAltCodes);
+          const cctxt = bulkResults ? (bulkResults.get(cc.code) || null) : await cs.locate(cc.code, this.allAltCodes);
           if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt)) && await this.passesFilters(cs, cctxt, prep, filters, 0)) {
             if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
               let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');
