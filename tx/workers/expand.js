@@ -226,7 +226,16 @@ class ValueSetExpander {
   }
 
   async listDisplaysFromProvider(displays, cs, context) {
-    await cs.designations(context, displays);
+    const langs = this.params.workingLanguages?.();
+    if (!this.params.includeDesignations && langs && cs.hasAnyDisplays(langs)) {
+      // Fast path: only need the preferred display, skip full designation loading
+      const d = await cs.display(context);
+      if (d) {
+        displays.addDesignation(true, 'active', null, null, d);
+      }
+    } else {
+      await cs.designations(context, displays);
+    }
     displays.source = cs;
   }
 

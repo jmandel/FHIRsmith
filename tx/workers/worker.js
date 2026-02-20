@@ -184,6 +184,7 @@ class TerminologyWorker {
       if (checkVer) {
         this.checkVersion(url, provider.version(), params, provider.versionAlgorithm(), op);
       }
+      this._providerCache.set(cacheKey, provider);
     }
 
     return provider;
