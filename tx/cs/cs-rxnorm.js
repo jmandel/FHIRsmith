@@ -479,7 +479,7 @@ class RxNormServices extends CodeSystemProvider {
       }
     }
 
-    const fullQuery = `SELECT ${this.getCodeField()}, STR, SUPPRESS ${sql2} WHERE SAB = $sab AND TTY <> 'SY' ${sql1}`;
+    const fullQuery = `SELECT ${this.getCodeField()}, STR, SUPPRESS ${sql2} WHERE SAB = $sab AND TTY <> 'SY' ${sql1} ORDER BY ${this.getCodeField()}`;
     allParams.sab = this.getSAB();
 
     // Create a single filter holder with the combined query
