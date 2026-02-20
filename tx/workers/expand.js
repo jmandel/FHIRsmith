@@ -801,7 +801,7 @@ class ValueSetExpander {
           const fcl = cset.filter;
           const prep = await cs.getPrepContext(true);
           if (!filter.isNull) {
-            await cs.searchFilter(filter, prep, true);
+            await cs.searchFilter(prep, filter, true);
           }
 
           if (cs.specialEnumeration()) {
@@ -962,7 +962,7 @@ class ValueSetExpander {
             notClosed.value = true;
           }
           const prep = await cs.getPrepContext(true);
-          const ctxt = await cs.searchFilter(filter, prep, false);
+          const ctxt = await cs.searchFilter(prep, filter, false);
           await cs.prepare(prep);
           while (await cs.filterMore(ctxt)) {
             this.worker.deadCheck('processCodes#4');
@@ -998,7 +998,7 @@ class ValueSetExpander {
         this.worker.opContext.log('prep filters');
         const prep = await cs.getPrepContext(true);
         if (!filter.isNull) {
-          await cs.searchFilter(filter, prep, true);
+          await cs.searchFilter(prep, filter, true);
         }
 
         if (cs.specialEnumeration()) {
