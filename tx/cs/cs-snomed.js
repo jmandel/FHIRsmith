@@ -922,6 +922,30 @@ class SnomedProvider extends BaseCSServices {
     return SnomedExpressionContext.fromReference(key);
   }
 
+  async filterPage(filterContext, set, count) {
+    set.cursor = set.cursor || 0;
+    const size = await this.filterSize(filterContext, set);
+    if (set.cursor >= size) return [];
+
+    const end = Math.min(set.cursor + count, size);
+    const results = [];
+    for (let i = set.cursor; i < end; i++) {
+      let key;
+      if (set.matches && set.matches.length > 0) {
+        key = set.matches[i].index;
+      } else if (set.members && set.members.length > 0) {
+        key = set.members[i].ref;
+      } else if (set.descendants && set.descendants.length > 0) {
+        key = set.descendants[i];
+      } else {
+        break;
+      }
+      results.push(SnomedExpressionContext.fromReference(key));
+    }
+    set.cursor = end;
+    return results;
+  }
+
   async filterLocate(filterContext, set, code) {
 
     const conceptResult = await this.locate(code);

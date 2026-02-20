@@ -1003,6 +1003,19 @@ class LoincServices extends BaseCSServices {
     return this.codeList[key];
   }
 
+  async filterPage(filterContext, set, count) {
+    set.cursor = set.cursor || 0;
+    if (set.cursor >= set.keys.length) return [];
+
+    const end = Math.min(set.cursor + count, set.keys.length);
+    const results = [];
+    for (let i = set.cursor; i < end; i++) {
+      results.push(this.codeList[set.keys[i]]);
+    }
+    set.cursor = end;
+    return results;
+  }
+
   async filterLocate(filterContext, set, code) {
     const context = this.codes.get(code);
     if (!context) {
