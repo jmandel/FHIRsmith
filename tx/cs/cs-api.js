@@ -436,6 +436,17 @@ class CodeSystemProvider {
   async locate(code) { throw new Error("Must override"); }
 
   /**
+   * Optional bulk lookup for providers that can resolve many codes
+   * efficiently in a single operation (e.g., SQL IN(...) query).
+   * Returns null when unsupported — worker falls back to per-code locate().
+   *
+   * @param {string[]} codes - codes to look up
+   * @param {boolean} allAltCodes - whether to search alt codes
+   * @returns {Map<string, {context, message}>|null}
+   */
+  async locateMany(codes, allAltCodes = false) { return null; }
+
+  /**
    
    * @param {string} code
    * @param {string} parent
@@ -610,6 +621,19 @@ class CodeSystemProvider {
    @returns {string | boolean } an error explaining why it isn't in the set, or true if it is
    */
    async filterCheck(filterContext, set, concept) {throw new Error("Must override"); }
+
+  /**
+   * Optional batched filter iteration. Returns up to `count` contexts
+   * from the filter set in a single call. Returns null or empty array
+   * when unsupported or exhausted — worker falls back to
+   * filterMore()/filterConcept() loop.
+   *
+   * @param {FilterExecutionContext} filterContext
+   * @param {FilterConceptSet} set
+   * @param {number} count - max contexts to return
+   * @returns {CodeSystemProviderContext[]|null}
+   */
+  async filterPage(filterContext, set, count) { return null; }
 
   /**
    * filterFinish - opportunity for the provider to close up and recover resources etc
