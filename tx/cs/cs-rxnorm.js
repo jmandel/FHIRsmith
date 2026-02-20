@@ -12,6 +12,7 @@ class RxNormConcept {
     this.display = display;
     this.others = []; // Array of alternative displays (SY terms, etc.)
     this.archived = false;
+    this.suppress = false; // Eagerly loaded from locate() to avoid redundant queries
   }
 }
 
@@ -148,18 +149,11 @@ class RxNormServices extends CodeSystemProvider {
       return 'archived';
     }
 
-    // Check suppress flag
-    return new Promise((resolve, reject) => {
-      const sql = `SELECT suppress FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ? AND TTY <> 'SY'`;
-
-      this.db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row ? row.suppress === '1' ? 'suppressed' : null : null);
-        }
-      });
-    });
+    // Use cached suppress flag from locate() if available
+    if (ctxt) {
+      return ctxt.suppress ? 'suppressed' : null;
+    }
+    return null;
   }
 
   async isInactive(context) {
@@ -170,18 +164,8 @@ class RxNormServices extends CodeSystemProvider {
       return true;
     }
 
-    // Check suppress flag
-    return new Promise((resolve, reject) => {
-      const sql = `SELECT suppress FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ? AND TTY <> 'SY'`;
-
-      this.db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row ? row.suppress === '1' : false);
-        }
-      });
-    });
+    // Use cached suppress flag from locate()
+    return ctxt ? ctxt.suppress : false;
   }
 
   async isDeprecated(context) {
@@ -233,7 +217,7 @@ class RxNormServices extends CodeSystemProvider {
     if (!code) return { context: null, message: 'Empty code' };
 
     return new Promise((resolve, reject) => {
-      let sql = `SELECT STR, TTY FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
+      let sql = `SELECT STR, TTY, SUPPRESS FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
 
       this.db.all(sql, [code, this.getSAB()], (err, rows) => {
         if (err) {
@@ -266,56 +250,9 @@ class RxNormServices extends CodeSystemProvider {
     });
   }
 
-  async locateMany(codes, allAltCodes = false) {
-    if (!codes || codes.length === 0) return new Map();
-    const codeField = this.getCodeField();
-    const sab = this.getSAB();
-    const placeholders = codes.map(() => '?').join(',');
-    const params = [...codes, sab];
-
-    const rows = await new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT ${codeField} AS code, STR, TTY FROM rxnconso WHERE ${codeField} IN (${placeholders}) AND SAB = ?`,
-        params, (err, r) => err ? reject(err) : resolve(r)
-      );
-    });
-
-    // Group rows by code
-    const byCode = new Map();
-    for (const row of rows) {
-      if (!byCode.has(row.code)) byCode.set(row.code, []);
-      byCode.get(row.code).push(row);
-    }
-
-    // Find missing codes in archive
-    const missing = codes.filter(c => !byCode.has(c));
-    if (missing.length > 0) {
-      const mp = missing.map(() => '?').join(',');
-      const archiveRows = await new Promise((resolve, reject) => {
-        this.db.all(
-          `SELECT ${codeField} AS code, STR, TTY FROM RXNATOMARCHIVE WHERE ${codeField} IN (${mp}) AND SAB = ?`,
-          [...missing, sab], (err, r) => err ? reject(err) : resolve(r)
-        );
-      });
-      for (const row of archiveRows) {
-        if (!byCode.has(row.code)) byCode.set(row.code, []);
-        byCode.get(row.code).push({ ...row, archived: true });
-      }
-    }
-
-    const results = new Map();
-    for (const code of codes) {
-      const codeRows = byCode.get(code);
-      if (codeRows && codeRows.length > 0) {
-        const archived = !!codeRows[0].archived;
-        const concept = this.#createConceptFromRows(code, codeRows, archived);
-        results.set(code, { context: concept, message: null });
-      } else {
-        results.set(code, { context: null, message: undefined });
-      }
-    }
-    return results;
-  }
+  // locateMany intentionally not overridden: SQLite's prepared-statement
+  // index lookups are faster than a single IN(...) query with many codes.
+  // The base class fallback (N individual locate() calls) wins here.
 
   #createConceptFromRows(code, rows, archived) {
     const concept = new RxNormConcept(code);
@@ -326,6 +263,10 @@ class RxNormServices extends CodeSystemProvider {
         concept.others.push(row.STR.trim());
       } else {
         concept.display = row.STR.trim();
+      }
+      // Cache suppress flag from locate() query to avoid redundant SQL
+      if (row.SUPPRESS !== undefined) {
+        concept.suppress = row.SUPPRESS === '1';
       }
     }
 
@@ -538,7 +479,7 @@ class RxNormServices extends CodeSystemProvider {
       }
     }
 
-    const fullQuery = `SELECT ${this.getCodeField()}, STR ${sql2} WHERE SAB = $sab AND TTY <> 'SY' ${sql1}`;
+    const fullQuery = `SELECT ${this.getCodeField()}, STR, SUPPRESS ${sql2} WHERE SAB = $sab AND TTY <> 'SY' ${sql1}`;
     allParams.sab = this.getSAB();
 
     // Create a single filter holder with the combined query
