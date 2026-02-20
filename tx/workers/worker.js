@@ -43,6 +43,7 @@ class TerminologyWorker {
     this.noCacheThisOne = false;
     this.params = null; // Will be set by subclasses
     this.renderer = new Renderer(i18n, languages, provider);
+    this._providerCache = new Map();
   }
 
   /**
@@ -144,6 +145,15 @@ class TerminologyWorker {
     if (!noVParams) {
       version = this.determineVersionBase(url, version, params);
     }
+
+    // Memoize by resolved url|version|supplements within a single request
+    const suppKey = statedSupplements ? [...statedSupplements].sort().join(',') : '';
+    const kindsKey = Array.isArray(kinds) ? kinds.join(',') : String(kinds);
+    const cacheKey = `${url}|${version}|${kindsKey}|${suppKey}`;
+    if (this._providerCache.has(cacheKey)) {
+      return this._providerCache.get(cacheKey);
+    }
+
     let codeSystemResource = null;
     let provider = null;
     const supplements = this.loadSupplements(url, version, statedSupplements);
