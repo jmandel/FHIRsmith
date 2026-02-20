@@ -769,7 +769,7 @@ class ValueSetExpander {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
                 await this.listDisplaysFromProvider(cds, cs, c);
                 await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.deprecated(c), await cs.getCodeStatus(c),
-                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, await cs.getProperties(c), null, excludeInactive, vsSrc.url);
+                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, this.params.properties.length ? await cs.getProperties(c) : null, null, excludeInactive, vsSrc.url);
               }
             }
             this.worker.opContext.log('iterate filters done');
@@ -798,7 +798,7 @@ class ValueSetExpander {
                   ov = await cs.itemWeight(cctxt.context);
                 }
                 let added = await this.includeCode(cs, null, cs.system(), cs.version(), cc.code, await cs.isAbstract(cctxt.context), await cs.isInactive(cctxt.context), await cs.isDeprecated(cctxt.context), await cs.getStatus(cctxt.context), cds,
-                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await cs.properties(cctxt.context), null, excludeInactive, vsSrc.url);
+                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, this.params.properties.length ? await cs.properties(cctxt.context) : null, null, excludeInactive, vsSrc.url);
                 if (added) {
                   this.addToTotal();
                 }
@@ -855,7 +855,7 @@ class ValueSetExpander {
                 }
                 let added = await this.includeCode(cs, parent, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
                   await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
-                  expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+                  expansion, null, await cs.extensions(c), null, this.params.properties.length ? await cs.properties(c) : null, null, excludeInactive, vsSrc.url);
                 if (added) {
                   this.addToTotal();
                 }
@@ -1088,7 +1088,7 @@ class ValueSetExpander {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       await this.listDisplaysFromProvider(cds, cs, context);
       const t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
-        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl);
+        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, this.params.properties.length ? await cs.properties(context) : null, null, excludeInactive, srcUrl);
       if (t != null) {
         result++;
       }
