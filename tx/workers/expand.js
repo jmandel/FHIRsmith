@@ -754,9 +754,8 @@ class ValueSetExpander {
             const ctxt = await cs.searchFilter(prep, filter, false);
             let set = await cs.executeFilters(prep);
             this.worker.opContext.log('iterate filters');
-            while (await cs.filterMore(ctxt, set)) {
+            for await (const c of this.iterateFilter(cs, ctxt, set)) {
               this.worker.deadCheck('processCodes#4');
-              const c = await cs.filterConcept(ctxt, set);
               if (await this.passesFilters(cs, c, prep, filters, 0)) {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
                 await this.listDisplaysFromProvider(cds, cs, c);
@@ -831,9 +830,8 @@ class ValueSetExpander {
           }
 
           this.worker.opContext.log('iterate filters');
-          while (await cs.filterMore(prep, fset[0])) {
+          for await (const c of this.iterateFilter(cs, prep, fset[0])) {
             this.worker.deadCheck('processCodes#5');
-            const c = await cs.filterConcept(prep, fset[0]);
             const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
             if (ok) {
               // count++;
@@ -857,6 +855,27 @@ class ValueSetExpander {
           }
           this.worker.opContext.log('iterate filters done');
         }
+      }
+    }
+  }
+
+  /**
+   * Iterate filter results using filterPage when supported, falling back
+   * to filterMore/filterConcept one-at-a-time loop.
+   */
+  async *iterateFilter(cs, filterContext, set, pageSize = 500) {
+    const page = await cs.filterPage(filterContext, set, pageSize);
+    if (page !== null) {
+      let batch = page;
+      while (batch.length > 0) {
+        for (const c of batch) {
+          yield c;
+        }
+        batch = await cs.filterPage(filterContext, set, pageSize);
+      }
+    } else {
+      while (await cs.filterMore(filterContext, set)) {
+        yield await cs.filterConcept(filterContext, set);
       }
     }
   }
@@ -968,9 +987,8 @@ class ValueSetExpander {
           const prep = await cs.getPrepContext(true);
           const ctxt = await cs.searchFilter(prep, filter, false);
           await cs.prepare(prep);
-          while (await cs.filterMore(ctxt)) {
+          for await (const c of this.iterateFilter(cs, ctxt)) {
             this.worker.deadCheck('processCodes#4');
-            const c = await cs.filterConcept(ctxt);
             if (await this.passesFilters(cs, c, prep, filters, 0)) {
               this.excludeCode(cs, await cs.system(), await cs.version(), await cs.code(c), expansion, valueSets, vsSrc.url);
             }
@@ -1027,9 +1045,8 @@ class ValueSetExpander {
           notClosed.value = true;
         }
         //let count = 0;
-        while (await cs.filterMore(prep, fset[0])) {
+        for await (const c of this.iterateFilter(cs, prep, fset[0])) {
           this.worker.deadCheck('processCodes#5');
-          const c = await cs.filterConcept(prep, fset[0]);
           const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
           if (ok) {
             //count++;
