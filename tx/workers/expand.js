@@ -13,6 +13,7 @@ const {TxParameters} = require("../params");
 const {Designations, SearchFilterText} = require("../library/designations");
 const {Extensions} = require("../library/extensions");
 const {getValuePrimitive, getValueName} = require("../../library/utilities");
+const perfCounters = require('../perf-counters');
 const {div} = require("../../library/html");
 const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const crypto = require('crypto');
@@ -228,12 +229,13 @@ class ValueSetExpander {
   async listDisplaysFromProvider(displays, cs, context) {
     const langs = this.params.workingLanguages?.();
     if (!this.params.includeDesignations && langs && cs.hasAnyDisplays(langs)) {
-      // Fast path: only need the preferred display, skip full designation loading
+      perfCounters.bump('display.fastPath');
       const d = await cs.display(context);
       if (d) {
         displays.addDesignation(true, 'active', null, null, d);
       }
     } else {
+      perfCounters.bump('display.fullPath');
       await cs.designations(context, displays);
     }
     displays.source = cs;
@@ -769,7 +771,7 @@ class ValueSetExpander {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
                 await this.listDisplaysFromProvider(cds, cs, c);
                 await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.deprecated(c), await cs.getCodeStatus(c),
-                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, this.params.properties.length ? await cs.getProperties(c) : null, null, excludeInactive, vsSrc.url);
+                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, await this._getPropsIfRequested(cs, c), null, excludeInactive, vsSrc.url);
               }
             }
             this.worker.opContext.log('iterate filters done');
@@ -782,13 +784,22 @@ class ValueSetExpander {
 
           // Prefetch all codes via locateMany if supported
           const codes = cset.concept.map(cc => cc.code);
+          const _t = perfCounters.begin('locateMany');
           const bulkResults = await cs.locateMany(codes, this.allAltCodes);
+          perfCounters.end(_t);
 
           for (const cc of cset.concept) {
             this.worker.deadCheck('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-            const cctxt = bulkResults ? (bulkResults.get(cc.code) || null) : await cs.locate(cc.code, this.allAltCodes);
+            let cctxt;
+            if (bulkResults) {
+              perfCounters.bump('locate.batched');
+              cctxt = bulkResults.get(cc.code) || null;
+            } else {
+              perfCounters.bump('locate.perCode');
+              cctxt = await cs.locate(cc.code, this.allAltCodes);
+            }
             if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
               await this.listDisplaysFromProvider(cds, cs, cctxt.context);
               this.listDisplaysFromIncludeConcept(cds, cc, vsSrc);
@@ -798,7 +809,7 @@ class ValueSetExpander {
                   ov = await cs.itemWeight(cctxt.context);
                 }
                 let added = await this.includeCode(cs, null, cs.system(), cs.version(), cc.code, await cs.isAbstract(cctxt.context), await cs.isInactive(cctxt.context), await cs.isDeprecated(cctxt.context), await cs.getStatus(cctxt.context), cds,
-                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, this.params.properties.length ? await cs.properties(cctxt.context) : null, null, excludeInactive, vsSrc.url);
+                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await this._propsIfRequested(cs, cctxt.context), null, excludeInactive, vsSrc.url);
                 if (added) {
                   this.addToTotal();
                 }
@@ -855,7 +866,7 @@ class ValueSetExpander {
                 }
                 let added = await this.includeCode(cs, parent, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
                   await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
-                  expansion, null, await cs.extensions(c), null, this.params.properties.length ? await cs.properties(c) : null, null, excludeInactive, vsSrc.url);
+                  expansion, null, await cs.extensions(c), null, await this._propsIfRequested(cs, c), null, excludeInactive, vsSrc.url);
                 if (added) {
                   this.addToTotal();
                 }
@@ -875,14 +886,18 @@ class ValueSetExpander {
   async *iterateFilter(cs, filterContext, set, pageSize = 500) {
     const page = await cs.filterPage(filterContext, set, pageSize);
     if (page !== null) {
+      perfCounters.bump('filter.paged');
       let batch = page;
       while (batch.length > 0) {
+        const _tf = perfCounters.begin('filterPage');
         for (const c of batch) {
           yield c;
         }
         batch = await cs.filterPage(filterContext, set, pageSize);
+        perfCounters.end(_tf);
       }
     } else {
+      perfCounters.bump('filter.oneAtATime');
       while (await cs.filterMore(filterContext, set)) {
         yield await cs.filterConcept(filterContext, set);
       }
@@ -910,6 +925,24 @@ class ValueSetExpander {
       // }
     }
     return true;
+  }
+
+  async _propsIfRequested(cs, context) {
+    if (this.params.properties.length) {
+      perfCounters.bump('props.loaded');
+      return await cs.properties(context);
+    }
+    perfCounters.bump('props.skipped');
+    return null;
+  }
+
+  async _getPropsIfRequested(cs, context) {
+    if (this.params.properties.length) {
+      perfCounters.bump('props.loaded');
+      return await cs.getProperties(context);
+    }
+    perfCounters.bump('props.skipped');
+    return null;
   }
 
   async excludeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed) {
@@ -1011,13 +1044,22 @@ class ValueSetExpander {
 
         // Prefetch all codes via locateMany if supported
         const codes = cset.concept.map(cc => cc.code);
+        const _t2 = perfCounters.begin('locateMany');
         const bulkResults = await cs.locateMany(codes, this.allAltCodes);
+        perfCounters.end(_t2);
 
         for (const cc of cset.concept) {
           this.worker.deadCheck('processCodes#3');
           cds.clear();
           Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-          const cctxt = bulkResults ? (bulkResults.get(cc.code) || null) : await cs.locate(cc.code, this.allAltCodes);
+          let cctxt;
+          if (bulkResults) {
+            perfCounters.bump('locate.batched');
+            cctxt = bulkResults.get(cc.code) || null;
+          } else {
+            perfCounters.bump('locate.perCode');
+            cctxt = await cs.locate(cc.code, this.allAltCodes);
+          }
           if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt)) && await this.passesFilters(cs, cctxt, prep, filters, 0)) {
             if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
               let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');
@@ -1088,7 +1130,7 @@ class ValueSetExpander {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       await this.listDisplaysFromProvider(cds, cs, context);
       const t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
-        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, this.params.properties.length ? await cs.properties(context) : null, null, excludeInactive, srcUrl);
+        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await this._propsIfRequested(cs, context), null, excludeInactive, srcUrl);
       if (t != null) {
         result++;
       }

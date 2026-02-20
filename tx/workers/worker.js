@@ -7,6 +7,7 @@ const {Issue} = require("../library/operation-outcome");
 const {Languages} = require("../../library/languages");
 const {ConceptMap} = require("../library/conceptmap");
 const {Renderer} = require("../library/renderer");
+const perfCounters = require('../perf-counters');
 
 /**
  * Custom error for terminology setup issues
@@ -151,8 +152,10 @@ class TerminologyWorker {
     const kindsKey = Array.isArray(kinds) ? kinds.join(',') : String(kinds);
     const cacheKey = `${url}|${version}|${kindsKey}|${suppKey}`;
     if (this._providerCache.has(cacheKey)) {
+      perfCounters.bump('cache.hit');
       return this._providerCache.get(cacheKey);
     }
+    perfCounters.bump('cache.miss');
 
     let codeSystemResource = null;
     let provider = null;
