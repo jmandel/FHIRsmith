@@ -569,6 +569,15 @@ class LoincServices extends BaseCSServices {
     return { context: null, message: undefined };
   }
 
+  async locateMany(codes, allAltCodes = false) {
+    const results = new Map();
+    for (const code of codes) {
+      const context = this.codes.get(code);
+      results.set(code, context ? { context, message: null } : { context: null, message: undefined });
+    }
+    return results;
+  }
+
   // Iterator methods
   async iterator(context) {
 

@@ -659,6 +659,14 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  async locateMany(codes, allAltCodes = false) {
+    const results = new Map();
+    for (const code of codes) {
+      results.set(code, await this.locate(code));
+    }
+    return results;
+  }
+
   async incompleteValidationMessage(context) {
 
     const ctxt = await this.#ensureContext(context);

@@ -266,6 +266,57 @@ class RxNormServices extends CodeSystemProvider {
     });
   }
 
+  async locateMany(codes, allAltCodes = false) {
+    if (!codes || codes.length === 0) return new Map();
+    const codeField = this.getCodeField();
+    const sab = this.getSAB();
+    const placeholders = codes.map(() => '?').join(',');
+    const params = [...codes, sab];
+
+    const rows = await new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT ${codeField} AS code, STR, TTY FROM rxnconso WHERE ${codeField} IN (${placeholders}) AND SAB = ?`,
+        params, (err, r) => err ? reject(err) : resolve(r)
+      );
+    });
+
+    // Group rows by code
+    const byCode = new Map();
+    for (const row of rows) {
+      if (!byCode.has(row.code)) byCode.set(row.code, []);
+      byCode.get(row.code).push(row);
+    }
+
+    // Find missing codes in archive
+    const missing = codes.filter(c => !byCode.has(c));
+    if (missing.length > 0) {
+      const mp = missing.map(() => '?').join(',');
+      const archiveRows = await new Promise((resolve, reject) => {
+        this.db.all(
+          `SELECT ${codeField} AS code, STR, TTY FROM RXNATOMARCHIVE WHERE ${codeField} IN (${mp}) AND SAB = ?`,
+          [...missing, sab], (err, r) => err ? reject(err) : resolve(r)
+        );
+      });
+      for (const row of archiveRows) {
+        if (!byCode.has(row.code)) byCode.set(row.code, []);
+        byCode.get(row.code).push({ ...row, archived: true });
+      }
+    }
+
+    const results = new Map();
+    for (const code of codes) {
+      const codeRows = byCode.get(code);
+      if (codeRows && codeRows.length > 0) {
+        const archived = !!codeRows[0].archived;
+        const concept = this.#createConceptFromRows(code, codeRows, archived);
+        results.set(code, { context: concept, message: null });
+      } else {
+        results.set(code, { context: null, message: undefined });
+      }
+    }
+    return results;
+  }
+
   #createConceptFromRows(code, rows, archived) {
     const concept = new RxNormConcept(code);
     concept.archived = archived;
