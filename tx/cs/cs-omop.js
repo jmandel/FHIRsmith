@@ -131,6 +131,7 @@ class OMOPServices extends CodeSystemProvider {
     super(opContext, supplements);
     this.db = db;
     this._version = sharedData._version;
+    this.codes = sharedData.codes;
   }
 
   close() {
@@ -493,36 +494,9 @@ class OMOPServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    return new Promise((resolve, reject) => {
-      const sql = `
-          SELECT concept_id, concept_name, standard_concept,
-                 Domains.domain_id, ConceptClasses.concept_class_id,
-                 Vocabularies.vocabulary_id
-          FROM Concepts, Domains, ConceptClasses, Vocabularies
-          WHERE Concepts.domain_id = Domains.domain_concept_id
-            AND ConceptClasses.concept_class_concept_id = Concepts.concept_class_id
-            AND Concepts.vocabulary_id = Vocabularies.vocabulary_concept_id
-            AND concept_id = ?
-      `;
-
-      this.db.get(sql, [code], (err, row) => {
-        if (err) {
-          reject(err);
-        } else if (row && row.concept_id.toString() === code) {
-          const concept = new OMOPConcept(
-            code,
-            row.concept_name,
-            row.domain_id,
-            row.concept_class_id,
-            row.standard_concept || 'NS',
-            row.vocabulary_id
-          );
-          resolve({ context: concept, message: null });
-        } else {
-          resolve({ context: null, message: undefined });
-        }
-      });
-    });
+    const cached = this.codes.get(code);
+    if (cached) return { context: cached, message: null };
+    return { context: null, message: undefined };
   }
 
   // Iterator methods - not supported for OMOP due to size
@@ -857,11 +831,15 @@ class OMOPServicesFactory extends CodeSystemFactoryProvider {
 
     try {
       this._sharedData = {
-        _version: 'unknown'
+        _version: 'unknown',
+        codes: new Map()
       };
 
       // Load version from OMOP Extension vocabulary
       await this.#loadVersion(db);
+
+      // Preload all codes into memory
+      await this.#loadCodes(db);
 
     } finally {
       db.close();
@@ -891,6 +869,36 @@ class OMOPServicesFactory extends CodeSystemFactoryProvider {
           this._sharedData._version = 'unknown';
           resolve();
         }
+      });
+    });
+  }
+
+  async #loadCodes(db) {
+    const codes = this._sharedData.codes;
+    return new Promise((resolve, reject) => {
+      const sql = `
+          SELECT concept_id, concept_name, standard_concept,
+                 Domains.domain_id, ConceptClasses.concept_class_id,
+                 Vocabularies.vocabulary_id
+          FROM Concepts, Domains, ConceptClasses, Vocabularies
+          WHERE Concepts.domain_id = Domains.domain_concept_id
+            AND ConceptClasses.concept_class_concept_id = Concepts.concept_class_id
+            AND Concepts.vocabulary_id = Vocabularies.vocabulary_concept_id
+      `;
+      db.all(sql, (err, rows) => {
+        if (err) return reject(err);
+        for (const row of rows) {
+          const code = String(row.concept_id);
+          codes.set(code, new OMOPConcept(
+            code,
+            row.concept_name,
+            row.domain_id,
+            row.concept_class_id,
+            row.standard_concept || 'NS',
+            row.vocabulary_id
+          ));
+        }
+        resolve();
       });
     });
   }

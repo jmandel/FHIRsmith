@@ -12,10 +12,11 @@ class UniiConcept {
 }
 
 class UniiServices extends CodeSystemProvider {
-  constructor(opContext, supplements, db, version) {
+  constructor(opContext, supplements, db, version, codes) {
     super(opContext, supplements);
     this.db = db;
     this._version = version;
+    this.codes = codes;
   }
 
   // Clean up database connection when provider is destroyed
@@ -164,36 +165,9 @@ class UniiServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    return new Promise((resolve, reject) => {
-      // First query: get main concept
-      this.db.get('SELECT UniiKey, Display FROM Unii WHERE Code = ?', [code], (err, row) => {
-        if (err) {
-          return reject(err);
-        }
-
-        if (!row) {
-          return resolve({ context: null, message: `UNII Code '${code}' not found` });
-        }
-
-        const concept = new UniiConcept(code, row.Display);
-        const uniiKey = row.UniiKey;
-
-        // Second query: get all descriptions
-        this.db.all('SELECT Display FROM UniiDesc WHERE UniiKey = ?', [uniiKey], (err, rows) => {
-          if (err) return reject(err);
-
-          // Add unique descriptions to others array
-          rows.forEach(descRow => {
-            const desc = descRow.Display;
-            if (desc && desc.trim() && !concept.others.includes(desc.trim())) {
-              concept.others.push(desc.trim());
-            }
-          });
-
-          resolve({ context: concept, message: undefined });
-        });
-      });
-    });
+    const cached = this.codes.get(code);
+    if (cached) return { context: cached, message: undefined };
+    return { context: null, message: `UNII Code '${code}' not found` };
   }
 
   versionAlgorithm() {
@@ -207,21 +181,48 @@ class UniiServicesFactory extends CodeSystemFactoryProvider {
     this.dbPath = dbPath;
     this.uses = 0;
     this._version = null;
+    this._codes = null;
   }
 
   async load() {
     let db = new sqlite3.Database(this.dbPath);
 
-    return new Promise((resolve, reject) => {
-      db.get('SELECT Version FROM UniiVersion', (err, row) => {
-        if (err) {
-          reject(new Error(err));
-        } else {
-          this._version = row ? row.Version : 'unknown';
-          resolve(); // This resolves the Promise
-        }
+    try {
+      this._version = await new Promise((resolve, reject) => {
+        db.get('SELECT Version FROM UniiVersion', (err, row) => {
+          if (err) {
+            reject(new Error(err));
+          } else {
+            resolve(row ? row.Version : 'unknown');
+          }
+        });
       });
-    });
+
+      // Preload all codes into memory
+      this._codes = new Map();
+      await new Promise((resolve, reject) => {
+        const sql = `
+          SELECT u.Code, u.Display, d.Display as DescDisplay
+          FROM Unii u
+          LEFT JOIN UniiDesc d ON u.UniiKey = d.UniiKey
+        `;
+        db.all(sql, (err, rows) => {
+          if (err) return reject(err);
+          for (const row of rows) {
+            if (!this._codes.has(row.Code)) {
+              this._codes.set(row.Code, new UniiConcept(row.Code, row.Display));
+            }
+            const concept = this._codes.get(row.Code);
+            if (row.DescDisplay && row.DescDisplay.trim() && !concept.others.includes(row.DescDisplay.trim())) {
+              concept.others.push(row.DescDisplay.trim());
+            }
+          }
+          resolve();
+        });
+      });
+    } finally {
+      db.close();
+    }
   }
 
   defaultVersion() {
@@ -239,7 +240,7 @@ class UniiServicesFactory extends CodeSystemFactoryProvider {
   build(opContext, supplements) {
     this.uses++;
 
-    return new UniiServices(opContext, supplements, new sqlite3.Database(this.dbPath), this._version);
+    return new UniiServices(opContext, supplements, new sqlite3.Database(this.dbPath), this._version, this._codes);
   }
 
   // eslint-disable-next-line no-unused-vars

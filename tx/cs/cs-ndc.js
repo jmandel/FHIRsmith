@@ -20,13 +20,14 @@ class NdcConcept {
 }
 
 class NdcServices extends CodeSystemProvider {
-  constructor(opContext, supplements, db, lookupTables, packageCount, productCount, version) {
+  constructor(opContext, supplements, db, lookupTables, packageCount, productCount, version, codes) {
     super(opContext, supplements);
     this.db = db;
     this._version = version;
     this._lookupTables = lookupTables;
     this._packageCount = packageCount;
     this._productCount = productCount;
+    this.codes = codes;
   }
 
   // Clean up database connection when provider is destroyed
@@ -325,18 +326,8 @@ class NdcServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    // First try packages (both regular code and code11)
-    const packageResult = await this.#locateInPackages(code);
-    if (packageResult) {
-      return { context: packageResult, message: null };
-    }
-
-    // Then try products
-    const productResult = await this.#locateInProducts(code);
-    if (productResult) {
-      return { context: productResult, message: null };
-    }
-
+    const cached = this.codes.get(code);
+    if (cached) return { context: cached, message: null };
     return { context: null, message: undefined };
   }
 
@@ -574,6 +565,7 @@ class NdcServicesFactory extends CodeSystemFactoryProvider {
     this._packageCount = null;
     this._productCount = null;
     this._version = null;
+    this._codes = null;
   }
 
   system() {
@@ -652,10 +644,84 @@ class NdcServicesFactory extends CodeSystemFactoryProvider {
         });
       });
 
+      // Preload all codes into memory
+      this._codes = new Map();
+      await this.#loadCodes(tempDb);
+
     } finally {
       tempDb.close();
     }
     this._loaded = true;
+  }
+
+  async #loadCodes(db) {
+    const codes = this._codes;
+
+    // Load packages (keyed by both Code and Code11)
+    await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT pkg.NDCKey, pkg.Code, pkg.Code11, p.TradeName, p.Suffix, pkg.Description,
+               p.Code as ProductCode, pkg.Active
+        FROM NDCPackages pkg
+        JOIN NDCProducts p ON pkg.ProductKey = p.NDCKey
+      `;
+      db.all(sql, (err, rows) => {
+        if (err) return reject(err);
+        for (const row of rows) {
+          const display = NdcServicesFactory.#formatPackageDisplay(row);
+          for (const code of [row.Code, row.Code11]) {
+            if (code && !codes.has(code)) {
+              const concept = new NdcConcept(code, display, true, row.NDCKey);
+              concept.productCode = row.ProductCode;
+              concept.code11 = row.Code11;
+              concept.active = row.Active === 1;
+              codes.set(code, concept);
+            }
+          }
+        }
+        resolve();
+      });
+    });
+
+    // Load products (only for codes not already in packages)
+    await new Promise((resolve, reject) => {
+      db.all('SELECT NDCKey, Code, TradeName, Suffix, Active FROM NDCProducts', (err, rows) => {
+        if (err) return reject(err);
+        for (const row of rows) {
+          if (!codes.has(row.Code)) {
+            const display = NdcServicesFactory.#formatProductDisplay(row);
+            const concept = new NdcConcept(row.Code, display, false, row.NDCKey);
+            concept.active = row.Active === 1;
+            codes.set(row.Code, concept);
+          }
+        }
+        resolve();
+      });
+    });
+  }
+
+  static #formatProductDisplay(row) {
+    const tradeName = row.TradeName || '';
+    const suffix = row.Suffix || '';
+    if (suffix) {
+      return `${tradeName} ${suffix} (product)`.trim();
+    }
+    return `${tradeName} (product)`.trim();
+  }
+
+  static #formatPackageDisplay(row) {
+    const tradeName = row.TradeName || '';
+    const suffix = row.Suffix || '';
+    const description = row.Description || '';
+    let display = tradeName;
+    if (suffix) {
+      display += ` ${suffix}`;
+    }
+    if (description) {
+      display += `, ${description}`;
+    }
+    display += ' (package)';
+    return display.replace(/\s+/g, ' ').trim();
   }
 
   defaultVersion() {
@@ -675,7 +741,8 @@ class NdcServicesFactory extends CodeSystemFactoryProvider {
       this._lookupTables,
       this._packageCount,
       this._productCount,
-      this._version
+      this._version,
+      this._codes
     );
   }
 

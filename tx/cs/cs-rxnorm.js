@@ -64,6 +64,7 @@ class RxNormServices extends CodeSystemProvider {
     this.rels = sharedData.rels;
     this.reltypes = sharedData.reltypes;
     this.totalCodeCount = sharedData.totalCodeCount;
+    this.codes = sharedData.codes;
   }
 
   close() {
@@ -210,38 +211,9 @@ class RxNormServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    return new Promise((resolve, reject) => {
-      let sql = `SELECT STR, TTY FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
-
-      this.db.all(sql, [code, this.getSAB()], (err, rows) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        if (rows.length === 0) {
-          // Try archive
-          sql = `SELECT STR, TTY FROM RXNATOMARCHIVE WHERE ${this.getCodeField()} = ? AND SAB = ?`;
-          this.db.all(sql, [code, this.getSAB()], (err, archiveRows) => {
-            if (err) {
-              reject(err);
-              return;
-            }
-
-            if (archiveRows.length === 0) {
-              resolve({ context: null, message: undefined});
-              return;
-            }
-
-            const concept = this.#createConceptFromRows(code, archiveRows, true);
-            resolve({ context: concept, message: null });
-          });
-        } else {
-          const concept = this.#createConceptFromRows(code, rows, false);
-          resolve({ context: concept, message: null });
-        }
-      });
-    });
+    const cached = this.codes.get(code);
+    if (cached) return { context: cached, message: null };
+    return { context: null, message: undefined };
   }
 
   #createConceptFromRows(code, rows, archived) {
@@ -691,7 +663,8 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
         version: '',
         rels: [],
         reltypes: [],
-        totalCodeCount: 0
+        totalCodeCount: 0,
+        codes: new Map()
       };
 
       // Load version
@@ -705,7 +678,11 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
 
       // Get total count
       const sab = this.isNCI ? 'NCI' : 'RXNORM';
-      this._sharedData.totalCodeCount = await this.#getCount(db, `SELECT COUNT(RXCUI) FROM rxnconso WHERE SAB = ? AND TTY <> 'SY'`, [sab]);
+      const codeField = this.isNCI ? 'SCUI' : 'RXCUI';
+      this._sharedData.totalCodeCount = await this.#getCount(db, `SELECT COUNT(${codeField}) FROM rxnconso WHERE SAB = ? AND TTY <> 'SY'`, [sab]);
+
+      // Preload all codes into memory
+      await this.#loadCodes(db, codeField, sab);
 
     } finally {
       db.close();
@@ -758,6 +735,55 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
         } else {
           resolve(row ? Object.values(row)[0] : 0);
         }
+      });
+    });
+  }
+
+  async #loadCodes(db, codeField, sab) {
+    const codes = this._sharedData.codes;
+
+    // Load active codes from rxnconso
+    await new Promise((resolve, reject) => {
+      db.all(`SELECT ${codeField}, STR, TTY FROM rxnconso WHERE SAB = ?`, [sab], (err, rows) => {
+        if (err) return reject(err);
+        for (const row of rows) {
+          const code = String(row[codeField]);
+          if (!codes.has(code)) {
+            const concept = new RxNormConcept(code);
+            codes.set(code, concept);
+          }
+          const concept = codes.get(code);
+          if (row.TTY === 'SY' || concept.display) {
+            concept.others.push(row.STR.trim());
+          } else {
+            concept.display = row.STR.trim();
+          }
+        }
+        resolve();
+      });
+    });
+
+    // Load archived codes from RXNATOMARCHIVE (only for codes not already in rxnconso)
+    await new Promise((resolve, reject) => {
+      db.all(`SELECT ${codeField}, STR, TTY FROM RXNATOMARCHIVE WHERE SAB = ?`, [sab], (err, rows) => {
+        if (err) return reject(err);
+        for (const row of rows) {
+          const code = String(row[codeField]);
+          if (!codes.has(code)) {
+            const concept = new RxNormConcept(code);
+            concept.archived = true;
+            codes.set(code, concept);
+          }
+          const concept = codes.get(code);
+          if (concept.archived) {
+            if (row.TTY === 'SY' || concept.display) {
+              concept.others.push(row.STR.trim());
+            } else {
+              concept.display = row.STR.trim();
+            }
+          }
+        }
+        resolve();
       });
     });
   }
