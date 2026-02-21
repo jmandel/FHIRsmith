@@ -22,7 +22,7 @@ const path = require('path');
 const PORT = 3000;
 const BASE_URL = `http://localhost:${PORT}/r4`;
 const SERVER_START_TIMEOUT = 300000;
-const LIBRARY_CONFIG = 'tx/tx.rxnorm-loinc.yml';
+const LIBRARY_CONFIG = process.env.TEST_LIBRARY_CONFIG || 'tx/tx.rxnorm-loinc.yml';
 
 const RXSYS = 'http://www.nlm.nih.gov/research/umls/rxnorm';
 const LNSYS = 'http://loinc.org';

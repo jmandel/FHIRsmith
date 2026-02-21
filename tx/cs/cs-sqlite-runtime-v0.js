@@ -193,11 +193,15 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     if (!propDef) return null;
 
     if (propDef.value_kind === 'concept') {
-      if (op === '=') {
+      if (op === '=' || op === 'in') {
+        const values = op === 'in' ? splitFilterValueList(value) : [value];
         params[`${paramPrefix}_prop`] = propDef.property_id;
-        params[`${paramPrefix}_val_code`] = value;
         params[`${paramPrefix}_val_cs`] = csId;
         params[`${paramPrefix}_eset`] = this.meta.hierarchyEdgeSetId || 1;
+        const placeholders = values.map((v, j) => {
+          params[`${paramPrefix}_vc${j}`] = v;
+          return `@${paramPrefix}_vc${j}`;
+        }).join(',');
         return {
           sql: '',
           params,
@@ -206,23 +210,28 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
             + ` AND lnk_${paramPrefix}.property_id = @${paramPrefix}_prop`
             + ` AND lnk_${paramPrefix}.edge_set_id = @${paramPrefix}_eset`
             + ` AND lnk_${paramPrefix}.active = 1`
-            + ` AND lnk_${paramPrefix}.target_concept_id = (SELECT concept_id FROM concept WHERE code = @${paramPrefix}_val_code AND cs_id = @${paramPrefix}_val_cs)`,
+            + ` AND lnk_${paramPrefix}.target_concept_id IN (SELECT concept_id FROM concept WHERE code IN (${placeholders}) AND cs_id = @${paramPrefix}_val_cs)`,
         };
       }
       return null;
     }
 
     if (propDef.value_kind === 'string' || propDef.value_kind === 'literal') {
-      if (op === '=') {
+      if (op === '=' || op === 'in') {
+        const values = op === 'in' ? splitFilterValueList(value) : [value];
         params[`${paramPrefix}_prop`] = propDef.property_id;
-        params[`${paramPrefix}_val`] = value;
+        const placeholders = values.map((v, j) => {
+          params[`${paramPrefix}_vl${j}`] = v;
+          return `@${paramPrefix}_vl${j}`;
+        }).join(',');
         return {
           sql: '',
           params,
           joins: ` JOIN concept_literal lit_${paramPrefix}`
             + ` ON lit_${paramPrefix}.source_concept_id = ${alias}.concept_id`
             + ` AND lit_${paramPrefix}.property_id = @${paramPrefix}_prop`
-            + ` AND lit_${paramPrefix}.value = @${paramPrefix}_val`,
+            + ` AND lit_${paramPrefix}.active = 1`
+            + ` AND lit_${paramPrefix}.value_text IN (${placeholders})`,
         };
       }
       return null;
@@ -291,16 +300,15 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
     if (unionParts.length === 0) return null;
 
-    // Build exclude clause
+    // Build exclude clause — use NOT EXISTS to avoid NOT IN hang on large subqueries
     let excludeSql = '';
     for (let i = 0; i < spec.excludes.length; i++) {
       const exc = spec.excludes[i];
       if (exc.concepts && exc.concepts.length > 0) {
         const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
-        excludeSql += ` AND code NOT IN (${placeholders})`;
+        excludeSql += ` AND t.code NOT IN (${placeholders})`;
       } else if (exc.filters && exc.filters.length > 0) {
-        // Build exclude subquery
         let exJoins = '';
         let exWhere = '';
         let unsupported = false;
@@ -311,23 +319,21 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           exWhere += result.sql;
           Object.assign(allParams, result.params);
         }
-        if (!unsupported) {
-          excludeSql += ` AND code NOT IN (SELECT c2.code FROM concept c2${exJoins}`
-            + ` WHERE c2.cs_id = @_csId${exWhere})`;
-        }
-        // If unsupported exclude filter, skip — worker's isExcluded handles it
+        if (unsupported) return null; // Fall back entirely for unsupported exclude filters
+        excludeSql += ` AND NOT EXISTS (SELECT 1 FROM concept c2${exJoins}`
+          + ` WHERE c2.cs_id = @_csId${exWhere} AND c2.code = t.code)`;
       }
     }
 
     // activeOnly
-    const activeSql = spec.activeOnly ? ' AND active = 1' : '';
+    const activeSql = spec.activeOnly ? ' AND t.active = 1' : '';
 
     // Wrap union in outer SELECT for dedup, filtering, and paging
     const innerSql = unionParts.join(' UNION ALL ');
 
-    let sql = `SELECT DISTINCT code, display, definition, active FROM (${innerSql})`
+    let sql = `SELECT DISTINCT t.code, t.display, t.definition, t.active FROM (${innerSql}) AS t`
       + ` WHERE 1=1${activeSql}${excludeSql}`
-      + ` ORDER BY code`;
+      + ` ORDER BY t.code`;
 
     // Paging
     if (spec.count != null && spec.count > 0) {
