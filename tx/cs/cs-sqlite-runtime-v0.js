@@ -113,6 +113,14 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.db = null;
   }
 
+  handlesExcludes() {
+    return !!this.#getSyncDb();
+  }
+
+  handlesOffset() {
+    return !!this.#getSyncDb();
+  }
+
   // --- expandForValueSet: single-query expansion for ValueSet operations ---
 
   #getSyncDb() {
@@ -937,8 +945,12 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return false;
   }
 
-  async getPrepContext(iterate) {
-    return new FilterExecutionContext(iterate);
+  async getPrepContext(iterate, offset = -1, count = -1) {
+    const ctx = new FilterExecutionContext(iterate);
+    ctx._v0Excludes = [];
+    ctx._v0Offset = offset;
+    ctx._v0Count = count;
+    return ctx;
   }
 
   async searchFilter(filterContext, filter, _sort) {
@@ -973,6 +985,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async filter(filterContext, prop, op, value) {
+    // Track raw filter params for SQL-based execution in executeFilters
+    if (!filterContext._v0IncludeFilters) filterContext._v0IncludeFilters = [];
+    filterContext._v0IncludeFilters.push({ property: prop, op, value });
+
     if (prop === 'code' && op === 'regex') {
       const re = new RegExp(`^${value}$`);
       const rows = await all(
@@ -1080,7 +1096,109 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     throw new Error(`Unsupported sqlite runtime filter operator '${op}' for concept`);
   }
 
+  /**
+   * Accumulate exclude filter groups for later SQL generation in executeFilters.
+   * Each call represents one exclude clause; all filters in the array are conjunctive.
+   * Throws if any filter is unsupported.
+   * @param {FilterExecutionContext} filterContext
+   * @param {Object[]} filters - array of {prop, op, value}
+   */
+  async filterExclude(filterContext, filters) {
+    if (!filterContext._v0Excludes) filterContext._v0Excludes = [];
+    // Validate all filters are supported before accumulating
+    const syncDb = this.#getSyncDb();
+    for (const f of filters) {
+      if (f.prop === 'code' && f.op === 'in') continue; // concept-code excludes always supported
+      const propDef = syncDb?.prepare(
+        'SELECT property_id, value_kind FROM property_def WHERE cs_id = ? AND property_code = ? LIMIT 1'
+      ).get(this.meta.csId, f.prop);
+      if (!propDef) {
+        throw new Error(`Unsupported exclude filter property '${f.prop}'`);
+      }
+      if (f.op !== '=' && f.op !== 'in') {
+        throw new Error(`Unsupported exclude filter operator '${f.op}' for property '${f.prop}'`);
+      }
+    }
+    filterContext._v0Excludes.push(filters);
+  }
+
   async executeFilters(filterContext) {
+    const hasExcludes = filterContext._v0Excludes && filterContext._v0Excludes.length > 0;
+    const hasOffset = filterContext._v0Offset > 0 || filterContext._v0Count > 0;
+    const hasIncludeFilters = filterContext._v0IncludeFilters && filterContext._v0IncludeFilters.length > 0;
+    const syncDb = this.#getSyncDb();
+
+    // When excludes or offset are present and we have sync DB + include filters,
+    // build a combined SQL query instead of using the pre-materialized filter sets
+    if (syncDb && hasIncludeFilters && (hasExcludes || hasOffset)) {
+      const csId = this.meta.csId;
+      const allParams = { _csId: csId };
+
+      // Build include filter SQL
+      let joins = '';
+      let where = '';
+      let unsupported = false;
+      for (let fi = 0; fi < filterContext._v0IncludeFilters.length; fi++) {
+        const result = this.#buildV0FilterSql(filterContext._v0IncludeFilters[fi], `_i0f${fi}`);
+        if (!result) { unsupported = true; break; }
+        joins += result.joins;
+        where += result.sql;
+        Object.assign(allParams, result.params);
+      }
+
+      if (!unsupported) {
+        const innerSql = `SELECT c.concept_id, c.code, c.display, c.definition, c.active`
+          + ` FROM concept c${joins}`
+          + ` WHERE c.cs_id = @_csId${where}`;
+
+        // Build exclude SQL
+        let excludeSql = '';
+        for (let i = 0; i < (filterContext._v0Excludes || []).length; i++) {
+          const excFilters = filterContext._v0Excludes[i];
+          // Separate concept-code excludes from property excludes
+          const codeExclude = excFilters.find(f => f.prop === 'code' && f.op === 'in');
+          const propExcludes = excFilters.filter(f => !(f.prop === 'code' && f.op === 'in'));
+
+          if (codeExclude) {
+            const codes = codeExclude.value.split(',');
+            const placeholders = codes.map((c, j) => {
+              allParams[`_ec${i}_${j}`] = c;
+              return `@_ec${i}_${j}`;
+            }).join(',');
+            excludeSql += ` AND t.code NOT IN (${placeholders})`;
+          }
+          if (propExcludes.length > 0) {
+            const mapped = propExcludes.map(f => ({ property: f.prop, op: f.op, value: f.value }));
+            const notExists = this.#buildV0ExcludeNotExists(mapped, `_e${i}`, allParams);
+            if (notExists) {
+              excludeSql += ` AND ${notExists}`;
+            }
+            // If unsupported exclude, just skip it — worker will handle via iteration
+          }
+        }
+
+        let sql = `SELECT DISTINCT t.code, t.display, t.definition, t.active FROM (${innerSql}) AS t`
+          + ` WHERE 1=1${excludeSql}`
+          + ` ORDER BY t.code`;
+
+        if (filterContext._v0Count > 0) {
+          sql += ` LIMIT ${filterContext._v0Count}`;
+        }
+        if (filterContext._v0Offset > 0) {
+          sql += ` OFFSET ${filterContext._v0Offset}`;
+        }
+
+        const stmt = syncDb.prepare(sql);
+        const codes = [];
+        for (const row of stmt.iterate(allParams)) {
+          codes.push(row.code);
+        }
+
+        const combinedSet = new SqliteRuntimeV0FilterSet('v0-combined-sql', codes, true);
+        return [combinedSet];
+      }
+    }
+
     return filterContext.filters || [];
   }
 
