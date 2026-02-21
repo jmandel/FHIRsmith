@@ -20,9 +20,13 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const PORT = 3000;
+const REF_PORT = 3001;
 const BASE_URL = `http://localhost:${PORT}/r4`;
+const REF_URL = `http://localhost:${REF_PORT}/r4`;
 const SERVER_START_TIMEOUT = 300000;
 const LIBRARY_CONFIG = process.env.TEST_LIBRARY_CONFIG || 'tx/tx.rxnorm-loinc.yml';
+const NATIVE_LIBRARY_CONFIG = 'tx/tx.rxnorm-loinc.yml';
+const HAS_REFERENCE = LIBRARY_CONFIG !== NATIVE_LIBRARY_CONFIG;
 
 const RXSYS = 'http://www.nlm.nih.gov/research/umls/rxnorm';
 const LNSYS = 'http://loinc.org';
@@ -443,20 +447,37 @@ async function main() {
 
   log(`Running ${testList.length} tests`);
   log(`Using library: ${LIBRARY_CONFIG}`);
+  if (HAS_REFERENCE) log(`Native reference: ${NATIVE_LIBRARY_CONFIG} on port ${REF_PORT}`);
 
-  let server;
+  let server, refServer;
   try {
     log(`Starting server on port ${PORT}...`);
     server = spawn('node', ['server.js'], {
       cwd: serverDir,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: 'test', TX_LIBRARY_SOURCE: LIBRARY_CONFIG },
+      env: { ...process.env, NODE_ENV: 'test', TX_LIBRARY_SOURCE: LIBRARY_CONFIG, PORT: String(PORT) },
     });
     server.stdout.on('data', () => {});
     server.stderr.on('data', () => {});
 
+    if (HAS_REFERENCE) {
+      log(`Starting native reference server on port ${REF_PORT}...`);
+      refServer = spawn('node', ['server.js'], {
+        cwd: serverDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, NODE_ENV: 'test', TX_LIBRARY_SOURCE: NATIVE_LIBRARY_CONFIG, PORT: String(REF_PORT) },
+      });
+      refServer.stdout.on('data', () => {});
+      refServer.stderr.on('data', () => {});
+    }
+
     await waitForServer(`http://localhost:${PORT}/r4/metadata`, SERVER_START_TIMEOUT);
-    log('Server ready.\n');
+    log('Server ready.');
+    if (HAS_REFERENCE) {
+      await waitForServer(`http://localhost:${REF_PORT}/r4/metadata`, SERVER_START_TIMEOUT);
+      log('Native reference server ready.');
+    }
+    log('');
 
     await httpPost(`http://localhost:${PORT}/debug/perf-counters/enable`);
 
@@ -498,54 +519,52 @@ async function main() {
         baseCodes = typeof baseRes.body === 'string' ? extractCodes(baseRes.body) : null;
       }
 
-      const cmp = baseSkipped ? { match: null, reason: 'baseline skipped (blocks event loop)' }
+      // NATIVE REFERENCE
+      let natMs = 0, natCodes = null, natStatus = null;
+      if (HAS_REFERENCE) {
+        const t2 = performance.now();
+        let natRes;
+        try { natRes = await postJson(REF_URL + '/ValueSet/$expand', body); }
+        catch (e) { natRes = { status: 'ERROR', body: e.message }; }
+        natMs = performance.now() - t2;
+        natStatus = natRes.status;
+        natCodes = typeof natRes.body === 'string' ? extractCodes(natRes.body) : null;
+      }
+
+      // Compare opt vs baseline
+      const cmpBase = baseSkipped ? { match: null, reason: 'baseline skipped' }
         : baseTimeout ? { match: null, reason: 'baseline timeout' }
         : codesEqual(optCodes, baseCodes);
-      const speedup = (baseSkipped || baseTimeout) ? Infinity : baseMs / optMs;
 
-      const matchIcon = cmp.match === true ? '✅' : cmp.match === false ? '❌' : '⏱️';
-      const baseLabel = baseSkipped ? 'SKIP' : baseTimeout ? 'TIMEOUT' : `${baseMs.toFixed(0)}ms`;
-      log(`  Opt: ${optMs.toFixed(0)}ms (${optRes.status})  Base: ${baseLabel} (${baseRes.status})  ${speedup === Infinity ? '∞' : speedup.toFixed(1) + 'x'}  ${matchIcon} ${cmp.reason} opt:${optCodes?.length ?? '?'} base:${baseCodes?.length ?? '?'}`);
+      // Compare opt vs native (primary correctness check when available)
+      const cmpNat = HAS_REFERENCE ? codesEqual(optCodes, natCodes) : null;
 
-      // Drain for set comparison if needed
-      let drainResult = null;
-      if (test.drainCount && !baseTimeout && !baseSkipped && (!cmp.match || cmp.reason === 'order differs')) {
-        log(`  Draining ${test.drainCount} codes...`);
-        const drainBody = JSON.parse(JSON.stringify(body));
-        drainBody.parameter = drainBody.parameter.filter(p => p.name !== 'count' && p.name !== 'offset');
-        drainBody.parameter.push({ name: 'count', valueInteger: test.drainCount });
+      const speedupBase = (baseSkipped || baseTimeout) ? Infinity : baseMs / optMs;
+      const speedupNat = HAS_REFERENCE ? (natMs / optMs) : null;
 
-        await httpPost(`http://localhost:${PORT}/debug/bypass-expand-for-valueset?bypass=false`);
-        const dOpt = await postJson(BASE_URL + '/ValueSet/$expand', drainBody, 30000);
-        await httpPost(`http://localhost:${PORT}/debug/bypass-expand-for-valueset?bypass=true`);
-        const dBase = await postJson(BASE_URL + '/ValueSet/$expand', drainBody, 30000);
+      const natIcon = cmpNat ? (cmpNat.match === true ? '✅' : '❌') : '';
+      const baseIcon = cmpBase.match === true ? '✅' : cmpBase.match === false ? '❌' : '⏱️';
 
-        if (dOpt.status !== 200 || dBase.status !== 200) {
-          drainResult = `HTTP error (opt:${dOpt.status} base:${dBase.status})`;
-        } else {
-          const key = c => `${c.system}|${c.code}`;
-          const optAll = (extractCodes(dOpt.body) || []).map(key);
-          const baseAll = (extractCodes(dBase.body) || []).map(key);
-          const optSet = new Set(optAll);
-          const baseSet = new Set(baseAll);
-          const onlyOpt = [...optSet].filter(c => !baseSet.has(c));
-          const onlyBase = [...baseSet].filter(c => !optSet.has(c));
-          drainResult = (onlyOpt.length === 0 && onlyBase.length === 0)
-            ? `sets equal (${optSet.size} codes)`
-            : `sets differ (opt-only: ${onlyOpt.length}, base-only: ${onlyBase.length})`;
-          if (onlyOpt.length > 0) log(`    opt-only: ${onlyOpt.slice(0,3).join(', ')}`);
-          if (onlyBase.length > 0) log(`    base-only: ${onlyBase.slice(0,3).join(', ')}`);
-        }
-        log(`  Drain: ${drainResult}`);
+      if (HAS_REFERENCE) {
+        log(`  Opt: ${optMs.toFixed(0)}ms  Native: ${natMs.toFixed(0)}ms (${natStatus}) ${natIcon} ${cmpNat.reason}  Base: ${baseSkipped ? 'SKIP' : baseTimeout ? 'TIMEOUT' : baseMs.toFixed(0) + 'ms'} ${baseIcon}`);
+      } else {
+        const baseLabel = baseSkipped ? 'SKIP' : baseTimeout ? 'TIMEOUT' : `${baseMs.toFixed(0)}ms`;
+        log(`  Opt: ${optMs.toFixed(0)}ms (${optRes.status})  Base: ${baseLabel} (${baseRes.status})  ${speedupBase === Infinity ? '∞' : speedupBase.toFixed(1) + 'x'}  ${baseIcon} ${cmpBase.reason} opt:${optCodes?.length ?? '?'} base:${baseCodes?.length ?? '?'}`);
       }
       log('');
 
       results.push({
         name: test.name, optMs: optMs.toFixed(1),
         baseMs: baseSkipped ? 'SKIP' : baseTimeout ? 'TIMEOUT' : baseMs.toFixed(1),
-        speedup: speedup === Infinity ? '∞' : speedup.toFixed(1),
-        match: cmp.match, reason: cmp.reason, drainResult, baseTimeout, baseSkipped,
-        optCount: optCodes?.length ?? '?', baseCount: baseCodes?.length ?? '?',
+        natMs: HAS_REFERENCE ? natMs.toFixed(1) : null,
+        speedupBase: speedupBase === Infinity ? '∞' : speedupBase.toFixed(1),
+        speedupNat: speedupNat != null ? speedupNat.toFixed(1) : null,
+        matchBase: cmpBase.match, reasonBase: cmpBase.reason,
+        matchNat: cmpNat?.match ?? null, reasonNat: cmpNat?.reason ?? null,
+        baseTimeout, baseSkipped,
+        optCount: optCodes?.length ?? '?',
+        baseCount: baseCodes?.length ?? '?',
+        natCount: natCodes?.length ?? '?',
       });
     }
 
@@ -553,19 +572,35 @@ async function main() {
     const lines = [];
     lines.push('=== Cross-system expandForValueSet test results ===');
     lines.push(`Date: ${new Date().toISOString()}`);
+    lines.push(`Library: ${LIBRARY_CONFIG}`);
     lines.push(`Tests: ${testList.length}`);
     lines.push('');
-    lines.push('Test                               | Opt (ms) | Base (ms) | Speedup | Codes | Result');
-    lines.push('-----------------------------------|----------|-----------|---------|-------|-------');
-    for (const r of results) {
-      const drainOk = r.drainResult && r.drainResult.startsWith('sets equal');
-      const pass = r.match === true || drainOk;
-      const icon = r.baseSkipped ? '⚠️' : r.baseTimeout ? '⏱️' : (pass ? '✅' : '❌');
-      const detail = r.baseSkipped ? `baseline skipped — blocks event loop (opt: ${r.optCount} codes)`
-        : r.baseTimeout ? `baseline timeout (opt OK: ${r.optCount} codes)`
-        : (drainOk ? `page order differs, ${r.drainResult}` : r.reason);
-      const speedCol = r.speedup === '∞' ? '     ∞ ' : `${r.speedup.padStart(6)}x`;
-      lines.push(`${r.name.padEnd(35)}| ${r.optMs.padStart(8)} | ${r.baseMs.padStart(9)} | ${speedCol} | ${String(r.optCount).padStart(5)} | ${icon} ${detail}`);
+
+    if (HAS_REFERENCE) {
+      lines.push('Test                               | Opt (ms) | Nat (ms) | Speedup | Codes | vs Native                | vs Base');
+      lines.push('-----------------------------------|----------|----------|---------|-------|--------------------------|--------');
+      for (const r of results) {
+        const natOk = r.matchNat === true;
+        const baseOk = r.matchBase === true;
+        const natIcon = natOk ? '✅' : r.matchNat === false ? '❌' : '—';
+        const baseIcon = r.baseSkipped ? '⏭️' : r.baseTimeout ? '⏱️' : (baseOk ? '✅' : '❌');
+        const natDetail = natOk ? r.reasonNat : `${r.reasonNat} (${r.optCount}/${r.natCount})`;
+        const speedCol = r.speedupNat ? `${r.speedupNat.padStart(6)}x` : '     — ';
+        lines.push(
+          `${r.name.padEnd(35)}| ${r.optMs.padStart(8)} | ${r.natMs.padStart(8)} | ${speedCol} | ${String(r.optCount).padStart(5)} | ${natIcon} ${natDetail.padEnd(23)} | ${baseIcon}`
+        );
+      }
+    } else {
+      lines.push('Test                               | Opt (ms) | Base (ms) | Speedup | Codes | Result');
+      lines.push('-----------------------------------|----------|-----------|---------|-------|-------');
+      for (const r of results) {
+        const pass = r.matchBase === true;
+        const icon = r.baseSkipped ? '⚠️' : r.baseTimeout ? '⏱️' : (pass ? '✅' : '❌');
+        const detail = r.baseSkipped ? `baseline skipped (opt: ${r.optCount} codes)`
+          : r.baseTimeout ? `baseline timeout (opt OK: ${r.optCount} codes)` : r.reasonBase;
+        const speedCol = r.speedupBase === '∞' ? '     ∞ ' : `${r.speedupBase.padStart(6)}x`;
+        lines.push(`${r.name.padEnd(35)}| ${r.optMs.padStart(8)} | ${r.baseMs.padStart(9)} | ${speedCol} | ${String(r.optCount).padStart(5)} | ${icon} ${detail}`);
+      }
     }
 
     console.log('\n' + lines.join('\n'));
@@ -577,7 +612,11 @@ async function main() {
   } finally {
     if (server) {
       server.kill('SIGTERM');
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 500));
+    }
+    if (refServer) {
+      refServer.kill('SIGTERM');
+      await new Promise(r => setTimeout(r, 500));
     }
   }
 }

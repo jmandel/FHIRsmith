@@ -240,6 +240,72 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return null; // Unsupported property type
   }
 
+  /**
+   * Build a NOT EXISTS clause for exclude filters, correlating directly on
+   * t.concept_id to avoid an extra concept table lookup per row.
+   * Returns SQL string or null if any filter is unsupported.
+   */
+  #buildV0ExcludeNotExists(filters, paramPrefix, allParams) {
+    const syncDb = this.#getSyncDb();
+    if (!syncDb) return null;
+    const csId = this.meta.csId;
+
+    // Resolve all filters and build correlated conditions
+    const conditions = [];
+    for (let fi = 0; fi < filters.length; fi++) {
+      const { property, op, value } = filters[fi];
+      const pp = `${paramPrefix}f${fi}`;
+
+      const propDef = syncDb.prepare(
+        'SELECT property_id, value_kind FROM property_def WHERE cs_id = ? AND property_code = ? LIMIT 1'
+      ).get(csId, property);
+      if (!propDef) return null;
+
+      if (propDef.value_kind === 'string' || propDef.value_kind === 'literal') {
+        if (op !== '=' && op !== 'in') return null;
+        const values = op === 'in' ? splitFilterValueList(value) : [value];
+        allParams[`${pp}_prop`] = propDef.property_id;
+        const placeholders = values.map((v, j) => {
+          allParams[`${pp}_vl${j}`] = v;
+          return `@${pp}_vl${j}`;
+        }).join(',');
+        // Direct concept_literal lookup — no concept table needed
+        conditions.push(
+          `EXISTS (SELECT 1 FROM concept_literal lit_${pp}`
+          + ` WHERE lit_${pp}.source_concept_id = t.concept_id`
+          + ` AND lit_${pp}.property_id = @${pp}_prop`
+          + ` AND lit_${pp}.active = 1`
+          + ` AND lit_${pp}.value_text IN (${placeholders}))`
+        );
+      } else if (propDef.value_kind === 'concept') {
+        if (op !== '=' && op !== 'in') return null;
+        const values = op === 'in' ? splitFilterValueList(value) : [value];
+        allParams[`${pp}_prop`] = propDef.property_id;
+        allParams[`${pp}_val_cs`] = csId;
+        allParams[`${pp}_eset`] = this.meta.hierarchyEdgeSetId || 1;
+        const placeholders = values.map((v, j) => {
+          allParams[`${pp}_vc${j}`] = v;
+          return `@${pp}_vc${j}`;
+        }).join(',');
+        // Direct concept_link lookup — no concept table for source
+        conditions.push(
+          `EXISTS (SELECT 1 FROM concept_link lnk_${pp}`
+          + ` WHERE lnk_${pp}.source_concept_id = t.concept_id`
+          + ` AND lnk_${pp}.property_id = @${pp}_prop`
+          + ` AND lnk_${pp}.edge_set_id = @${pp}_eset`
+          + ` AND lnk_${pp}.active = 1`
+          + ` AND lnk_${pp}.target_concept_id IN (SELECT concept_id FROM concept WHERE code IN (${placeholders}) AND cs_id = @${pp}_val_cs))`
+        );
+      } else {
+        return null;
+      }
+    }
+
+    if (conditions.length === 0) return null;
+    // All filter conditions must match (conjunctive) for the exclude to apply
+    return `NOT (${conditions.join(' AND ')})`;
+  }
+
   async expandForValueSet(spec) {
     if (SqliteRuntimeV0FactoryProvider.bypassExpandForValueSet) return null;
 
@@ -300,7 +366,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
     if (unionParts.length === 0) return null;
 
-    // Build exclude clause — use NOT EXISTS to avoid NOT IN hang on large subqueries
+    // Build exclude clause — use NOT EXISTS correlating on concept_id directly
+    // to avoid extra concept table lookup per row
     let excludeSql = '';
     for (let i = 0; i < spec.excludes.length; i++) {
       const exc = spec.excludes[i];
@@ -309,19 +376,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
         excludeSql += ` AND t.code NOT IN (${placeholders})`;
       } else if (exc.filters && exc.filters.length > 0) {
-        let exJoins = '';
-        let exWhere = '';
-        let unsupported = false;
-        for (let fi = 0; fi < exc.filters.length; fi++) {
-          const result = this.#buildV0FilterSql(exc.filters[fi], `_e${i}f${fi}`, 'c2');
-          if (!result) { unsupported = true; break; }
-          exJoins += result.joins;
-          exWhere += result.sql;
-          Object.assign(allParams, result.params);
-        }
-        if (unsupported) return null; // Fall back entirely for unsupported exclude filters
-        excludeSql += ` AND NOT EXISTS (SELECT 1 FROM concept c2${exJoins}`
-          + ` WHERE c2.cs_id = @_csId${exWhere} AND c2.code = t.code)`;
+        const notExists = this.#buildV0ExcludeNotExists(exc.filters, `_e${i}`, allParams);
+        if (!notExists) return null; // Fall back entirely for unsupported exclude filters
+        excludeSql += ` AND ${notExists}`;
       }
     }
 
