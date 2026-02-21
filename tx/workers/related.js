@@ -763,7 +763,6 @@ class ValueSetExpander {
 
         if (cset.concept) {
           this.worker.opContext.log('iterate concepts');
-          await cs.prepareCodes(cset.concept.map(cc => cc.code));
           const cds = new Designations(this.worker.i18n.languageDefinitions);
           let tcount = 0;
           for (const cc of cset.concept) {
@@ -970,7 +969,6 @@ class ValueSetExpander {
 
       if (cset.concept) {
         this.worker.opContext.log('iterate concepts');
-        await cs.prepareCodes(cset.concept.map(cc => cc.code));
         const cds = new Designations(this.worker.i18n.languageDefinitions);
         for (const cc of cset.concept) {
           this.worker.deadCheck('processCodes#3');

@@ -131,7 +131,6 @@ class OMOPServices extends CodeSystemProvider {
     super(opContext, supplements);
     this.db = db;
     this._version = sharedData._version;
-    this.locateCache = null;
   }
 
   close() {
@@ -489,54 +488,10 @@ class OMOPServices extends CodeSystemProvider {
   }
 
   // Lookup methods
-  async prepareCodes(codes) {
-    if (!codes || codes.length === 0) return;
-    const cache = new Map();
-    const placeholders = codes.map(() => '?').join(',');
-
-    await new Promise((resolve, reject) => {
-      const sql = `
-          SELECT concept_id, concept_name, standard_concept,
-                 Domains.domain_id, ConceptClasses.concept_class_id,
-                 Vocabularies.vocabulary_id
-          FROM Concepts, Domains, ConceptClasses, Vocabularies
-          WHERE Concepts.domain_id = Domains.domain_concept_id
-            AND ConceptClasses.concept_class_concept_id = Concepts.concept_class_id
-            AND Concepts.vocabulary_id = Vocabularies.vocabulary_concept_id
-            AND concept_id IN (${placeholders})
-      `;
-      this.db.all(sql, codes, (err, rows) => {
-        if (err) return reject(err);
-        for (const row of rows) {
-          const code = String(row.concept_id);
-          if (codes.includes(code)) {
-            cache.set(code, new OMOPConcept(
-              code,
-              row.concept_name,
-              row.domain_id,
-              row.concept_class_id,
-              row.standard_concept || 'NS',
-              row.vocabulary_id
-            ));
-          }
-        }
-        resolve();
-      });
-    });
-
-    this.locateCache = cache;
-  }
-
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
-
-    if (this.locateCache) {
-      const cached = this.locateCache.get(code);
-      if (cached) return { context: cached, message: null };
-      return { context: null, message: undefined };
-    }
 
     return new Promise((resolve, reject) => {
       const sql = `

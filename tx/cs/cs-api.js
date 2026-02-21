@@ -413,17 +413,6 @@ class CodeSystemProvider {
    */
 
   /**
-   * Hint that the given codes will be located soon, allowing the provider
-   * to batch-prefetch them (e.g. in a single SQL query) so that subsequent
-   * individual locate() calls can return from cache instead of hitting the
-   * database per-code. Providers that already use in-memory lookups can
-   * ignore this (the default is a no-op).
-   *
-   * @param {string[]} codes - the codes that will be located
-   */
-  async prepareCodes(codes) { /* no-op by default */ }
-
-  /**
    
    * @param {string } code
    * @returns {{context : CodeSystemProviderContext, message : String} the result of looking for the code

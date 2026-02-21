@@ -27,7 +27,6 @@ class NdcServices extends CodeSystemProvider {
     this._lookupTables = lookupTables;
     this._packageCount = packageCount;
     this._productCount = productCount;
-    this.locateCache = null;
   }
 
   // Clean up database connection when provider is destroyed
@@ -321,72 +320,10 @@ class NdcServices extends CodeSystemProvider {
   }
 
   // Lookup methods
-  async prepareCodes(codes) {
-    if (!codes || codes.length === 0) return;
-    const cache = new Map();
-    const placeholders = codes.map(() => '?').join(',');
-    const params = [...codes, ...codes]; // for Code = ? OR Code11 = ?
-
-    // Batch query packages
-    await new Promise((resolve, reject) => {
-      const sql = `
-        SELECT pkg.NDCKey, pkg.Code, pkg.Code11, p.TradeName, p.Suffix, pkg.Description,
-               p.Code as ProductCode, pkg.Active
-        FROM NDCPackages pkg
-        JOIN NDCProducts p ON pkg.ProductKey = p.NDCKey
-        WHERE pkg.Code IN (${placeholders}) OR pkg.Code11 IN (${placeholders})
-      `;
-      this.db.all(sql, params, (err, rows) => {
-        if (err) return reject(err);
-        for (const row of rows) {
-          // Map by both Code and Code11 since locate can be called with either
-          for (const code of [row.Code, row.Code11]) {
-            if (code && codes.includes(code) && !cache.has(code)) {
-              const concept = new NdcConcept(code, this.#packageDisplay(row), true, row.NDCKey);
-              concept.productCode = row.ProductCode;
-              concept.code11 = row.Code11;
-              concept.active = row.Active === 1;
-              cache.set(code, concept);
-            }
-          }
-        }
-        resolve();
-      });
-    });
-
-    // Batch query products for codes not found in packages
-    const missing = codes.filter(c => !cache.has(c));
-    if (missing.length > 0) {
-      const ph2 = missing.map(() => '?').join(',');
-      await new Promise((resolve, reject) => {
-        const sql = `SELECT NDCKey, Code, TradeName, Suffix, Active FROM NDCProducts WHERE Code IN (${ph2})`;
-        this.db.all(sql, missing, (err, rows) => {
-          if (err) return reject(err);
-          for (const row of rows) {
-            if (!cache.has(row.Code)) {
-              const concept = new NdcConcept(row.Code, this.#productDisplay(row), false, row.NDCKey);
-              concept.active = row.Active === 1;
-              cache.set(row.Code, concept);
-            }
-          }
-          resolve();
-        });
-      });
-    }
-
-    this.locateCache = cache;
-  }
-
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
-
-    if (this.locateCache) {
-      const cached = this.locateCache.get(code);
-      if (cached) return { context: cached, message: null };
-      return { context: null, message: undefined };
-    }
 
     // First try packages (both regular code and code11)
     const packageResult = await this.#locateInPackages(code);
