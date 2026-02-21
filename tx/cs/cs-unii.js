@@ -16,6 +16,7 @@ class UniiServices extends CodeSystemProvider {
     super(opContext, supplements);
     this.db = db;
     this._version = version;
+    this.locateCache = null;
   }
 
   // Clean up database connection when provider is destroyed
@@ -159,10 +160,47 @@ class UniiServices extends CodeSystemProvider {
   }
 
   // Lookup methods
+  async prepareCodes(codes) {
+    if (!codes || codes.length === 0) return;
+    const cache = new Map();
+    const placeholders = codes.map(() => '?').join(',');
+
+    // Batch query main concepts and descriptions in one join
+    await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT u.Code, u.Display, d.Display as DescDisplay
+        FROM Unii u
+        LEFT JOIN UniiDesc d ON u.UniiKey = d.UniiKey
+        WHERE u.Code IN (${placeholders})
+      `;
+      this.db.all(sql, codes, (err, rows) => {
+        if (err) return reject(err);
+        for (const row of rows) {
+          if (!cache.has(row.Code)) {
+            cache.set(row.Code, new UniiConcept(row.Code, row.Display));
+          }
+          const concept = cache.get(row.Code);
+          if (row.DescDisplay && row.DescDisplay.trim() && !concept.others.includes(row.DescDisplay.trim())) {
+            concept.others.push(row.DescDisplay.trim());
+          }
+        }
+        resolve();
+      });
+    });
+
+    this.locateCache = cache;
+  }
+
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
+
+    if (this.locateCache) {
+      const cached = this.locateCache.get(code);
+      if (cached) return { context: cached, message: undefined };
+      return { context: null, message: `UNII Code '${code}' not found` };
+    }
 
     return new Promise((resolve, reject) => {
       // First query: get main concept

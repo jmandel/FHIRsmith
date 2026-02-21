@@ -58,6 +58,7 @@ class RxNormServices extends CodeSystemProvider {
     super(opContext, supplements);
     this.db = db;
     this.isNCI = isNCI;
+    this.locateCache = null;
 
     // Shared data from factory
     this.dbVersion = sharedData.version;
@@ -205,10 +206,75 @@ class RxNormServices extends CodeSystemProvider {
   }
 
   // Lookup methods
+  async prepareCodes(codes) {
+    if (!codes || codes.length === 0) return;
+    const cache = new Map();
+    const placeholders = codes.map(() => '?').join(',');
+    const codeField = this.getCodeField();
+    const sab = this.getSAB();
+
+    await new Promise((resolve, reject) => {
+      const sql = `SELECT ${codeField}, STR, TTY FROM rxnconso WHERE ${codeField} IN (${placeholders}) AND SAB = ?`;
+      this.db.all(sql, [...codes, sab], (err, rows) => {
+        if (err) return reject(err);
+        for (const row of rows) {
+          const code = String(row[codeField]);
+          if (!cache.has(code)) cache.set(code, []);
+          cache.get(code).push(row);
+        }
+        resolve();
+      });
+    });
+
+    // Check archive for any codes not found in rxnconso
+    const missing = codes.filter(c => !cache.has(c));
+    if (missing.length > 0) {
+      const ph2 = missing.map(() => '?').join(',');
+      await new Promise((resolve, reject) => {
+        const sql = `SELECT ${codeField}, STR, TTY FROM RXNATOMARCHIVE WHERE ${codeField} IN (${ph2}) AND SAB = ?`;
+        this.db.all(sql, [...missing, sab], (err, rows) => {
+          if (err) return reject(err);
+          for (const row of rows) {
+            const code = String(row[codeField]);
+            if (!cache.has(code)) cache.set(code, { rows: [], archived: true });
+            const entry = cache.get(code);
+            if (entry.archived) {
+              entry.rows.push(row);
+            }
+          }
+          resolve();
+        });
+      });
+
+      // Convert archive entries to arrays tagged as archived
+      for (const [code, entry] of cache) {
+        if (entry.archived) {
+          const concept = this.#createConceptFromRows(code, entry.rows, true);
+          cache.set(code, concept);
+        }
+      }
+    }
+
+    // Convert remaining arrays to RxNormConcept objects
+    for (const [code, value] of cache) {
+      if (Array.isArray(value)) {
+        cache.set(code, this.#createConceptFromRows(code, value, false));
+      }
+    }
+
+    this.locateCache = cache;
+  }
+
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
+
+    if (this.locateCache) {
+      const cached = this.locateCache.get(code);
+      if (cached) return { context: cached, message: null };
+      return { context: null, message: undefined };
+    }
 
     return new Promise((resolve, reject) => {
       let sql = `SELECT STR, TTY FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
