@@ -169,7 +169,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should create language component filters', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       await provider.filter(prep, 'language', 'exists', 'true');
       const filters = await provider.executeFilters(prep);
       expect(filters[0]).toBeInstanceOf(IETFLanguageCodeFilter);
@@ -178,7 +178,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should reject unsupported filter operators', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       
       await expect(
         provider.filter(prep, 'language', 'equals', 'en')
@@ -186,7 +186,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should reject invalid exists values', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       
       await expect(
         provider.filter(prep, 'language', 'exists', 'maybe')
@@ -194,7 +194,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should reject unsupported properties', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       
       await expect(
         provider.filter(prep, 'invalid-prop', 'exists', 'true')
@@ -204,7 +204,7 @@ describe('IETF Language CodeSystem Provider', () => {
 
   describe('Filter location', () => {
     test('should locate code with required language component', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       await provider.filter(prep, 'language', 'exists', 'true');
       const filters = await provider.executeFilters(prep);
       const result = await provider.filterLocate(prep, filters[0], 'en-US');
@@ -213,7 +213,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should locate code with required region component', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       await provider.filter(prep, 'region', 'exists', 'true');
       const filters = await provider.executeFilters(prep);
       const filter = filters[0];
@@ -224,7 +224,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should reject code missing required component', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       await provider.filter(prep, 'region', 'exists', 'true');
       const filters = await provider.executeFilters(prep);
       const filter = filters[0];
@@ -235,7 +235,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should reject code with forbidden component', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       await provider.filter(prep, 'region', 'exists', 'false');
       const filters = await provider.executeFilters(prep);
       const filter = filters[0];
@@ -247,7 +247,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should reject invalid language codes in filter', async () => {
-      const prep = await provider.getPrepContext(false);
+      const prep = await provider.getPrepContext();
       await provider.filter(prep, 'language', 'exists', 'true');
       const filters = await provider.executeFilters(prep);
       const filter = filters[0];
@@ -263,7 +263,7 @@ describe('IETF Language CodeSystem Provider', () => {
       const filter = new IETFLanguageCodeFilter(LanguageComponent.REGION, true);
       const concept = new Language('en-US');
       
-      const result = await provider.filterCheck(await provider.getPrepContext(false), filter, concept);
+      const result = await provider.filterCheck(await provider.getPrepContext(), filter, concept);
       expect(result).toBe(true);
     });
 
@@ -271,7 +271,7 @@ describe('IETF Language CodeSystem Provider', () => {
       const filter = new IETFLanguageCodeFilter(LanguageComponent.REGION, true);
       const concept = new Language('en');
       
-      const result = await provider.filterCheck(await provider.getPrepContext(false), filter, concept);
+      const result = await provider.filterCheck(await provider.getPrepContext(), filter, concept);
       expect(result).toBe(false);
     });
 
@@ -347,7 +347,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should indicate filters are not closed', async () => {
-      expect(await provider.filtersNotClosed(await provider.getPrepContext(false))).toBe(true);
+      expect(await provider.filtersNotClosed(await provider.getPrepContext())).toBe(true);
     });
   });
 

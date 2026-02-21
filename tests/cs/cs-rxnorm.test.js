@@ -433,7 +433,7 @@ describe('RxNorm Provider', () => {
       const testCases = expectedResults.filters.TTY;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           testCase.property,
@@ -472,7 +472,7 @@ describe('RxNorm Provider', () => {
       const testCases = expectedResults.filters.SAB;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           testCase.property,
@@ -495,7 +495,7 @@ describe('RxNorm Provider', () => {
       const testCases = expectedResults.filters.STY;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           testCase.property,
@@ -519,7 +519,7 @@ describe('RxNorm Provider', () => {
 
       for (const testTerm of testTerms) {
         try {
-          const filterContext = await provider.getPrepContext(true);
+          const filterContext = await provider.getPrepContext();
 
           // Create a mock filter object with stems
           const mockFilter = {
@@ -546,7 +546,7 @@ describe('RxNorm Provider', () => {
   describe('Filter Operations', () => {
     testOrSkip('should locate codes within filters', async () => {
       // Use SAB filter as it's most likely to have results
-      const filterContext = await provider.getPrepContext(false);
+      const filterContext = await provider.getPrepContext();
       await provider.filter(filterContext, 'SAB', 'equal', 'RXNORM');
 
       const filters = await provider.executeFilters(filterContext);
@@ -569,7 +569,7 @@ describe('RxNorm Provider', () => {
     });
 
     testOrSkip('should check if concepts are in filters', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       await provider.filter(filterContext, 'SAB', 'equal', 'RXNORM');
       const filters = await provider.executeFilters(filterContext);
       const filter = filters[0];
@@ -630,7 +630,7 @@ describe('RxNorm Provider', () => {
   describe('Error Handling', () => {
 
     testOrSkip('should handle unsupported filters', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
 
       await expect(
         provider.filter(filterContext, 'unsupported', 'equal', 'value')

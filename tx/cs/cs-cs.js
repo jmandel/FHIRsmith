@@ -947,12 +947,11 @@ class FhirCodeSystemProvider extends CodeSystemProvider {
   }
 
   /**
-   * @param {boolean} iterate - True if results will be iterated
    * @returns {FilterExecutionContext} Filter context
    */
-  async getPrepContext(iterate) {
+  async getPrepContext() {
     
-    return new FilterExecutionContext(iterate);
+    return new FilterExecutionContext();
   }
 
   /**

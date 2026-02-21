@@ -486,10 +486,9 @@ class CodeSystemProvider {
    * gets a single context in which filters will be evaluated. The application doesn't make use of this context;
    * it's only use is to be passed back to the CodeSystem provider so it can make use of it - if it wants
    *
-   * @param {boolean} iterate true if the conceptSets that result from this will be iterated, and false if they'll be used to locate a single code
    * @returns {FilterExecutionContext} filter (or null, it no use for this)
    * */
-  async getPrepContext(iterate) { return new FilterExecutionContext(); }
+  async getPrepContext() { return new FilterExecutionContext(); }
 
   /**
    * executes a text search filter (whatever that means) and returns a FilterConceptSet

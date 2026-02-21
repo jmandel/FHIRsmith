@@ -819,7 +819,7 @@ describe('SNOMED CT Subset Validation', () => {
           const supports = await provider.doesFilter(test.property, test.operator, test.value);
           expect(supports).toBe(true);
 
-          const filterContext = await provider.getPrepContext(true);
+          const filterContext = await provider.getPrepContext();
           await provider.filter(filterContext, test.property, test.operator, test.value);
 
           const filters = await provider.executeFilters(filterContext);
@@ -861,7 +861,7 @@ describe('SNOMED CT Subset Validation', () => {
 
       for (const test of searchTests) {
         try {
-          const filterContext = await provider.getPrepContext(true);
+          const filterContext = await provider.getPrepContext();
           const searchResult = await provider.searchFilter(filterContext, test.term, null);
 
           expect(searchResult).toBeDefined();

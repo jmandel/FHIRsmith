@@ -1379,7 +1379,7 @@ describe('FHIR CodeSystem Provider', () => {
 
       describe('Filter Infrastructure', () => {
         test('should create filter preparation context', async () => {
-          const prepContext = await simpleProvider.getPrepContext(true);
+          const prepContext = await simpleProvider.getPrepContext();
           expect(prepContext).toBeDefined();
           expect(prepContext.filters).toBeDefined();
         });

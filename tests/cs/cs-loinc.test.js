@@ -603,7 +603,7 @@ describe('LOINC Provider', () => {
       const testCases = expectedResults.filters.LIST;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           testCase.property,
@@ -642,7 +642,7 @@ describe('LOINC Provider', () => {
       const testCases = expectedResults.filters.relationships;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           testCase.property,
@@ -679,7 +679,7 @@ describe('LOINC Provider', () => {
       const testCases = expectedResults.filters.properties;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           testCase.property,
@@ -714,7 +714,7 @@ describe('LOINC Provider', () => {
       const classTypeTests = expectedResults.filters.classType;
 
       for (const testCase of classTypeTests) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           'CLASSTYPE',
@@ -738,7 +738,7 @@ describe('LOINC Provider', () => {
       const testCases = expectedResults.filters.hierarchy;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           'concept',
@@ -764,7 +764,7 @@ describe('LOINC Provider', () => {
       const testCases = expectedResults.filters.status;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           'STATUS',
@@ -785,7 +785,7 @@ describe('LOINC Provider', () => {
       const testCases = expectedResults.filters.copyright;
 
       for (const testCase of testCases) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(
           filterContext,
           'copyright',
@@ -806,7 +806,7 @@ describe('LOINC Provider', () => {
   describe('Filter Operations', () => {
     test('should locate codes within filters', async () => {
       const testCase = expectedResults.filters.relationships[0]; // Use first relationship filter
-      const filterContext = await provider.getPrepContext(false);
+      const filterContext = await provider.getPrepContext();
       await provider.filter(
         filterContext,
         testCase.property,
@@ -829,7 +829,7 @@ describe('LOINC Provider', () => {
 
     test('should check if concepts are in filters', async () => {
       const testCase = expectedResults.filters.relationships[0];
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       await provider.filter(
         filterContext,
         testCase.property,
@@ -852,7 +852,7 @@ describe('LOINC Provider', () => {
 
     test('should iterate through filter results', async () => {
       const testCase = expectedResults.filters.properties[0]; // Use first property filter
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       await provider.filter(
         filterContext,
         testCase.property,
@@ -930,7 +930,7 @@ describe('LOINC Provider', () => {
 
   describe('Error Handling', () => {
     test('should handle unsupported filters', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
 
       await expect(
         provider.filter(filterContext, 'unsupported', '=', 'value')

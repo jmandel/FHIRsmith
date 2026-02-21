@@ -195,7 +195,7 @@ class HGVSServices extends CodeSystemProvider {
     return false;
   }
 
-  async getPrepContext(iterate) {
+  async getPrepContext() {
     
     throw new Error('Filters are not supported for HGVS');
   }

@@ -107,7 +107,6 @@ class CPTPrep extends FilterExecutionContext {
     super();
   }
 }
-
 class CPTServices extends CodeSystemProvider {
   constructor(opContext, supplements, db, sharedData) {
     super(opContext, supplements);
@@ -481,9 +480,9 @@ class CPTServices extends CodeSystemProvider {
     return false;
   }
 
-  async getPrepContext(iterate) {
+  async getPrepContext() {
     
-    return new CPTPrep(iterate);
+    return new CPTPrep();
   }
 
   async filter(filterContext, prop, op, value) {

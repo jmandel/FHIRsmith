@@ -242,7 +242,7 @@ describe('HGVS Provider', () => {
     });
 
     test('should throw errors for filter operations', async () => {
-      await expect(provider.getPrepContext(true)).rejects.toThrow('not supported for HGVS');
+      await expect(provider.getPrepContext()).rejects.toThrow('not supported for HGVS');
       await expect(provider.searchFilter(null, 'filter', false)).rejects.toThrow('not supported for HGVS');
       await expect(provider.filter(null, 'prop', 'equal', 'value')).rejects.toThrow('not supported for HGVS');
       await expect(provider.prepare(null)).rejects.toThrow('not supported for HGVS');

@@ -49,29 +49,14 @@ class OMOPFilter extends FilterExecutionContext {
     });
   }
 
-  async executeForLocate(params) {
-    return new Promise((resolve, reject) => {
-      this.db.get(this.sql, params, (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
-    });
-  }
-
   close() {
     // Database connection is managed by the provider
   }
 }
 
 class OMOPPrep extends FilterExecutionContext {
-  iterate;
-
-  constructor(iterate) {
+  constructor() {
     super();
-    this.iterate = iterate;
   }
 }
 
@@ -544,8 +529,8 @@ class OMOPServices extends CodeSystemProvider {
     return false;
   }
 
-  async getPrepContext(iterate) {
-    return new OMOPPrep(iterate);
+  async getPrepContext() {
+    return new OMOPPrep();
   }
 
   async filter(filterContext, prop, op, value) {
@@ -563,14 +548,8 @@ class OMOPServices extends CodeSystemProvider {
           )
       `;
 
-      let filter;
-      if (filterContext.iterate) {
-        filter = new OMOPFilter(this.db, sql, value);
-        await filter.execute([value]);
-      } else {
-        sql = sql + ' and concept_id = ?';
-        filter = new OMOPFilter(this.db, sql, value);
-      }
+      const filter = new OMOPFilter(this.db, sql, value);
+      await filter.execute([value]);
       filterContext.filters.push(filter);
     } else {
       throw new Error(`Filter "${prop} ${op} ${value}" not understood for OMOP`);
@@ -608,12 +587,8 @@ class OMOPServices extends CodeSystemProvider {
   }
 
   async filterLocate(filterContext, set, code) {
-    if (filterContext.iterate) {
-      return `Filter not configured for locate operations`;
-    }
-
-    const row = await set.executeForLocate([set.value, code]);
-    if (row && row.concept_id.toString() === code) {
+    const row = set.rows.find(r => r.concept_id.toString() === code);
+    if (row) {
       return new OMOPConcept(
         String(row.concept_id),
         row.concept_name,
