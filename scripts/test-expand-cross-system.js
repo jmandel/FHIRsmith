@@ -25,7 +25,7 @@ const BASE_URL = `http://localhost:${PORT}/r4`;
 const REF_URL = `http://localhost:${REF_PORT}/r4`;
 const SERVER_START_TIMEOUT = 300000;
 const LIBRARY_CONFIG = process.env.TEST_LIBRARY_CONFIG || 'tx/tx.rxnorm-loinc.yml';
-const NATIVE_LIBRARY_CONFIG = 'tx/tx.rxnorm-loinc.yml';
+const NATIVE_LIBRARY_CONFIG = process.env.TEST_NATIVE_CONFIG || 'tx/tx.rxnorm-loinc.yml';
 const HAS_REFERENCE = LIBRARY_CONFIG !== NATIVE_LIBRARY_CONFIG;
 
 const RXSYS = 'http://www.nlm.nih.gov/research/umls/rxnorm';
