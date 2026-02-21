@@ -122,6 +122,11 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return this._syncDb;
   }
 
+  /** Protected accessor for subclasses that need the sync db. */
+  _getOrCreateSyncDb() {
+    return this.#getSyncDb();
+  }
+
   /**
    * Build a SQL condition for a single filter {property, op, value}.
    * Returns { sql, params, joins } or null if unsupported.
@@ -403,12 +408,12 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async code(context) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     return ctxt ? ctxt.code : null;
   }
 
   async display(context) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     if (!ctxt) return null;
 
     const supplementDisplay = this._displayFromSupplements(ctxt.code);
@@ -420,12 +425,12 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async definition(context) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     return ctxt ? ctxt.definition : null;
   }
 
   async isAbstract(context) {
-    await this.#ensureContext(context);
+    await this._ensureContext(context);
     const abstractCfg = this.runtime.status?.abstract;
     if (abstractCfg?.source === 'constant') {
       return !!abstractCfg.value;
@@ -434,7 +439,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async isInactive(context) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     if (!ctxt) return false;
     const inactiveCfg = this.runtime.status?.inactive;
     if (inactiveCfg?.source === 'concept.active') {
@@ -444,7 +449,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async isDeprecated(context) {
-    await this.#ensureContext(context);
+    await this._ensureContext(context);
     const depCfg = this.runtime.status?.deprecated;
     if (depCfg?.source === 'constant') {
       return !!depCfg.value;
@@ -453,7 +458,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async getStatus(context) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     if (!ctxt) return null;
 
     const statusValue = await this.#statusValueForConcept(ctxt.conceptId);
@@ -542,7 +547,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async designations(context, displays) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     if (!ctxt) return;
 
     // Keep legacy behavior where a primary display is always available as a designation.
@@ -580,7 +585,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async properties(context) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     if (!ctxt) return [];
 
     const props = [];
@@ -720,7 +725,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return new SqliteRuntimeV0QueryIterator('roots');
     }
 
-    const ctxt = await this.#ensureContext(code);
+    const ctxt = await this._ensureContext(code);
     if (!ctxt) return null;
 
     if (this.runtime?.iteration?.children === false) {
@@ -834,8 +839,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async subsumesTest(codeA, codeB) {
-    const a = await this.#ensureContext(codeA);
-    const b = await this.#ensureContext(codeB);
+    const a = await this._ensureContext(codeA);
+    const b = await this._ensureContext(codeB);
     if (!a || !b) return 'not-subsumed';
 
     if (a.code === b.code) return 'equivalent';
@@ -1128,7 +1133,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async filterCheck(_filterContext, set, concept) {
-    const ctxt = await this.#ensureContext(concept);
+    const ctxt = await this._ensureContext(concept);
     if (!ctxt) return false;
     if (this.#isPredicateFilter(set)) {
       return this.#predicateMatchesContext(set, ctxt);
@@ -1865,7 +1870,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return rows.map(r => r.code);
   }
 
-  async #ensureContext(code) {
+  async _ensureContext(code) {
     if (!code) {
       return null;
     }
@@ -2100,7 +2105,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async #predicateMatchesContext(set, context) {
-    const ctxt = await this.#ensureContext(context);
+    const ctxt = await this._ensureContext(context);
     if (!ctxt) return false;
 
     if (set.kind === 'concept-equals') {
@@ -2442,7 +2447,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
   async #descendantCodes(ancestorCode, includeSelf) {
     if (!ancestorCode) return [];
-    const ancestorContext = await this.#ensureContext(ancestorCode);
+    const ancestorContext = await this._ensureContext(ancestorCode);
     if (!ancestorContext) return [];
     const ancestorId = ancestorContext.conceptId;
 
@@ -2776,6 +2781,20 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
     }
 
     this.recordUse();
+
+    // Use SNOMED-specific subclass for snomed.info/sct (expression support)
+    const system = this.system();
+    if (system && system.startsWith('http://snomed.info/sct')) {
+      try {
+        const { SnomedSqliteV0Provider } = require('./cs-sqlite-snomed-v0');
+        return new SnomedSqliteV0Provider(opContext, supplements, this._db, this._meta, this._runtime, {
+          ownsDb: false,
+          sharedState: this._sharedState,
+          dbPath: this.dbPath
+        });
+      } catch (_) { /* fall through to generic */ }
+    }
+
     return new SqliteRuntimeV0Provider(opContext, supplements, this._db, this._meta, this._runtime, {
       ownsDb: false,
       sharedState: this._sharedState,
