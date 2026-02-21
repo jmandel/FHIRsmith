@@ -743,7 +743,7 @@ class ValueSetExpander {
             if (cs.isNotClosed(filter)) {
               notClosed.value = true;
             }
-            const prep = await cs.getPrepContext(true);
+            const prep = await cs.getPrepContext();
             const ctxt = await cs.searchFilter(filter, prep, false);
             await cs.prepare(prep);
             this.worker.opContext.log('iterate filters');
@@ -791,7 +791,7 @@ class ValueSetExpander {
         if (cset.filter) {
           this.worker.opContext.log('prepare filters');
           const fcl = cset.filter;
-          const prep = await cs.getPrepContext(true);
+          const prep = await cs.getPrepContext();
           if (!filter.isNull) {
             await cs.searchFilter(filter, prep, true);
           }
@@ -954,7 +954,7 @@ class ValueSetExpander {
           if (cs.isNotClosed(filter)) {
             notClosed.value = true;
           }
-          const prep = await cs.getPrepContext(true);
+          const prep = await cs.getPrepContext();
           const ctxt = await cs.searchFilter(filter, prep, false);
           await cs.prepare(prep);
           while (await cs.filterMore(ctxt)) {
@@ -989,7 +989,7 @@ class ValueSetExpander {
 
       if (cset.filter) {
         this.worker.opContext.log('prep filters');
-        const prep = await cs.getPrepContext(true);
+        const prep = await cs.getPrepContext();
         if (!filter.isNull) {
           await cs.searchFilter(filter, prep, true);
         }

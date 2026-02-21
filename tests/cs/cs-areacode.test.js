@@ -129,7 +129,7 @@ describe('AreaCodeServices', () => {
     let ctxt;
 
     beforeEach(async () => {
-      ctxt = await provider.getPrepContext(false);
+      ctxt = await provider.getPrepContext();
       await provider.filter(ctxt, 'class', '=', 'country');
       const filters = await provider.executeFilters(ctxt);
       countryFilter = filters[0];
@@ -194,7 +194,7 @@ describe('AreaCodeServices', () => {
     let ctxt;
 
     beforeEach(async () => {
-      ctxt = await provider.getPrepContext(false);
+      ctxt = await provider.getPrepContext();
       await provider.filter(ctxt, 'type', '=', 'region');
       const filters = await provider.executeFilters(ctxt);
       regionFilter = filters[0];
@@ -253,19 +253,19 @@ describe('AreaCodeServices', () => {
   describe('Filter Error Cases', () => {
     test('should throw error for unsupported property', async () => {
       await expect(
-        provider.filter(await provider.getPrepContext(false), 'display', '=', 'test')
+        provider.filter(await provider.getPrepContext(), 'display', '=', 'test')
       ).rejects.toThrow('not supported');
     });
 
     test('should throw error for unsupported operator', async () => {
       await expect(
-        provider.filter(await provider.getPrepContext(false), 'class', 'contains', 'country')
+        provider.filter(await provider.getPrepContext(), 'class', 'contains', 'country')
       ).rejects.toThrow('not supported');
     });
 
     test('should throw error for search filter', async () => {
       await expect(
-        provider.searchFilter(await provider.getPrepContext(false), 'test', false)
+        provider.searchFilter(await provider.getPrepContext(), 'test', false)
       ).rejects.toThrow('not implemented');
     });
 
@@ -273,7 +273,7 @@ describe('AreaCodeServices', () => {
 
   describe('Execute Filters', () => {
     test('should execute single filter', async () => {
-      const ctxt = await provider.getPrepContext(false);
+      const ctxt = await provider.getPrepContext();
       await provider.filter(ctxt, 'class', '=', 'country');
       const results = await provider.executeFilters(ctxt);
       const countryFilter = results[0];
@@ -285,12 +285,12 @@ describe('AreaCodeServices', () => {
     });
 
     test('should return empty array for null filter', async () => {
-      const results = await provider.executeFilters(await provider.getPrepContext(false));
+      const results = await provider.executeFilters(await provider.getPrepContext());
       expect(results).toEqual([]);
     });
 
     test('should indicate filters are closed', async () => {
-      expect(await provider.filtersNotClosed(await provider.getPrepContext(false))).toBe(false);
+      expect(await provider.filtersNotClosed(await provider.getPrepContext())).toBe(false);
     });
   });
 

@@ -310,7 +310,7 @@ describe('OMOP Provider', () => {
     test('should filter by domain', async () => {
       if (testData.domains.length > 0) {
         const testDomain = testData.domains[0];
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
 
         await provider.filter(filterContext, 'domain', '=', testDomain);
         const filters = await provider.executeFilters(filterContext);
@@ -345,7 +345,7 @@ describe('OMOP Provider', () => {
 
       for (let i = 0; i < testedDomains; i++) {
         const domain = testData.domains[i];
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
 
         try {
           await provider.filter(filterContext, 'domain', '=', domain);
@@ -371,7 +371,7 @@ describe('OMOP Provider', () => {
         const concept = conceptResult.context;
 
         if (concept && concept.domain) {
-          const filterContext = await provider.getPrepContext(true);
+          const filterContext = await provider.getPrepContext();
           await provider.filter(filterContext, 'domain', '=', concept.domain);
           const filters = await provider.executeFilters(filterContext);
           const filter = filters[0];
@@ -388,7 +388,7 @@ describe('OMOP Provider', () => {
 
     test('should have closed filters', async () => {
       if (testData.domains.length > 0) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(filterContext, 'domain', '=', testData.domains[0]);
 
         const notClosed = await provider.filtersNotClosed(filterContext);
@@ -480,7 +480,7 @@ describe('OMOP Provider', () => {
   describe('Error Handling', () => {
 
     test('should handle unsupported filters', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
 
       await expect(
         provider.filter(filterContext, 'unsupported', '=', 'value')
@@ -502,7 +502,7 @@ describe('OMOP Provider', () => {
     });
 
     test('should reject unsupported operations', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
 
       await expect(
         provider.searchFilter(filterContext, 'test', false)
@@ -537,7 +537,7 @@ describe('OMOP Provider', () => {
       const domainCounts = {};
 
       for (const domain of testData.domains.slice(0, 3)) {
-        const filterContext = await provider.getPrepContext(true);
+        const filterContext = await provider.getPrepContext();
         await provider.filter(filterContext, 'domain', '=', domain);
         const filters = await provider.executeFilters(filterContext);
         const filter = filters[0];

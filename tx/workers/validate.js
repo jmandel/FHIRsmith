@@ -1616,7 +1616,7 @@ class ValueSetChecker {
 
     if (cset.filter) {
       let cfl = cset.filter;
-      let prep = await cs.getPrepContext(false);
+      let prep = await cs.getPrepContext();
       for (let fc of cfl) {
         this.worker.deadCheck('checkConceptSet#2');
         if (!fc.value) {

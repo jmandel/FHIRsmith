@@ -596,14 +596,14 @@ describe('NDC Provider', () => {
     });
 
     test('should create filter context', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       expect(filterContext).toBeDefined();
       expect(filterContext.filters).toBeDefined();
       expect(Array.isArray(filterContext.filters)).toBe(true);
     });
 
     test('should filter by product code-type', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       const filter = await provider.filter(filterContext, 'code-type', '=', 'product');
 
       expect(filter).toBeDefined();
@@ -620,7 +620,7 @@ describe('NDC Provider', () => {
     });
 
     test('should filter by 10-digit code-type', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       const filter = await provider.filter(filterContext, 'code-type', '=', '10-digit');
 
       const size = await provider.filterSize(filterContext, filter);
@@ -630,7 +630,7 @@ describe('NDC Provider', () => {
     });
 
     test('should locate code within filter', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       const filter = await provider.filter(filterContext, 'code-type', '=', 'product');
 
       const located = await provider.filterLocate(filterContext, filter, '0002-0152');
@@ -641,7 +641,7 @@ describe('NDC Provider', () => {
     });
 
     test('should check if concept is in filter', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       const productFilter = await provider.filter(filterContext, 'code-type', '=', 'product');
 
       const productResult = await provider.locate('0002-0152');
@@ -657,7 +657,7 @@ describe('NDC Provider', () => {
     });
 
     test('should iterate filter results', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
       const filter = await provider.filter(filterContext, 'code-type', '=', 'product');
 
       let hasMore = await provider.filterMore(filterContext, filter);
@@ -681,7 +681,7 @@ describe('NDC Provider', () => {
   describe('Error Handling', () => {
 
     test('should handle unsupported filters', async () => {
-      const filterContext = await provider.getPrepContext(true);
+      const filterContext = await provider.getPrepContext();
 
       await expect(
         provider.filter(filterContext, 'unsupported', '=', 'value')

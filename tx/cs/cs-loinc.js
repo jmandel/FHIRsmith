@@ -688,8 +688,8 @@ class LoincServices extends CodeSystemProvider {
     return false;
   }
 
-  async getPrepContext(iterate) {
-    return new LoincPrep(iterate);
+  async getPrepContext() {
+    return new LoincPrep();
   }
 
   async filter(filterContext, prop, op, value) {
