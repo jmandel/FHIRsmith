@@ -231,7 +231,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
             + ` ON lit_${paramPrefix}.source_concept_id = ${alias}.concept_id`
             + ` AND lit_${paramPrefix}.property_id = @${paramPrefix}_prop`
             + ` AND lit_${paramPrefix}.active = 1`
-            + ` AND lit_${paramPrefix}.value_text IN (${placeholders})`,
+            + ` AND lit_${paramPrefix}.value_text COLLATE NOCASE IN (${placeholders})`,
         };
       }
       return null;
@@ -275,7 +275,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           + ` WHERE lit_${pp}.source_concept_id = t.concept_id`
           + ` AND lit_${pp}.property_id = @${pp}_prop`
           + ` AND lit_${pp}.active = 1`
-          + ` AND lit_${pp}.value_text IN (${placeholders}))`
+          + ` AND lit_${pp}.value_text COLLATE NOCASE IN (${placeholders}))`
         );
       } else if (propDef.value_kind === 'concept') {
         if (op !== '=' && op !== 'in') return null;
