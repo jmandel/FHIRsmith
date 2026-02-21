@@ -54,6 +54,8 @@ class RxNormIteratorContext {
 }
 
 class RxNormServices extends CodeSystemProvider {
+  #locateCache = new Map();
+
   constructor(opContext, supplements, db, sharedData, isNCI = false) {
     super(opContext, supplements);
     this.db = db;
@@ -210,7 +212,10 @@ class RxNormServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    return new Promise((resolve, reject) => {
+    const cached = this.#locateCache.get(code);
+    if (cached !== undefined) return cached;
+
+    const result = await new Promise((resolve, reject) => {
       let sql = `SELECT STR, TTY FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
 
       this.db.all(sql, [code, this.getSAB()], (err, rows) => {
@@ -242,6 +247,9 @@ class RxNormServices extends CodeSystemProvider {
         }
       });
     });
+
+    this.#locateCache.set(code, result);
+    return result;
   }
 
   #createConceptFromRows(code, rows, archived) {

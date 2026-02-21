@@ -112,6 +112,8 @@ function getLang(langConcept) {
 }
 
 class OMOPServices extends CodeSystemProvider {
+  #locateCache = new Map();
+
   constructor(opContext, supplements, db, sharedData) {
     super(opContext, supplements);
     this.db = db;
@@ -478,7 +480,10 @@ class OMOPServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    return new Promise((resolve, reject) => {
+    const cached = this.#locateCache.get(code);
+    if (cached !== undefined) return cached;
+
+    const result = await new Promise((resolve, reject) => {
       const sql = `
           SELECT concept_id, concept_name, standard_concept,
                  Domains.domain_id, ConceptClasses.concept_class_id,
@@ -508,6 +513,9 @@ class OMOPServices extends CodeSystemProvider {
         }
       });
     });
+
+    this.#locateCache.set(code, result);
+    return result;
   }
 
   // Iterator methods - not supported for OMOP due to size

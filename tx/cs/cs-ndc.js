@@ -20,6 +20,8 @@ class NdcConcept {
 }
 
 class NdcServices extends CodeSystemProvider {
+  #locateCache = new Map();
+
   constructor(opContext, supplements, db, lookupTables, packageCount, productCount, version) {
     super(opContext, supplements);
     this.db = db;
@@ -325,19 +327,28 @@ class NdcServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
+    const cached = this.#locateCache.get(code);
+    if (cached !== undefined) return cached;
+
     // First try packages (both regular code and code11)
     const packageResult = await this.#locateInPackages(code);
     if (packageResult) {
-      return { context: packageResult, message: null };
+      const result = { context: packageResult, message: null };
+      this.#locateCache.set(code, result);
+      return result;
     }
 
     // Then try products
     const productResult = await this.#locateInProducts(code);
     if (productResult) {
-      return { context: productResult, message: null };
+      const result = { context: productResult, message: null };
+      this.#locateCache.set(code, result);
+      return result;
     }
 
-    return { context: null, message: undefined };
+    const result = { context: null, message: undefined };
+    this.#locateCache.set(code, result);
+    return result;
   }
 
   async #locateInPackages(code) {
