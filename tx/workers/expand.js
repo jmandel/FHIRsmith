@@ -1230,7 +1230,9 @@ class ValueSetExpander {
       });
     }
 
-    // Try expandForValueSet for each system
+    // Try expandForValueSet for each system — two-phase approach:
+    // Phase 1: call expandForValueSet on all systems to check feasibility
+    const expandResults = new Map(); // system → { cs, group, result, spec }
     for (const [system, group] of bySystem) {
       const cset0 = includes[group.indices[0]];
       const cs = await this.worker.findCodeSystem(
@@ -1273,6 +1275,11 @@ class ValueSetExpander {
         continue;
       }
 
+      expandResults.set(system, { cs, group, result, singleSystem });
+    }
+
+    // Phase 2: iterate results for all systems that succeeded
+    for (const [system, { cs, group, result, singleSystem }] of expandResults) {
       perfCounters.bump('expandForValueSet.handled');
       this.worker.opContext.log('expandForValueSet handled ' + system);
 

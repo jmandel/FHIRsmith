@@ -527,6 +527,12 @@ app.post('/debug/bypass-expand-for-valueset', (req, res) => {
   RxNormServices.bypassExpandForValueSet = bypass;
   LoincServices.bypassExpandForValueSet = bypass;
   SqliteRuntimeV0FactoryProvider.bypassExpandForValueSet = bypass;
+  // Clear expansion cache to avoid stale results when toggling
+  if (modules.tx?.endpoints) {
+    for (const ep of modules.tx.endpoints) {
+      if (ep.expansionCache) ep.expansionCache.cache.clear();
+    }
+  }
   res.json({ bypassExpandForValueSet: bypass });
 });
 
