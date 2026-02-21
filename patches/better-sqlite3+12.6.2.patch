@@ -1,0 +1,144 @@
+diff --git a/deps/defines.gypi b/deps/defines.gypi
+index 1234567..abcdefg 100644
+--- a/deps/defines.gypi
++++ b/deps/defines.gypi
+@@ -30,7 +30,6 @@
+     'SQLITE_ENABLE_UPDATE_DELETE_LIMIT',
+     'SQLITE_LIKE_DOESNT_MATCH_BLOBS',
+     'SQLITE_OMIT_DEPRECATED',
+-    'SQLITE_OMIT_PROGRESS_CALLBACK',
+     'SQLITE_OMIT_SHARED_CACHE',
+     'SQLITE_OMIT_TCL_VARIABLE',
+     'SQLITE_SOUNDEX',
+diff --git a/lib/database.js b/lib/database.js
+index 1234567..abcdefg 100644
+--- a/lib/database.js
++++ b/lib/database.js
+@@ -85,6 +85,7 @@
+ Database.prototype.close = wrappers.close;
+ Database.prototype.defaultSafeIntegers = wrappers.defaultSafeIntegers;
+ Database.prototype.unsafeMode = wrappers.unsafeMode;
++Database.prototype.progressHandler = wrappers.progressHandler;
+ Database.prototype[util.inspect] = require('./methods/inspect');
+ 
+ module.exports = Database;
+diff --git a/lib/methods/wrappers.js b/lib/methods/wrappers.js
+index 1234567..abcdefg 100644
+--- a/lib/methods/wrappers.js
++++ b/lib/methods/wrappers.js
+@@ -30,6 +30,11 @@
+ 	return this;
+ };
+ 
++exports.progressHandler = function progressHandler(...args) {
++	this[cppdb].progressHandler(...args);
++	return this;
++};
++
+ exports.getters = {
+ 	name: {
+ 		get: function name() { return this[cppdb].name; },
+diff --git a/src/objects/database.cpp b/src/objects/database.cpp
+index 1234567..abcdefg 100644
+--- a/src/objects/database.cpp
++++ b/src/objects/database.cpp
+@@ -27,6 +27,8 @@
+ 	iterators(0),
+ 	addon(addon),
+ 	logger(isolate, logger),
++	progress_handler_isolate(isolate),
++	progress_handler_fn(),
+ 	stmts(),
+ 	backups() {
+ 	assert(db_handle != NULL);
+@@ -42,6 +44,7 @@
+ void Database::CloseHandles() {
+ 	if (open) {
+ 		open = false;
++		progress_handler_fn.Reset();
+ 		for (Statement* stmt : stmts) stmt->CloseHandles();
+ 		for (Backup* backup : backups) backup->CloseHandles();
+ 		stmts.clear();
+@@ -136,6 +139,7 @@
+ 	SetPrototypeMethod(isolate, data, t, "close", JS_close);
+ 	SetPrototypeMethod(isolate, data, t, "defaultSafeIntegers", JS_defaultSafeIntegers);
+ 	SetPrototypeMethod(isolate, data, t, "unsafeMode", JS_unsafeMode);
++	SetPrototypeMethod(isolate, data, t, "progressHandler", JS_progressHandler);
+ 	SetPrototypeGetter(isolate, data, t, "open", JS_open);
+ 	SetPrototypeGetter(isolate, data, t, "inTransaction", JS_inTransaction);
+ 	return t->GetFunction(OnlyContext).ToLocalChecked();
+@@ -415,3 +419,48 @@
+ 	Database* db = Unwrap<Database>(info.This());
+ 	info.GetReturnValue().Set(db->open && !static_cast<bool>(sqlite3_get_autocommit(db->db_handle)));
+ }
++
++NODE_METHOD(Database::JS_progressHandler) {
++	Database* db = Unwrap<Database>(info.This());
++	REQUIRE_DATABASE_OPEN(db);
++	REQUIRE_DATABASE_NOT_BUSY(db);
++
++	if (info.Length() == 0 || info[0]->IsNull() || info[0]->IsUndefined()) {
++		sqlite3_progress_handler(db->db_handle, 0, NULL, NULL);
++		db->progress_handler_fn.Reset();
++		return;
++	}
++
++	REQUIRE_ARGUMENT_INT32(first, int interval);
++	REQUIRE_ARGUMENT_FUNCTION(second, v8::Local<v8::Function> fn);
++
++	if (interval <= 0) {
++		return ThrowRangeError("Expected the interval to be a positive integer");
++	}
++
++	UseIsolate;
++	db->progress_handler_isolate = isolate;
++	db->progress_handler_fn.Reset(isolate, fn);
++	sqlite3_progress_handler(db->db_handle, interval, ProgressHandlerCallback, db);
++}
++
++int Database::ProgressHandlerCallback(void* data) {
++	Database* db = static_cast<Database*>(data);
++	assert(!db->progress_handler_fn.IsEmpty());
++	v8::Isolate* isolate = db->progress_handler_isolate;
++	v8::HandleScope scope(isolate);
++
++	v8::MaybeLocal<v8::Value> result = db->progress_handler_fn.Get(isolate)->Call(
++		isolate->GetCurrentContext(),
++		v8::Undefined(isolate),
++		0, NULL
++	);
++
++	if (result.IsEmpty()) {
++		db->was_js_error = true;
++		return 1;
++	}
++
++	v8::Local<v8::Value> returnValue = result.ToLocalChecked();
++	return returnValue->BooleanValue(isolate) ? 1 : 0;
++}
+diff --git a/src/objects/database.hpp b/src/objects/database.hpp
+index 1234567..abcdefg 100644
+--- a/src/objects/database.hpp
++++ b/src/objects/database.hpp
+@@ -79,9 +79,12 @@
+ 	static NODE_METHOD(JS_close);
+ 	static NODE_METHOD(JS_defaultSafeIntegers);
+ 	static NODE_METHOD(JS_unsafeMode);
++	static NODE_METHOD(JS_progressHandler);
+ 	static NODE_GETTER(JS_open);
+ 	static NODE_GETTER(JS_inTransaction);
+ 
++	static int ProgressHandlerCallback(void* data);
++
+ 	static bool Deserialize(v8::Local<v8::Object> buffer, Addon* addon, sqlite3* db_handle, bool readonly);
+ 	static void FreeSerialization(char* data, void* _);
+ 
+@@ -98,6 +101,8 @@
+ 	unsigned short iterators;
+ 	Addon* const addon;
+ 	const v8::Global<v8::Value> logger;
++	v8::Isolate* progress_handler_isolate;
++	v8::Global<v8::Function> progress_handler_fn;
+ 	std::set<Statement*, CompareStatement> stmts;
+ 	std::set<Backup*, CompareBackup> backups;
+ };

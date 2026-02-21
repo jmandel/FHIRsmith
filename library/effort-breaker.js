@@ -1,161 +1,170 @@
 'use strict';
 
-const { Worker } = require('worker_threads');
-const path = require('path');
-
-const WORKER_PATH = path.join(__dirname, 'effort-breaker-worker.js');
+const Database = require('better-sqlite3');
 
 /**
  * Error thrown when a query exceeds the configured effort limit.
  */
 class EffortLimitExceededError extends Error {
-  constructor(limitMs) {
-    super(`Query exceeded effort limit of ${limitMs}ms`);
+  constructor(vmSteps) {
+    super(`Query exceeded effort limit of ${vmSteps} VM steps`);
     this.name = 'EffortLimitExceededError';
     this.code = 'EFFORT_LIMIT_EXCEEDED';
-    this.limitMs = limitMs;
+    this.vmSteps = vmSteps;
   }
 }
 
 /**
  * EffortBreakerDb wraps better-sqlite3 to provide effort-based braking of queries.
  *
- * Queries run in a worker thread. If a query exceeds the configured time budget
- * (effortLimitMs), the worker is terminated and an EffortLimitExceededError is thrown.
+ * Uses SQLite's native sqlite3_progress_handler to count virtual machine (VDBE)
+ * instruction cycles. When a query exceeds the configured step budget, SQLite
+ * interrupts the query with SQLITE_INTERRUPT, which is caught and re-thrown as
+ * an EffortLimitExceededError.
  *
- * For row-count-based effort limiting, use iterateWithLimit() which uses
- * better-sqlite3's iterate() to stop after a maximum number of rows.
+ * This is a synchronous, in-process mechanism — no worker threads or IPC needed.
  *
  * @example
- *   const db = new EffortBreakerDb('/path/to/db.sqlite', { effortLimitMs: 5000 });
- *   const rows = await db.all('SELECT * FROM table WHERE condition = ?', [value]);
+ *   const db = new EffortBreakerDb('/path/to/db.sqlite', { maxVmSteps: 100000 });
+ *   try {
+ *     const rows = db.all('SELECT * FROM large_table WHERE complex_condition');
+ *   } catch (err) {
+ *     if (err instanceof EffortLimitExceededError) {
+ *       console.log('Query was too expensive');
+ *     }
+ *   }
  *   db.close();
  */
 class EffortBreakerDb {
   /**
    * @param {string} dbPath - Path to the SQLite database file (or ':memory:')
    * @param {object} [options]
-   * @param {number} [options.effortLimitMs=30000] - Maximum wall-clock time per query in ms
+   * @param {number} [options.maxVmSteps=1000000] - Maximum VM instruction steps per query
+   * @param {number} [options.progressInterval=1000] - Check interval in VM instructions
    * @param {boolean} [options.readonly=false] - Open database in readonly mode
    * @param {number} [options.timeout=5000] - SQLite busy timeout in ms
    */
   constructor(dbPath, options = {}) {
-    this._dbPath = dbPath;
-    this._effortLimitMs = options.effortLimitMs ?? 30000;
-    this._dbOptions = {
+    this._maxVmSteps = options.maxVmSteps ?? 1000000;
+    this._progressInterval = options.progressInterval ?? 1000;
+    this._db = new Database(dbPath, {
       readonly: options.readonly ?? false,
       timeout: options.timeout ?? 5000,
-    };
-    this._closed = false;
+    });
+
+    this._installProgressHandler();
   }
 
   /**
    * Execute a query and return all matching rows.
    * @param {string} sql - SQL query string
    * @param {Array} [params] - Bind parameters
-   * @returns {Promise<Array<object>>} Array of row objects
+   * @returns {Array<object>} Array of row objects
+   * @throws {EffortLimitExceededError} If the query exceeds the VM step budget
    */
   all(sql, params) {
-    return this._execute('all', sql, params);
+    return this._executeWithEffortLimit(() => {
+      const stmt = this._db.prepare(sql);
+      return params ? stmt.all(...params) : stmt.all();
+    });
   }
 
   /**
    * Execute a query and return the first matching row.
    * @param {string} sql - SQL query string
    * @param {Array} [params] - Bind parameters
-   * @returns {Promise<object|undefined>} First row or undefined
+   * @returns {object|undefined} First row or undefined
+   * @throws {EffortLimitExceededError} If the query exceeds the VM step budget
    */
   get(sql, params) {
-    return this._execute('get', sql, params);
+    return this._executeWithEffortLimit(() => {
+      const stmt = this._db.prepare(sql);
+      return params ? stmt.get(...params) : stmt.get();
+    });
   }
 
   /**
    * Execute a statement (INSERT, UPDATE, DELETE).
    * @param {string} sql - SQL statement
    * @param {Array} [params] - Bind parameters
-   * @returns {Promise<object>} Info object with changes and lastInsertRowid
+   * @returns {object} Info object with changes and lastInsertRowid
+   * @throws {EffortLimitExceededError} If the query exceeds the VM step budget
    */
   run(sql, params) {
-    return this._execute('run', sql, params);
+    return this._executeWithEffortLimit(() => {
+      const stmt = this._db.prepare(sql);
+      return params ? stmt.run(...params) : stmt.run();
+    });
   }
 
   /**
-   * Execute a query with a row-count limit. Returns at most maxRows rows.
-   * Uses better-sqlite3's iterate() internally to avoid loading all results.
+   * Execute a query with both VM step limit and row count limit.
+   * Uses better-sqlite3's iterate() to stop after a maximum number of rows.
    * @param {string} sql - SQL query string
    * @param {Array} [params] - Bind parameters
    * @param {number} maxRows - Maximum number of rows to return
-   * @returns {Promise<Array<object>>} Array of row objects (up to maxRows)
+   * @returns {Array<object>} Array of row objects (up to maxRows)
+   * @throws {EffortLimitExceededError} If the query exceeds the VM step budget
    */
   iterateWithLimit(sql, params, maxRows) {
-    return this._execute('iterate', sql, params, maxRows);
+    return this._executeWithEffortLimit(() => {
+      const stmt = this._db.prepare(sql);
+      const iterator = params ? stmt.iterate(...params) : stmt.iterate();
+      const rows = [];
+      for (const row of iterator) {
+        rows.push(row);
+        if (rows.length >= maxRows) break;
+      }
+      return rows;
+    });
   }
 
   /**
-   * Close the database wrapper. No further queries can be executed.
+   * Get the underlying better-sqlite3 Database instance for direct access.
+   * The progress handler is already installed on this instance.
+   * @returns {Database} The better-sqlite3 Database instance
+   */
+  getDatabase() {
+    return this._db;
+  }
+
+  /**
+   * Close the database connection.
    */
   close() {
-    this._closed = true;
+    this._db.close();
   }
 
   /**
-   * Run a query in a worker thread with effort-based braking.
+   * Install the progress handler on the database.
    * @private
    */
-  _execute(method, sql, params, effortLimit) {
-    if (this._closed) {
-      return Promise.reject(new Error('Database is closed'));
-    }
-
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const settle = (fn, value) => {
-        if (!settled) {
-          settled = true;
-          fn(value);
-        }
-      };
-
-      const worker = new Worker(WORKER_PATH, {
-        workerData: {
-          dbPath: this._dbPath,
-          dbOptions: this._dbOptions,
-          sql,
-          params: params || [],
-          method,
-          effortLimit,
-        },
-      });
-
-      const timer = setTimeout(() => {
-        worker.terminate().then(() => {
-          settle(reject, new EffortLimitExceededError(this._effortLimitMs));
-        });
-      }, this._effortLimitMs);
-
-      worker.on('message', (msg) => {
-        clearTimeout(timer);
-        if (msg.success) {
-          settle(resolve, msg.result);
-        } else {
-          const err = new Error(msg.error.message);
-          err.code = msg.error.code;
-          settle(reject, err);
-        }
-      });
-
-      worker.on('error', (err) => {
-        clearTimeout(timer);
-        settle(reject, err);
-      });
-
-      worker.on('exit', (code) => {
-        clearTimeout(timer);
-        if (code !== 0 && code !== 1) {
-          settle(reject, new EffortLimitExceededError(this._effortLimitMs));
-        }
-      });
+  _installProgressHandler() {
+    this._vmStepCount = 0;
+    const maxSteps = this._maxVmSteps;
+    const interval = this._progressInterval;
+    this._db.progressHandler(interval, () => {
+      this._vmStepCount += interval;
+      return this._vmStepCount > maxSteps ? 1 : 0;
     });
+  }
+
+  /**
+   * Execute a function with effort limit tracking.
+   * Resets the step counter before execution and converts SQLITE_INTERRUPT
+   * errors into EffortLimitExceededError.
+   * @private
+   */
+  _executeWithEffortLimit(fn) {
+    this._vmStepCount = 0;
+    try {
+      return fn();
+    } catch (err) {
+      if (err.code === 'SQLITE_INTERRUPT') {
+        throw new EffortLimitExceededError(this._vmStepCount);
+      }
+      throw err;
+    }
   }
 }
 
