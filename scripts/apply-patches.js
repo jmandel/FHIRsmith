@@ -67,7 +67,9 @@ for (const patchFile of patches) {
       });
       console.log(`  Native addon rebuilt successfully`);
     } catch (err) {
-      console.error(`  Warning: native rebuild failed. You may need to run: cd node_modules/${packageName} && node-gyp rebuild --release`);
+      const stderr = (err.stderr || '').toString().trim();
+      console.error(`  Warning: native rebuild failed. ${stderr ? 'Error: ' + stderr.split('\n').pop() : ''}`);
+      console.error(`  You may need to run: cd node_modules/${packageName} && node-gyp rebuild --release`);
     }
   }
 }
