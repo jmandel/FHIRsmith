@@ -327,28 +327,27 @@ class NdcServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    const cached = this.#locateCache.get(code);
-    if (cached !== undefined) return cached;
+    if (this.#locateCache.has(code)) return this.#locateCache.get(code);
 
+    const promise = this.#doLocate(code);
+    this.#locateCache.set(code, promise);
+    return promise;
+  }
+
+  async #doLocate(code) {
     // First try packages (both regular code and code11)
     const packageResult = await this.#locateInPackages(code);
     if (packageResult) {
-      const result = { context: packageResult, message: null };
-      this.#locateCache.set(code, result);
-      return result;
+      return { context: packageResult, message: null };
     }
 
     // Then try products
     const productResult = await this.#locateInProducts(code);
     if (productResult) {
-      const result = { context: productResult, message: null };
-      this.#locateCache.set(code, result);
-      return result;
+      return { context: productResult, message: null };
     }
 
-    const result = { context: null, message: undefined };
-    this.#locateCache.set(code, result);
-    return result;
+    return { context: null, message: undefined };
   }
 
   async #locateInPackages(code) {

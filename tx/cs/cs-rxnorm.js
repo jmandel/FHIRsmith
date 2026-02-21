@@ -212,10 +212,9 @@ class RxNormServices extends CodeSystemProvider {
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
-    const cached = this.#locateCache.get(code);
-    if (cached !== undefined) return cached;
+    if (this.#locateCache.has(code)) return this.#locateCache.get(code);
 
-    const result = await new Promise((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
       let sql = `SELECT STR, TTY FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
 
       this.db.all(sql, [code, this.getSAB()], (err, rows) => {
@@ -248,8 +247,8 @@ class RxNormServices extends CodeSystemProvider {
       });
     });
 
-    this.#locateCache.set(code, result);
-    return result;
+    this.#locateCache.set(code, promise);
+    return promise;
   }
 
   #createConceptFromRows(code, rows, archived) {
