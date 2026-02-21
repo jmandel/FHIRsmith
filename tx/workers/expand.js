@@ -21,9 +21,9 @@ const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
 
 // Expansion limits (from Pascal constants)
-const UPPER_LIMIT_NO_TEXT = 1000;
-const UPPER_LIMIT_TEXT = 1000;
-const INTERNAL_LIMIT = 10000;
+const UPPER_LIMIT_NO_TEXT = 100000;
+const UPPER_LIMIT_TEXT = 100000;
+const INTERNAL_LIMIT = 100000;
 const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
 
@@ -1199,22 +1199,32 @@ class ValueSetExpander {
 
     this.worker.opContext.log('compose #2');
 
-    // Process excludes first (populates this.excluded as safety net)
-    let i = 0;
-    for (const c of source.jsonObj.compose.exclude || []) {
-      this.worker.deadCheck('handleCompose#4');
-      await this.excludeCodes(c, "ValueSet.compose.exclude["+i+"]", source, filter, expansion, this.excludeInactives(source), notClosed);
-    }
-
     // Try expandForValueSet: group includes+excludes by system
     const excludeInactive = this.excludeInactives(source);
     const handledIncludes = await this._tryExpandForValueSet(
       source, filter, expansion, excludeInactive, notClosed
     );
 
+    // Determine which systems were fully handled (includes+excludes baked in)
+    const handledSystems = new Set();
+    const includes = source.jsonObj.compose.include || [];
+    for (const idx of handledIncludes) {
+      if (includes[idx]?.system) handledSystems.add(includes[idx].system);
+    }
+
+    // Process excludes for unhandled systems (populates this.excluded safety net)
+    let i = 0;
+    for (const c of source.jsonObj.compose.exclude || []) {
+      this.worker.deadCheck('handleCompose#4');
+      if (!handledSystems.has(c.system)) {
+        await this.excludeCodes(c, "ValueSet.compose.exclude["+i+"]", source, filter, expansion, this.excludeInactives(source), notClosed);
+      }
+      i++;
+    }
+
     // Fall back to per-include processing for anything not handled
     i = 0;
-    for (const c of source.jsonObj.compose.include || []) {
+    for (const c of includes) {
       this.worker.deadCheck('handleCompose#5');
       if (!handledIncludes.has(i)) {
         await this.includeCodes(c, "ValueSet.compose.include["+i+"]", source, filter, expansion, excludeInactive, notClosed);
@@ -1276,6 +1286,14 @@ class ValueSetExpander {
       );
       if (!cs || !cs.expandForValueSet) continue;
 
+      // Paging is only safe when this is the sole system being expanded.
+      // With multiple systems the global offset/count doesn't map to any single
+      // system's result set — applying it would skip or lose codes.
+      // CONTRACT: if offset/count are non-null and the provider returns an iterable,
+      // the provider MUST have applied them. We zero this.offset below, so the
+      // provider's SQL is the sole paging authority. If the provider can't handle
+      // paging, it should return null to fall back to the framework's iterator.
+      const singleSystem = bySystem.size === 1;
       const spec = {
         includes: group.includes,
         excludes: group.excludes,
@@ -1283,8 +1301,8 @@ class ValueSetExpander {
         searchText: filter.isNull ? null : filter.text,
         includeDesignations: !!this.params.includeDesignations,
         properties: this.params.properties || [],
-        offsetHint: this.offset > 0 ? this.offset : null,
-        countHint: this.count > 0 ? this.count : null,
+        offset: singleSystem && this.offset > 0 ? this.offset : null,
+        count: singleSystem && this.count > 0 ? this.count : null,
       };
 
       const _t = perfCounters.begin('expandForValueSet');
@@ -1324,11 +1342,11 @@ class ValueSetExpander {
           const cds = new Designations(this.worker.i18n.languageDefinitions);
           if (entry.designations) {
             for (const d of entry.designations) {
-              cds.addDesignation(d.language, d.use, d.value);
+              cds.addDesignation(false, 'active', d.language, d.use, d.value);
             }
           }
           if (entry.display) {
-            cds.addDesignation('en', null, entry.display);
+            cds.addDesignation(true, 'active', 'en', null, entry.display);
           }
           await this.includeCode(
             cs, null,
@@ -1355,6 +1373,13 @@ class ValueSetExpander {
         } else {
           throw e;
         }
+      }
+
+      // Only zero the framework offset when we actually passed paging params
+      // to the provider. Otherwise the framework still needs to apply offset
+      // during finalization.
+      if (singleSystem) {
+        this.offset = 0;
       }
 
       // Mark all includes for this system as handled

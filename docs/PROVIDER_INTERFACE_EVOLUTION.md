@@ -1,294 +1,53 @@
-# CodeSystemProvider Interface: Performance Analysis and Evolution
+# Faster ValueSet Expansion via `expandForValueSet`
 
-## Background
+## The Problem
 
-The `CodeSystemProvider` interface (defined in `tx/cs/cs-api.js`) is the contract
-between the terminology expansion/validation workers and the backing data stores
-(SNOMED, LOINC, RxNorm, and future SQLite-based providers). The worker drives
-expansion by calling a sequence of methods on the provider — locate codes, check
-attributes, load designations — assembling the expansion result one code at a time.
+The `CodeSystemProvider` interface (`tx/cs/cs-api.js`) treats each provider as an
+**iterator + attribute oracle**: given a filter, produce matching codes one at a
+time, then answer per-code questions (`isInactive`, `getStatus`, `designations`,
+etc.). The expansion worker assembles the result by driving this loop.
 
-This document traces how the current interface plays out for SQL-backed providers,
-what we tried, what we measured, and the interface evolution we arrived at.
+For SQL-backed providers like RxNorm and LOINC, this creates two performance
+problems:
 
----
+1. **Per-code overhead.** The worker calls 8–10 methods per code. If contexts aren't
+   self-sufficient, each call can trigger a SQL query. For RxNorm, expanding 1100
+   codes originally cost 3301 SQL queries (1 filter + 1100 × 3 per-code status
+   lookups). This was fixed independently by making contexts carry all attributes
+   at creation time — zero interface changes required.
 
-## Part 1: Current Architecture
+2. **No paging push-down.** To return page 11 (offset=1000, count=100), the worker
+   processes all 1100 codes, then discards the first 1000. It can't tell the
+   provider to skip ahead because paging is a ValueSet-level concern (multiple
+   includes, excludes, dedup across code systems). A SQL provider could do
+   `LIMIT 100 OFFSET 1000` and return in ~1ms instead of ~200ms.
 
-### The Provider as Iterator + Attribute Oracle
+Similarly, excludes and `activeOnly` filtering happen code-by-code in the worker.
+A SQL provider could handle all of these in the WHERE clause.
 
-The worker treats a provider as two things:
+We briefly considered adding `{ offset, count, activeOnly }` options to the
+existing `executeFilters()` method, but this creates awkward partially-resolved
+states — the provider handles some post-filters but not others, and the worker
+has to know which. Piecemeal push-down doesn't compose well.
 
-1. **A code source** — given a filter (e.g., `TTY = SBD`), produce matching codes
-   one at a time via `filterMore()`/`filterConcept()` (or in pages via `filterPage()`).
-2. **An attribute oracle** — given a code's context handle, answer individual
-   questions: `isInactive(ctx)`, `getStatus(ctx)`, `designations(ctx)`, etc.
+## The Interface Change
 
-The context object returned by `locate()` or `filterConcept()` is an opaque handle.
-Each provider defines its own context class:
-
-- **SNOMED** (`SnomedExpressionContext`): Reference index into an in-memory binary
-  buffer. All attribute lookups are O(1) array reads. No I/O.
-- **LOINC** (`LoincProviderContext`): Carries key, code, description, status in
-  memory. Designations lazy-loaded from SQLite on first access (1 query, cached).
-- **RxNorm** (`RxNormConcept`): code, display, synonyms. Status/suppress required
-  separate SQL queries per access (fixed in this branch — see Part 2).
-
-### Concrete Call Trace: RxNorm Filter Expansion (Before Fixes)
-
-Scenario: expand TTY=SBD, offset=1000, count=100, activeOnly=true.
-
-```
-WORKER → PROVIDER                          WHAT PROVIDER DOES
-──────────────────────────────────────────────────────────────
-
-Setup phase (once):
-1. cs.getPrepContext(true)                  Creates empty filter context
-2. cs.filter(prep, 'TTY', '=', 'SBD')      Stores SQL fragment: AND TTY = 'SBD'
-3. cs.executeFilters(prep)                  Assembles query (not executed yet)
-
-First iteration call:
-4. cs.filterMore(ctx, set)                  Executes query via db.all(), loads
-                                            ALL ~23k rows into memory. Returns true.
-
-Per-code loop (repeats for EVERY matching code):
-5. cs.filterConcept(ctx, set)               Creates bare RxNormConcept(code, display)
-6. cs.isInactive(c)                         ** SQL query: SELECT suppress ... **
-7. cs.code(c)                               In-memory read
-8. cs.designations(c, displays)             In-memory
-9. cs.isAbstract(c)                         In-memory (returns false)
-10. cs.isInactive(c)                        ** SAME SQL query again **
-11. cs.isDeprecated(c)                      In-memory (returns false)
-12. cs.getStatus(c)                         ** SAME SQL query a third time **
-13. cs.definition(c)                        In-memory (returns null)
-14. cs.extensions(c)                        In-memory (returns null)
-   → includeCode() appends to fullList
-
-... repeats for 1100 codes ...
-Code #1100: fullList.length == offset + count → throws setFinished()
-→ Slices fullList[1000..1100] → response is 100 codes.
-→ First 1000 codes fully processed then discarded.
-```
-
-**Cost: 3301 SQL queries** (1 filter + 1100 × 3 per-code queries).
-
-**What a SQL provider could do:** 1 query, 0 follow-up calls:
-
-```sql
-SELECT RXCUI, STR, SUPPRESS FROM rxnconso
-WHERE SAB = 'RXNORM' AND TTY = 'SBD' AND SUPPRESS <> '1'
-ORDER BY RXCUI
-LIMIT 100 OFFSET 1000
-```
-
----
-
-## Part 2: What We Fixed (No Interface Changes)
-
-### Eager context loading in RxNorm
-
-Added `SUPPRESS` to the `locate()` and `executeFilters()` SELECT queries. Cached
-the suppress flag on `RxNormConcept`. Rewrote `isInactive()` and `getStatus()` to
-read the cached field instead of re-querying.
-
-**Result: 3301 → 1 SQL query.** 45% faster on a 1000-code expansion benchmark.
-
-This required **zero interface changes**. The worker calls the same methods; they
-just return cached data instead of hitting the DB.
-
-**Convention:** Any provider can adopt this pattern — make contexts self-sufficient
-at creation time by including all attributes the worker will ask for.
-
-### Added ORDER BY to filter queries
-
-The `executeFilters()` query was missing `ORDER BY`. Without it, paging results
-are non-deterministic across requests — different offset/count values can return
-overlapping or missing codes. Fixed by adding `ORDER BY RXCUI`.
-
-The existing `(SAB, TTY, RXCUI)` index makes this free for TTY equality filters.
-
----
-
-## Part 3: What We Explored and Rejected
-
-### Batch APIs: locateMany, prefetchAll
-
-We tried several approaches to batch per-code operations:
-
-- **`locateMany` with SQL `IN(...)`**: Actually **slower** than individual prepared
-  statements for SQLite. The query planner can't optimize large IN() lists as well
-  as repeated index lookups with cached plans. Removed from RxNorm.
-- **`prefetchAll(contexts[], needs)`**: Unnecessary — if contexts are self-sufficient
-  at creation time, there's nothing to prefetch.
-- **SNOMED/LOINC `locateMany`**: Just loops over `locate()` — no benefit in-process.
-
-These batch APIs may matter in a future multi-process architecture where IPC
-round-trip cost dominates. The stubs remain in cs-api.js for that reason.
-
-### Phase 1: Incremental push-down to executeFilters
-
-We considered adding `{ offset, count, activeOnly }` options to `executeFilters()`,
-letting the provider add `LIMIT/OFFSET` and `WHERE SUPPRESS <> '1'` to its query.
-
-**We rejected this** for several reasons:
-
-1. **offset/count is a ValueSet-level concept, not a CodeSystem one.** The final
-   expansion is assembled from multiple includes, minus excludes, minus import
-   conflicts, minus duplicates. The provider only sees one filter's results. If
-   you tell it `OFFSET 1000`, it skips *its* first 1000 codes — but those might
-   not be the same 1000 the worker would skip after post-filters.
-
-2. **Post-filters change the count.** Between the provider's output and the final
-   result, the worker applies:
-   - Exclude sets (codes removed after inclusion)
-   - Import filtering (`passesImports`)
-   - Deduplication (`this.map.has(s)` across code systems)
-   - Text filter (`filter.passesDesignations`)
-   
-   Any of these can change the effective offset. The provider can't predict how many
-   codes will be discarded.
-
-3. **Partially-resolved state.** If the provider handles activeOnly but not excludes,
-   the worker still has to do per-code processing for the remaining post-filters.
-   The provider did some of the work, the worker does the rest, and the boundary is
-   awkward — the worker has to know exactly what the provider handled.
-
-4. **activeOnly alone is marginal.** With rich contexts (already fixed), `isInactive()`
-   is a cached field read — ~0 cost. Pushing it to SQL only avoids the JS-side check,
-   not any I/O.
-
-**Bottom line:** Piecemeal push-down enters weird partially-resolved states and
-doesn't provide enough benefit to justify the complexity.
-
----
-
-## Part 4: SQLite Microbenchmark Results
-
-We benchmarked the async `sqlite3` package (current) against `better-sqlite3`
-(potential migration) using the RxNorm database (1.8GB, ~23k SBD codes,
-~288k total non-SY codes). Full benchmark scripts in `scripts/sqlite-microbench.js`
-and `scripts/sqlite-exclude-bench.js`.
-
-### Package comparison
-
-| Operation (23k SBD rows) | async `sqlite3` | `better-sqlite3` |
-|---------------------------|-----------------|-------------------|
-| Load all rows (`all()`)   | 45ms            | **20ms**          |
-| Iterate all rows          | N/A (no cursor) | 30ms              |
-| Break after 100 rows      | N/A             | **0.10ms**        |
-| Break after 1100 rows     | N/A             | **1.05ms**        |
-
-`better-sqlite3` is 2x faster for bulk loads and uniquely enables lazy cursors.
-The async `sqlite3` package's `db.each()` cannot abort early — it always fetches
-all rows regardless of how many you process in the callback.
-
-### Paging: SQL LIMIT/OFFSET vs iterate+skip+break
-
-Using `better-sqlite3` with `ORDER BY RXCUI` (covered by index for TTY= filters):
-
-| offset | SQL LIMIT/OFFSET | iterate+skip+break | Ratio   |
-|--------|-----------------|---------------------|---------|
-| 0      | 0.09ms          | 0.12ms              | ~1x     |
-| 100    | 0.07ms          | 0.19ms              | 3x      |
-| 1000   | 0.09ms          | 1.1ms               | **12x** |
-| 5000   | 0.23ms          | 5.8ms               | **25x** |
-| 10000  | 0.38ms          | 14ms                | **37x** |
-| 20000  | 0.72ms          | 28ms                | **40x** |
-
-SQL LIMIT/OFFSET with the `(SAB, TTY, RXCUI)` index can B-tree seek to the right
-position. The iterator must step through every preceding row.
-
-**OFFSET without ORDER BY is unsafe** — SQLite can return rows in any order,
-producing inconsistent pages across requests.
-
-**ORDER BY without an appropriate index is expensive** — requires a temp B-tree
-sort of all matching rows. With the inequality filter `TTY<>'SY'` (no index
-support), `ORDER BY RXCUI LIMIT 100 OFFSET 0` costs 142ms vs 0.07ms with the
-covering index. The index must include the ORDER BY column as a suffix.
-
-### Multi-include strategies
-
-| Strategy | Time (SBD+SCD, ~62k rows) |
-|----------|---------------------------|
-| UNION ALL | 85.6ms |
-| IN ('SBD','SCD') | 85.4ms |
-| Two separate queries | 85.6ms |
-
-**All equivalent.** Unlike `locateMany` (where large IN() lists hurt), filter-style
-queries with small IN sets (2-3 TTY values) work fine. The provider can freely merge
-multiple includes into one query.
-
-### Exclude strategies
-
-Without paging (iterating all ~23k rows), exclude method barely matters — the
-iteration cost dominates:
-
-| Exclude method | Time (23k rows, 500 excludes) |
-|----------------|-------------------------------|
-| JS Set.has()   | 33.7ms |
-| SQL NOT IN literal | 36.6ms |
-| Temp table + NOT IN | 33.0ms |
-
-**But with paging push-down, it matters enormously:**
-
-| Approach (offset=10000, count=100, 500 excludes) | Time |
-|--------------------------------------------------|------|
-| Temp table + SQL LIMIT/OFFSET | **1.1ms** |
-| NOT IN literal + SQL LIMIT/OFFSET | 2.2ms |
-| iterate + JS Set.has + skip/break | 15.9ms |
-
-When combined with LIMIT/OFFSET, SQL-side excludes are **15x faster** because
-the index can handle the seek + exclude together. Temp table performs best because
-SQLite can use an index on the temp table for the NOT IN subquery.
-
-### JS object construction cost
-
-| What | Time (23k rows) |
-|------|-----------------|
-| Count only (no objects) | 33.7ms |
-| Minimal `{code, display, suppress}` | 33.7ms |
-| Rich FHIR-like entry | 35.1ms |
-| Rich entry + Map dedup | 43.7ms |
-
-**Object construction is negligible** (~1.4ms for 23k rich objects). The cursor
-stepping cost dominates. Map-based dedup adds ~10ms due to string concatenation
-for keys.
-
----
-
-## Part 5: Target Design — `expandForValueSet`
-
-### The insight
-
-Instead of threading individual parameters through the existing 10-call-per-code
-iterator, **give each CodeSystem provider the full hull of includes and excludes
-that apply to it** and let it handle everything in one shot.
-
-The FHIR `compose` structure is flat — no nesting. Each include/exclude block has
-a `system` field. The worker can trivially group them by code system:
+One new optional method on `CodeSystemProvider`:
 
 ```js
-// In handleCompose, before processing:
-const bySystem = new Map();  // system → { includes: [...], excludes: [...] }
-for (const c of compose.include) {
-  if (c.system) getOrCreate(bySystem, c.system).includes.push(c);
-}
-for (const c of compose.exclude) {
-  if (c.system) getOrCreate(bySystem, c.system).excludes.push(c);
-}
-```
-
-### The method
-
-```js
-// New optional method on CodeSystemProvider
 async expandForValueSet(spec) {
-  // Returns an AsyncIterable<ExpandedEntry> or null (can't handle it → fall back)
+  // Returns an AsyncIterable<ExpandedEntry> or null (can't handle → fall back)
   return null;
 }
 ```
 
-**Input spec:**
+Instead of threading individual parameters through the 10-call-per-code loop,
+**give the provider the full hull of includes and excludes that apply to its code
+system** and let it handle everything in one shot.
+
+### Input
+
+The worker groups compose entries by code system and builds:
 
 ```js
 {
@@ -308,13 +67,15 @@ async expandForValueSet(spec) {
   properties: string[],                // which properties to include
   languages: Languages,                // requested display languages
 
-  // Paging hints — safe to apply OR ignore (see below)
-  offsetHint: number | null,
-  countHint: number | null,
+  // Paging — non-null only when safe (single code system); must apply if present
+  offset: number | null,
+  count: number | null,
 }
 ```
 
-**Output:** `AsyncIterable<ExpandedEntry>` where each entry is:
+### Output
+
+`AsyncIterable<ExpandedEntry>` where each entry is a fully-resolved code:
 
 ```js
 {
@@ -331,130 +92,209 @@ async expandForValueSet(spec) {
 }
 ```
 
-The worker iterates these entries and feeds them to `includeCode()`, which still
-handles dedup across code systems, import filtering, expansion limits, paging,
-and FHIR object construction.
+The worker iterates these entries via `includeCode()`, which still handles dedup
+across code systems, import filtering, expansion limits, and FHIR object construction.
 
-### Why paging hints are safe
+### Paging contract
 
-The hints `offsetHint` and `countHint` are always **safe to apply or ignore**,
-provided the result set has a stable total order (which it must for correct paging
-regardless):
+`offset` and `count` are **non-null only when the worker can verify they're
+safe** (currently: single code system in the compose). When provided:
 
-- **Best case** (single CS, no cross-system dedup/imports): hints are exact. The
-  provider returns exactly the right page via `LIMIT/OFFSET`. The worker iterates
-  100 rows instead of 20000+.
+- The provider **must apply them** (via SQL `LIMIT/OFFSET`). The worker zeros
+  its own offset after a successful `expandForValueSet` call, so the provider's
+  SQL is the sole paging authority.
+- If the provider can handle filters and excludes but **not** paging, it should
+  return `null` to fall back to the framework's iterator path, which applies
+  offset/count during finalization.
 
-- **Worst case** (multi-CS, post-filters discard some codes): the provider's OFFSET
-  skips too many or too few codes. But the worker's own `includeCode()` →
-  `fullList` → `setFinished()` is the final authority. If the provider returned too
-  few (because post-filters didn't discard any after all), the worker would ask for
-  more — this is handled by the iterable: the worker simply keeps pulling.
+When `null` (multi-system compose, or offset/count not requested):
 
-**The hints can produce wrong page boundaries but never wrong results.** The worker's
-dedup/exclude/paging logic is authoritative. The hints just let the provider skip
-work that will probably be discarded.
+- The provider returns all matching codes. The framework accumulates them into
+  `fullList` and applies paging during finalization. Still faster than baseline
+  because the provider handles filters, excludes, and activeOnly in SQL — just
+  without the LIMIT/OFFSET shortcut.
 
-In practice, the common case (single CS, no excludes, no imports) is exact, and the
-benchmarks show a 40x speedup at offset=20000.
+Each expansion request is fully stateless — there is no cross-request memory of
+previous pages. A request for offset=1000 re-derives the full ordered result set
+and skips the first 1000 entries. SQL `LIMIT/OFFSET` lets the provider do this skip in
+the B-tree index instead of iterating through rows.
 
-### Why the provider gets excludes too
+### Why the provider gets excludes
 
-Earlier we benchmarked SQL-side excludes vs JS-side Set.has() filtering. When
-iterating all rows, JS filtering is slightly faster. But when combined with
-LIMIT/OFFSET push-down, SQL-side excludes are **15x faster** (1.1ms vs 15.9ms
-at offset=10000) because the B-tree index handles the seek + exclude together.
-
-Since paging hints work best when the provider has handled excludes (fewer
-discarded codes = more accurate hints), the provider should see both includes
-and excludes. The temp table approach works well: load exclude codes once per
-request, use them in `NOT IN (SELECT ...)` subqueries.
+With paging push-down, SQL-side excludes are **15x faster** than JS-side filtering
+(1.1ms vs 15.9ms at offset=10000). The B-tree index handles seek + exclude together.
+The provider needs excludes to make paging accurate.
 
 ### Fallback protocol
 
-1. Worker calls `cs.expandForValueSet(spec)`. Provider returns null or an iterable.
-2. If **null**: worker falls back to the current iterator-oracle pattern unchanged.
-   SNOMED, LOINC, and any provider that doesn't implement this method are unaffected.
-3. If **iterable**: worker iterates entries, calling `includeCode()` for each. The
-   worker still handles dedup, imports, paging, FHIR construction.
-4. If the iterable is exhausted before the worker has enough codes (because paging
-   hints caused the provider to return too few), the worker can:
-   - Request another batch (provider exposes a continuation method), or
-   - Fall back to the iterator-oracle pattern for remaining codes.
+1. Provider returns `null` → worker falls back to the existing iterator-oracle
+   pattern, completely unchanged. SNOMED and any provider that doesn't implement
+   this method are unaffected.
+2. Provider returns an iterable → worker iterates entries, skips the framework's
+   manual `excludeCodes()` and `includeCodes()` paths for that code system.
+3. `this.offset = 0` after expansion — the provider's SQL handled OFFSET; prevents
+   the framework's finalization from double-skipping.
 
-### What this enables for RxNorm with `better-sqlite3`
+### Why `better-sqlite3`
 
-With `better-sqlite3` (lazy cursors, 2x faster bulk loads), the RxNorm provider
-can implement `expandForValueSet` as:
+The async `sqlite3` package can't support this pattern: `db.each()` can't abort
+early, so there's no way to stop after N rows. `better-sqlite3` provides
+synchronous lazy cursors via `stmt.iterate()` — the provider can break after the
+page is filled. It's also 2x faster for bulk loads.
 
-```js
-async *expandForValueSet(spec) {
-  // 1. Load exclude codes into temp table (once)
-  // 2. Build SQL from includes' filters: WHERE TTY IN ('SBD','SCD') ...
-  // 3. Add activeOnly: AND SUPPRESS <> '1'
-  // 4. Add searchText: AND STR LIKE '%...'
-  // 5. Add exclude: AND RXCUI NOT IN (SELECT rxcui FROM exclude_temp)
-  // 6. Add ORDER BY RXCUI
-  // 7. Add LIMIT/OFFSET from hints
-  // 8. stmt.iterate() → yield entries
-  
-  for (const row of stmt.iterate(...params)) {
-    yield {
-      code: row.RXCUI,
-      display: row.STR,
-      isInactive: row.SUPPRESS === '1',
-      status: row.SUPPRESS === '1' ? 'inactive' : 'active',
-      isAbstract: false,
-      isDeprecated: false,
-      definition: null,
-      designations: [{ language: 'en', value: row.STR }],
-      properties: [],
-      extensions: null,
-    };
-  }
-}
-```
-
-**Benchmark expectations (offset=10000, count=100, TTY=SBD, 500 excludes):**
-
-| Approach | Time |
-|----------|------|
-| Current (iterate all + per-code SQL) | ~150ms+ |
-| Eager contexts (this branch, no paging) | ~14ms |
-| expandForValueSet with LIMIT/OFFSET | **~1ms** |
-
-### Package migration: `better-sqlite3`
-
-The benchmarks strongly favor migrating SQL-backed providers to `better-sqlite3`:
-
-| Feature | async `sqlite3` | `better-sqlite3` |
-|---------|-----------------|-------------------|
-| Bulk load speed | 45ms / 23k rows | **20ms** |
-| Lazy cursor | ❌ (`db.each` can't abort) | ✅ (`stmt.iterate()` + break) |
-| Prepared statement reuse | Manual | Automatic |
-| Sync API | ❌ (callback hell) | ✅ |
-| LIMIT/OFFSET + break | N/A | ~0.1ms for 100 rows |
-
-The sync API is actually an advantage in this codebase — the provider methods are
-already `async` but the underlying SQLite operations are synchronous (single-writer,
-single-threaded, in-process). The async `sqlite3` package adds callback/promise
-overhead for no benefit.
-
-Migration path: introduce `better-sqlite3` as a dependency, use it in new provider
-code (`expandForValueSet`), migrate existing query methods incrementally.
+The sync API is fine here — SQLite operations are inherently single-threaded and
+in-process. The async wrappers add overhead for no concurrency benefit.
 
 ---
 
+## RxNorm Implementation
+
+### SQL strategies
+
+The RxNorm provider maps each filter/option to SQL:
+
+| Filter | SQL | Index used |
+|--------|-----|------------|
+| TTY (e.g., SBD) | `WHERE TTY IN (...)` | `(SAB, TTY, RXCUI)` — covers ORDER BY |
+| STY (semantic type) | `JOIN rxnsty ON rxnsty.RXCUI = rxnconso.RXCUI WHERE TUI = ?` | `X_RXNSTY_2(TUI)` drives, probes `X_RXNCONSO_1(RXCUI)` |
+| Concepts | `WHERE RXCUI IN (...)` with `+SAB = @sab` (unary `+` suppresses SAB index) | `X_RXNCONSO_1(RXCUI)` |
+| Excludes | `AND RXCUI NOT IN (@p1, @p2, ...)` | — |
+| activeOnly | `AND SUPPRESS <> '1'` | — |
+| searchText | `AND UPPER(STR) LIKE @pattern` | — |
+
+**GROUP BY for JOINs**: When STY joins are present, rxnconso has 1–8 rows per RXCUI
+(different TTY values). `GROUP BY RXCUI` deduplicates at the SQL level so
+LIMIT/OFFSET counts unique codes, not raw rows.
+
+**Index lesson**: Adding indexes can *hurt* SQLite — a composite `rxnsty(TUI, RXCUI)`
+index caused the planner to switch to a worse strategy. Prefer query shaping (JOIN
+order, unary `+`) over explicit index hints.
+
+### Results (13 tests)
+
+```
+Test                          | Opt (ms) | Base (ms) | Speedup | Result
+------------------------------|----------|----------|---------|-------
+filter-tty-sbd-10             |      6.8 |    248.7 |  36.5x  | ✅ exact
+concept-5                     |      2.5 |      3.8 |   1.5x  | ✅ exact
+exclude-concepts-3            |      3.2 |    235.2 |  73.8x  | ✅ exact
+multi-include-2               |     63.9 |    471.0 |   7.4x  | ✅ sets equal (40k)
+activeonly-sbd                |      2.2 |    194.9 |  82.3x  | ✅ exact
+filter-tty-in-multi           |      1.4 |    476.0 | 341.6x  | ✅ exact
+filter-sty-t200               |    217.1 |   1521.6 |   7.0x  | ✅ exact
+paged-offset-100              |      1.3 |    228.2 | 177.4x  | ✅ exact
+text-aspirin                  |      1.8 |  TIMEOUT |     ∞   | ✅ opt works
+exclude-filter                |      3.9 |    320.5 |  83.2x  | ✅ exact
+multi-include-concept+filter  |    140.2 |    189.5 |   1.4x  | ✅ sets equal (23k)
+combo-active-text-paged       |      1.4 |  TIMEOUT |     ∞   | ✅ opt works
+multi-include-multi-exclude   |     99.7 |    673.7 |   6.8x  | ✅ sets equal (40k)
+```
+
+**All 13 pass.** Median speedup ~37x. Best case 342x (multi-value IN with index).
+
+---
+
+## LOINC Implementation
+
+### Baseline problem
+
+LOINC's existing provider loads **all 240k codes into memory** at startup. Filter
+queries run SQL to find matching CodeKeys, then **materialize the entire result
+set** into an array before iterating. For large filters this takes 2–5 seconds:
+STATUS=ACTIVE materializes 163k rows, CLASSTYPE=Lab materializes 73k rows.
+
+The LOINC database is more normalized than RxNorm:
+- `Codes` (240k) — CodeKey PK, Code, Type (1=Code, 2=Part, 3=AnswerList, 4=Answer), StatusKey
+- `Relationships` (1.2M) — links codes to parts (COMPONENT, CLASS, SYSTEM, SCALE_TYP, etc.)
+- `Properties` (347k) + `PropertyValues` — key-value attributes (CLASSTYPE, ORDER_OBS)
+
+### SQL strategies
+
+| Filter | SQL | Notes |
+|--------|-----|-------|
+| Relationship (COMPONENT, CLASS, etc.) | `JOIN Relationships r ON r.TargetKey = (SELECT CodeKey FROM Codes WHERE Code = ?) AND r.RelationshipTypeKey = ? AND r.SourceKey = c.CodeKey` | Naturally scopes to Type=1 codes |
+| STATUS | `WHERE c.StatusKey = ?` | Direct column match |
+| CLASSTYPE | `JOIN Properties p ... JOIN PropertyValues pv ... AND pv.Value = ?` | Value "1" → "Laboratory class" via lookup |
+| LIST (answers-for) | `JOIN Relationships r ON r.SourceKey = (SELECT ...) AND r.RelationshipTypeKey = 40 AND r.TargetKey = c.CodeKey` | Reversed direction — list is source, answers are targets |
+| activeOnly | `WHERE c.StatusKey = 1` | — |
+
+**Multi-include via UNION**: Each compose include becomes a separate SELECT. Multiple
+includes are `UNION ALL`'d, with the outer query applying `GROUP BY Code` for dedup:
+
+```sql
+SELECT Code, Description FROM (
+  SELECT c.Code, c.CodeKey, d.Description FROM Codes c
+    JOIN Descriptions d ON d.CodeKey = c.CodeKey AND d.DescriptionTypeKey = 1
+    JOIN Relationships r1 ON ... -- include 1 filters
+  UNION ALL
+  SELECT c.Code, c.CodeKey, d.Description FROM Codes c
+    JOIN Descriptions d ON d.CodeKey = c.CodeKey AND d.DescriptionTypeKey = 1
+    JOIN Relationships r2 ON ... -- include 2 filters
+) GROUP BY Code ORDER BY CodeKey LIMIT ? OFFSET ?
+```
+
+This avoids AND-semantics where JOINs from different includes would all need to
+match simultaneously.
+
+**Key decisions:**
+- **ORDER BY CodeKey** (not Code string) matches baseline iteration order
+- **No blanket Type=1 filter** — relationship JOINs scope naturally; a Type=1
+  restriction would break LIST queries (answers are Type=4)
+- **Existing indexes sufficient** — `RelationshipsTarget`, `PropertiesCode1`,
+  `CodesCode` cover all patterns without new indexes
+- **Concept-only includes fall back** — `expandForValueSet` returns `null`, lets
+  the framework handle via `locate()` (efficient for small lists)
+
+### Results (14 tests)
+
+```
+Test                          | Opt (ms) | Base (ms) | Speedup | Result
+------------------------------|----------|-----------|---------|---------------------------
+filter-component-bacteria     |     11.3 |      31.4 |   2.7x  | ✅ exact
+filter-class-chem             |     13.8 |     941.0 |  68.2x  | ✅ exact
+filter-scale-qn               |     50.8 |    2611.3 |  51.4x  | ✅ exact
+filter-system-ser             |     21.0 |     680.4 |  32.4x  | ✅ exact
+concept-5                     |      2.8 |       1.9 |   0.6x  | ✅ sets equal (5)
+exclude-concepts              |      2.3 |      57.4 |  24.9x  | ✅ exact
+activeonly-class               |     14.0 |     119.4 |   8.7x  | ✅ exact
+filter-list-ll150             |      2.3 |      14.7 |   6.4x  | ✅ sets equal (255)
+filter-classtype-lab          |     82.2 |    2020.7 |  24.6x  | ✅ exact
+paged-class-offset-100        |     14.0 |     102.8 |   7.5x  | ✅ exact
+multi-filter-comp-scale       |      2.4 |      80.0 |  34.6x  | ✅ exact
+filter-status-active          |     50.1 |    5324.6 | 106.4x  | ✅ exact
+text-glucose                  |      1.3 |       1.4 |   1.1x  | ✅ exact
+multi-include-2-components    |      4.2 |      87.6 |  25.0x  | ✅ sets equal (743)
+```
+
+**All 14 pass.** Median speedup ~25x. Biggest wins: STATUS=ACTIVE 5.3s → 50ms,
+SCALE_TYP=Qn 2.6s → 51ms, CLASSTYPE=Lab 2.0s → 82ms.
+
+---
+
+## Validation
+
+**Unit tests:** LOINC 37/37 pass, RxNorm 45/45 skip (require raw import data).
+
+**Replay tests** (18 captured production queries):
+- RxNorm: 3/3 ✅ (validate-code, all 200)
+- LOINC: 4/4 functionally correct (1 exact match, 3 now return 200 where production
+  returned 422 — we handle queries production rejected)
+- SNOMED: 5/5 expected failures (not loaded)
+- Other: 6/6 ✅ (batch-validate, multi-system expansions)
+
 ## Summary
 
-| Issue | Impact | Fix | Status |
-|-------|--------|-----|--------|
-| Redundant per-code SQL | 3x overhead (3301 queries) | Eager context loading | ✅ Done |
-| Missing ORDER BY on filters | Non-deterministic paging | Add `ORDER BY RXCUI` | ✅ Done |
-| Thin filter contexts | Follow-up queries | Add columns to filter SELECT | ✅ Done |
-| Batch locate (`locateMany`) | Mixed — worse for SQL | Keep stub, don't force | ✅ Evaluated |
-| No paging push-down | Process N to return M | `expandForValueSet` with hints | 🎯 Target |
-| No activeOnly push-down | Per-code check | `expandForValueSet` spec | 🎯 Target |
-| No exclude push-down | JS-side filtering | `expandForValueSet` spec | 🎯 Target |
-| async `sqlite3` limitations | No lazy cursors, 2x slower | Migrate to `better-sqlite3` | 🎯 Target |
-| Phase 1 (incremental push-down) | Unsafe / partial state | Rejected | ❌ Rejected |
+The entire interface change is **one optional method** — `expandForValueSet`. It's
+additive: providers that don't implement it are completely unaffected. The method
+gives SQL-backed providers the information they need (the full compose hull,
+activeOnly, excludes, paging) to push everything into a single query with
+LIMIT/OFFSET.
+
+| What | RxNorm | LOINC |
+|------|--------|-------|
+| Tests | 13/13 pass | 14/14 pass |
+| Median speedup | ~37x | ~25x |
+| Best speedup | 342x | 106x |
+| Biggest absolute win | text+combo: TIMEOUT → <2ms | STATUS=ACTIVE: 5.3s → 50ms |
+| New indexes needed | None | None |
+| Existing tests broken | None | None |

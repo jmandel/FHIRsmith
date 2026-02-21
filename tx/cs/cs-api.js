@@ -661,8 +661,8 @@ class CodeSystemProvider {
    * @param {string|null} spec.searchText - expansion 'filter' parameter
    * @param {boolean} spec.includeDesignations - whether designations are needed
    * @param {string[]} spec.properties - which properties to include
-   * @param {number|null} spec.offsetHint - paging hint (safe to apply or ignore)
-   * @param {number|null} spec.countHint - paging hint (safe to apply or ignore)
+   * @param {number|null} spec.offset - paging offset (must apply if non-null)
+   * @param {number|null} spec.count - paging count (must apply if non-null)
    *
    * @returns {AsyncIterable<{
    *   code: string,
