@@ -108,6 +108,14 @@ class EffortBreakerDb {
     }
 
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const settle = (fn, value) => {
+        if (!settled) {
+          settled = true;
+          fn(value);
+        }
+      };
+
       const worker = new Worker(WORKER_PATH, {
         workerData: {
           dbPath: this._dbPath,
@@ -121,30 +129,30 @@ class EffortBreakerDb {
 
       const timer = setTimeout(() => {
         worker.terminate().then(() => {
-          reject(new EffortLimitExceededError(this._effortLimitMs));
+          settle(reject, new EffortLimitExceededError(this._effortLimitMs));
         });
       }, this._effortLimitMs);
 
       worker.on('message', (msg) => {
         clearTimeout(timer);
         if (msg.success) {
-          resolve(msg.result);
+          settle(resolve, msg.result);
         } else {
           const err = new Error(msg.error.message);
           err.code = msg.error.code;
-          reject(err);
+          settle(reject, err);
         }
       });
 
       worker.on('error', (err) => {
         clearTimeout(timer);
-        reject(err);
+        settle(reject, err);
       });
 
       worker.on('exit', (code) => {
         clearTimeout(timer);
         if (code !== 0 && code !== 1) {
-          reject(new EffortLimitExceededError(this._effortLimitMs));
+          settle(reject, new EffortLimitExceededError(this._effortLimitMs));
         }
       });
     });

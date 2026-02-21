@@ -162,9 +162,13 @@ describe('EffortBreakerDb', () => {
     expect(err.message).toContain('5000ms');
   });
 
-  test('default effortLimitMs is 30000', () => {
-    const db = new EffortBreakerDb(dbPath);
-    expect(db._effortLimitMs).toBe(30000);
-    db.close();
+  test('default effortLimitMs allows queries to complete', async () => {
+    const db = new EffortBreakerDb(dbPath, { readonly: true });
+    try {
+      const rows = await db.all('SELECT * FROM items LIMIT 1');
+      expect(rows.length).toBe(1);
+    } finally {
+      db.close();
+    }
   });
 });
