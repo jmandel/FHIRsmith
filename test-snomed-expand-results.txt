@@ -1,0 +1,24 @@
+=== SNOMED CT 3-way expansion benchmark ===
+Date: 2026-02-21T01:57:29.238Z
+Tests: 14 (full)
+
+Modes: v0-opt = SQLite v0 + expandForValueSet
+       v0-base = SQLite v0, expandForValueSet bypassed
+       legacy = upstream in-memory binary provider
+
+Test                          | v0-opt   | v0-base  | legacy   | v0-opt vs legacy | Codes | Match
+------------------------------|----------|----------|----------|------------------|-------|------
+is-a-diabetes                 |      9.6 |     20.4 |     11.8 |      1.2x faster |   124 | ✅ order differs
+concept-3                     |      2.2 |      2.6 |      2.0 |      1.1x slower |     3 | ✅ order differs
+descendent-of-diabetes        |      3.2 |     18.1 |      6.5 |      2.0x faster |   123 | ✅ order differs
+is-a-clinical-finding-100     |     95.4 |   8004.4 |   1154.7 |     12.1x faster |   100 | ✅ order differs, sets equal (0 codes)
+exclude-concept               |      4.1 |     15.5 |      6.9 |      1.7x faster |   123 | ✅ order differs
+is-a-clinical-paged           |    123.4 |   7767.9 |   1085.4 |      8.8x faster |   100 | ✅ order differs, sets equal (0 codes)
+is-a-procedure-100            |     64.8 |   4781.8 |    639.9 |      9.9x faster |   100 | ✅ order differs, sets equal (59441 codes)
+is-a-body-structure           |     46.9 |   3431.1 |    465.5 |      9.9x faster |   100 | ✅ order differs, sets equal (42482 codes)
+refset-laterality             |     35.6 |   3675.6 |    265.0 |      7.4x faster |   100 | ✅ order differs, sets equal (21275 codes)
+exclude-is-a-filter           |      2.7 |     15.6 |      2.7 |      1.0x faster |   108 | ✅ order differs
+multi-include                 |      2.5 |     27.9 |      4.2 |      1.7x faster |   100 | ✅ order differs, sets equal (255 codes)
+activeonly                    |      2.9 |     16.0 |      3.2 |      1.1x faster |   124 | ✅ order differs
+concept-equals                |      1.3 |      2.2 |      1.0 |      1.4x slower |     1 | ✅ exact
+is-a-clinical-deep-paged      |    161.4 |   8834.9 |   1078.1 |      6.7x faster |   100 | ✅ order differs, sets equal (0 codes)

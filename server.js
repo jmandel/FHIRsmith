@@ -522,16 +522,25 @@ app.post('/debug/perf-counters/enable', (req, res) => {
 app.post('/debug/bypass-expand-for-valueset', (req, res) => {
   const { RxNormServices } = require('./tx/cs/cs-rxnorm');
   const { LoincServices } = require('./tx/cs/cs-loinc');
+  const { SqliteRuntimeV0FactoryProvider } = require('./tx/cs/cs-sqlite-runtime-v0');
   const bypass = req.query.bypass !== 'false';
   RxNormServices.bypassExpandForValueSet = bypass;
   LoincServices.bypassExpandForValueSet = bypass;
+  SqliteRuntimeV0FactoryProvider.bypassExpandForValueSet = bypass;
+  // Clear expansion cache to avoid stale results when toggling
+  if (modules.tx?.endpoints) {
+    for (const ep of modules.tx.endpoints) {
+      if (ep.expansionCache) ep.expansionCache.cache.clear();
+    }
+  }
   res.json({ bypassExpandForValueSet: bypass });
 });
 
 app.get('/debug/bypass-expand-for-valueset', (req, res) => {
   const { RxNormServices } = require('./tx/cs/cs-rxnorm');
   const { LoincServices } = require('./tx/cs/cs-loinc');
-  res.json({ bypassExpandForValueSet: !!(RxNormServices.bypassExpandForValueSet || LoincServices.bypassExpandForValueSet) });
+  const { SqliteRuntimeV0FactoryProvider } = require('./tx/cs/cs-sqlite-runtime-v0');
+  res.json({ bypassExpandForValueSet: !!(RxNormServices.bypassExpandForValueSet || LoincServices.bypassExpandForValueSet || SqliteRuntimeV0FactoryProvider.bypassExpandForValueSet) });
 });
 
 /**

@@ -612,7 +612,7 @@ class ValueSetExpander {
     }
   }
 
-  async checkSource(cset, exp, filter, srcURL, ts) {
+  async checkSource(cset, exp, filter, srcURL, ts, vsInfo) {
     this.worker.deadCheck('checkSource');
     Extensions.checkNoModifiers(cset, 'ValueSetExpander.checkSource', 'set');
     let imp = false;
@@ -639,6 +639,10 @@ class ValueSetExpander {
       if (cs == null) {
         // nothing
       } else {
+        if (vsInfo && vsInfo.isSimple) {
+          vsInfo.csDoExcludes = cs.handlesExcludes();
+          vsInfo.csDoOffset = cs.handlesOffset();
+        }
         if (cs.contentMode() !== 'complete') {
           if (cs.contentMode() === 'not-present') {
             throw new Issue('error', 'business-rule', null, null, 'The code system definition for ' + cset.system + ' has no content, so this expansion cannot be performed', 'invalid');
@@ -671,7 +675,7 @@ class ValueSetExpander {
     }
   }
 
-  async includeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed) {
+  async includeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed, compose, vsInfo) {
     this.worker.deadCheck('processCodes#1');
     const valueSets = [];
 
@@ -810,7 +814,9 @@ class ValueSetExpander {
         if (cset.filter) {
           this.worker.opContext.log('prepare filters');
           const fcl = cset.filter;
-          const prep = await cs.getPrepContext(true);
+          const prep = (vsInfo && vsInfo.csDoOffset)
+            ? await cs.getPrepContext(true, this.offset, this.count)
+            : await cs.getPrepContext(true);
           if (!filter.isNull) {
             await cs.searchFilter(prep, filter, true);
           }
@@ -828,6 +834,21 @@ class ValueSetExpander {
             }
             Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter');
             await cs.filter(prep, fc.property, fc.op, fc.value);
+          }
+
+          if (vsInfo && vsInfo.csDoExcludes && compose) {
+            try {
+              for (const exc of compose.exclude || []) {
+                if (exc.system === cset.system) {
+                  await cs.filterExclude(prep, this.excludeFilterList(exc));
+                }
+              }
+            } catch (_e) {
+              // Unsupported exclude filter — clear accumulated excludes so executeFilters
+              // falls back to normal filter sets; worker-side excludeCodes will handle it
+              if (prep._v0Excludes) prep._v0Excludes.length = 0;
+              vsInfo.csDoExcludes = false;
+            }
           }
 
           const fset = await cs.executeFilters(prep);
@@ -1139,15 +1160,18 @@ class ValueSetExpander {
   async handleCompose(source, filter, expansion, notClosed) {
     this.worker.opContext.log('compose #1');
 
+    const compose = source.jsonObj.compose;
+    const vsInfo = this.scanValueSet(compose);
+
     const ts = new Map();
-    for (const c of source.jsonObj.compose.include || []) {
+    for (const c of compose.include || []) {
       this.worker.deadCheck('handleCompose#2');
-      await this.checkSource(c, expansion, filter, source.url, ts);
+      await this.checkSource(c, expansion, filter, source.url, ts, vsInfo);
     }
-    for (const c of source.jsonObj.compose.exclude || []) {
+    for (const c of compose.exclude || []) {
       this.worker.deadCheck('handleCompose#3');
       this.hasExclusions = true;
-      await this.checkSource(c, expansion, filter, source.url, ts);
+      await this.checkSource(c, expansion, filter, source.url, ts, null);
     }
 
     this.worker.opContext.log('compose #2');
@@ -1160,30 +1184,82 @@ class ValueSetExpander {
 
     // Determine which systems were fully handled (includes+excludes baked in)
     const handledSystems = new Set();
-    const includes = source.jsonObj.compose.include || [];
+    const includes = compose.include || [];
     for (const idx of handledIncludes) {
       if (includes[idx]?.system) handledSystems.add(includes[idx].system);
     }
 
-    // Process excludes for unhandled systems (populates this.excluded safety net)
-    let i = 0;
-    for (const c of source.jsonObj.compose.exclude || []) {
+    // Process excludes for systems not handled by expandForValueSet.
+    // When csDoExcludes, filterExclude will be called inside includeCodes —
+    // but we still run excludeCodes here as safety net for fallback cases.
+    // If filterExclude succeeds, the SQL already excludes codes so
+    // excludeCodes will be a no-op (codes won't be in the include results).
+    // If filterExclude fails (unsupported filter), csDoExcludes gets cleared
+    // and this ensures the worker-side exclude still applies.
+    let j = 0;
+    for (const c of compose.exclude || []) {
       this.worker.deadCheck('handleCompose#4');
       if (!handledSystems.has(c.system)) {
-        await this.excludeCodes(c, "ValueSet.compose.exclude["+i+"]", source, filter, expansion, this.excludeInactives(source), notClosed);
+        await this.excludeCodes(c, "ValueSet.compose.exclude["+j+"]", source, filter, expansion, this.excludeInactives(source), notClosed);
       }
-      i++;
+      j++;
     }
 
-    // Fall back to per-include processing for anything not handled
-    i = 0;
+    // Fall back to per-include processing for anything not handled by expandForValueSet
+    let i = 0;
     for (const c of includes) {
       this.worker.deadCheck('handleCompose#5');
       if (!handledIncludes.has(i)) {
-        await this.includeCodes(c, "ValueSet.compose.include["+i+"]", source, filter, expansion, excludeInactive, notClosed);
+        await this.includeCodes(c, "ValueSet.compose.include["+i+"]", source, filter, expansion, excludeInactive, notClosed, compose, vsInfo);
       }
       i++;
     }
+  }
+
+  /**
+   * Scan the ValueSet compose to determine if it's "simple" — all one code system
+   * with no value set dependencies. This affects whether excludes/offset can be
+   * pushed down to the CS provider.
+   */
+  scanValueSet(compose) {
+    const result = { isSimple: false, hasExcludes: false, csset: new Set(), csDoExcludes: false, csDoOffset: false };
+    let simple = true;
+    for (const inc of compose.include || []) {
+      if (!this._isSimpleInclude(inc, result.csset, false)) {
+        simple = false;
+      }
+    }
+    for (const exc of compose.exclude || []) {
+      if (!this._isSimpleInclude(exc, result.csset, true)) {
+        simple = false;
+      }
+      result.hasExcludes = true;
+    }
+    if (simple && result.csset.size === 1) {
+      result.isSimple = true;
+    }
+    return result;
+  }
+
+  _isSimpleInclude(inc, set, isExclude) {
+    set.add(inc.system + '|' + (inc.version || ''));
+    return (!inc.valueSet || inc.valueSet.length === 0)
+      && ((inc.filter && inc.filter.length > 0) || (isExclude && inc.concept && inc.concept.length > 0));
+  }
+
+  excludeFilterList(exc) {
+    const results = [];
+    for (const f of exc.filter || []) {
+      results.push({ prop: f.property, op: f.op, value: f.value });
+    }
+    if (exc.concept && exc.concept.length > 0) {
+      results.push({
+        prop: 'code',
+        op: 'in',
+        value: exc.concept.map(c => c.code).join(','),
+      });
+    }
+    return results;
   }
 
   /**
@@ -1230,7 +1306,9 @@ class ValueSetExpander {
       });
     }
 
-    // Try expandForValueSet for each system
+    // Try expandForValueSet for each system — two-phase approach:
+    // Phase 1: call expandForValueSet on all systems to check feasibility
+    const expandResults = new Map(); // system → { cs, group, result, spec }
     for (const [system, group] of bySystem) {
       const cset0 = includes[group.indices[0]];
       const cs = await this.worker.findCodeSystem(
@@ -1273,6 +1351,11 @@ class ValueSetExpander {
         continue;
       }
 
+      expandResults.set(system, { cs, group, result, singleSystem });
+    }
+
+    // Phase 2: iterate results for all systems that succeeded
+    for (const [system, { cs, group, result, singleSystem }] of expandResults) {
       perfCounters.bump('expandForValueSet.handled');
       this.worker.opContext.log('expandForValueSet handled ' + system);
 
