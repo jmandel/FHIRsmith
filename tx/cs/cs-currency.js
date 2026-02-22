@@ -173,7 +173,7 @@ class Iso4217Services extends CodeSystemProvider {
     assert(op != null && typeof op === 'string', 'op must be a non-null string');
     assert(value != null && typeof value === 'string', 'value must be a non-null string');
 
-    return prop === 'decimals' && op === 'equals';
+    return prop === 'decimals' && (op === 'equals' || op === '=');
   }
 
   async searchFilter(filterContext, filter, sort) {
@@ -192,7 +192,7 @@ class Iso4217Services extends CodeSystemProvider {
     assert(op != null && typeof op === 'string', 'op must be a non-null string');
     assert(value != null && typeof value === 'string', 'value must be a non-null string');
 
-    if (prop === 'decimals' && op === 'equals') {
+    if (prop === 'decimals' && (op === 'equals' || op === '=')) {
       const result = new CurrencyConceptFilter();
 
       for (const concept of this.codes) {
