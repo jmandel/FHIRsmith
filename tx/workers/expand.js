@@ -833,8 +833,8 @@ class ValueSetExpander {
           // other systems can't drain this CS's results. The worker's overall
           // count management handles cross-system totals.
           const prep = cs.handlesOffset()
-            ? await cs.getPrepContext(true, this.params, excludeInactive, this.offset, this.count)
-            : await cs.getPrepContext(true, this.params, excludeInactive);
+            ? await cs.getPrepContext(true, this.params, excludeInactive, this.offset, this.count, this.limitCount)
+            : await cs.getPrepContext(true, this.params, excludeInactive, -1, -1, this.limitCount);
           if (!filter.isNull) {
             await cs.searchFilter(prep, filter, true);
           }
@@ -880,6 +880,12 @@ class ValueSetExpander {
 
           // Execute — provider sees full picture: all concepts, filters, excludes
           const fset = await cs.executeFilters(prep);
+
+          // Fail fast: provider detected result set exceeds limit — no need to iterate
+          if (fset[0]?._v0ExceedsLimit && this.limitCount > 0) {
+            throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [vsSrc.url, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+          }
+
           if (await cs.filtersNotClosed(prep)) {
             notClosed.value = true;
           }
@@ -1109,6 +1115,10 @@ class ValueSetExpander {
       }
 
       if (cset.concept) {
+        // Fail fast: if the concept list alone exceeds the limit, don't iterate
+        if (this.limitCount > 0 && cset.concept.length + this.fullList.length > this.limitCount && this.offset < 0) {
+          throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [vsSrc.url, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+        }
         this.worker.opContext.log('iterate concepts');
         const cds = new Designations(this.worker.i18n.languageDefinitions);
         for (const cc of cset.concept) {
@@ -1130,7 +1140,7 @@ class ValueSetExpander {
 
       if (cset.filter) {
         this.worker.opContext.log('prep filters');
-        const prep = await cs.getPrepContext(true);
+        const prep = await cs.getPrepContext(true, null, null, -1, -1, this.limitCount);
         if (!filter.isNull) {
           await cs.searchFilter(prep, filter, true);
         }
@@ -1148,6 +1158,12 @@ class ValueSetExpander {
 
         this.worker.opContext.log('iterate filters');
         const fset = await cs.executeFilters(prep);
+
+        // Fail fast: provider detected result set exceeds limit — no need to iterate
+        if (fset[0]?._v0ExceedsLimit) {
+          throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [vsSrc.url, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+        }
+
         if (await cs.filtersNotClosed(prep)) {
           notClosed.value = true;
         }

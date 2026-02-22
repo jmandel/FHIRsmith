@@ -930,11 +930,12 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return false;
   }
 
-  async getPrepContext(iterate, params, excludeInactive, offset = -1, count = -1) {
+  async getPrepContext(iterate, params, excludeInactive, offset = -1, count = -1, limitCheck = -1) {
     const ctx = new FilterExecutionContext(iterate);
     ctx._v0Excludes = [];
     ctx._v0Offset = offset;
     ctx._v0Count = count;
+    ctx._v0LimitCheck = limitCheck;
     // Combine compose-level and request-level active filtering:
     // "exclude" wins — client can narrow but can't widen beyond the ValueSet's rule
     ctx._v0ExcludeInactive = excludeInactive || !!(params && params.activeOnly);
@@ -1197,9 +1198,25 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         }
 
         // Return full context rows so filterConcept can use them directly
-        let sql = `SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (${innerSql}) AS t`
-          + ` WHERE 1=1${excludeSql}`
-          + ` ORDER BY t.code`;
+        const baseSql = `SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (${innerSql}) AS t`
+          + ` WHERE 1=1${excludeSql}`;
+
+        // Bounded count check: if caller supplied a limit threshold, run a cheap
+        // existence query to see whether the result set exceeds it.  This avoids
+        // fetching/iterating thousands of rows only to throw too-costly.
+        if (filterContext._v0LimitCheck > 0 && filterContext._v0Count <= 0) {
+          const boundedSql = `SELECT COUNT(*) AS cnt FROM (${baseSql} LIMIT ${filterContext._v0LimitCheck + 1})`;
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          const probe = syncDb.prepare(boundedSql).get(allParams);
+          if (probe && probe.cnt > filterContext._v0LimitCheck) {
+            const result = new SqliteRuntimeV0FilterSet('v0-exceeds-limit', [], true);
+            result._v0ExceedsLimit = true;
+            result._v0LimitCheckCount = probe.cnt;
+            return [result];
+          }
+        }
+
+        let sql = baseSql + ` ORDER BY t.code`;
 
         if (filterContext._v0Count > 0) {
           sql += ` LIMIT ${filterContext._v0Count}`;
