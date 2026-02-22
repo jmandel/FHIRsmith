@@ -1992,13 +1992,26 @@ class ExpandWorker extends TerminologyWorker {
       const cached = expansionCache.get(cacheKey);
       if (cached) {
         this.log.debug('Using cached expansion');
+        // Re-throw cached too-costly errors
+        if (cached._cachedIssue) {
+          throw cached._cachedIssue;
+        }
         return cached;
       }
     }
 
     // Perform the actual expansion
     const startTime = performance.now();
-    const result = await this.performExpansion(valueSet, params, logExtraOutput);
+    let result;
+    try {
+      result = await this.performExpansion(valueSet, params, logExtraOutput);
+    } catch (e) {
+      // Cache deterministic too-costly errors so repeated requests are free
+      if (cacheKey && expansionCache && e instanceof Issue && e.cause === 'too-costly') {
+        expansionCache.set(cacheKey, { _cachedIssue: e }, 1000);
+      }
+      throw e;
+    }
     const durationMs = performance.now() - startTime;
 
     // Cache if it took long enough (and not debugging)
