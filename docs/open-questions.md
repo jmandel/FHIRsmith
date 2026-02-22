@@ -198,3 +198,57 @@ We raised all three to 1,000,000 for development to avoid failing on these cases
 2. **Should the limit apply to SQL row fetch or only to response size?** Currently the SQL uses `LIMIT` from the `count` parameter, but the worker's `limitCount` check applies to the accumulated `fullList` after iteration. With SQL providers, we could let SQL return all rows and only cap the response.
 
 3. **Memory pressure**: a 1M-code expansion would be ~1GB of JSON. Should we add a memory-based check instead of (or in addition to) a count-based one?
+
+## Whole-System Expansion via Filter Pipeline (SQL Pushdown)
+
+**Status**: Implemented  
+**Discovered**: 2026-02-22, during load testing with captured ndjson queries
+
+### Problem
+
+When a client requests `$expand` with `count=1000` on a ValueSet that includes an entire code system (e.g., `{ include: [{ system: "http://loinc.org" }] }`), the expand worker's Path A iterated **all 240K LOINC codes** via `iterator(null)` → `nextContext()` loop, making ~8 async calls per code. This took ~9 seconds cold even though only 1000 codes were needed.
+
+### Solution
+
+For providers that declare `handlesOffset()`, the worker routes the "add whole code system" case through the **filter pipeline** (Path B) with zero filters instead of the iterator-based tree walk (Path A). This lets the v0 provider build a single SQL query: `SELECT ... FROM concept WHERE cs_id = ? [AND active = 1] ORDER BY code LIMIT ? OFFSET ?`.
+
+**Key design decisions:**
+
+1. **Don't modify `iterator()`** — it's a general-purpose method used by the expand worker for tree walks and by other providers. It shouldn't assume the query context (what filters apply, what limit the caller wants). Only the worker knows the full picture.
+
+2. **Route via capability check** — `cs.handlesOffset()` gates the SQL pushdown path. Legacy providers without this capability use the existing iterator loop unchanged.
+
+3. **Loosen `executeFilters` guard** — the v0 provider's `executeFilters()` now fires when `filterContext.forIterate` is true even with zero filters/concepts. The SQL it builds is: `SELECT ... FROM concept c WHERE c.cs_id = @_csId` + active clause + exclude SQL + LIMIT/OFFSET.
+
+4. **COUNT(\*) for total** — when LIMIT is applied, the provider runs a separate `COUNT(*)` query (same WHERE clause, no LIMIT) and attaches the result as `_v0Total` on the filter set. The worker uses this for the response total instead of counting iterated rows.
+
+5. **Prevent double offset/count** — the expander sets `providerHandledPagination = true` when the provider reports `_v0Total`. The finalization loop checks this flag and emits all results as-is instead of re-applying offset/count slicing. This avoids mutating `this.offset`/`this.count` (which are also used for response parameters).
+
+### Results
+
+- Full LOINC `count=1000`: **9,063ms → 44ms cold** (200x improvement)
+- Pagination (`offset=100, count=10`): works correctly, ~30ms
+- All 858 cs tests pass; cross-system expand tests unchanged
+
+## SQL Tracing / Query Diagnostics
+
+**Status**: Open — design idea  
+**Discovered**: 2026-02-22, during load test investigation
+
+### Problem
+
+When debugging performance issues, there's no way to see what SQL queries the v0 provider executes or how long they take. The `OperationContext` has a `log()` method for high-level diagnostics (visible in response `diagnostics` field), but nothing at the SQL level.
+
+### Design Ideas
+
+1. **Environment variable** (`SQL_TRACE=1`): wrap all `get()`/`all()` calls in the v0 provider with timing and log to console. Zero overhead when disabled.
+
+2. **Per-request tracing**: add an `X-SQL-Trace: true` header or `_trace=sql` query parameter. The v0 provider collects `{sql, params, ms, rowCount}` tuples during the request and includes them in the response's `diagnostics` extension. Useful for production debugging without restarting the server.
+
+3. **Aggregated metrics**: track running stats (query count, total ms, slowest query) per code system provider. Expose via a `/debug/sql-stats` endpoint.
+
+### Considerations
+
+- better-sqlite3 is synchronous, so timing is straightforward (`performance.now()` before/after)
+- Parameter values should be sanitized or truncated before logging (could contain PHI in code values)
+- Option 2 is the most useful for debugging — lets you see exactly what queries a specific `$expand` or `$validate-code` triggers

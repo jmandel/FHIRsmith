@@ -735,7 +735,44 @@ class ValueSetExpander {
             Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
             await this.importValueSet(base, expansion, valueSets, 0);
             notClosed.value = true;
+          } else if (filter.isNull && cs.handlesOffset()) {
+            // SQL-pushdown path: provider handles the entire "all codes" query
+            // via executeFilters with zero filters, applying LIMIT/OFFSET in SQL.
+            this.worker.opContext.log('add whole code system (sql)');
+            if (cs.isNotClosed()) {
+              if (cs.specialEnumeration()) {
+                Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
+              } else {
+                throw new Issue("error", "too-costly", null, null, 'The code System "' + cs.system() + '" has a grammar, and cannot be enumerated directly', null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+              }
+              notClosed.value = true;
+            }
+            const prep = await cs.getPrepContext(true, this.params, excludeInactive, this.offset, this.count);
+            const fset = await cs.executeFilters(prep);
+            // Provider applied LIMIT/OFFSET in SQL and reports total via COUNT(*)
+            if (fset.length > 0 && fset[0]._v0Total != null) {
+              this.addToTotal(fset[0]._v0Total);
+              this.providerHandledPagination = true;
+            }
+            this.worker.opContext.log('iterate filters');
+            if (fset.length > 0) {
+              while (await cs.filterMore(prep, fset[0])) {
+                const c = await cs.filterConcept(prep, fset[0]);
+                this.worker.deadCheck('processCodes#3a');
+                if (await this.passesFilters(cs, c, prep, filters, 0)) {
+                  const cds = new Designations(this.worker.i18n.languageDefinitions);
+                  await this.listDisplaysFromProvider(cds, cs, c);
+                  let added = await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.isDeprecated(c), await cs.getStatus(c),
+                    cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.extensions(c), null, await this._propsIfRequested(cs, c), null, excludeInactive, vsSrc.url);
+                  if (added && !this.providerHandledPagination) {
+                    this.addToTotal();
+                  }
+                }
+              }
+            }
+            this.worker.opContext.log('iterate filters done');
           } else if (filter.isNull) {
+            // Legacy iterator path for providers that don't handle offset
             this.worker.opContext.log('add whole code system');
             if (cs.isNotClosed()) {
               if (cs.specialEnumeration()) {
@@ -1252,6 +1289,7 @@ class ValueSetExpander {
     this.noCacheThisOne = noCacheThisOne;
     this.totalStatus = 'uninitialised';
     this.total = 0;
+    this.providerHandledPagination = false;
 
     Extensions.checkNoImplicitRules(source,'ValueSetExpander.Expand', 'ValueSet');
     Extensions.checkNoModifiers(source,'ValueSetExpander.Expand', 'ValueSet');
@@ -1438,6 +1476,24 @@ class ValueSetExpander {
     if (this.offset + this.count < 0 && this.fullList.length > this.limit) {
       this.log.log('Operation took too long @ expand (' + this.constructor.name + ')');
       throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [source.vurl, '>' + this.limit]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+    } else if (this.providerHandledPagination) {
+      // Provider already applied LIMIT/OFFSET in SQL — emit all results as-is
+      for (let i = 0; i < list.length; i++) {
+        this.worker.deadCheck('expand#1');
+        const c = list[i];
+        if (this.map.has(this.keyC(c))) {
+          if (!exp.contains) {
+            exp.contains = [];
+          }
+          exp.contains.push(c);
+          if (table != null) {
+            const tr = table.tr();
+            tr.td().tx(c.system);
+            tr.td().tx(c.code);
+            tr.td().tx(c.display);
+          }
+        }
+      }
     } else {
       let t = 0;
       let o = 0;

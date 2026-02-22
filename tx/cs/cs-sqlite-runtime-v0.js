@@ -1090,8 +1090,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     const hasExcludeConcepts = filterContext._v0ExcludeConcepts && filterContext._v0ExcludeConcepts.length > 0;
     const syncDb = this.#getSyncDb();
 
-    // Build combined SQL when we have sync DB and something to query.
-    if (syncDb && (hasIncludeFilters || hasIncludeConcepts)) {
+    // Build combined SQL when we have sync DB. Fires for filters, concepts,
+    // or bare "all codes" (no filters/concepts = whole code system).
+    if (syncDb && (hasIncludeFilters || hasIncludeConcepts || filterContext.forIterate)) {
       const csId = this.meta.csId;
       const allParams = { _csId: csId };
 
@@ -1268,6 +1269,13 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         // Attach pre-fetched context rows so filterConcept avoids per-code locate()
         combinedSet._v0Rows = rows;
         combinedSet._v0RowIndex = new Map(rows.map((r, i) => [r.code, i]));
+        // When LIMIT was applied, run a COUNT(*) so the worker can report the real total
+        if (filterContext._v0Count > 0) {
+          const countSql = `SELECT COUNT(*) AS cnt FROM (${innerSql}) AS t WHERE 1=1${excludeSql}`;
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          const countRow = syncDb.prepare(countSql).get(allParams);
+          combinedSet._v0Total = countRow ? countRow.cnt : rows.length;
+        }
         // Always attach the designation map (even if empty) so designations()
         // uses it instead of falling back to per-code DB queries.
         combinedSet._v0Designations = designationMap;
