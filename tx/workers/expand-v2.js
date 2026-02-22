@@ -18,6 +18,7 @@ const { Issue, OperationOutcome } = require('../library/operation-outcome');
 const { VersionUtilities } = require('../../library/version-utilities');
 const crypto = require('crypto');
 const ValueSet = require('../library/valueset');
+const { ExpandTrace, traceStore, trace: T } = require('./expand-trace');
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -191,6 +192,9 @@ class ValueSetExpander {
     this.worker = worker;
     this.params = params;
 
+    // Tracing — enabled when logExtraOutput is set or EXPAND_TRACE env var
+    this.trace = new ExpandTrace(!!process.env.EXPAND_TRACE);
+
     // Accumulation state
     this.map = new Map();           // key → contains entry (dedup)
     this.fullList = [];             // all included entries (flat order)
@@ -220,6 +224,7 @@ class ValueSetExpander {
   // ── Public entry point ───────────────────────────────────────────────────────
 
   async expand(source, filter, noCacheThisOne) {
+    const _tExpand = T.begin('expand', { url: source.url, filter: filter?.filter, count: this.params.count, offset: this.params.offset });
     this.noCacheThisOne = noCacheThisOne;
     this.valueSet = source;
 
@@ -305,7 +310,15 @@ class ValueSetExpander {
     } catch (e) {
       if (!(e instanceof Issue)) throw e;
       if (e.finished) {
-        if (this.totalStatus === 'uninitialised') this.totalStatus = 'off';
+        if (this.totalStatus === 'uninitialised') {
+          // When paginating, don't suppress total — set it from fullList count
+          // since we don't have the true total from the (short-circuited) iteration.
+          if (this.count > -1 || this.offset > -1) {
+            this.totalStatus = 'set';
+          } else {
+            this.totalStatus = 'off';
+          }
+        }
       } else if (e.toocostly) {
         Extensions.addBoolean(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly', true);
         if (div_) div_.p().style('color: Maroon').tx(e.message);
@@ -323,17 +336,19 @@ class ValueSetExpander {
       if (r !== source.vurl) this._addParam(exp, l, 'valueUri', r);
     }
 
+    _tExpand.end({ total: exp.total, containsCount: this.fullList.length });
     return result;
   }
 
   // ── Compose processing ───────────────────────────────────────────────────────
 
   async _handleCompose(source, filter, expansion, notClosed) {
+    const includes = source.jsonObj.compose.include || [];
+    const excludes = source.jsonObj.compose.exclude || [];
+    const _tHandleCompose = T.begin('_handleCompose', { includesCount: includes.length, excludesCount: excludes.length });
     this.worker.opContext.log('compose: preflight');
 
     const systemVersions = new Map();
-    const includes = source.jsonObj.compose.include || [];
-    const excludes = source.jsonObj.compose.exclude || [];
 
     // Pre-flight: validate all sources
     for (const c of includes) {
@@ -348,6 +363,7 @@ class ValueSetExpander {
 
     // Group components by system for pushdown opportunities
     const groups = this._groupBySystem(includes, excludes);
+    _tHandleCompose.groupsCount = groups.length;
     const excludeInactive = this._excludeInactives(source);
 
     for (const group of groups) {
@@ -371,6 +387,7 @@ class ValueSetExpander {
           expansion, excludeInactive, notClosed, 'include');
       }
     }
+    _tHandleCompose.end();
   }
 
   // ── Group components by system ───────────────────────────────────────────────
@@ -433,10 +450,15 @@ class ValueSetExpander {
 
   async _tryPushdown(group, vsSrc, filter, expansion, excludeInactive, notClosed) {
     if (group.includes.length === 0) return false;
+    const _tTryPushdown = T.begin('_tryPushdown', { system: group.system, includesCount: group.includes.length, excludesCount: group.excludes.length });
 
     const cs = await this.worker.findCodeSystem(group.system, group.version, this.params,
       ['complete', 'fragment'], false, false, true, null, this.requiredSupplements);
-    if (!cs || typeof cs.expandComponent !== 'function') return false;
+    if (!cs || typeof cs.expandComponent !== 'function') { _tTryPushdown.end({ handled: false, reason: 'no expandComponent' }); return false; }
+
+    // Save context state — VS expansions below may register URLs that must be
+    // rolled back if pushdown ultimately fails (expandComponent returns null).
+    const savedContextsLen = this.worker.opContext.contexts.length;
 
     // Pre-expand any ValueSet imports into code lists for intersection pushdown.
     // Each component with valueSet[] gets an intersectCodes array.
@@ -517,7 +539,13 @@ class ValueSetExpander {
     this.worker.opContext.log(`pushdown expand for ${group.system}`);
     const result = await cs.expandComponent(request);
 
-    if (!result) return false;
+    if (!result) {
+      // Rollback context registrations from VS expansions so the fallback path
+      // can re-expand them without hitting false circularity detection.
+      this.worker.opContext.contexts.length = savedContextsLen;
+      _tTryPushdown.end({ handled: false, reason: 'null result' });
+      return false;
+    }
 
     // Ingest the pushdown result
     this.worker.checkSupplements(cs, group.includes[0].cset, this.requiredSupplements, this.usedSupplements);
@@ -529,6 +557,7 @@ class ValueSetExpander {
     }
 
     await this._ingestPushdownResult(result, cs, expansion, vsSrc);
+    _tTryPushdown.end({ handled: true, canPushPagination });
     return true;
   }
 
@@ -538,6 +567,7 @@ class ValueSetExpander {
   // contains entries and enforce the server-side limit as a safety net.
 
   async _ingestPushdownResult(result, cs, expansion, vsSrc) {
+    const _tIngest = T.begin('_ingestPushdownResult', { codesCount: result.codes?.length || 0, total: result.total });
     const system = await cs.system();
     const version = await cs.version();
 
@@ -588,6 +618,7 @@ class ValueSetExpander {
     }
 
     this.canBeHierarchy = false;
+    _tIngest.end();
   }
 
   _excludeInactives(source) {
@@ -598,6 +629,8 @@ class ValueSetExpander {
   // This is the single code path for both include and exclude components.
 
   async _processComponent(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed, mode) {
+    const _branch = !cset.system ? 'valueSetOnly' : cset.concept ? 'concepts' : cset.filter ? 'filters' : 'wholeSystem';
+    const _tProcessComponent = T.begin('_processComponent', { system: cset.system || null, mode, branch: _branch });
     this.worker.deadCheck('processComponent');
     Extensions.checkNoModifiers(cset, 'ValueSetExpander.processComponent', 'set');
 
@@ -608,6 +641,7 @@ class ValueSetExpander {
     // Case 1: Pure ValueSet import (no system)
     if (!cset.system) {
       await this._processValueSetOnly(cset, filter, expansion, notClosed, vsSrc, mode);
+      _tProcessComponent.end();
       return;
     }
 
@@ -615,7 +649,7 @@ class ValueSetExpander {
     const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params,
       ['complete', 'fragment'], false, mode === 'include' ? false : true, true, null, this.requiredSupplements);
 
-    if (!cs) return;
+    if (!cs) { _tProcessComponent.end(); return; }
 
     this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
     this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
@@ -641,11 +675,13 @@ class ValueSetExpander {
       await this._processWholeSystem(cs, filter, expansion, importedSets,
         excludeInactive, notClosed, vsSrc, mode);
     }
+    _tProcessComponent.end();
   }
 
   // ── Case 1: Pure ValueSet import ─────────────────────────────────────────────
 
   async _processValueSetOnly(cset, filter, expansion, notClosed, vsSrc, mode) {
+    const _tVSOnly = T.begin('_processValueSetOnly', { valueSetUrls: cset.valueSet || [], mode });
     const importedSets = [];
     for (const u of cset.valueSet || []) {
       this.worker.deadCheck('processValueSetOnly');
@@ -657,7 +693,7 @@ class ValueSetExpander {
       importedSets.push(ivs);
     }
 
-    if (importedSets.length === 0) return;
+    if (importedSets.length === 0) { _tVSOnly.end(); return; }
 
     if (mode === 'exclude') {
       this._noTotal();
@@ -667,11 +703,13 @@ class ValueSetExpander {
       // Import the first set, filtered by subsequent sets
       await this._importValueSet(importedSets[0].valueSet, expansion, importedSets, 1);
     }
+    _tVSOnly.end();
   }
 
   // ── Case 2a: Enumerated concepts ─────────────────────────────────────────────
 
   async _processConcepts(cs, concepts, filter, expansion, importedSets, excludeInactive, vsSrc, mode) {
+    const _tConcepts = T.begin('_processConcepts', { system: await cs.system(), conceptCount: concepts.length, mode });
     this.worker.opContext.log('iterate concepts');
 
     const resolver = new BulkLocateResolver(
@@ -713,18 +751,20 @@ class ValueSetExpander {
       }
     }
     this.worker.opContext.log('iterate concepts done');
+    _tConcepts.end();
   }
 
   // ── Case 2b: Filter-based ────────────────────────────────────────────────────
 
   async _processFilters(cs, filterClauses, path, textFilter, expansion, importedSets,
                          excludeInactive, notClosed, vsSrc, mode) {
+    const _tFilters = T.begin('_processFilters', { system: cs.system(), filterSummary: filterClauses.map(f => `${f.property} ${f.op} ${f.value}`), mode });
     this.worker.opContext.log('prepare filters');
 
     const prep = await cs.getPrepContext(true);
 
     if (!textFilter.isNull) {
-      await cs.searchFilter(prep, textFilter, mode === 'exclude');
+      await cs.searchFilter(prep, textFilter.filter, mode === 'exclude');
     }
 
     if (cs.specialEnumeration()) {
@@ -781,11 +821,13 @@ class ValueSetExpander {
       }
     }, 'processFilters');
     this.worker.opContext.log('iterate filters done');
+    _tFilters.end();
   }
 
   // ── Case 2c: Whole system ────────────────────────────────────────────────────
 
   async _processWholeSystem(cs, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode) {
+    const _tWhole = T.begin('_processWholeSystem', { system: cs.system(), hasTextFilter: !textFilter.isNull, hasSpecialEnum: !!cs.specialEnumeration(), mode });
     // Grammar-based systems with specialEnumeration
     if (cs.specialEnumeration() && importedSets.length === 0) {
       this.worker.opContext.log(`import special value set ${cs.specialEnumeration()}`);
@@ -799,6 +841,7 @@ class ValueSetExpander {
       } else {
         await this._importValueSet(base, expansion, importedSets, 0);
       }
+      _tWhole.end();
       return;
     }
 
@@ -808,7 +851,7 @@ class ValueSetExpander {
       if (cs.isNotClosed(textFilter)) notClosed.value = true;
 
       const prep = await cs.getPrepContext(true);
-      await cs.searchFilter(prep, textFilter, false);
+      await cs.searchFilter(prep, textFilter.filter, false);
       const filterSets = await cs.executeFilters(prep);
 
       this.worker.opContext.log('iterate text filter results');
@@ -832,6 +875,7 @@ class ValueSetExpander {
         }
       }, 'wholeSystem:textFilter');
       this.worker.opContext.log('iterate text filter done');
+      _tWhole.end();
       return;
     }
 
@@ -875,6 +919,7 @@ class ValueSetExpander {
       context = await cs.nextContext(iter);
     }
     if (mode === 'include') this._incrementTotal(tcount);
+    _tWhole.end();
   }
 
   // ── Recursive hierarchy traversal (shared) ───────────────────────────────────
@@ -942,6 +987,7 @@ class ValueSetExpander {
     const primary = Array.isArray(filterSets) ? filterSets[0] : filterSets;
     if (!primary) return;
 
+    let _iterCount = 0;
     if (typeof cs.filterPage === 'function') {
       while (true) {
         this.worker.deadCheck(tag);
@@ -949,17 +995,23 @@ class ValueSetExpander {
         if (!Array.isArray(page) || page.length === 0) break;
         for (const c of page) {
           this.worker.deadCheck(tag);
+          _iterCount++;
+          if (_iterCount % 100 === 0) T.note('_iterateFilterSet progress', { count: _iterCount });
           await onConcept(c);
         }
       }
+      T.note('_iterateFilterSet done', { total: _iterCount });
       return;
     }
 
     while (await cs.filterMore(prep, primary)) {
       this.worker.deadCheck(tag);
+      _iterCount++;
+      if (_iterCount % 100 === 0) T.note('_iterateFilterSet progress', { count: _iterCount });
       const c = await cs.filterConcept(prep, primary);
       await onConcept(c);
     }
+    T.note('_iterateFilterSet done', { total: _iterCount });
   }
 
   async _passesSecondaryFilters(cs, context, prep, filterSets, offset) {
@@ -1127,9 +1179,12 @@ class ValueSetExpander {
           }
         }
         if (!hasImport && this.limitCount > 0 && cs.totalCount > this.limitCount) {
-          const canReturnPartial = this.offset > -1 || this.count > -1 || this.params.limitedExpansion || this.params.incompleteOK;
+          const hasPagination = this.offset > -1 || this.count > -1;
+          const canReturnPartial = hasPagination || this.params.limitedExpansion || this.params.incompleteOK;
           if (canReturnPartial) {
-            this._noTotal();
+            // When paginating, keep total tracking so we can report total in the
+            // response. Only suppress total for limitedExpansion/incompleteOK.
+            if (!hasPagination) this._noTotal();
           } else {
             throw new Issue('error', 'too-costly', null, 'VALUESET_TOO_COSTLY',
               this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages,
@@ -1216,6 +1271,8 @@ class ValueSetExpander {
   _addToExpansion(cs, parent, system, version, code, isAbstract, isInactive, deprecated, status,
                    displays, definition, itemWeight, expansion, imports, csExtList, vsExtList,
                    csProps, expProps, excludeInactive, srcURL) {
+    this._addCount = (this._addCount || 0) + 1;
+    if (this._addCount % 500 === 0) T.note('addToExpansion progress', { count: this._addCount });
     this.worker.deadCheck('addToExpansion');
 
     if (!this._passesImports(imports, system, code, 0)) return null;
@@ -1233,7 +1290,9 @@ class ValueSetExpander {
     // Pagination short-circuit (only when no exclusions to process)
     if (!this.hasExclusions && this.count > -1 && this.offset > -1
         && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
-      this._noTotal();
+      // Don't suppress total — _assembleOutput will use this.total if set,
+      // or fall back to fullList.length. Total may be approximate (based on
+      // what was counted before the short-circuit).
       throw new Issue('information', 'informational', null, null, null, null).setFinished();
     }
 
