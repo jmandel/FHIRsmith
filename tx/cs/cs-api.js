@@ -447,6 +447,67 @@ class CodeSystemProvider {
   }
 
   /**
+   * Optional: handle an entire expansion component group (includes + excludes
+   * for this system) in a single native operation.  Providers backed by SQL
+   * or similar query engines should override this to push filters, exclusions,
+   * intersections, and pagination into a single query.
+   *
+   * Return null to fall back to streaming iteration (the default).
+   *
+   * Per FHIR compose invariants (vsd-1/2/3), each component entry has exactly
+   * one of three shapes:
+   *   - concept (enumerated codes)
+   *   - filter  (property-based predicates)
+   *   - neither (whole system)
+   * They are mutually exclusive; both are never present.
+   *
+   * @param {Object} request
+   * @param {ExpandComponentEntry[]} request.includes  - include components for this system
+   * @param {ExpandComponentEntry[]} request.excludes  - exclude components for this system
+   * @param {string|null}  request.textFilter          - user's ?filter= search text
+   * @param {boolean}      request.activeOnly          - skip inactive codes
+   * @param {boolean}      request.excludeInactive     - compose.inactive=false
+   * @param {string[]}     request.properties          - requested property codes
+   * @param {boolean}      request.includeDesignations
+   * @param {Object|null}  request.displayLanguages    - working language context
+   * @param {{offset:number, count:number}|null} request.pagination
+   *        Present only when the orchestrator can guarantee this group is the
+   *        sole source of codes — safe to LIMIT/OFFSET in the query.
+   * @param {number}       request.limitCount          - server-side expansion cap
+   *
+   * Where ExpandComponentEntry is:
+   * @typedef {Object} ExpandComponentEntry
+   * @property {Array<{code:string, display?:string}>|null} concept
+   *           Enumerated codes (shape B/E), or null.
+   * @property {Array<{property:string, op:string, value:string}>|null} filter
+   *           Filter clauses (shape C/F), or null.
+   * @property {string[]|null} intersectCodes
+   *           Codes from pre-expanded ValueSet imports that the results must
+   *           be intersected with.  null = no intersection constraint.
+   *           The provider may load these into a temp table for efficient joins.
+   *
+   * @returns {Object|null} null = fall back to streaming.  Otherwise:
+   *   {
+   *     codes: Array<{
+   *       code: string,
+   *       display?: string,
+   *       isAbstract?: boolean,
+   *       isInactive?: boolean,
+   *       isDeprecated?: boolean,
+   *       status?: string,
+   *       designations?: Array,
+   *       properties?: Array<{uri:string, code:string, valueName:string, value:any}>,
+   *     }>,
+   *     total: number|null,   // true total (before pagination), if known
+   *     notClosed: boolean,   // true if result set is open-ended
+   *   }
+   */
+  async expandComponent(request) {
+    void request;
+    return null;
+  }
+
+  /**
    iterate all the root concepts
    * @param {string | CodeSystemProviderContext} code
    * @returns {CodeSystemIterator} a handle that can be passed to nextConcept (or null, if it can't be iterated)
