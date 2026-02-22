@@ -449,3 +449,96 @@ Refactor ValueSet expansion into an explicit planner/executor/renderer pipeline,
   - `loinc_status_active_page20` push/fallback ~`48ms/354ms`
   - `loinc_status_active_page10000` push/fallback ~`87ms/309ms`
 
+
+## Progress update - 2026-02-22 (trace ergonomics pass)
+
+### Why
+- Trace capture/debugging was inconsistent across execution contexts:
+  - harness had ambient trace capture but noisy JSON-only output
+  - server path (`expand-v2` worker) did not run under `traceStore`, so `T.begin/sql/note` were effectively no-op outside harness wrappers
+
+### Implemented changes
+- `tx/workers/expand-v2.js`
+  - added trace config parsing in worker (`_parseTraceConfig`) using both:
+    - env: `EXPAND_TRACE`
+    - request param: `logExtraOutput`
+  - trace-enabled runs now execute expansion under `traceStore.run(new ExpandTrace(), ...)`
+  - added attach modes:
+    - `json` attach: full trace JSON in `expand-trace` extension
+    - `summary` attach: compact human summary in `expand-trace-summary` extension
+  - added optional log output for summary mode (`log` / `log-summary` token)
+  - disabled cache get/set for trace-enabled requests to avoid storing instrumented trace payloads in expansion cache
+
+- `tx/workers/expand-trace.js`
+  - added `formatTraceSummary(traceJson, opts)` for concise, operator-friendly trace rendering
+  - summary includes:
+    - total runtime, span count, SQL count + SQL total time
+    - top slow spans
+    - top slow SQL statements
+  - exported formatter for reuse in harness/worker surfaces
+
+### In progress
+- `tests/tx/expand-v2-harness.js` trace UX cleanup:
+  - add `summary/json` print mode control
+  - add `fail/all` trace print control
+  - configurable trace results file path
+
+### Next immediate step
+- finish harness trace UX cleanup, then resume debugging/fixing the mixed valueset-import pagination correctness failure.
+
+## Progress update - 2026-02-22 (pagination failure root cause + fix)
+
+### Failing case
+- Test: `pagination-safety: valueset-import peer with excludes reconstructs full set`
+- Symptom before fix:
+  - baseline full (`count=1000`) had 114 keys
+  - page-walk reconstruction had 110 keys
+  - missing keys were all imported administrative-gender codes
+
+### Root cause
+- `_expandNestedValueSet(...)` cloned outer params and only changed `limit`, but retained outer `offset/count`.
+- For requests with page offsets (`offset=0,19,38,...`), nested ValueSet import expansion was itself paged.
+- This made imported membership context-dependent per page request, causing page-walk reconstruction holes.
+
+### Implementation fix
+- File: `tx/workers/expand-v2.js`
+- In `_expandNestedValueSet(...)`:
+  - force `nestedParams.offset = -1`
+  - force `nestedParams.count = -1`
+- Rationale: imported ValueSet expansion is membership input and must be complete/stable; outer pagination applies only at final output assembly.
+
+### Test hardening
+- File: `tests/tx/expand-v2-harness.js`
+- Removed conditional skip behavior in two pagination-safety tests.
+- They now hard-assert set equality between full and page-walk reconstruction.
+
+### Validation
+- `node tests/tx/expand-v2-harness.js "pagination-safety"`
+  - 4 passed, 0 failed.
+- trace summary run for failing case confirms nested expansion path is exercised and now stable.
+
+## Progress update - 2026-02-22 (imported ValueSet exclusion semantics fix)
+
+### Additional issue discovered during trace-led investigation
+- After fixing nested pagination leakage, semantic check still showed:
+  - imported administrative-gender include retained `unknown` despite explicit exclude.
+- Root cause:
+  - `_importValueSetItem(...)` added imported entries directly into `fullList/map` without consulting `ExclusionEvaluator` exact exclusions.
+
+### Implementation changes
+- File: `tx/workers/expand-v2.js`
+  - normalized exclusion key helper to treat missing versions as empty string.
+  - in `_addExclusion(...)`, exact exclusion key now uses version semantics aligned with output mode:
+    - if `doingVersion=false`, store exclusions with empty version (version-insensitive)
+    - if `doingVersion=true`, store exact version
+  - in `_addToExpansion(...)`, exclusion check now uses same normalized version semantics.
+  - in `_importValueSetItem(...)`, added membership-time exact exclusion check before insertion.
+
+### Test updates
+- File: `tests/tx/expand-v2-harness.js`
+  - `pagination-safety: valueset-import peer with excludes reconstructs full set`
+    now explicitly asserts imported `administrative-gender|unknown` is excluded.
+
+### Validation
+- `node tests/tx/expand-v2-harness.js "pagination-safety"` => 4 passed, 0 failed.
+- direct semantic probe confirms gender codes are now `[female, male, other]` (unknown excluded).

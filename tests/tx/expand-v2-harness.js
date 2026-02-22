@@ -9,6 +9,8 @@
  *   node tests/tx/expand-v2-harness.js                # run all
  *   node tests/tx/expand-v2-harness.js "snomed is-a"  # run matching tests
  *   EXPAND_TRACE=1 node tests/tx/expand-v2-harness.js # with full tracing
+ *   EXPAND_TRACE=1 EXPAND_TRACE_FORMAT=summary node tests/tx/expand-v2-harness.js
+ *   EXPAND_TRACE=1 EXPAND_TRACE_PRINT=all node tests/tx/expand-v2-harness.js "pagination-safety"
  *   EXPAND_IMPL=legacy node tests/tx/expand-v2-harness.js
  *   EXPAND_IMPL=v2 node tests/tx/expand-v2-harness.js
  *   EXPAND_IMPL=parity node tests/tx/expand-v2-harness.js # compare v2 vs legacy
@@ -30,7 +32,7 @@ const { Languages } = require('../../library/languages');
 const { TxParameters } = require('../../tx/params');
 const { SearchFilterText } = require('../../tx/library/designations');
 const ValueSet = require('../../tx/library/valueset');
-const { ExpandTrace, traceStore } = require('../../tx/workers/expand-trace');
+const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/workers/expand-trace');
 
 const WORKER_MODULES = {
   legacy: require('../../tx/workers/expand'),
@@ -41,6 +43,12 @@ const EXPAND_IMPL = (process.env.EXPAND_IMPL || 'v2').toLowerCase();
 if (!['legacy', 'v2', 'parity', 'v2-parity'].includes(EXPAND_IMPL)) {
   throw new Error(`Invalid EXPAND_IMPL='${EXPAND_IMPL}'. Expected legacy, v2, parity, or v2-parity.`);
 }
+
+const TRACE_ENABLED = process.env.EXPAND_TRACE && process.env.EXPAND_TRACE !== '0';
+const TRACE_PRINT = (process.env.EXPAND_TRACE_PRINT || 'fail').toLowerCase(); // fail | all | off
+const TRACE_FORMAT = (process.env.EXPAND_TRACE_FORMAT || 'summary').toLowerCase(); // summary | json
+const TRACE_MAX_SPANS = Number.parseInt(process.env.EXPAND_TRACE_MAX_SPANS || '12', 10) || 12;
+const TRACE_RESULTS_FILE = process.env.EXPAND_TRACE_RESULTS || 'expand-v2-results.json';
 
 // ── Minimal logger ─────────────────────────────────────────────────────────
 
@@ -1852,7 +1860,7 @@ test('pagination-safety: mixed v0 + cs-cs include/exclude reconstructs full set'
     ]
   );
 
-  const { result: full } = await expand(query);
+  const { result: full } = await expand(query, { count: 1000, offset: 0 });
   const fullKeys = [];
   flattenContainsKeys(full.expansion.contains || [], fullKeys);
   const fullSet = new Set(fullKeys);
@@ -1888,7 +1896,7 @@ test('pagination-safety: mixed v0 + preloaded include/exclude reconstructs full 
     ]
   );
 
-  const { result: full } = await expand(query);
+  const { result: full } = await expand(query, { count: 1000, offset: 0 });
   const fullKeys = [];
   flattenContainsKeys(full.expansion.contains || [], fullKeys);
   const fullSet = new Set(fullKeys);
@@ -1926,10 +1934,11 @@ test('pagination-safety: valueset-import peer with excludes reconstructs full se
     ]
   );
 
-  const { result: full } = await expand(query);
+  const { result: full } = await expand(query, { count: 1000, offset: 0 });
   const fullKeys = [];
   flattenContainsKeys(full.expansion.contains || [], fullKeys);
   const fullSet = new Set(fullKeys);
+  assert(!fullSet.has(`${SYS.GENDER}||unknown`), 'imported unknown gender should be excluded');
 
   const pageSize = 19;
   const pagedKeys = [];
@@ -1988,6 +1997,27 @@ function deepEqual(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function shouldPrintTrace(status) {
+  if (!TRACE_ENABLED) return false;
+  if (TRACE_PRINT === 'off' || TRACE_PRINT === 'none') return false;
+  if (TRACE_PRINT === 'all') return true;
+  return status === 'fail';
+}
+
+function renderTrace(traceJson) {
+  if (!traceJson) return 'trace unavailable';
+  if (TRACE_FORMAT === 'json') {
+    return JSON.stringify(traceJson, null, 2);
+  }
+  return formatTraceSummary(traceJson, { maxSpans: TRACE_MAX_SPANS });
+}
+
+function printTrace(traceJson) {
+  if (!traceJson) return;
+  console.log('  ── trace ──');
+  console.log(renderTrace(traceJson).split('\n').map(l => '    ' + l).join('\n'));
+}
+
 async function run() {
   const filter = process.argv[2]?.toLowerCase();
 
@@ -2011,21 +2041,26 @@ async function run() {
       const ms = Math.round(performance.now() - t0);
       if (extra?.skipped) {
         console.log(`  ⏭  ${t.name} — ${extra.skipped}`);
+        if (shouldPrintTrace('skip')) printTrace(_lastExpandTrace);
         skipped++;
       } else {
         const info = extra ? ` ${JSON.stringify(extra)}` : '';
         console.log(`  ✅ ${t.name} (${ms}ms)${info}`);
+        if (shouldPrintTrace('pass')) printTrace(_lastExpandTrace);
         passed++;
       }
-      results.push({ name: t.name, status: 'pass', ms, extra });
+      results.push({
+        name: t.name,
+        status: 'pass',
+        ms,
+        extra,
+        ...(TRACE_ENABLED ? { trace: _lastExpandTrace } : {}),
+      });
     } catch (e) {
       const ms = Math.round(performance.now() - t0);
       console.log(`  ❌ ${t.name} (${ms}ms) — ${e.message}`);
       if (process.env.HARNESS_VERBOSE) console.log(e.stack);
-      if (process.env.EXPAND_TRACE && _lastExpandTrace) {
-        console.log('  ── trace ──');
-        console.log(JSON.stringify(_lastExpandTrace, null, 2).split('\n').map(l => '    ' + l).join('\n'));
-      }
+      if (shouldPrintTrace('fail')) printTrace(_lastExpandTrace);
       failed++;
       results.push({ name: t.name, status: 'fail', ms, error: e.message, trace: _lastExpandTrace });
     } finally {
@@ -2037,12 +2072,12 @@ async function run() {
   printProviderCoverageReport();
   printAssessmentStatusReport(results);
 
-  if (process.env.EXPAND_TRACE) {
-    fs.writeFileSync(
-      path.join(__dirname, 'expand-v2-results.json'),
-      JSON.stringify(results, null, 2)
-    );
-    console.log('Results written to tests/tx/expand-v2-results.json');
+  if (TRACE_ENABLED || process.env.EXPAND_TRACE_RESULTS) {
+    const outPath = path.isAbsolute(TRACE_RESULTS_FILE)
+      ? TRACE_RESULTS_FILE
+      : path.join(__dirname, TRACE_RESULTS_FILE);
+    fs.writeFileSync(outPath, JSON.stringify(results, null, 2));
+    console.log(`Results written to ${outPath}`);
   }
 
   process.exit(failed > 0 ? 1 : 0);

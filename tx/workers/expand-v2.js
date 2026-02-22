@@ -18,7 +18,7 @@ const { Issue, OperationOutcome } = require('../library/operation-outcome');
 const { VersionUtilities } = require('../../library/version-utilities');
 const crypto = require('crypto');
 const ValueSet = require('../library/valueset');
-const { ExpandTrace, traceStore, trace: T } = require('./expand-trace');
+const { ExpandTrace, traceStore, trace: T, formatTraceSummary } = require('./expand-trace');
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ const canonical = (system, version) => version ? `${system}|${version}` : system
 const makeKey = (system, version, code, versioned) =>
   versioned ? `${system}~${version}~${code}` : `${system}~${code}`;
 
-const excludeKey = (system, version, code) => `${system}|${version}#${code}`;
+const excludeKey = (system, version, code) => `${system}|${version || ''}#${code}`;
 
 // ── ImportedValueSet ───────────────────────────────────────────────────────────
 
@@ -1397,6 +1397,11 @@ class ValueSetExpander {
 
     const nestedParams = this.params.clone();
     nestedParams.limit = INTERNAL_LIMIT;
+    // Imported ValueSet expansion must be membership-complete for this request.
+    // Never propagate outer paging to nested expansions, or each page can see a
+    // different imported set and produce pagination holes.
+    nestedParams.offset = -1;
+    nestedParams.count = -1;
     const nestedExpander = new ValueSetExpander(nestedWorker, nestedParams);
     const result = await nestedExpander.expand(vs, filter, false);
 
@@ -1445,6 +1450,8 @@ class ValueSetExpander {
 
   async _importValueSetItem(parent, c, imports, offset) {
     this.worker.deadCheck('importValueSetItem');
+    const matchVersion = this.doingVersion ? c.version : '';
+    if (this.exclusionEvaluator.has(c.system, matchVersion, c.code)) return;
     const key = makeKey(c.system, c.version, c.code, this.doingVersion);
     if (this._passesImports(imports, c.system, c.code, offset) && !this.map.has(key)) {
       this.fullList.push(c);
@@ -1641,7 +1648,8 @@ class ValueSetExpander {
 
     if (!this._passesImports(imports, system, code, 0)) return null;
     if (isInactive && excludeInactive) return null;
-    if (this.exclusionEvaluator.has(system, version, code)) return null;
+    const matchVersion = this.doingVersion ? version : '';
+    if (this.exclusionEvaluator.has(system, matchVersion, code)) return null;
 
     // Per-system expansion cap
     if (cs?.expandLimitation > 0) {
@@ -1716,7 +1724,8 @@ class ValueSetExpander {
       }
     }
 
-    this.exclusionEvaluator.addExact(system, version, code);
+    const matchVersion = this.doingVersion ? version : '';
+    this.exclusionEvaluator.addExact(system, matchVersion, code);
   }
 
   // ── Import filter helpers ────────────────────────────────────────────────────
@@ -2105,10 +2114,11 @@ class ExpandWorker extends TerminologyWorker {
 
   async _doExpand(valueSet, params, logExtraOutput) {
     this.deadCheck('doExpand');
+    const traceConfig = this._parseTraceConfig(logExtraOutput);
 
     const cache = this.opContext.expansionCache;
     let cacheKey = null;
-    if (cache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
+    if (!traceConfig.enabled && cache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
       cacheKey = cache.computeKey(valueSet, params, this.additionalResources);
       const cached = cache.get(cacheKey);
       if (cached) {
@@ -2118,10 +2128,10 @@ class ExpandWorker extends TerminologyWorker {
     }
 
     const start = performance.now();
-    const result = await this._performExpansion(valueSet, params, logExtraOutput);
+    const result = await this._performExpansion(valueSet, params, logExtraOutput, traceConfig);
     const durationMs = performance.now() - start;
 
-    if (cacheKey && cache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
+    if (!traceConfig.enabled && cacheKey && cache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
       if (cache.set(cacheKey, result, durationMs)) {
         this.log.debug(`Cached expansion (took ${Math.round(durationMs)}ms)`);
       }
@@ -2130,7 +2140,7 @@ class ExpandWorker extends TerminologyWorker {
     return result;
   }
 
-  async _performExpansion(valueSet, params, logExtraOutput) {
+  async _performExpansion(valueSet, params, logExtraOutput, traceConfig = null) {
     this.deadCheck('performExpansion');
     this.params = params;
 
@@ -2140,7 +2150,139 @@ class ExpandWorker extends TerminologyWorker {
     const filter = new SearchFilterText(params.filter);
     const expander = new ValueSetExpander(this, params);
     expander.logExtraOutput = logExtraOutput;
-    return expander.expand(valueSet, filter);
+    const cfg = traceConfig || this._parseTraceConfig(logExtraOutput);
+    if (!cfg.enabled) {
+      return expander.expand(valueSet, filter);
+    }
+
+    const runExpand = () => expander.expand(valueSet, filter);
+    const trace = new ExpandTrace();
+    const result = await traceStore.run(trace, runExpand);
+    const traceJson = trace.toJSON();
+
+    if (cfg.attach === 'json' && result?.expansion) {
+      result.expansion.extension = result.expansion.extension || [];
+      result.expansion.extension.push({
+        url: 'http://fhirsmith.org/StructureDefinition/expand-trace',
+        valueString: JSON.stringify(traceJson),
+      });
+    } else if (cfg.attach === 'summary' && result?.expansion) {
+      this._attachTraceSummaryExtension(result.expansion, traceJson, cfg.maxSpans);
+    }
+
+    if (cfg.logSummary) {
+      this.log.info(formatTraceSummary(traceJson, { maxSpans: cfg.maxSpans }));
+    }
+
+    return result;
+  }
+
+  _parseTraceConfig(logExtraOutput) {
+    const cfg = {
+      enabled: false,
+      attach: 'none', // none | summary | json
+      logSummary: false,
+      maxSpans: Number.parseInt(process.env.EXPAND_TRACE_MAX_SPANS || '12', 10) || 12,
+    };
+    let sawEnv = false;
+    let sawParam = false;
+
+    const envRaw = String(process.env.EXPAND_TRACE || '').trim();
+    if (envRaw) {
+      sawEnv = true;
+      for (const token of envRaw.toLowerCase().split(/[,\s|;]+/).filter(Boolean)) {
+        this._applyTraceToken(cfg, token, 'env');
+      }
+    }
+
+    if (logExtraOutput) {
+      sawParam = true;
+      let raw = null;
+      try {
+        raw = this.getParameterValue(logExtraOutput);
+      } catch {
+        raw = true;
+      }
+      if (raw === true) {
+        this._applyTraceToken(cfg, 'summary', 'param');
+      } else if (raw !== false && raw != null) {
+        for (const token of String(raw).toLowerCase().split(/[,\s|;]+/).filter(Boolean)) {
+          this._applyTraceToken(cfg, token, 'param');
+        }
+      }
+    }
+
+    if (cfg.enabled && cfg.attach === 'none') {
+      cfg.attach = sawEnv ? 'json' : 'summary';
+    }
+    if (cfg.enabled && sawParam && !cfg.logSummary) {
+      cfg.logSummary = true;
+    }
+    if (cfg.enabled && sawEnv && envRaw === '1') {
+      cfg.attach = 'json';
+    }
+
+    return cfg;
+  }
+
+  _applyTraceToken(cfg, token, source) {
+    switch (token) {
+    case '0':
+    case 'false':
+    case 'off':
+    case 'none':
+      cfg.enabled = false;
+      cfg.attach = 'none';
+      cfg.logSummary = false;
+      return;
+    case '1':
+    case 'true':
+    case 'on':
+    case 'trace':
+      cfg.enabled = true;
+      if (source === 'param') cfg.attach = 'summary';
+      else cfg.attach = 'json';
+      return;
+    case 'summary':
+    case 'trace-summary':
+      cfg.enabled = true;
+      cfg.attach = 'summary';
+      return;
+    case 'json':
+    case 'trace-json':
+    case 'full':
+      cfg.enabled = true;
+      cfg.attach = 'json';
+      return;
+    case 'attach':
+    case 'extension':
+      cfg.enabled = true;
+      if (cfg.attach === 'none') cfg.attach = 'json';
+      return;
+    case 'attach-summary':
+      cfg.enabled = true;
+      cfg.attach = 'summary';
+      return;
+    case 'attach-none':
+      cfg.enabled = true;
+      cfg.attach = 'none';
+      return;
+    case 'log':
+    case 'log-summary':
+      cfg.enabled = true;
+      cfg.logSummary = true;
+      return;
+    default:
+      return;
+    }
+  }
+
+  _attachTraceSummaryExtension(expansion, traceJson, maxSpans) {
+    expansion.extension = expansion.extension || [];
+    expansion.extension.push({
+      url: 'http://fhirsmith.org/StructureDefinition/expand-trace-summary',
+      valueString: formatTraceSummary(traceJson, { maxSpans }),
+    });
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────

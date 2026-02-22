@@ -162,6 +162,67 @@ function trunc(s, max) {
   return typeof s === 'string' && s.length > max ? s.slice(0, max) + '…' : s;
 }
 
+function formatMs(ms) {
+  if (typeof ms !== 'number') return '?ms';
+  return `${rnd(ms)}ms`;
+}
+
+function collectSpanRows(spans, out = [], depth = 0, parent = '') {
+  for (const span of spans || []) {
+    if (!span || span.name === 'note') continue;
+    const path = parent ? `${parent} > ${span.name}` : span.name;
+    out.push({ span, depth, path });
+    collectSpanRows(span.children || [], out, depth + 1, path);
+  }
+  return out;
+}
+
+function collectSqlRows(spans, out = []) {
+  for (const span of spans || []) {
+    if (!span || span.name === 'note') continue;
+    for (const q of span.sql || []) {
+      out.push({ span: span.name, sql: q.sql, ms: q.ms, rows: q.rows });
+    }
+    collectSqlRows(span.children || [], out);
+  }
+  return out;
+}
+
+function formatTraceSummary(traceJson, opts = {}) {
+  if (!traceJson) return 'trace unavailable';
+  const maxSpans = Number.isInteger(opts.maxSpans) && opts.maxSpans > 0 ? opts.maxSpans : 12;
+  const maxSql = Number.isInteger(opts.maxSql) && opts.maxSql > 0 ? opts.maxSql : 6;
+  const includeSql = opts.includeSql !== false;
+  const lines = [];
+  const spans = collectSpanRows(traceJson.spans || []);
+  lines.push(`trace total=${formatMs(traceJson.totalMs)} spans=${spans.length} sql=${traceJson.sqlCount || 0} (${formatMs(traceJson.sqlMs || 0)})`);
+
+  if (spans.length > 0) {
+    lines.push(`slow spans (top ${Math.min(maxSpans, spans.length)}):`);
+    const top = [...spans]
+      .sort((a, b) => (b.span.ms || 0) - (a.span.ms || 0))
+      .slice(0, maxSpans);
+    for (const row of top) {
+      lines.push(`  - ${row.path}: ${formatMs(row.span.ms || 0)}`);
+    }
+  }
+
+  if (includeSql) {
+    const sqlRows = collectSqlRows(traceJson.spans || [])
+      .sort((a, b) => (b.ms || 0) - (a.ms || 0))
+      .slice(0, maxSql);
+    if (sqlRows.length > 0) {
+      lines.push(`slow SQL (top ${sqlRows.length}):`);
+      for (const q of sqlRows) {
+        const rowsTxt = typeof q.rows === 'number' ? ` rows=${q.rows}` : '';
+        lines.push(`  - [${q.span}] ${formatMs(q.ms || 0)}${rowsTxt} ${trunc(q.sql || '', 180)}`);
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
 function summarize(val, depth = 0) {
   if (val == null) return val;
   if (typeof val === 'string') return trunc(val, 200);
@@ -181,4 +242,4 @@ function summarize(val, depth = 0) {
   return String(val).slice(0, 80);
 }
 
-module.exports = { ExpandTrace, traceStore, trace };
+module.exports = { ExpandTrace, traceStore, trace, formatTraceSummary };
