@@ -98,6 +98,417 @@ class ImportedValueSet {
   }
 }
 
+// ── Planner IR ────────────────────────────────────────────────────────────────
+// Keep planning as pure data assembly so execution stays focused on membership
+// and rendering. This is intentionally minimal in phase 1.
+
+class ExpandPlan {
+  constructor(compose, includes, excludes, groups) {
+    this.compose = compose;
+    this.includes = includes;
+    this.excludes = excludes;
+    this.groups = groups;
+    this.hasExclusions = excludes.length > 0;
+    this.systemGroups = groups.filter(g => g.groupType === 'system');
+    this.importGroups = groups.filter(g => g.groupType === 'import');
+    this.isSingleSystem = this.systemGroups.length === 1 && this.importGroups.length === 0;
+  }
+
+  canPushPaginationForGroup(group) {
+    return this.isSingleSystem && group?.groupType === 'system' && this.groups[0] === group;
+  }
+}
+
+class ExpansionPlanner {
+  constructor(compose) {
+    this.compose = compose || {};
+  }
+
+  build() {
+    const includes = this.compose.include || [];
+    const excludes = this.compose.exclude || [];
+    const groups = ExpansionPlanner.groupBySystem(includes, excludes);
+    return new ExpandPlan(this.compose, includes, excludes, groups);
+  }
+
+  static groupBySystem(includes, excludes) {
+    const map = new Map();      // "system|version" -> group
+    const noSystemGroups = [];  // pure VS-import components
+
+    const addToGroup = (cset, index, role) => {
+      if (!cset.system) {
+        noSystemGroups.push({
+          groupType: 'import',
+          groupKey: `import:${index}:${role}`,
+          system: null,
+          version: null,
+          includes: role === 'include' ? [{ cset, index }] : [],
+          excludes: role === 'exclude' ? [{ cset, index }] : [],
+        });
+        return;
+      }
+
+      const key = `${cset.system}|${cset.version || ''}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          groupType: 'system',
+          groupKey: key,
+          system: cset.system,
+          version: cset.version || null,
+          includes: [],
+          excludes: [],
+        });
+      }
+      map.get(key)[role === 'include' ? 'includes' : 'excludes'].push({ cset, index });
+    };
+
+    for (let i = 0; i < includes.length; i++) addToGroup(includes[i], i, 'include');
+    for (let i = 0; i < excludes.length; i++) addToGroup(excludes[i], i, 'exclude');
+
+    // System groups first (pushdown candidates), then pure imports.
+    return [...map.values(), ...noSystemGroups].map(group => ExpansionPlanner._decorateGroup(group));
+  }
+
+  static _shapeOf(cset) {
+    return cset.concept?.length ? 'concept'
+      : cset.filter?.length ? 'filter'
+      : 'whole';
+  }
+
+  static _decorateGroup(group) {
+    const includeComponents = (group.includes || []).map(({ cset, index }) => ({
+      shape: ExpansionPlanner._shapeOf(cset),
+      path: `ValueSet.compose.include[${index}]`,
+      hasValueSetImports: Array.isArray(cset.valueSet) && cset.valueSet.length > 0,
+      cset,
+      index,
+    }));
+    const excludeComponents = (group.excludes || []).map(({ cset, index }) => ({
+      shape: ExpansionPlanner._shapeOf(cset),
+      path: `ValueSet.compose.exclude[${index}]`,
+      hasValueSetImports: Array.isArray(cset.valueSet) && cset.valueSet.length > 0,
+      cset,
+      index,
+    }));
+
+    return {
+      ...group,
+      includeComponents,
+      excludeComponents,
+      hasValueSetImports: [...includeComponents, ...excludeComponents].some(c => c.hasValueSetImports),
+    };
+  }
+}
+
+class ExclusionIndex {
+  constructor(passesImports) {
+    this._passesImports = passesImports;
+    this._exact = new Set();
+    this._predicates = [];
+  }
+
+  addExact(system, version, code) {
+    this._exact.add(excludeKey(system, version, code));
+  }
+
+  addImportedPredicate(baseSet, imports, offset = 0) {
+    if (!baseSet) return;
+    this._predicates.push({ baseSet, imports: imports || null, offset });
+  }
+
+  has(system, version, code) {
+    if (this._exact.has(excludeKey(system, version, code))) {
+      return true;
+    }
+    for (const p of this._predicates) {
+      if (!p.baseSet.hasCode(system, code)) continue;
+      if (p.imports && !this._passesImports(p.imports, system, code, p.offset)) continue;
+      return true;
+    }
+    return false;
+  }
+
+  isEmpty() {
+    return this._exact.size === 0 && this._predicates.length === 0;
+  }
+}
+
+class ExclusionEvaluator {
+  constructor(passesImports) {
+    this.index = new ExclusionIndex(passesImports);
+    this.filterPredicates = new Map(); // "system|version" -> [{ cs, prep, filterSets }]
+  }
+
+  addExact(system, version, code) {
+    this.index.addExact(system, version, code);
+  }
+
+  addImportedPredicate(baseSet, imports, offset = 0) {
+    this.index.addImportedPredicate(baseSet, imports, offset);
+  }
+
+  has(system, version, code) {
+    return this.index.has(system, version, code);
+  }
+
+  isEmpty() {
+    return this.index.isEmpty();
+  }
+
+  registerFilterPredicate(cs, prep, filterSets) {
+    const key = canonical(cs.system(), cs.version());
+    if (!this.filterPredicates.has(key)) {
+      this.filterPredicates.set(key, []);
+    }
+    this.filterPredicates.get(key).push({ cs, prep, filterSets: filterSets || [] });
+  }
+
+  async matchesFilterPredicates(cs, context) {
+    const key = canonical(cs.system(), cs.version());
+    const predicates = this.filterPredicates.get(key);
+    if (!predicates || predicates.length === 0) return false;
+
+    for (const p of predicates) {
+      let ok = true;
+      for (const set of p.filterSets) {
+        if (await p.cs.filterCheck(p.prep, set, context) !== true) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return true;
+    }
+    return false;
+  }
+}
+
+class ExpansionExecutor {
+  constructor(expander) {
+    this.expander = expander;
+  }
+
+  async execute(plan, source, filter, expansion, excludeInactive, notClosed) {
+    for (const group of plan.groups) {
+      await this._executeGroup(group, source, filter, expansion, excludeInactive, notClosed);
+    }
+  }
+
+  async _executeGroup(group, source, filter, expansion, excludeInactive, notClosed) {
+    this.expander.worker.deadCheck('compose:group');
+
+    // Attempt pushdown for system-based groups with a capable provider.
+    if (group.system && await this.expander._tryPushdown(group, source, filter, expansion,
+        excludeInactive, notClosed)) {
+      return;
+    }
+
+    await this._executeFallbackGroup(group, source, filter, expansion, excludeInactive, notClosed);
+  }
+
+  async _executeFallbackGroup(group, source, filter, expansion, excludeInactive, notClosed) {
+    // Fallback: process excludes then includes via streaming.
+    for (const { cset, index } of group.excludes) {
+      this.expander.worker.deadCheck('compose:exclude');
+      await this.expander._processComponent(cset, `ValueSet.compose.exclude[${index}]`, source, filter,
+        expansion, excludeInactive, notClosed, 'exclude');
+    }
+    for (const { cset, index } of group.includes) {
+      this.expander.worker.deadCheck('compose:include');
+      await this.expander._processComponent(cset, `ValueSet.compose.include[${index}]`, source, filter,
+        expansion, excludeInactive, notClosed, 'include');
+    }
+  }
+}
+
+class ContainsRenderer {
+  constructor(expander) {
+    this.expander = expander;
+  }
+
+  render({
+    cs, expansion, system, version, code, isAbstract, isInactive, deprecated, status,
+    displays, definition, csExtList, vsExtList, csProps,
+  }) {
+    const e = this.expander;
+    const entry = { system, code };
+    if (e.doingVersion) entry.version = version;
+    if (isAbstract) entry.abstract = isAbstract;
+    if (isInactive) entry.inactive = true;
+
+    // Status / deprecated properties
+    if (status && status.toLowerCase() !== 'active') {
+      e._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', status);
+    } else if (deprecated) {
+      e._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', 'deprecated');
+    }
+
+    // Extension-driven properties
+    e._applyExtensionProperties(expansion, entry, csExtList, vsExtList);
+
+    // Display
+    const pref = displays.preferredDesignation(e.params.workingLanguages());
+    if (pref?.value) entry.display = pref.value;
+
+    // Designations
+    if (e.params.includeDesignations) {
+      for (const t of displays.designations) {
+        if (t !== pref && e._useDesignation(t) && t.value != null
+            && !e._redundantDisplay(entry, t.language, t.use, t.value)) {
+          entry.designation = entry.designation || [];
+          entry.designation.push(t.asObject());
+        }
+      }
+    }
+
+    // Requested properties
+    for (const pn of e.params.properties) {
+      if (pn === 'definition') {
+        if (definition) {
+          e._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#definition', pn, 'valueString', definition);
+        }
+      } else if (csProps && cs) {
+        for (const cp of csProps) {
+          if (cp.code === pn) {
+            const vn = getValueName(cp);
+            e._defineProperty(expansion, entry, e._getPropUrl(cs, pn), pn, vn, cp[vn]);
+          }
+        }
+      }
+    }
+
+    return entry;
+  }
+}
+
+class PushdownRequestBuilder {
+  constructor(expander) {
+    this.expander = expander;
+  }
+
+  async build(group, filter, expansion, notClosed, canPushPagination, excludeInactive) {
+    const e = this.expander;
+
+    const buildComponentRequest = async ({ cset }) => {
+      let intersectCodes = null;
+
+      if (cset.valueSet?.length) {
+        // Expand each imported VS and intersect their code sets.
+        const codeSets = [];
+        for (const u of cset.valueSet) {
+          e.worker.deadCheck('pushdown:expand-vs-import');
+          const s = e.worker.pinValueSet(u);
+          const expanded = await e._expandNestedValueSet(s, '', filter, notClosed);
+          const ivs = new ImportedValueSet(expanded);
+          e.checkResourceCanonicalStatus(expansion, ivs.valueSet, e.valueSet);
+          e._addParam(expansion, 'used-valueset', 'valueUri', e.worker.makeVurl(ivs.valueSet));
+          codeSets.push(ivs);
+        }
+
+        // Intersect: a code must be in all imported ValueSets.
+        if (codeSets.length === 1) {
+          intersectCodes = [...codeSets[0].codeMap.values()]
+            .filter(entry => entry.system === group.system)
+            .map(entry => entry.code);
+        } else {
+          intersectCodes = [...codeSets[0].codeMap.values()]
+            .filter(entry => entry.system === group.system
+              && codeSets.slice(1).every(vs => vs.hasCode(entry.system, entry.code)))
+            .map(entry => entry.code);
+        }
+      }
+
+      return {
+        concept: cset.concept || null,
+        filter: cset.filter || null,
+        // null = whole system. concept/filter are mutually exclusive (vsd-3).
+        intersectCodes,
+      };
+    };
+
+    const includeRequests = await Promise.all(group.includes.map(buildComponentRequest));
+    const excludeRequests = await Promise.all(group.excludes.map(buildComponentRequest));
+
+    // If any include has intersectCodes, true result cardinality cannot exceed
+    // the smallest intersect set.
+    const intersectSizes = includeRequests
+      .filter(req => req.intersectCodes)
+      .map(req => req.intersectCodes.length);
+    const intersectCeiling = intersectSizes.length > 0
+      ? Math.min(...intersectSizes)
+      : null;
+    const effectiveLimit = intersectCeiling != null
+      ? Math.min(e.limitCount, intersectCeiling)
+      : e.limitCount;
+
+    return {
+      includes: includeRequests,
+      excludes: excludeRequests,
+      textFilter: filter.isNull ? null : filter.filter,
+      activeOnly: e.params.activeOnly || false,
+      excludeInactive,
+      properties: e.params.properties || [],
+      includeDesignations: e.params.includeDesignations || false,
+      displayLanguages: e.params.workingLanguages?.() || null,
+      pagination: canPushPagination && (e.offset > -1 || e.count > -1)
+        ? { offset: Math.max(e.offset, 0), count: e.count }
+        : null,
+      limitCount: effectiveLimit,
+    };
+  }
+}
+
+class ExpansionSourceHandlers {
+  constructor(expander) {
+    this.expander = expander;
+  }
+
+  async process(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed, mode) {
+    if (!cset.system) {
+      return this.processImport(cset, filter, expansion, notClosed, vsSrc, mode);
+    }
+
+    const cs = await this.expander.worker.findCodeSystem(cset.system, cset.version, this.expander.params,
+      ['complete', 'fragment'], false, mode === 'include' ? false : true, true, null, this.expander.requiredSupplements);
+    if (!cs) return;
+
+    this.expander.worker.checkSupplements(cs, cset, this.expander.requiredSupplements, this.expander.usedSupplements);
+    this.expander.checkProviderCanonicalStatus(expansion, cs, this.expander.valueSet);
+    this.expander._addParam(expansion, 'used-codesystem', 'valueUri', canonical(await cs.system(), await cs.version()));
+
+    const importedSets = [];
+    for (const u of cset.valueSet || []) {
+      this.expander.worker.deadCheck('processComponent:vs-import');
+      const s = this.expander.worker.pinValueSet(u);
+      this.expander.worker.opContext.log(`import value set ${s}`);
+      importedSets.push(new ImportedValueSet(await this.expander._expandNestedValueSet(s, '', filter, notClosed)));
+    }
+
+    if (cset.concept) {
+      return this.processConcepts(cs, cset.concept, filter, expansion, importedSets, excludeInactive, vsSrc, mode);
+    }
+    if (cset.filter) {
+      return this.processFilters(cs, cset.filter, path, filter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
+    }
+    return this.processWhole(cs, filter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
+  }
+
+  async processImport(cset, filter, expansion, notClosed, vsSrc, mode) {
+    return this.expander._processValueSetOnly(cset, filter, expansion, notClosed, vsSrc, mode);
+  }
+
+  async processConcepts(cs, concepts, filter, expansion, importedSets, excludeInactive, vsSrc, mode) {
+    return this.expander._processConcepts(cs, concepts, filter, expansion, importedSets, excludeInactive, vsSrc, mode);
+  }
+
+  async processFilters(cs, filterClauses, path, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode) {
+    return this.expander._processFilters(cs, filterClauses, path, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
+  }
+
+  async processWhole(cs, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode) {
+    return this.expander._processWholeSystem(cs, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
+  }
+}
+
 // ── BulkLocateResolver ─────────────────────────────────────────────────────────
 // Efficiently resolves codes via locateMany when available, with lazy batching.
 
@@ -199,10 +610,15 @@ class ValueSetExpander {
     this.map = new Map();           // key → contains entry (dedup)
     this.fullList = [];             // all included entries (flat order)
     this.rootList = [];             // root entries for hierarchy output
-    this.excluded = new Set();      // excludeKey strings
+    this.exclusionEvaluator = new ExclusionEvaluator((imports, system, code, offset) =>
+      this._passesImports(imports, system, code, offset));
     this.hasExclusions = false;
     this.canBeHierarchy = !params.excludeNested;
     this.doingVersion = false;
+    this.executor = new ExpansionExecutor(this);
+    this.renderer = new ContainsRenderer(this);
+    this.pushdownRequestBuilder = new PushdownRequestBuilder(this);
+    this.sourceHandlers = new ExpansionSourceHandlers(this);
 
     // Total tracking
     this.total = 0;
@@ -212,6 +628,7 @@ class ValueSetExpander {
     this.limitCount = 0;
     this.offset = -1;
     this.count = -1;
+    this.hasTextFilter = false;
 
     // Per-system counters for expandLimitation
     this.csCounter = new Map();
@@ -264,6 +681,7 @@ class ValueSetExpander {
     this.limitCount = this.params.limit > 0
       ? Math.min(this.params.limit, INTERNAL_LIMIT)
       : (filter.isNull ? UPPER_LIMIT_NO_TEXT : UPPER_LIMIT_TEXT);
+    this.hasTextFilter = !filter.isNull;
     this.offset = this.params.offset;
     this.count = this.params.count;
     if (this.offset > 0) this.canBeHierarchy = false;
@@ -343,12 +761,15 @@ class ValueSetExpander {
   // ── Compose processing ───────────────────────────────────────────────────────
 
   async _handleCompose(source, filter, expansion, notClosed) {
-    const includes = source.jsonObj.compose.include || [];
-    const excludes = source.jsonObj.compose.exclude || [];
+    const plan = new ExpansionPlanner(source.jsonObj.compose || {}).build();
+    const includes = plan.includes;
+    const excludes = plan.excludes;
     const _tHandleCompose = T.begin('_handleCompose', { includesCount: includes.length, excludesCount: excludes.length });
     this.worker.opContext.log('compose: preflight');
 
     const systemVersions = new Map();
+    this.hasExclusions = plan.hasExclusions;
+    this.activePlan = plan;
 
     // Pre-flight: validate all sources
     for (const c of includes) {
@@ -357,37 +778,23 @@ class ValueSetExpander {
     }
     for (const c of excludes) {
       this.worker.deadCheck('compose:preflight');
-      this.hasExclusions = true;
       await this._checkSource(c, expansion, filter, source.url, systemVersions);
     }
 
     // Group components by system for pushdown opportunities
-    const groups = this._groupBySystem(includes, excludes);
-    _tHandleCompose.groupsCount = groups.length;
+    const groups = plan.groups;
     const excludeInactive = this._excludeInactives(source);
 
-    for (const group of groups) {
-      this.worker.deadCheck('compose:group');
-
-      // Attempt pushdown for system-based groups with a capable provider
-      if (group.system && await this._tryPushdown(group, source, filter, expansion,
-          excludeInactive, notClosed)) {
-        continue; // provider handled it
-      }
-
-      // Fallback: process excludes then includes via streaming
-      for (const { cset, index } of group.excludes) {
-        this.worker.deadCheck('compose:exclude');
-        await this._processComponent(cset, `ValueSet.compose.exclude[${index}]`, source, filter,
-          expansion, excludeInactive, notClosed, 'exclude');
-      }
-      for (const { cset, index } of group.includes) {
-        this.worker.deadCheck('compose:include');
-        await this._processComponent(cset, `ValueSet.compose.include[${index}]`, source, filter,
-          expansion, excludeInactive, notClosed, 'include');
-      }
+    try {
+      await this.executor.execute(plan, source, filter, expansion, excludeInactive, notClosed);
+    } finally {
+      this.activePlan = null;
     }
-    _tHandleCompose.end();
+    _tHandleCompose.end({ groupsCount: groups.length });
+  }
+
+  async _executePlan(plan, source, filter, expansion, excludeInactive, notClosed) {
+    return this.executor.execute(plan, source, filter, expansion, excludeInactive, notClosed);
   }
 
   // ── Group components by system ───────────────────────────────────────────────
@@ -396,43 +803,12 @@ class ValueSetExpander {
   // Components without a system (pure ValueSet imports) get their own group.
 
   _groupBySystem(includes, excludes) {
-    const map = new Map();      // "system|version" → group
-    const noSystemGroups = [];   // pure VS-import components
-
-    const addToGroup = (cset, index, role) => {
-      if (!cset.system) {
-        // Pure ValueSet import — always its own group, can't be pushed down
-        noSystemGroups.push({
-          system: null,
-          version: null,
-          includes: role === 'include' ? [{ cset, index }] : [],
-          excludes: role === 'exclude' ? [{ cset, index }] : [],
-        });
-        return;
-      }
-
-      const key = `${cset.system}|${cset.version || ''}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          system: cset.system,
-          version: cset.version || null,
-          includes: [],
-          excludes: [],
-        });
-      }
-      map.get(key)[role === 'include' ? 'includes' : 'excludes'].push({ cset, index });
-    };
-
-    for (let i = 0; i < includes.length; i++) addToGroup(includes[i], i, 'include');
-    for (let i = 0; i < excludes.length; i++) addToGroup(excludes[i], i, 'exclude');
-
-    // Return system groups first (pushdown candidates), then no-system groups
-    return [...map.values(), ...noSystemGroups];
+    return ExpansionPlanner.groupBySystem(includes, excludes);
   }
 
   // ── Provider pushdown ────────────────────────────────────────────────────────
   //
-  // If a provider implements expandComponent(), we pass it the full group of
+  // If a provider implements expandQuery()/expandComponent(), we pass it the full group of
   // includes and excludes for its system, along with pre-expanded ValueSet
   // import codes as intersection constraints. The provider can handle filters,
   // exclusions, intersections, and optionally pagination in a single native query.
@@ -448,96 +824,90 @@ class ValueSetExpander {
   //   C: {system, filter:[...]}            → filtered codes
   //   D–F: any of A–C + intersectCodes     → same, intersected with ValueSet(s)
 
+  _buildPushdownDecision(group, caps) {
+    if (!group?.system) {
+      return { attempt: false, pagination: false, reason: 'no-system' };
+    }
+    if (!group.includes?.length) {
+      return { attempt: false, pagination: false, reason: 'no-includes' };
+    }
+
+    const hasExcludes = (group.excludes?.length || 0) > 0;
+    if (hasExcludes && caps.handlesExcludes !== true) {
+      return { attempt: false, pagination: false, reason: 'no-exclude-capability' };
+    }
+
+    const pcap = caps.pushdown || null;
+    if (pcap) {
+      const includeShapes = new Set(pcap.includeShapes || []);
+      const excludeShapes = new Set(pcap.excludeShapes || []);
+      if (includeShapes.size > 0) {
+        for (const component of group.includeComponents || []) {
+          if (!includeShapes.has(component.shape)) {
+            return { attempt: false, pagination: false, reason: 'unsupported-include-shape' };
+          }
+        }
+      }
+      if (excludeShapes.size > 0) {
+        for (const component of group.excludeComponents || []) {
+          if (!excludeShapes.has(component.shape)) {
+            return { attempt: false, pagination: false, reason: 'unsupported-exclude-shape' };
+          }
+        }
+      }
+
+      if (this.hasTextFilter && pcap.supportsTextFilter === false) {
+        return { attempt: false, pagination: false, reason: 'unsupported-text-filter' };
+      }
+
+      if (pcap.supportsIntersectCodes === false) {
+        if (group.hasValueSetImports) {
+          return { attempt: false, pagination: false, reason: 'unsupported-intersections' };
+        }
+      }
+    }
+
+    const planAllowsPagination = !!this.activePlan?.canPushPaginationForGroup(group);
+    const stateAllowsPagination = this.fullList.length === 0 && this.exclusionEvaluator.isEmpty();
+    const providerAllowsPagination = caps.handlesOffset === true;
+    const pagination = planAllowsPagination && stateAllowsPagination && providerAllowsPagination;
+
+    return { attempt: true, pagination, reason: pagination ? 'full' : 'no-pagination' };
+  }
+
+  async _buildPushdownRequest(group, filter, expansion, notClosed, canPushPagination, excludeInactive) {
+    return this.pushdownRequestBuilder.build(
+      group, filter, expansion, notClosed, canPushPagination, excludeInactive);
+  }
+
   async _tryPushdown(group, vsSrc, filter, expansion, excludeInactive, notClosed) {
+    if (process.env.EXPAND_V2_DISABLE_PUSHDOWN === '1') {
+      return false;
+    }
     if (group.includes.length === 0) return false;
     const _tTryPushdown = T.begin('_tryPushdown', { system: group.system, includesCount: group.includes.length, excludesCount: group.excludes.length });
 
     const cs = await this.worker.findCodeSystem(group.system, group.version, this.params,
       ['complete', 'fragment'], false, false, true, null, this.requiredSupplements);
-    if (!cs || typeof cs.expandComponent !== 'function') { _tTryPushdown.end({ handled: false, reason: 'no expandComponent' }); return false; }
+    if (!cs) { _tTryPushdown.end({ handled: false, reason: 'no cs' }); return false; }
+    const caps = typeof cs.capabilities === 'function' ? (cs.capabilities() || {}) : {};
+    if (caps.expandQuery === false) { _tTryPushdown.end({ handled: false, reason: 'capability-off' }); return false; }
+    const decision = this._buildPushdownDecision(group, caps);
+    if (!decision.attempt) { _tTryPushdown.end({ handled: false, reason: decision.reason }); return false; }
+    const expandFn = typeof cs.expandQuery === 'function'
+      ? cs.expandQuery.bind(cs)
+      : (typeof cs.expandComponent === 'function' ? cs.expandComponent.bind(cs) : null);
+    if (!expandFn) { _tTryPushdown.end({ handled: false, reason: 'no expandQuery' }); return false; }
 
     // Save context state — VS expansions below may register URLs that must be
     // rolled back if pushdown ultimately fails (expandComponent returns null).
     const savedContextsLen = this.worker.opContext.contexts.length;
-
-    // Pre-expand any ValueSet imports into code lists for intersection pushdown.
-    // Each component with valueSet[] gets an intersectCodes array.
-    const buildComponentRequest = async ({ cset }) => {
-      let intersectCodes = null;
-
-      if (cset.valueSet?.length) {
-        // Expand each imported VS and intersect their code sets
-        const codeSets = [];
-        for (const u of cset.valueSet) {
-          this.worker.deadCheck('pushdown:expand-vs-import');
-          const s = this.worker.pinValueSet(u);
-          const expanded = await this._expandNestedValueSet(s, '', filter, notClosed);
-          const ivs = new ImportedValueSet(expanded);
-          this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
-          this._addParam(expansion, 'used-valueset', 'valueUri', this.worker.makeVurl(ivs.valueSet));
-          codeSets.push(ivs);
-        }
-
-        // Intersect: a code must be in ALL imported ValueSets
-        if (codeSets.length === 1) {
-          intersectCodes = [...codeSets[0].codeMap.values()]
-            .filter(e => e.system === group.system)
-            .map(e => e.code);
-        } else {
-          intersectCodes = [...codeSets[0].codeMap.values()]
-            .filter(e => e.system === group.system
-              && codeSets.slice(1).every(vs => vs.hasCode(e.system, e.code)))
-            .map(e => e.code);
-        }
-      }
-
-      return {
-        concept: cset.concept || null,    // enumerated codes (shape B/E) or null
-        filter: cset.filter || null,      // filter clauses (shape C/F) or null
-        // null = whole system (shape A/D). concept/filter are mutually exclusive (vsd-3).
-        intersectCodes,                   // string[] from expanded ValueSets, or null
-      };
-    };
-
-    const includeRequests = await Promise.all(group.includes.map(buildComponentRequest));
-    const excludeRequests = await Promise.all(group.excludes.map(buildComponentRequest));
-
-    // Determine if pagination can be pushed to the provider.
-    // Safe when: this is the sole source of codes, nothing else is accumulated,
-    // and there are no cross-system interactions.
-    const canPushPagination = this.fullList.length === 0
-      && this.excluded.size === 0
-      && !this.hasExclusions;
-
-    // Compute a limit ceiling. If any component has intersectCodes, the result
-    // can't exceed the smallest intersection set.
-    const intersectSizes = includeRequests
-      .filter(r => r.intersectCodes)
-      .map(r => r.intersectCodes.length);
-    const intersectCeiling = intersectSizes.length > 0
-      ? Math.min(...intersectSizes)
-      : null;
-    const effectiveLimit = intersectCeiling != null
-      ? Math.min(this.limitCount, intersectCeiling)
-      : this.limitCount;
-
-    const request = {
-      includes: includeRequests,
-      excludes: excludeRequests,
-      textFilter: filter.isNull ? null : filter.filter,
-      activeOnly: this.params.activeOnly || false,
-      excludeInactive,
-      properties: this.params.properties || [],
-      includeDesignations: this.params.includeDesignations || false,
-      displayLanguages: this.params.workingLanguages?.() || null,
-      pagination: canPushPagination && (this.offset > -1 || this.count > -1)
-        ? { offset: Math.max(this.offset, 0), count: this.count }
-        : null,
-      limitCount: effectiveLimit,
-    };
+    const canPushPagination = decision.pagination;
+    const request = await this._buildPushdownRequest(
+      group, filter, expansion, notClosed, canPushPagination, excludeInactive);
 
     this.worker.opContext.log(`pushdown expand for ${group.system}`);
-    const result = await cs.expandComponent(request);
+    const result = await expandFn(request);
 
     if (!result) {
       // Rollback context registrations from VS expansions so the fallback path
@@ -557,7 +927,7 @@ class ValueSetExpander {
     }
 
     await this._ingestPushdownResult(result, cs, expansion, vsSrc);
-    _tTryPushdown.end({ handled: true, canPushPagination });
+    _tTryPushdown.end({ handled: true, canPushPagination, decision: decision.reason });
     return true;
   }
 
@@ -638,43 +1008,8 @@ class ValueSetExpander {
       this.canBeHierarchy = false;
     }
 
-    // Case 1: Pure ValueSet import (no system)
-    if (!cset.system) {
-      await this._processValueSetOnly(cset, filter, expansion, notClosed, vsSrc, mode);
-      _tProcessComponent.end();
-      return;
-    }
-
-    // Case 2: System-based (may also have ValueSet, concept, filter)
-    const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params,
-      ['complete', 'fragment'], false, mode === 'include' ? false : true, true, null, this.requiredSupplements);
-
-    if (!cs) { _tProcessComponent.end(); return; }
-
-    this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
-    this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
-    this._addParam(expansion, 'used-codesystem', 'valueUri', canonical(await cs.system(), await cs.version()));
-
-    // Resolve ValueSet import constraints
-    const importedSets = [];
-    for (const u of cset.valueSet || []) {
-      this.worker.deadCheck('processComponent:vs-import');
-      const s = this.worker.pinValueSet(u);
-      this.worker.opContext.log(`import value set ${s}`);
-      importedSets.push(new ImportedValueSet(await this._expandNestedValueSet(s, '', filter, notClosed)));
-    }
-
-    // Dispatch to the appropriate stream handler
-    if (cset.concept) {
-      await this._processConcepts(cs, cset.concept, filter, expansion, importedSets,
-        excludeInactive, vsSrc, mode);
-    } else if (cset.filter) {
-      await this._processFilters(cs, cset.filter, path, filter, expansion, importedSets,
-        excludeInactive, notClosed, vsSrc, mode);
-    } else {
-      await this._processWholeSystem(cs, filter, expansion, importedSets,
-        excludeInactive, notClosed, vsSrc, mode);
-    }
+    await this.sourceHandlers.process(
+      cset, path, vsSrc, filter, expansion, excludeInactive, notClosed, mode);
     _tProcessComponent.end();
   }
 
@@ -734,6 +1069,7 @@ class ValueSetExpander {
 
       if (!filter.passesDesignations(cds) && !filter.passes(cc.code)) continue;
       if (!this._passesImports(importedSets, await cs.system(), cc.code, 0)) continue;
+      if (mode === 'include' && await this._isExcludedByFilterPredicates(cs, located.context)) continue;
 
       if (mode === 'exclude') {
         this._addExclusion(cs, await cs.system(), await cs.version(), cc.code, expansion, importedSets, vsSrc.url);
@@ -792,6 +1128,17 @@ class ValueSetExpander {
       notClosed.value = true;
     }
 
+    // Prefer membership-time exclusion checks over pre-enumerating excluded
+    // sets when there are no ValueSet import constraints and no text filter.
+    if (mode === 'exclude'
+        && importedSets.length === 0
+        && textFilter.isNull
+        && typeof cs.filterCheck === 'function') {
+      this._registerFilterExclusionPredicate(cs, prep, filterSets);
+      _tFilters.end({ deferred: true });
+      return;
+    }
+
     this.worker.opContext.log('iterate filters');
     await this._iterateFilterSet(cs, prep, filterSets, async (context) => {
       if (this.params.activeOnly && await cs.isInactive(context)) return;
@@ -802,6 +1149,7 @@ class ValueSetExpander {
         this._addExclusion(cs, await cs.system(), await cs.version(), await cs.code(context),
           expansion, null, vsSrc.url);
       } else {
+        if (await this._isExcludedByFilterPredicates(cs, context)) return;
         const cds = new Designations(this.worker.i18n.languageDefinitions);
         await this._listDisplays(cds, cs, context);
         const csProperties = await this._loadProperties(cs, context);
@@ -863,6 +1211,7 @@ class ValueSetExpander {
           this._addExclusion(cs, await cs.system(), await cs.version(), await cs.code(context),
             expansion, importedSets, vsSrc.url);
         } else {
+          if (await this._isExcludedByFilterPredicates(cs, context)) return;
           const cds = new Designations(this.worker.i18n.languageDefinitions);
           await this._listDisplays(cds, cs, context);
           const csProperties = await this._loadProperties(cs, context);
@@ -950,6 +1299,9 @@ class ValueSetExpander {
       if (mode === 'exclude') {
         this._addExclusion(cs, system, version, context.code, expansion, imports, srcUrl);
       } else {
+        if (await this._isExcludedByFilterPredicates(cs, context)) {
+          // Excluded at membership time; keep traversing children.
+        } else {
         const cds = new Designations(this.worker.i18n.languageDefinitions);
         await this._listDisplays(cds, cs, context);
         const csProperties = await this._loadProperties(cs, context);
@@ -961,6 +1313,7 @@ class ValueSetExpander {
         if (added) {
           count++;
           treeParent = added;
+        }
         }
       }
     }
@@ -1109,16 +1462,27 @@ class ValueSetExpander {
   }
 
   _excludeFromExpansion(vs, expansion, imports, offset) {
-    for (const c of vs.expansion.contains || []) {
-      this.worker.deadCheck('excludeFromExpansion');
-      const key = makeKey(c.system, c.version, c.code, this.doingVersion);
-      if (this._passesImports(imports, c.system, c.code, offset) && this.map.has(key)) {
-        const idx = this.fullList.indexOf(this.map.get(key));
-        if (idx >= 0) this.fullList.splice(idx, 1);
-        this.map.delete(key);
-        this._decrementTotal();
+    const baseSet = (imports && imports.length > 0 && imports[0]?.valueSet === vs)
+      ? imports[0]
+      : new ImportedValueSet(vs);
+    this.exclusionEvaluator.addImportedPredicate(baseSet, imports, offset);
+
+    const walk = (contains) => {
+      for (const c of contains || []) {
+        this.worker.deadCheck('excludeFromExpansion');
+        const key = makeKey(c.system, c.version, c.code, this.doingVersion);
+        if (this._passesImports(imports, c.system, c.code, offset) && this.map.has(key)) {
+          const idx = this.fullList.indexOf(this.map.get(key));
+          if (idx >= 0) this.fullList.splice(idx, 1);
+          this.map.delete(key);
+          this._decrementTotal();
+        }
+        if (c.contains?.length) {
+          walk(c.contains);
+        }
       }
-    }
+    };
+    walk(vs.expansion?.contains || []);
   }
 
   // ── Pre-flight source validation ─────────────────────────────────────────────
@@ -1277,7 +1641,7 @@ class ValueSetExpander {
 
     if (!this._passesImports(imports, system, code, 0)) return null;
     if (isInactive && excludeInactive) return null;
-    if (this.excluded.has(excludeKey(system, version, code))) return null;
+    if (this.exclusionEvaluator.has(system, version, code)) return null;
 
     // Per-system expansion cap
     if (cs?.expandLimitation > 0) {
@@ -1298,6 +1662,10 @@ class ValueSetExpander {
 
     // Too-costly check
     if (this.limitCount > 0 && this.fullList.length >= this.limitCount && !this.hasExclusions) {
+      if (this.hasTextFilter && this.count < 0 && this.offset < 0) {
+        this._noTotal();
+        throw new Issue('information', 'informational', null, null, null, null).setFinished();
+      }
       throw new Issue('error', 'too-costly', null, 'VALUESET_TOO_COSTLY',
         this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages,
           [srcURL || '??', '>' + this.limitCount]), null, 422)
@@ -1317,52 +1685,10 @@ class ValueSetExpander {
     const key = makeKey(system, version, code, this.doingVersion);
     if (this.map.has(key)) return null;
 
-    // Build the contains entry
-    const entry = { system, code };
-    if (this.doingVersion) entry.version = version;
-    if (isAbstract) entry.abstract = isAbstract;
-    if (isInactive) entry.inactive = true;
-
-    // Status / deprecated properties
-    if (status && status.toLowerCase() !== 'active') {
-      this._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', status);
-    } else if (deprecated) {
-      this._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', 'deprecated');
-    }
-
-    // Extension-driven properties
-    this._applyExtensionProperties(expansion, entry, csExtList, vsExtList);
-
-    // Display
-    const pref = displays.preferredDesignation(this.params.workingLanguages());
-    if (pref?.value) entry.display = pref.value;
-
-    // Designations
-    if (this.params.includeDesignations) {
-      for (const t of displays.designations) {
-        if (t !== pref && this._useDesignation(t) && t.value != null
-            && !this._redundantDisplay(entry, t.language, t.use, t.value)) {
-          entry.designation = entry.designation || [];
-          entry.designation.push(t.asObject());
-        }
-      }
-    }
-
-    // Requested properties
-    for (const pn of this.params.properties) {
-      if (pn === 'definition') {
-        if (definition) {
-          this._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#definition', pn, 'valueString', definition);
-        }
-      } else if (csProps && cs) {
-        for (const cp of csProps) {
-          if (cp.code === pn) {
-            const vn = getValueName(cp);
-            this._defineProperty(expansion, entry, this._getPropUrl(cs, pn), pn, vn, cp[vn]);
-          }
-        }
-      }
-    }
+    const entry = this.renderer.render({
+      cs, expansion, system, version, code, isAbstract, isInactive, deprecated, status,
+      displays, definition, csExtList, vsExtList, csProps,
+    });
 
     // Add to expansion
     this.fullList.push(entry);
@@ -1390,7 +1716,7 @@ class ValueSetExpander {
       }
     }
 
-    this.excluded.add(excludeKey(system, version, code));
+    this.exclusionEvaluator.addExact(system, version, code);
   }
 
   // ── Import filter helpers ────────────────────────────────────────────────────
@@ -1401,6 +1727,14 @@ class ValueSetExpander {
       if (!imports[i].hasCode(system, code)) return false;
     }
     return true;
+  }
+
+  _registerFilterExclusionPredicate(cs, prep, filterSets) {
+    this.exclusionEvaluator.registerFilterPredicate(cs, prep, filterSets);
+  }
+
+  async _isExcludedByFilterPredicates(cs, context) {
+    return this.exclusionEvaluator.matchesFilterPredicates(cs, context);
   }
 
   // ── Extension-driven property helpers ────────────────────────────────────────
@@ -1822,6 +2156,14 @@ class ExpandWorker extends TerminologyWorker {
 module.exports = {
   ExpandWorker,
   ValueSetExpander,
+  ExpansionPlanner,
+  ExpandPlan,
+  ExpansionExecutor,
+  ContainsRenderer,
+  PushdownRequestBuilder,
+  ExpansionSourceHandlers,
+  ExclusionEvaluator,
+  ExclusionIndex,
   ImportedValueSet,
   UPPER_LIMIT_NO_TEXT,
   UPPER_LIMIT_TEXT,

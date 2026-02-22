@@ -93,6 +93,8 @@ const { trace: T } = require('../workers/expand-trace');
 
 // Specialization registry — populated by subclass modules at require-time.
 const V0_SPECIALIZATION_REGISTRY = [];
+let EXPAND_TEMP_TABLE_SEQ = 0;
+const EXPAND_INTERSECT_IN_THRESHOLD = 2000;
 
 class SqliteRuntimeV0Context {
   constructor(conceptId, code, display, definition, active) {
@@ -200,12 +202,32 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.db = null;
   }
 
+  capabilities() {
+    const canPushdown = !!(this._syncDb || (BetterSqlite3 && this.dbPath));
+    return {
+      expandQuery: canPushdown,
+      handlesExcludes: canPushdown,
+      handlesOffset: canPushdown,
+      pushdown: canPushdown ? {
+        deterministicOrder: 'code',
+        includeShapes: ['whole', 'concept', 'filter'],
+        excludeShapes: ['concept', 'filter'],
+        supportsTextFilter: true,
+        supportsIntersectCodes: true
+      } : null
+    };
+  }
+
   handlesExcludes() {
-    return !!this.#getSyncDb();
+    return !!(this._syncDb || (BetterSqlite3 && this.dbPath));
   }
 
   handlesOffset() {
-    return !!this.#getSyncDb();
+    return !!(this._syncDb || (BetterSqlite3 && this.dbPath));
+  }
+
+  expandQuery(request) {
+    return this.expandComponent(request);
   }
 
   // ── expandComponent: pushdown expansion for expand-v2 ─────────────────────
@@ -230,261 +252,280 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     if (!includes.length) return null;
 
     const _tExpComp = T.begin('v0.expandComponent', { system: this.meta?.system, includeCount: includes.length, excludeCount: excludes.length });
+    const tempTables = [];
 
-    const csId = this.meta.csId;
-    const allParams = { _csId: csId };
-    const filterInactive = activeOnly || excludeInactive;
+    try {
+      const csId = this.meta.csId;
+      const allParams = { _csId: csId };
+      const filterInactive = activeOnly || excludeInactive;
 
-    // ── Build include SQL (UNION of components) ──
+      // ── Build include SQL (UNION of components) ──
 
-    const includeParts = [];
-    for (let ci = 0; ci < includes.length; ci++) {
-      const comp = includes[ci];
-      const pfx = `_i${ci}`;
-      let joins = '';
-      let where = '';
+      const includeParts = [];
+      for (let ci = 0; ci < includes.length; ci++) {
+        const comp = includes[ci];
+        const pfx = `_i${ci}`;
+        let joins = '';
+        let where = '';
 
-      // Enumerated concepts (shape B/E)
-      if (comp.concept?.length) {
-        const ph = comp.concept.map((cc, j) => {
-          allParams[`${pfx}c${j}`] = cc.code;
-          return `@${pfx}c${j}`;
-        }).join(',');
-        where += ` AND c.code IN (${ph})`;
-      }
-
-      // Compose filters (shape C/F) — reuse existing filter builder
-      if (comp.filter?.length) {
-        for (let fi = 0; fi < comp.filter.length; fi++) {
-          const result = this.#buildV0FilterSql(comp.filter[fi], `${pfx}f${fi}`);
-          if (!result) { _tExpComp.end({ fallback: true, reason: 'unsupported include filter' }); return null; } // unsupported → fall back
-          joins += result.joins;
-          where += result.sql;
-          Object.assign(allParams, result.params);
+        // Enumerated concepts (shape B/E)
+        if (comp.concept?.length) {
+          const ph = comp.concept.map((cc, j) => {
+            allParams[`${pfx}c${j}`] = cc.code;
+            return `@${pfx}c${j}`;
+          }).join(',');
+          where += ` AND c.code IN (${ph})`;
         }
-      }
 
-      // Intersection with pre-expanded ValueSet codes (temp table)
-      if (comp.intersectCodes?.length) {
-        const tbl = `_expand_isect_${ci}`;
-        syncDb.exec(`CREATE TEMP TABLE IF NOT EXISTS ${tbl} (code TEXT PRIMARY KEY)`);
-        const ins = syncDb.prepare(`INSERT OR IGNORE INTO ${tbl} (code) VALUES (?)`);
-        const tx = syncDb.transaction((codes) => {
-          for (const c of codes) ins.run(c);
-        });
-        tx(comp.intersectCodes);
-        T.note('temp table created (include intersect)', { table: tbl, codeCount: comp.intersectCodes.length });
-        joins += ` JOIN ${tbl} ON ${tbl}.code = c.code`;
-      }
-
-      const activeClause = filterInactive ? ' AND c.active = 1' : '';
-      includeParts.push(
-        `SELECT c.concept_id, c.code, c.display, c.definition, c.active`
-        + ` FROM concept c${joins}`
-        + ` WHERE c.cs_id = @_csId${where}${activeClause}`
-      );
-    }
-
-    const innerSql = includeParts.length === 1
-      ? includeParts[0]
-      : includeParts.map(p => `(${p})`).join('\nUNION\n');
-
-    // ── Build exclude SQL ──
-
-    let excludeWhere = '';
-
-    for (let ei = 0; ei < excludes.length; ei++) {
-      const exc = excludes[ei];
-      const pfx = `_x${ei}`;
-
-      // Exclude enumerated concepts
-      if (exc.concept?.length) {
-        const ph = exc.concept.map((cc, j) => {
-          allParams[`${pfx}c${j}`] = cc.code;
-          return `@${pfx}c${j}`;
-        }).join(',');
-        excludeWhere += ` AND t.code NOT IN (${ph})`;
-      }
-
-      // Exclude filters → NOT EXISTS via existing builder
-      if (exc.filter?.length) {
-        const mapped = exc.filter.map(f => ({ property: f.property, op: f.op, value: f.value }));
-        const clause = this.#buildExcludeClause(mapped, pfx, allParams);
-        if (!clause) { _tExpComp.end({ fallback: true, reason: 'unsupported exclude filter' }); return null; } // unsupported → fall back
-        excludeWhere += ` AND ${clause}`;
-      }
-
-      // Exclude intersectCodes (rare but possible)
-      if (exc.intersectCodes?.length) {
-        const tbl = `_expand_xisect_${ei}`;
-        syncDb.exec(`CREATE TEMP TABLE IF NOT EXISTS ${tbl} (code TEXT PRIMARY KEY)`);
-        const ins = syncDb.prepare(`INSERT OR IGNORE INTO ${tbl} (code) VALUES (?)`);
-        const tx = syncDb.transaction((codes) => {
-          for (const c of codes) ins.run(c);
-        });
-        tx(exc.intersectCodes);
-        T.note('temp table created (exclude intersect)', { table: tbl, codeCount: exc.intersectCodes.length });
-        excludeWhere += ` AND t.code IN (SELECT code FROM ${tbl})`;
-      }
-    }
-
-    // ── Text search filter ──
-
-    if (textFilter) {
-      const searchCfg = normalizedSearchConfig(this.runtime.search);
-      if (this.#canUseFtsSearch(searchCfg)) {
-        const matchText = toFtsMatchText(textFilter);
-        allParams['_searchMatch'] = matchText;
-        allParams['_searchCsId'] = csId;
-        const ftsParts = [];
-        for (const source of searchCfg.sources) {
-          if (source === 'display') {
-            const tbl = sqlIdentifier(searchCfg.ftsTables.display, 'search_fts_display');
-            ftsParts.push(`SELECT c2.concept_id FROM ${tbl} f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch`);
-          } else if (source === 'designation') {
-            const tbl = sqlIdentifier(searchCfg.ftsTables.designation, 'search_fts_designation');
-            ftsParts.push(`SELECT d2.concept_id FROM ${tbl} f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch`);
-          } else if (source === 'literal') {
-            const tbl = sqlIdentifier(searchCfg.ftsTables.literal, 'search_fts_literal');
-            ftsParts.push(`SELECT cl2.source_concept_id FROM ${tbl} f2 JOIN concept_literal cl2 ON cl2.literal_id = f2.rowid WHERE f2.term MATCH @_searchMatch`);
+        // Compose filters (shape C/F) — reuse existing filter builder
+        if (comp.filter?.length) {
+          for (let fi = 0; fi < comp.filter.length; fi++) {
+            const result = this.#buildV0FilterSql(comp.filter[fi], `${pfx}f${fi}`);
+            if (!result) { _tExpComp.end({ fallback: true, reason: 'unsupported include filter' }); return null; } // unsupported → fall back
+            joins += result.joins;
+            where += result.sql;
+            Object.assign(allParams, result.params);
           }
         }
-        if (ftsParts.length > 0) {
-          excludeWhere += ` AND t.concept_id IN (${ftsParts.join(' UNION ')})`;
+
+        // Intersection with pre-expanded ValueSet codes (temp table)
+        if (comp.intersectCodes?.length) {
+          if (comp.intersectCodes.length <= EXPAND_INTERSECT_IN_THRESHOLD) {
+            const ph = comp.intersectCodes.map((code, j) => {
+              allParams[`${pfx}is${j}`] = code;
+              return `@${pfx}is${j}`;
+            }).join(',');
+            where += ` AND c.code IN (${ph})`;
+          } else {
+            const tbl = this.#createExpandTempCodesTable(syncDb, tempTables, `isect_${ci}`, comp.intersectCodes);
+            T.note('temp table created (include intersect)', { table: tbl, codeCount: comp.intersectCodes.length });
+            joins += ` JOIN ${tbl} ON ${tbl}.code = c.code`;
+          }
         }
-      } else {
-        allParams['_searchLike'] = `%${textFilter}%`;
-        excludeWhere += ` AND t.display LIKE @_searchLike`;
+
+        const activeClause = filterInactive ? ' AND c.active = 1' : '';
+        includeParts.push(
+          `SELECT c.concept_id, c.code, c.display, c.definition, c.active`
+          + ` FROM concept c${joins}`
+          + ` WHERE c.cs_id = @_csId${where}${activeClause}`
+        );
       }
-    }
 
-    // ── Assemble final query ──
+      const innerSql = includeParts.length === 1
+        ? includeParts[0]
+        : includeParts.map(p => `(${p})`).join('\nUNION\n');
 
-    const baseSql = `SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active`
-      + ` FROM (${innerSql}) AS t WHERE 1=1${excludeWhere}`;
+      // ── Build exclude SQL ──
 
-    let sql = baseSql + ' ORDER BY t.code';
+      let excludeWhere = '';
 
-    if (pagination?.count > 0) {
-      sql += ` LIMIT ${Number(pagination.count)} OFFSET ${Number(pagination.offset || 0)}`;
-    } else if (limitCount > 0) {
-      sql += ` LIMIT ${limitCount}`;
-    }
+      for (let ei = 0; ei < excludes.length; ei++) {
+        const exc = excludes[ei];
+        const pfx = `_x${ei}`;
 
-    // ── Execute ──
+        // Exclude enumerated concepts
+        if (exc.concept?.length) {
+          const ph = exc.concept.map((cc, j) => {
+            allParams[`${pfx}c${j}`] = cc.code;
+            return `@${pfx}c${j}`;
+          }).join(',');
+          excludeWhere += ` AND t.code NOT IN (${ph})`;
+        }
 
-    let rows;
-    let tooCostly = false;
-    if (syncDb._resetEffort) syncDb._resetEffort();
-    try {
-      rows = [];
-      const _t0Main = performance.now();
-      let _mainRowCount = 0;
-      for (const row of syncDb.prepare(sql).iterate(allParams)) {
-        _mainRowCount++;
-        rows.push(row);
+        // Exclude filters → NOT EXISTS via existing builder
+        if (exc.filter?.length) {
+          const mapped = exc.filter.map(f => ({ property: f.property, op: f.op, value: f.value }));
+          const clause = this.#buildExcludeClause(mapped, pfx, allParams);
+          if (!clause) { _tExpComp.end({ fallback: true, reason: 'unsupported exclude filter' }); return null; } // unsupported → fall back
+          excludeWhere += ` AND ${clause}`;
+        }
+
+        // Exclude intersectCodes (rare but possible)
+        if (exc.intersectCodes?.length) {
+          if (exc.intersectCodes.length <= EXPAND_INTERSECT_IN_THRESHOLD) {
+            const ph = exc.intersectCodes.map((code, j) => {
+              allParams[`${pfx}xis${j}`] = code;
+              return `@${pfx}xis${j}`;
+            }).join(',');
+            excludeWhere += ` AND t.code NOT IN (${ph})`;
+          } else {
+            const tbl = this.#createExpandTempCodesTable(syncDb, tempTables, `xisect_${ei}`, exc.intersectCodes);
+            T.note('temp table created (exclude intersect)', { table: tbl, codeCount: exc.intersectCodes.length });
+            excludeWhere += ` AND t.code NOT IN (SELECT code FROM ${tbl})`;
+          }
+        }
       }
-      T.sql(sql, allParams, _mainRowCount, performance.now() - _t0Main);
-    } catch (e) {
-      if (e.code === 'SQLITE_INTERRUPT') {
-        // Effort limit hit — return whatever rows we collected so far
-        tooCostly = true;
-      } else {
-        this.#cleanupExpandTempTables(syncDb, includes, excludes);
-        throw e;
+
+      // ── Text search filter ──
+
+      if (textFilter) {
+        const searchCfg = normalizedSearchConfig(this.runtime.search);
+        if (this.#canUseFtsSearch(searchCfg)) {
+          const matchText = toFtsMatchText(textFilter);
+          allParams['_searchMatch'] = matchText;
+          allParams['_searchCsId'] = csId;
+          const ftsParts = [];
+          for (const source of searchCfg.sources) {
+            if (source === 'display') {
+              const tbl = sqlIdentifier(searchCfg.ftsTables.display, 'search_fts_display');
+              ftsParts.push(`SELECT c2.concept_id FROM ${tbl} f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch`);
+            } else if (source === 'designation') {
+              const tbl = sqlIdentifier(searchCfg.ftsTables.designation, 'search_fts_designation');
+              ftsParts.push(`SELECT d2.concept_id FROM ${tbl} f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch`);
+            } else if (source === 'literal') {
+              const tbl = sqlIdentifier(searchCfg.ftsTables.literal, 'search_fts_literal');
+              ftsParts.push(`SELECT cl2.source_concept_id FROM ${tbl} f2 JOIN concept_literal cl2 ON cl2.literal_id = f2.rowid WHERE f2.term MATCH @_searchMatch`);
+            }
+          }
+          if (ftsParts.length > 0) {
+            excludeWhere += ` AND t.concept_id IN (${ftsParts.join(' UNION ')})`;
+          }
+        } else {
+          allParams['_searchLike'] = `%${textFilter}%`;
+          excludeWhere += ` AND t.display LIKE @_searchLike`;
+        }
       }
-    }
 
-    // If we fetched exactly limitCount rows (no pagination), there are likely more
-    if (!pagination && limitCount > 0 && rows.length >= limitCount) {
-      tooCostly = true;
-    }
+      // ── Assemble final query ──
 
-    // Total count (for pagination)
-    let total = null;
-    if (pagination) {
+      const baseSql = `SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active`
+        + ` FROM (${innerSql}) AS t WHERE 1=1${excludeWhere}`;
+
+      let sql = baseSql + ' ORDER BY t.code, t.concept_id';
+
+      if (pagination) {
+        const pageCount = Number.isFinite(Number(pagination.count)) ? Number(pagination.count) : -1;
+        const pageOffset = Math.max(0, Number.isFinite(Number(pagination.offset)) ? Number(pagination.offset) : 0);
+        if (pageCount >= 0) {
+          sql += ` LIMIT ${pageCount} OFFSET ${pageOffset}`;
+        } else if (pageOffset > 0) {
+          sql += ` LIMIT -1 OFFSET ${pageOffset}`;
+        }
+      } else if (limitCount > 0) {
+        sql += ` LIMIT ${limitCount}`;
+      }
+
+      // ── Execute ──
+
+      let rows;
+      let tooCostly = false;
       if (syncDb._resetEffort) syncDb._resetEffort();
       try {
-        const _countSql = `SELECT COUNT(*) AS cnt FROM (${baseSql})`;
-        const _t0Count = performance.now();
-        const countRow = syncDb.prepare(_countSql).get(allParams);
-        T.sql(_countSql, allParams, 1, performance.now() - _t0Count);
-        total = countRow?.cnt ?? rows.length;
-      } catch (e) {
-        if (e.code !== 'SQLITE_INTERRUPT') throw e;
-        total = rows.length;
-      }
-    }
-
-    // Batch-fetch designations when requested
-    const designationMap = new Map();
-    const hints = request;
-    if (hints.includeDesignations && rows.length > 0) {
-      const conceptIds = rows.map(r => r.concept_id);
-      const BATCH = 500;
-      const dTable = this.meta?.designationOrderIndex
-        ? 'designation INDEXED BY idx_designation_concept_pref_term'
-        : 'designation';
-      let langFilter = '';
-      let langParams = [];
-      if (hints.displayLanguages?.length) {
-        const codes = hints.displayLanguages.map(l => typeof l === 'string' ? l : (l.code || l));
-        langFilter = ` AND language_code IN (${codes.map(() => '?').join(',')})`;
-        langParams = codes;
-      }
-      for (let i = 0; i < conceptIds.length; i += BATCH) {
-        const batch = conceptIds.slice(i, i + BATCH);
-        const ph = batch.map(() => '?').join(',');
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        const _dSql = `SELECT concept_id, language_code, use_code, term, preferred, active
-           FROM ${dTable} WHERE concept_id IN (${ph})${langFilter}
-           ORDER BY concept_id, preferred DESC, term`;
-        const _t0Desig = performance.now();
-        let _dRowCount = 0;
-        for (const dRow of syncDb.prepare(_dSql).iterate([...batch, ...langParams])) {
-          _dRowCount++;
-          let arr = designationMap.get(dRow.concept_id);
-          if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
-          arr.push(dRow);
+        rows = [];
+        const _t0Main = performance.now();
+        let _mainRowCount = 0;
+        for (const row of syncDb.prepare(sql).iterate(allParams)) {
+          _mainRowCount++;
+          rows.push(row);
         }
-        T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+        T.sql(sql, allParams, _mainRowCount, performance.now() - _t0Main);
+      } catch (e) {
+        if (e.code === 'SQLITE_INTERRUPT') {
+          // Effort limit hit — return whatever rows we collected so far
+          tooCostly = true;
+        } else {
+          throw e;
+        }
       }
+
+      // If we fetched exactly limitCount rows (no pagination), there are likely more
+      if (!pagination && limitCount > 0 && rows.length >= limitCount) {
+        tooCostly = true;
+      }
+
+      // Total count (for pagination)
+      let total = null;
+      if (pagination) {
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const _countSql = `SELECT COUNT(*) AS cnt FROM (${baseSql})`;
+          const _t0Count = performance.now();
+          const countRow = syncDb.prepare(_countSql).get(allParams);
+          T.sql(_countSql, allParams, 1, performance.now() - _t0Count);
+          total = countRow?.cnt ?? rows.length;
+        } catch (e) {
+          if (e.code !== 'SQLITE_INTERRUPT') throw e;
+          total = rows.length;
+        }
+      }
+
+      // Batch-fetch designations when requested
+      const designationMap = new Map();
+      const hints = request;
+      if (hints.includeDesignations && rows.length > 0) {
+        const conceptIds = rows.map(r => r.concept_id);
+        const BATCH = 500;
+        const dTable = this.meta?.designationOrderIndex
+          ? 'designation INDEXED BY idx_designation_concept_pref_term'
+          : 'designation';
+        let langFilter = '';
+        let langParams = [];
+        if (hints.displayLanguages?.length) {
+          const codes = hints.displayLanguages.map(l => typeof l === 'string' ? l : (l.code || l));
+          langFilter = ` AND language_code IN (${codes.map(() => '?').join(',')})`;
+          langParams = codes;
+        }
+        for (let i = 0; i < conceptIds.length; i += BATCH) {
+          const batch = conceptIds.slice(i, i + BATCH);
+          const ph = batch.map(() => '?').join(',');
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          const _dSql = `SELECT concept_id, language_code, use_code, term, preferred, active
+             FROM ${dTable} WHERE concept_id IN (${ph})${langFilter}
+             ORDER BY concept_id, preferred DESC, term`;
+          const _t0Desig = performance.now();
+          let _dRowCount = 0;
+          for (const dRow of syncDb.prepare(_dSql).iterate([...batch, ...langParams])) {
+            _dRowCount++;
+            let arr = designationMap.get(dRow.concept_id);
+            if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
+            arr.push(dRow);
+          }
+          T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+        }
+      }
+
+      // Map to result shape
+      const abstractCfg = this.runtime.status?.abstract;
+      const isAbstractConst = abstractCfg?.source === 'constant' ? !!abstractCfg.value : false;
+
+      const codes = rows.map(row => {
+        const entry = {
+          code: row.code,
+          display: row.display || row.code,
+          isAbstract: isAbstractConst,
+          isInactive: row.active !== 1,
+          isDeprecated: false,
+          status: row.active === 1 ? 'active' : 'inactive',
+        };
+        const desigs = designationMap.get(row.concept_id);
+        if (desigs) entry.designations = desigs;
+        return entry;
+      });
+
+      _tExpComp.end({ codesCount: codes.length, total, tooCostly });
+      return { codes, total, notClosed: false, tooCostly };
+    } finally {
+      this.#cleanupExpandTempTables(syncDb, tempTables);
     }
-
-    this.#cleanupExpandTempTables(syncDb, includes, excludes);
-
-    // Map to result shape
-    const abstractCfg = this.runtime.status?.abstract;
-    const isAbstractConst = abstractCfg?.source === 'constant' ? !!abstractCfg.value : false;
-
-    const codes = rows.map(row => {
-      const entry = {
-        code: row.code,
-        display: row.display || row.code,
-        isAbstract: isAbstractConst,
-        isInactive: row.active !== 1,
-        isDeprecated: false,
-        status: row.active === 1 ? 'active' : 'inactive',
-      };
-      const desigs = designationMap.get(row.concept_id);
-      if (desigs) entry.designations = desigs;
-      return entry;
-    });
-
-    _tExpComp.end({ codesCount: codes.length, total, tooCostly });
-    return { codes, total, notClosed: false, tooCostly };
   }
 
-  #cleanupExpandTempTables(syncDb, includes, excludes) {
-    for (let ci = 0; ci < includes.length; ci++) {
-      if (includes[ci].intersectCodes?.length) {
-        try { syncDb.exec(`DROP TABLE IF EXISTS _expand_isect_${ci}`); } catch (_) { /* ok */ }
-      }
-    }
-    for (let ei = 0; ei < excludes.length; ei++) {
-      if (excludes[ei].intersectCodes?.length) {
-        try { syncDb.exec(`DROP TABLE IF EXISTS _expand_xisect_${ei}`); } catch (_) { /* ok */ }
-      }
+  #createExpandTempCodesTable(syncDb, tempTables, label, codes) {
+    const safeLabel = String(label || 'codes').replace(/[^A-Za-z0-9_]/g, '_');
+    const seq = (++EXPAND_TEMP_TABLE_SEQ).toString(36);
+    const tbl = `_expand_${safeLabel}_${Date.now().toString(36)}_${seq}`;
+    syncDb.exec(`CREATE TEMP TABLE ${tbl} (code TEXT PRIMARY KEY)`);
+    const ins = syncDb.prepare(`INSERT OR IGNORE INTO ${tbl} (code) VALUES (?)`);
+    const tx = syncDb.transaction((list) => {
+      for (const c of list) ins.run(c);
+    });
+    tx(codes);
+    tempTables.push(tbl);
+    return tbl;
+  }
+
+  #cleanupExpandTempTables(syncDb, tempTables) {
+    for (const tbl of tempTables || []) {
+      try { syncDb.exec(`DROP TABLE IF EXISTS ${tbl}`); } catch (_) { /* ok */ }
     }
   }
 

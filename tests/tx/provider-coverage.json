@@ -1,0 +1,750 @@
+[
+  {
+    "provider": "internal:areacode",
+    "role": "include",
+    "shape": "filter",
+    "peers": [],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "filter: area codes class=country (property =)",
+      "filter: area codes class=region (property =)"
+    ]
+  },
+  {
+    "provider": "internal:areacode",
+    "role": "include",
+    "shape": "filter",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: areacode class filter with cs-cs include/exclude peer"
+    ]
+  },
+  {
+    "provider": "internal:areacode",
+    "role": "include",
+    "shape": "whole",
+    "peers": [],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "shape-A: area codes full expansion (preloaded map)"
+    ]
+  },
+  {
+    "provider": "internal:country",
+    "role": "include",
+    "shape": "filter",
+    "peers": [],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "filter: country code regex A.* (cs-country)"
+    ]
+  },
+  {
+    "provider": "internal:country",
+    "role": "include",
+    "shape": "filter",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: country regex filter with cs-cs peer include"
+    ]
+  },
+  {
+    "provider": "internal:currency",
+    "role": "include",
+    "shape": "filter",
+    "peers": [],
+    "testCount": 2,
+    "calls": 3,
+    "tests": [
+      "filter: currency decimals=0 (property =)",
+      "provider: preloaded map iteration (currency full + filter)"
+    ]
+  },
+  {
+    "provider": "internal:currency",
+    "role": "include",
+    "shape": "whole",
+    "peers": [],
+    "testCount": 3,
+    "calls": 3,
+    "tests": [
+      "pagination: currency count=10 offset=0",
+      "provider: preloaded map iteration (currency full + filter)",
+      "shape-A: currency full expansion (preloaded map)"
+    ]
+  },
+  {
+    "provider": "internal:lang",
+    "role": "include",
+    "shape": "concept",
+    "peers": [],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "params: language code includeDesignations yields alternates (internal:lang)",
+      "shape-B: language codes enumerated (internal:lang)"
+    ]
+  },
+  {
+    "provider": "internal:lang",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "internal:mimetypes"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: MIME concept include with language peer include"
+    ]
+  },
+  {
+    "provider": "internal:lang",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "ucum"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: UCUM whole-system with language peer include"
+    ]
+  },
+  {
+    "provider": "internal:mimetypes",
+    "role": "include",
+    "shape": "concept",
+    "peers": [],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "shape-B: MIME types enumerated (internal:mimetypes)"
+    ]
+  },
+  {
+    "provider": "internal:mimetypes",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "internal:lang"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: MIME concept include with language peer include"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "exclude",
+    "shape": "concept",
+    "peers": [
+      "internal:usstates"
+    ],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "exclude: US states subtract 2 from 4 enumerated (preloaded map)",
+      "exclude: exclude from whole system (preloaded map)"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "exclude",
+    "shape": "concept",
+    "peers": [
+      "internal:usstates",
+      "valueset-import"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: valueset-import include with USPS peer and USPS exclude"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "concept",
+    "peers": [],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "shape-B: US states enumerated (preloaded map)"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "internal:usstates"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "exclude: US states subtract 2 from 4 enumerated (preloaded map)"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "internal:usstates",
+      "valueset-import"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: valueset-import include with USPS peer and USPS exclude"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "combined: multi-system + exclude + pagination",
+      "multi-system: gender + US states union"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "valueset-import"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: valueset-import include with USPS peer include"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "whole",
+    "peers": [],
+    "testCount": 5,
+    "calls": 7,
+    "tests": [
+      "pagination: US states disjoint pages",
+      "pagination: US states last page partial",
+      "pagination: US states offset beyond end",
+      "pagination: count=0 returns total only",
+      "shape-A: US states full expansion (preloaded map)"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "whole",
+    "peers": [
+      "internal:usstates"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "exclude: exclude from whole system (preloaded map)"
+    ]
+  },
+  {
+    "provider": "internal:usstates",
+    "role": "include",
+    "shape": "whole",
+    "peers": [
+      "package:cs-cs",
+      "sqlite-v0"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "multi-system: v0 filter + preloaded whole system + cs-cs enumerated"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "exclude",
+    "shape": "concept",
+    "peers": [
+      "internal:areacode",
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: areacode class filter with cs-cs include/exclude peer"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "exclude",
+    "shape": "concept",
+    "peers": [
+      "internal:usstates",
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "combined: multi-system + exclude + pagination"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "exclude",
+    "shape": "concept",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 2,
+    "calls": 3,
+    "tests": [
+      "exclude: cross-system multi-exclude (gender + pub-status minus unknowns)",
+      "exclude: gender minus other+unknown (cs-cs)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "exclude",
+    "shape": "filter",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "exclude: inline FHIR filter-based exclude (condition-ver-status)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept",
+    "peers": [],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "shape-B: enumerated with user-supplied display override",
+      "shape-B: gender enumerated subset (inline FHIR cs-cs)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "internal:areacode",
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: areacode class filter with cs-cs include/exclude peer"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "internal:country"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: country regex filter with cs-cs peer include"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "internal:usstates",
+      "sqlite-v0"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "multi-system: v0 filter + preloaded whole system + cs-cs enumerated"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 2,
+    "tests": [
+      "multi-system: same system in two include components (union, dedup)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "sqlite-v0"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "multi-system: SNOMED + gender (mixed v0 + cs-cs)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "tx-resource"
+    ],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "coverage: tx-resource concept include + exclude with cs-cs peer",
+      "coverage: tx-resource whole include with cs-cs peer"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "concept+valueset",
+    "peers": [],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "vs-import: system + valueSet intersection (shape D)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "filter",
+    "peers": [],
+    "testCount": 4,
+    "calls": 4,
+    "tests": [
+      "filter: gender regex [mf].* (inline FHIR cs-cs)",
+      "filter: inline FHIR concept = exact code (cs-cs)",
+      "filter: inline FHIR descendent-of (condition-ver-status)",
+      "filter: inline FHIR is-a with hierarchy (condition-ver-status)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "whole",
+    "peers": [],
+    "testCount": 4,
+    "calls": 4,
+    "tests": [
+      "provider: cs-cs hierarchy iteration (condition-ver-status)",
+      "shape-A: administrative-gender (inline FHIR cs-cs)",
+      "shape-A: publication-status (inline FHIR cs-cs)",
+      "text-search: inline FHIR filter=male (cs-cs searchFilter)"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "whole",
+    "peers": [
+      "internal:usstates"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "multi-system: gender + US states union"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "whole",
+    "peers": [
+      "internal:usstates",
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "combined: multi-system + exclude + pagination"
+    ]
+  },
+  {
+    "provider": "package:cs-cs",
+    "role": "include",
+    "shape": "whole",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 4,
+    "calls": 6,
+    "tests": [
+      "exclude: cross-system multi-exclude (gender + pub-status minus unknowns)",
+      "exclude: gender minus other+unknown (cs-cs)",
+      "exclude: inline FHIR filter-based exclude (condition-ver-status)",
+      "text-search: multi-system with filter"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "exclude",
+    "shape": "concept",
+    "peers": [
+      "sqlite-v0"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "exclude: SNOMED exclude enumerated from is-a (v0)"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "exclude",
+    "shape": "filter",
+    "peers": [
+      "sqlite-v0"
+    ],
+    "testCount": 3,
+    "calls": 4,
+    "tests": [
+      "combined: include filter + exclude filter same system (v0)",
+      "exclude: SNOMED is-a minus Type1 subtree (v0 pushdown)",
+      "exclude: SNOMED is-a minus Type2 subtree (v0 pushdown)"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "include",
+    "shape": "concept",
+    "peers": [],
+    "testCount": 5,
+    "calls": 5,
+    "tests": [
+      "combined: enumerated + text filter (v0)",
+      "shape-B: LOINC enumerated (v0 pushdown)",
+      "shape-B: RxNorm enumerated (v0 pushdown)",
+      "shape-B: SNOMED enumerated (v0 pushdown)",
+      "shape-B: single concept exact match (v0)"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "multi-system: SNOMED + gender (mixed v0 + cs-cs)"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "sqlite-v0"
+    ],
+    "testCount": 1,
+    "calls": 3,
+    "tests": [
+      "multi-system: three systems (SNOMED + LOINC + RxNorm)"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "include",
+    "shape": "filter",
+    "peers": [],
+    "testCount": 10,
+    "calls": 17,
+    "tests": [
+      "combined: SNOMED is-a + text filter (v0)",
+      "filter: LOINC STATUS=ACTIVE (v0 pushdown)",
+      "filter: RxNorm TTY=IN property filter (v0 pushdown)",
+      "filter: SNOMED concept-in refset (v0 value_set_member)",
+      "filter: SNOMED descendent-of diabetes (v0 closure, excludes self)",
+      "filter: SNOMED is-a diabetes (v0 closure, includes self)",
+      "pagination: SNOMED is-a paginated (v0)",
+      "provider: v0 RxNorm text search + property filter combined",
+      "provider: v0 SNOMED large is-a with pagination consistency",
+      "text-search: SNOMED filter + is-a combined"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "include",
+    "shape": "filter",
+    "peers": [
+      "internal:usstates",
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "multi-system: v0 filter + preloaded whole system + cs-cs enumerated"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "include",
+    "shape": "filter",
+    "peers": [
+      "sqlite-v0"
+    ],
+    "testCount": 4,
+    "calls": 4,
+    "tests": [
+      "combined: include filter + exclude filter same system (v0)",
+      "exclude: SNOMED exclude enumerated from is-a (v0)",
+      "exclude: SNOMED is-a minus Type1 subtree (v0 pushdown)",
+      "exclude: SNOMED is-a minus Type2 subtree (v0 pushdown)"
+    ]
+  },
+  {
+    "provider": "sqlite-v0",
+    "role": "include",
+    "shape": "whole",
+    "peers": [],
+    "testCount": 4,
+    "calls": 4,
+    "tests": [
+      "text-search: LOINC filter=creatinine (v0 FTS)",
+      "text-search: RxNorm filter=aspirin (v0 FTS)",
+      "text-search: SNOMED filter=diabetes (v0 FTS)",
+      "text-search: SNOMED filter=diabetes no pagination (probe bug)"
+    ]
+  },
+  {
+    "provider": "tx-resource",
+    "role": "exclude",
+    "shape": "concept",
+    "peers": [
+      "package:cs-cs",
+      "tx-resource"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: tx-resource concept include + exclude with cs-cs peer"
+    ]
+  },
+  {
+    "provider": "tx-resource",
+    "role": "include",
+    "shape": "concept",
+    "peers": [
+      "package:cs-cs",
+      "tx-resource"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: tx-resource concept include + exclude with cs-cs peer"
+    ]
+  },
+  {
+    "provider": "tx-resource",
+    "role": "include",
+    "shape": "whole",
+    "peers": [],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "infra: tx-resource injected CodeSystem can be expanded",
+      "params: property=definition includes definition property on contains entries"
+    ]
+  },
+  {
+    "provider": "tx-resource",
+    "role": "include",
+    "shape": "whole",
+    "peers": [
+      "package:cs-cs"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: tx-resource whole include with cs-cs peer"
+    ]
+  },
+  {
+    "provider": "ucum",
+    "role": "include",
+    "shape": "whole",
+    "peers": [],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "notClosed: UCUM expansion reports valueset-unclosed extension"
+    ]
+  },
+  {
+    "provider": "ucum",
+    "role": "include",
+    "shape": "whole",
+    "peers": [
+      "internal:lang"
+    ],
+    "testCount": 1,
+    "calls": 1,
+    "tests": [
+      "coverage: UCUM whole-system with language peer include"
+    ]
+  },
+  {
+    "provider": "valueset-import",
+    "role": "include",
+    "shape": "whole+valueset",
+    "peers": [],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "infra: tx-resource injected ValueSet import resolves against injected CodeSystem",
+      "vs-import: pure import of administrative-gender VS"
+    ]
+  },
+  {
+    "provider": "valueset-import",
+    "role": "include",
+    "shape": "whole+valueset",
+    "peers": [
+      "internal:usstates"
+    ],
+    "testCount": 2,
+    "calls": 2,
+    "tests": [
+      "coverage: valueset-import include with USPS peer and USPS exclude",
+      "coverage: valueset-import include with USPS peer include"
+    ]
+  }
+]

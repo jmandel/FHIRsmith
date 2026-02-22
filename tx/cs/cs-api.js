@@ -447,9 +447,29 @@ class CodeSystemProvider {
   }
 
   /**
+   * Optional provider capabilities descriptor for planner decisions.
+   * Implementors can return a richer object; unknown keys are ignored.
+   *
+   * Known keys currently consumed by expand-v2:
+   * - expandQuery: boolean
+   * - handlesExcludes: boolean
+   * - handlesOffset: boolean
+   *
+   * @returns {Object}
+   */
+  capabilities() {
+    const proto = CodeSystemProvider.prototype;
+    return {
+      expandQuery: (this.expandQuery !== proto.expandQuery) || (this.expandComponent !== proto.expandComponent),
+      handlesExcludes: this.handlesExcludes(),
+      handlesOffset: this.handlesOffset(),
+    };
+  }
+
+  /**
    * Optional: handle an entire expansion component group (includes + excludes
-   * for this system) in a single native operation.  Providers backed by SQL
-   * or similar query engines should override this to push filters, exclusions,
+   * for this system) in a single native operation. Providers backed by SQL
+   * or similar query engines can override this to push filters, exclusions,
    * intersections, and pagination into a single query.
    *
    * Return null to fall back to streaming iteration (the default).
@@ -472,7 +492,7 @@ class CodeSystemProvider {
    * @param {Object|null}  request.displayLanguages    - working language context
    * @param {{offset:number, count:number}|null} request.pagination
    *        Present only when the orchestrator can guarantee this group is the
-   *        sole source of codes — safe to LIMIT/OFFSET in the query.
+   *        sole source of codes - safe to LIMIT/OFFSET in the query.
    * @param {number}       request.limitCount          - server-side expansion cap
    *
    * Where ExpandComponentEntry is:
@@ -483,10 +503,10 @@ class CodeSystemProvider {
    *           Filter clauses (shape C/F), or null.
    * @property {string[]|null} intersectCodes
    *           Codes from pre-expanded ValueSet imports that the results must
-   *           be intersected with.  null = no intersection constraint.
+   *           be intersected with. null = no intersection constraint.
    *           The provider may load these into a temp table for efficient joins.
    *
-   * @returns {Object|null} null = fall back to streaming.  Otherwise:
+   * @returns {Object|null} null = fall back to streaming. Otherwise:
    *   {
    *     codes: Array<{
    *       code: string,
@@ -501,6 +521,15 @@ class CodeSystemProvider {
    *     total: number|null,   // true total (before pagination), if known
    *     notClosed: boolean,   // true if result set is open-ended
    *   }
+   */
+  async expandQuery(request) {
+    void request;
+    return await this.expandComponent(request);
+  }
+
+  /**
+   * Backward-compatible alias for older providers that implemented
+   * `expandComponent` before `expandQuery` was introduced.
    */
   async expandComponent(request) {
     void request;

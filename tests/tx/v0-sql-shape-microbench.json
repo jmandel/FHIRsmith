@@ -1,0 +1,136 @@
+{
+  "generatedAt": "2026-02-22T20:42:55.816Z",
+  "results": [
+    {
+      "id": "set-membership-1000-codes",
+      "description": "RxNorm 1000-code membership: IN vs temp-table join",
+      "baseline": "in-list-1000",
+      "results": [
+        {
+          "name": "in-list-1000",
+          "equivalentToBaseline": true,
+          "rowCount": 1000,
+          "medianMs": 0.654,
+          "minMs": 0.627,
+          "maxMs": 0.851
+        },
+        {
+          "name": "temp-table-full-cycle",
+          "equivalentToBaseline": true,
+          "rowCount": 1000,
+          "medianMs": 10.83,
+          "minMs": 10.482,
+          "maxMs": 11.51
+        },
+        {
+          "name": "temp-table-reused",
+          "equivalentToBaseline": true,
+          "rowCount": 1000,
+          "medianMs": 9.785,
+          "minMs": 9.521,
+          "maxMs": 10.228
+        }
+      ]
+    },
+    {
+      "id": "snomed-include-minus-exclude-paged",
+      "description": "SNOMED is-a minus subtree, paged: NOT EXISTS vs EXCEPT vs LEFT JOIN",
+      "baseline": "not-exists",
+      "results": [
+        {
+          "name": "not-exists",
+          "equivalentToBaseline": true,
+          "rowCount": 8,
+          "medianMs": 0.087,
+          "minMs": 0.086,
+          "maxMs": 0.098
+        },
+        {
+          "name": "except",
+          "equivalentToBaseline": true,
+          "rowCount": 8,
+          "medianMs": 0.065,
+          "minMs": 0.064,
+          "maxMs": 0.069
+        },
+        {
+          "name": "left-join-null",
+          "equivalentToBaseline": true,
+          "rowCount": 8,
+          "medianMs": 0.117,
+          "minMs": 0.115,
+          "maxMs": 0.134
+        }
+      ]
+    },
+    {
+      "id": "rxnorm-property-filter-tty",
+      "description": "RxNorm TTY=IN filter: JOIN vs EXISTS",
+      "baseline": "join-literal",
+      "results": [
+        {
+          "name": "join-literal",
+          "equivalentToBaseline": true,
+          "rowCount": 50,
+          "medianMs": 3.686,
+          "minMs": 3.616,
+          "maxMs": 3.991
+        },
+        {
+          "name": "exists-literal",
+          "equivalentToBaseline": true,
+          "rowCount": 50,
+          "medianMs": 1.012,
+          "minMs": 0.988,
+          "maxMs": 1.053
+        }
+      ]
+    },
+    {
+      "id": "loinc-property-filter-status",
+      "description": "LOINC STATUS=ACTIVE filter: JOIN vs EXISTS",
+      "baseline": "join-literal",
+      "results": [
+        {
+          "name": "join-literal",
+          "equivalentToBaseline": true,
+          "rowCount": 20,
+          "medianMs": 23.466,
+          "minMs": 23.067,
+          "maxMs": 24.056
+        },
+        {
+          "name": "exists-literal",
+          "equivalentToBaseline": true,
+          "rowCount": 20,
+          "medianMs": 0.033,
+          "minMs": 0.032,
+          "maxMs": 0.039
+        }
+      ]
+    },
+    {
+      "id": "union-dedup-small",
+      "description": "Same-system union dedup: UNION vs UNION ALL + DISTINCT",
+      "baseline": "union",
+      "results": [
+        {
+          "name": "union",
+          "equivalentToBaseline": true,
+          "rowCount": 3,
+          "medianMs": 0.009,
+          "minMs": 0.009,
+          "maxMs": 0.012
+        },
+        {
+          "name": "union-all-distinct",
+          "equivalentToBaseline": true,
+          "rowCount": 3,
+          "medianMs": 0.009,
+          "minMs": 0.009,
+          "maxMs": 0.011
+        }
+      ]
+    }
+  ]
+}
