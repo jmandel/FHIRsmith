@@ -88,6 +88,7 @@ try { BetterSqlite3 = require('better-sqlite3-with-progress'); } catch (_) {
 }
 const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api');
+const { Issue } = require('../library/operation-outcome');
 
 // Specialization registry — populated by subclass modules at require-time.
 const V0_SPECIALIZATION_REGISTRY = [];
@@ -212,14 +213,36 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     if (this._syncDb) return this._syncDb;
     if (!BetterSqlite3 || !this.dbPath) return null;
     this._syncDb = new BetterSqlite3(this.dbPath, { readonly: true });
-    // REGEXP with effort-based breaker: cache compiled regex, limit evaluations
+    // SQL query tracing (enabled via SQLITE_TRACE=1)
+    if (process.env.SQLITE_TRACE) {
+      const origPrepare = this._syncDb.prepare.bind(this._syncDb);
+      const dbLabel = require('path').basename(this.dbPath);
+      this._syncDb.prepare = function(sql) {
+        const stmt = origPrepare(sql);
+        const shortSql = sql.replace(/\s+/g, ' ').substring(0, 150);
+        const wrapIterator = (origFn) => function*(...args) {
+          const t0 = performance.now();
+          let rows = 0;
+          for (const row of origFn(...args)) { rows++; yield row; }
+          console.log(`[TRACE ${dbLabel}] ${(performance.now()-t0).toFixed(1).padStart(8)}ms ${String(rows).padStart(7)} rows | ${shortSql}`);
+        };
+        const wrapCall = (origFn, name) => function(...args) {
+          const t0 = performance.now();
+          const result = origFn(...args);
+          const rows = Array.isArray(result) ? result.length : (result ? 1 : 0);
+          console.log(`[TRACE ${dbLabel}] ${(performance.now()-t0).toFixed(1).padStart(8)}ms ${String(rows).padStart(7)} rows | ${shortSql}`);
+          return result;
+        };
+        stmt.iterate = wrapIterator(stmt.iterate.bind(stmt));
+        stmt.all = wrapCall(stmt.all.bind(stmt), 'all');
+        stmt.get = wrapCall(stmt.get.bind(stmt), 'get');
+        stmt.run = wrapCall(stmt.run.bind(stmt), 'run');
+        return stmt;
+      };
+    }
+    // REGEXP UDF with compiled regex cache
     const regexpCache = new Map();
-    const REGEXP_EFFORT_LIMIT = 500000;
-    let regexpCalls = 0;
     this._syncDb.function('regexp', (pattern, value) => {
-      if (++regexpCalls > REGEXP_EFFORT_LIMIT) {
-        throw new Error(`REGEXP effort limit exceeded (${REGEXP_EFFORT_LIMIT} evaluations)`);
-      }
       let re = regexpCache.get(pattern);
       if (!re) {
         re = new RegExp(pattern);
@@ -227,9 +250,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       }
       return re.test(value) ? 1 : 0;
     });
-    // Reset counter before each statement execution via a helper
-    this._syncDb._resetRegexpEffort = () => { regexpCalls = 0; regexpCache.clear(); };
-    // Install progress handler for query effort limiting (if available)
+    // Install progress handler for query effort limiting (if available).
+    // This covers all query types: REGEXP scans, expensive joins, full-table scans.
     if (typeof this._syncDb.progressHandler === 'function') {
       const effortLimitMs = this.effortLimitMs;
       let startTime = 0;
@@ -1185,20 +1207,30 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           sql += ` OFFSET ${filterContext._v0Offset}`;
         }
 
-        if (syncDb._resetRegexpEffort) syncDb._resetRegexpEffort();
         if (syncDb._resetEffort) syncDb._resetEffort();
-        const stmt = syncDb.prepare(sql);
-        const rows = [];
-        for (const row of stmt.iterate(allParams)) {
-          rows.push(row);
+        let rows;
+        try {
+          const stmt = syncDb.prepare(sql);
+          rows = [];
+          for (const row of stmt.iterate(allParams)) {
+            rows.push(row);
+          }
+        } catch (e) {
+          if (e.code === 'SQLITE_INTERRUPT') {
+            throw new Issue('error', 'too-costly', null, null,
+              `Query exceeded effort limit (${this.effortLimitMs}ms) for ${this.meta?.system || 'unknown system'}`,
+              null, 422);
+          }
+          throw e;
         }
 
-        // Batch-fetch designations if iteration will need them.
-        // The worker takes the full path (per-code designations() call) when:
-        //   includeDesignations is true, OR workingLanguages is null/undefined.
-        // We batch-fetch here to avoid N individual DB queries during iteration.
+        // Batch-fetch designations only when the client explicitly requests them
+        // via includeDesignations=true. When false (the default), the expand worker
+        // only needs preferredDesignation(), which is satisfied by the concept row's
+        // display column (added in designations() at line 603). Skipping the batch
+        // avoids ~3x rows per concept of unnecessary I/O.
         const hints = filterContext._v0DesignationHints;
-        const needDesignations = hints && (hints.includeDesignations || !hints.languages);
+        const needDesignations = hints && hints.includeDesignations;
         const designationMap = new Map();
         if (needDesignations && rows.length > 0) {
           const conceptIds = rows.map(r => r.concept_id);
@@ -1206,16 +1238,25 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           const designationTableRef = this.meta?.designationOrderIndex
             ? 'designation INDEXED BY idx_designation_concept_pref_term'
             : 'designation';
+          // When specific languages are requested, filter at SQL level
+          let langFilter = '';
+          let langParams = [];
+          if (hints.languages && hints.languages.length > 0) {
+            const langCodes = hints.languages.map(l => typeof l === 'string' ? l : (l.code || l));
+            langFilter = ` AND language_code IN (${langCodes.map(() => '?').join(',')})`;
+            langParams = langCodes;
+          }
           for (let i = 0; i < conceptIds.length; i += BATCH) {
             const batch = conceptIds.slice(i, i + BATCH);
             const dPlaceholders = batch.map(() => '?').join(',');
+            if (syncDb._resetEffort) syncDb._resetEffort();
             const dStmt = syncDb.prepare(
               `SELECT concept_id, language_code, use_code, term, preferred, active
                FROM ${designationTableRef}
-               WHERE concept_id IN (${dPlaceholders})
+               WHERE concept_id IN (${dPlaceholders})${langFilter}
                ORDER BY concept_id, preferred DESC, term`
             );
-            for (const dRow of dStmt.iterate(batch)) {
+            for (const dRow of dStmt.iterate([...batch, ...langParams])) {
               let arr = designationMap.get(dRow.concept_id);
               if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
               arr.push(dRow);
@@ -1227,9 +1268,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         // Attach pre-fetched context rows so filterConcept avoids per-code locate()
         combinedSet._v0Rows = rows;
         combinedSet._v0RowIndex = new Map(rows.map((r, i) => [r.code, i]));
-        if (needDesignations) {
-          combinedSet._v0Designations = designationMap;
-        }
+        // Always attach the designation map (even if empty) so designations()
+        // uses it instead of falling back to per-code DB queries.
+        combinedSet._v0Designations = designationMap;
         return [combinedSet];
       }
     }
