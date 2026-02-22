@@ -23,9 +23,9 @@ const {VersionUtilities} = require("../../library/version-utilities");
 // Expansion limits — raised to 1M to allow full code-system expansions
 // (e.g., SNOMED Clinical Findings ~124K codes). The v0 SQLite provider
 // handles large expansions efficiently via streaming pagination.
-const UPPER_LIMIT_NO_TEXT = 1000000;
-const UPPER_LIMIT_TEXT = 1000000;
-const INTERNAL_LIMIT = 1000000;
+const UPPER_LIMIT_NO_TEXT = 1000;
+const UPPER_LIMIT_TEXT = 1000;
+const INTERNAL_LIMIT = 10000;
 const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
 
