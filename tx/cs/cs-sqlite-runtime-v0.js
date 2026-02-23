@@ -84,7 +84,9 @@
 const sqlite3 = require('sqlite3').verbose();
 let BetterSqlite3;
 try { BetterSqlite3 = require('better-sqlite3-with-progress'); } catch (_) {
-  try { BetterSqlite3 = require('better-sqlite3'); } catch (_) { BetterSqlite3 = null; }
+  try { BetterSqlite3 = require('better-sqlite3'); } catch (_) {
+    throw new Error('sqlite-runtime-v0 requires better-sqlite3 (or better-sqlite3-with-progress) at startup');
+  }
 }
 const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api');
@@ -182,6 +184,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.statusCache = null;
     this.ownsDb = options.ownsDb === true;
     this.dbPath = options.dbPath || null;
+    if (!this.dbPath) {
+      throw new Error('sqlite-runtime-v0 requires dbPath for better-sqlite3 access');
+    }
     this.effortLimitMs = options.effortLimitMs || 1000;
     this._syncDb = null;
     this.defaultIterationRegex = null;
@@ -202,35 +207,26 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.db = null;
   }
 
-  capabilities() {
-    const canPushdown = !!(this._syncDb || (BetterSqlite3 && this.dbPath));
+  _expandCapabilities() {
     return {
-      expandQuery: canPushdown,
-      handlesExcludes: canPushdown,
-      handlesOffset: canPushdown,
-      pushdown: canPushdown ? {
+      expandQuery: true,
+      pushdown: {
         deterministicOrder: 'code',
+        supportsExcludes: true,
+        supportsPagination: true,
         includeShapes: ['whole', 'concept', 'filter'],
         excludeShapes: ['concept', 'filter'],
         supportsTextFilter: true,
         supportsIntersectCodes: true
-      } : null
+      }
     };
   }
 
-  handlesExcludes() {
-    return !!(this._syncDb || (BetterSqlite3 && this.dbPath));
-  }
-
-  handlesOffset() {
-    return !!(this._syncDb || (BetterSqlite3 && this.dbPath));
-  }
-
   expandQuery(request) {
-    return this.expandComponent(request);
+    return this._expandQueryImpl(request);
   }
 
-  // ── expandComponent: pushdown expansion for expand-v2 ─────────────────────
+  // ── expandQuery: pushdown expansion for expand-v2 ─────────────────────────
   //
   // Handles an entire group of include+exclude compose components in a single
   // SQL query via better-sqlite3 (synchronous).  Reuses #buildV0FilterSql and
@@ -238,26 +234,422 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   // for how FHIR filters map to SQL.
   //
   // Returns null when:
-  //   - better-sqlite3 is not available (no syncDb)
   //   - any filter uses an operator we can't translate to SQL
   //
   // The expand-v2 worker will then fall back to streaming iteration.
 
-  expandComponent(request) {
+  _expandQueryImpl(request) {
     const syncDb = this.#getSyncDb();
-    if (!syncDb) return null;
 
     const { includes, excludes, textFilter, activeOnly, excludeInactive,
             pagination, limitCount } = request;
     if (!includes.length) return null;
 
-    const _tExpComp = T.begin('v0.expandComponent', { system: this.meta?.system, includeCount: includes.length, excludeCount: excludes.length });
+    const _tExpComp = T.begin('v0.expandQuery', { system: this.meta?.system, includeCount: includes.length, excludeCount: excludes.length });
     const tempTables = [];
 
     try {
       const csId = this.meta.csId;
       const allParams = { _csId: csId };
       const filterInactive = activeOnly || excludeInactive;
+      const pageCount = pagination && Number.isFinite(Number(pagination.count))
+        ? Number(pagination.count)
+        : -1;
+      const pageOffset = pagination
+        ? Math.max(0, Number.isFinite(Number(pagination.offset)) ? Number(pagination.offset) : 0)
+        : 0;
+
+      const inc0 = includes[0];
+      const isSimpleWholeSystemPaging =
+        !!pagination
+        && includes.length === 1
+        && excludes.length === 0
+        && !textFilter
+        && !(inc0?.concept?.length)
+        && !(inc0?.filter?.length)
+        && !(inc0?.intersectCodes?.length);
+
+      // Fast path for "whole code system + pagination":
+      // 1) read page keys from covering index (cs_id, code)
+      // 2) hydrate page rows by concept_id lookup
+      // 3) exact total via direct COUNT(*)
+      if (isSimpleWholeSystemPaging) {
+        const activeClause = filterInactive ? ' AND c.active = 1' : '';
+        let pageLimitClause = '';
+        if (pageCount >= 0) {
+          pageLimitClause = ` LIMIT ${pageCount} OFFSET ${pageOffset}`;
+        } else if (pageOffset > 0) {
+          pageLimitClause = ` LIMIT -1 OFFSET ${pageOffset}`;
+        }
+
+        const pageSql = `WITH page_keys AS (
+            SELECT c.concept_id, c.code
+            FROM concept c
+            WHERE c.cs_id = @_csId${activeClause}
+            ORDER BY c.code${pageLimitClause}
+          )
+          SELECT c2.concept_id, c2.code, c2.display, c2.definition, c2.active
+          FROM page_keys pk
+          JOIN concept c2 ON c2.concept_id = pk.concept_id
+          ORDER BY pk.code`;
+
+        let rows = [];
+        let tooCostly = false;
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const _t0Main = performance.now();
+          let _mainRowCount = 0;
+          for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
+            _mainRowCount++;
+            rows.push(row);
+          }
+          T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main);
+        } catch (e) {
+          if (e.code === 'SQLITE_INTERRUPT') {
+            tooCostly = true;
+          } else {
+            throw e;
+          }
+        }
+
+        let total = null;
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const countSql = `SELECT COUNT(*) AS cnt FROM concept c WHERE c.cs_id = @_csId${activeClause}`;
+          const _t0Count = performance.now();
+          const countRow = syncDb.prepare(countSql).get(allParams);
+          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
+          total = countRow?.cnt ?? null;
+        } catch (e) {
+          if (e.code !== 'SQLITE_INTERRUPT') throw e;
+          total = null;
+        }
+
+        // Batch-fetch designations when requested
+        const designationMap = new Map();
+        const hints = request;
+        if (hints.includeDesignations && rows.length > 0) {
+          const conceptIds = rows.map(r => r.concept_id);
+          const BATCH = 500;
+          const dTable = this.meta?.designationOrderIndex
+            ? 'designation INDEXED BY idx_designation_concept_pref_term'
+            : 'designation';
+          let langFilter = '';
+          let langParams = [];
+          if (hints.displayLanguages?.length) {
+            const codes = hints.displayLanguages.map(l => typeof l === 'string' ? l : (l.code || l));
+            langFilter = ` AND language_code IN (${codes.map(() => '?').join(',')})`;
+            langParams = codes;
+          }
+          for (let i = 0; i < conceptIds.length; i += BATCH) {
+            const batch = conceptIds.slice(i, i + BATCH);
+            const ph = batch.map(() => '?').join(',');
+            if (syncDb._resetEffort) syncDb._resetEffort();
+            const _dSql = `SELECT concept_id, language_code, use_code, term, preferred, active
+               FROM ${dTable} WHERE concept_id IN (${ph})${langFilter}
+               ORDER BY concept_id, preferred DESC, term`;
+            const _t0Desig = performance.now();
+            let _dRowCount = 0;
+            for (const dRow of syncDb.prepare(_dSql).iterate([...batch, ...langParams])) {
+              _dRowCount++;
+              let arr = designationMap.get(dRow.concept_id);
+              if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
+              arr.push(dRow);
+            }
+            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+          }
+        }
+
+        // Map to result shape
+        const abstractCfg = this.runtime.status?.abstract;
+        const isAbstractConst = abstractCfg?.source === 'constant' ? !!abstractCfg.value : false;
+
+        const codes = rows.map(row => {
+          const entry = {
+            code: row.code,
+            display: row.display || row.code,
+            isAbstract: isAbstractConst,
+            isInactive: row.active !== 1,
+            isDeprecated: false,
+            status: row.active === 1 ? 'active' : 'inactive',
+          };
+          const desigs = designationMap.get(row.concept_id);
+          if (desigs) entry.designations = desigs;
+          return entry;
+        });
+
+        _tExpComp.end({ codesCount: codes.length, total, tooCostly, fastPath: 'whole-system-paged' });
+        return { codes, total, notClosed: false, tooCostly };
+      }
+
+      const isSimpleSingleFilterPaging =
+        !!pagination
+        && includes.length === 1
+        && excludes.length === 0
+        && !textFilter
+        && !(inc0?.concept?.length)
+        && !(inc0?.intersectCodes?.length)
+        && Array.isArray(inc0?.filter)
+        && inc0.filter.length > 0;
+
+      const singleFilter = Array.isArray(inc0?.filter) && inc0.filter.length === 1
+        ? inc0.filter[0]
+        : null;
+      const isSingleHierarchyFilterPaging =
+        !!pagination
+        && includes.length === 1
+        && excludes.length === 0
+        && !textFilter
+        && !(inc0?.concept?.length)
+        && !(inc0?.intersectCodes?.length)
+        && !!singleFilter
+        && singleFilter.property === 'concept'
+        && (singleFilter.op === 'is-a' || singleFilter.op === 'descendent-of');
+
+      // Fast path for "single concept is-a/descendent-of filter + pagination":
+      // leverage closure uniqueness for this ancestor to avoid DISTINCT.
+      if (isSingleHierarchyFilterPaging) {
+        const result = this.#buildV0FilterSql(singleFilter, '_hf0');
+        if (!result) { _tExpComp.end({ fallback: true, reason: 'unsupported hierarchy-filter fast-path' }); return null; }
+        const joins = result.joins;
+        const where = result.sql;
+        Object.assign(allParams, result.params);
+
+        const activeClause = filterInactive ? ' AND c.active = 1' : '';
+        let pageLimitClause = '';
+        if (pageCount >= 0) {
+          pageLimitClause = ` LIMIT ${pageCount} OFFSET ${pageOffset}`;
+        } else if (pageOffset > 0) {
+          pageLimitClause = ` LIMIT -1 OFFSET ${pageOffset}`;
+        }
+
+        const pageSql = `WITH page_keys AS (
+            SELECT c.concept_id, c.code
+            FROM concept c${joins}
+            WHERE c.cs_id = @_csId${where}${activeClause}
+            ORDER BY c.code, c.concept_id${pageLimitClause}
+          )
+          SELECT c2.concept_id, c2.code, c2.display, c2.definition, c2.active
+          FROM page_keys pk
+          JOIN concept c2 ON c2.concept_id = pk.concept_id
+          ORDER BY pk.code, pk.concept_id`;
+
+        let rows = [];
+        let tooCostly = false;
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const _t0Main = performance.now();
+          let _mainRowCount = 0;
+          for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
+            _mainRowCount++;
+            rows.push(row);
+          }
+          T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main);
+        } catch (e) {
+          if (e.code === 'SQLITE_INTERRUPT') {
+            tooCostly = true;
+          } else {
+            throw e;
+          }
+        }
+
+        let total = null;
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const countSql = `SELECT COUNT(*) AS cnt
+            FROM concept c${joins}
+            WHERE c.cs_id = @_csId${where}${activeClause}`;
+          const _t0Count = performance.now();
+          const countRow = syncDb.prepare(countSql).get(allParams);
+          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
+          total = countRow?.cnt ?? null;
+        } catch (e) {
+          if (e.code !== 'SQLITE_INTERRUPT') throw e;
+          total = null;
+        }
+
+        // Batch-fetch designations when requested
+        const designationMap = new Map();
+        const hints = request;
+        if (hints.includeDesignations && rows.length > 0) {
+          const conceptIds = rows.map(r => r.concept_id);
+          const BATCH = 500;
+          const dTable = this.meta?.designationOrderIndex
+            ? 'designation INDEXED BY idx_designation_concept_pref_term'
+            : 'designation';
+          let langFilter = '';
+          let langParams = [];
+          if (hints.displayLanguages?.length) {
+            const codes = hints.displayLanguages.map(l => typeof l === 'string' ? l : (l.code || l));
+            langFilter = ` AND language_code IN (${codes.map(() => '?').join(',')})`;
+            langParams = codes;
+          }
+          for (let i = 0; i < conceptIds.length; i += BATCH) {
+            const batch = conceptIds.slice(i, i + BATCH);
+            const ph = batch.map(() => '?').join(',');
+            if (syncDb._resetEffort) syncDb._resetEffort();
+            const _dSql = `SELECT concept_id, language_code, use_code, term, preferred, active
+               FROM ${dTable} WHERE concept_id IN (${ph})${langFilter}
+               ORDER BY concept_id, preferred DESC, term`;
+            const _t0Desig = performance.now();
+            let _dRowCount = 0;
+            for (const dRow of syncDb.prepare(_dSql).iterate([...batch, ...langParams])) {
+              _dRowCount++;
+              let arr = designationMap.get(dRow.concept_id);
+              if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
+              arr.push(dRow);
+            }
+            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+          }
+        }
+
+        // Map to result shape
+        const abstractCfg = this.runtime.status?.abstract;
+        const isAbstractConst = abstractCfg?.source === 'constant' ? !!abstractCfg.value : false;
+
+        const codes = rows.map(row => {
+          const entry = {
+            code: row.code,
+            display: row.display || row.code,
+            isAbstract: isAbstractConst,
+            isInactive: row.active !== 1,
+            isDeprecated: false,
+            status: row.active === 1 ? 'active' : 'inactive',
+          };
+          const desigs = designationMap.get(row.concept_id);
+          if (desigs) entry.designations = desigs;
+          return entry;
+        });
+
+        _tExpComp.end({ codesCount: codes.length, total, tooCostly, fastPath: 'single-hierarchy-filter-paged' });
+        return { codes, total, notClosed: false, tooCostly };
+      }
+
+      // Fast path for "single include filter + pagination":
+      // keep exact total while reducing payload scanned during page extraction.
+      if (isSimpleSingleFilterPaging) {
+        let joins = '';
+        let where = '';
+        for (let fi = 0; fi < inc0.filter.length; fi++) {
+          const result = this.#buildV0FilterSql(inc0.filter[fi], `_pf${fi}`);
+          if (!result) { _tExpComp.end({ fallback: true, reason: 'unsupported paged filter fast-path' }); return null; }
+          joins += result.joins;
+          where += result.sql;
+          Object.assign(allParams, result.params);
+        }
+
+        const activeClause = filterInactive ? ' AND c.active = 1' : '';
+        let pageLimitClause = '';
+        if (pageCount >= 0) {
+          pageLimitClause = ` LIMIT ${pageCount} OFFSET ${pageOffset}`;
+        } else if (pageOffset > 0) {
+          pageLimitClause = ` LIMIT -1 OFFSET ${pageOffset}`;
+        }
+
+        const pageSql = `WITH page_keys AS (
+            SELECT DISTINCT c.concept_id, c.code
+            FROM concept c${joins}
+            WHERE c.cs_id = @_csId${where}${activeClause}
+            ORDER BY c.code, c.concept_id${pageLimitClause}
+          )
+          SELECT c2.concept_id, c2.code, c2.display, c2.definition, c2.active
+          FROM page_keys pk
+          JOIN concept c2 ON c2.concept_id = pk.concept_id
+          ORDER BY pk.code, pk.concept_id`;
+
+        let rows = [];
+        let tooCostly = false;
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const _t0Main = performance.now();
+          let _mainRowCount = 0;
+          for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
+            _mainRowCount++;
+            rows.push(row);
+          }
+          T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main);
+        } catch (e) {
+          if (e.code === 'SQLITE_INTERRUPT') {
+            tooCostly = true;
+          } else {
+            throw e;
+          }
+        }
+
+        let total = null;
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const countSql = `SELECT COUNT(*) AS cnt
+            FROM (
+              SELECT DISTINCT c.concept_id
+              FROM concept c${joins}
+              WHERE c.cs_id = @_csId${where}${activeClause}
+            ) x`;
+          const _t0Count = performance.now();
+          const countRow = syncDb.prepare(countSql).get(allParams);
+          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
+          total = countRow?.cnt ?? null;
+        } catch (e) {
+          if (e.code !== 'SQLITE_INTERRUPT') throw e;
+          total = null;
+        }
+
+        // Batch-fetch designations when requested
+        const designationMap = new Map();
+        const hints = request;
+        if (hints.includeDesignations && rows.length > 0) {
+          const conceptIds = rows.map(r => r.concept_id);
+          const BATCH = 500;
+          const dTable = this.meta?.designationOrderIndex
+            ? 'designation INDEXED BY idx_designation_concept_pref_term'
+            : 'designation';
+          let langFilter = '';
+          let langParams = [];
+          if (hints.displayLanguages?.length) {
+            const codes = hints.displayLanguages.map(l => typeof l === 'string' ? l : (l.code || l));
+            langFilter = ` AND language_code IN (${codes.map(() => '?').join(',')})`;
+            langParams = codes;
+          }
+          for (let i = 0; i < conceptIds.length; i += BATCH) {
+            const batch = conceptIds.slice(i, i + BATCH);
+            const ph = batch.map(() => '?').join(',');
+            if (syncDb._resetEffort) syncDb._resetEffort();
+            const _dSql = `SELECT concept_id, language_code, use_code, term, preferred, active
+               FROM ${dTable} WHERE concept_id IN (${ph})${langFilter}
+               ORDER BY concept_id, preferred DESC, term`;
+            const _t0Desig = performance.now();
+            let _dRowCount = 0;
+            for (const dRow of syncDb.prepare(_dSql).iterate([...batch, ...langParams])) {
+              _dRowCount++;
+              let arr = designationMap.get(dRow.concept_id);
+              if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
+              arr.push(dRow);
+            }
+            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+          }
+        }
+
+        // Map to result shape
+        const abstractCfg = this.runtime.status?.abstract;
+        const isAbstractConst = abstractCfg?.source === 'constant' ? !!abstractCfg.value : false;
+
+        const codes = rows.map(row => {
+          const entry = {
+            code: row.code,
+            display: row.display || row.code,
+            isAbstract: isAbstractConst,
+            isInactive: row.active !== 1,
+            isDeprecated: false,
+            status: row.active === 1 ? 'active' : 'inactive',
+          };
+          const desigs = designationMap.get(row.concept_id);
+          if (desigs) entry.designations = desigs;
+          return entry;
+        });
+
+        _tExpComp.end({ codesCount: codes.length, total, tooCostly, fastPath: 'single-filter-paged' });
+        return { codes, total, notClosed: false, tooCostly };
+      }
 
       // ── Build include SQL (UNION of components) ──
 
@@ -313,7 +705,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
       const innerSql = includeParts.length === 1
         ? includeParts[0]
-        : includeParts.map(p => `(${p})`).join('\nUNION\n');
+        : includeParts.join('\nUNION\n');
 
       // ── Build exclude SQL ──
 
@@ -390,19 +782,42 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
       const baseSql = `SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active`
         + ` FROM (${innerSql}) AS t WHERE 1=1${excludeWhere}`;
+      const baseKeySql = `SELECT DISTINCT t.concept_id, t.code`
+        + ` FROM (${innerSql}) AS t WHERE 1=1${excludeWhere}`;
 
-      let sql = baseSql + ' ORDER BY t.code, t.concept_id';
+      const useWindowPaginationTotal = !!pagination && excludes.length > 0;
 
-      if (pagination) {
-        const pageCount = Number.isFinite(Number(pagination.count)) ? Number(pagination.count) : -1;
-        const pageOffset = Math.max(0, Number.isFinite(Number(pagination.offset)) ? Number(pagination.offset) : 0);
+      let sql;
+      if (pagination && useWindowPaginationTotal) {
+        // One-pass pagination + total over key rows, then hydrate payload for
+        // just the paged concept_ids.
+        let pageLimitClause = '';
+        if (pageCount >= 0) {
+          pageLimitClause = ` LIMIT ${pageCount} OFFSET ${pageOffset}`;
+        } else if (pageOffset > 0) {
+          pageLimitClause = ` LIMIT -1 OFFSET ${pageOffset}`;
+        }
+        sql = `WITH page_rows AS (
+            SELECT b.concept_id, b.code, COUNT(*) OVER() AS _total
+            FROM (${baseKeySql}) AS b
+            ORDER BY b.code, b.concept_id${pageLimitClause}
+          )
+          SELECT c.concept_id, c.code, c.display, c.definition, c.active, pr._total
+          FROM page_rows pr
+          JOIN concept c ON c.concept_id = pr.concept_id
+          ORDER BY pr.code, pr.concept_id`;
+      } else {
+        sql = baseSql + ' ORDER BY t.code, t.concept_id';
+        if (!pagination && limitCount > 0) {
+          sql += ` LIMIT ${limitCount}`;
+        }
+      }
+      if (pagination && !useWindowPaginationTotal) {
         if (pageCount >= 0) {
           sql += ` LIMIT ${pageCount} OFFSET ${pageOffset}`;
         } else if (pageOffset > 0) {
           sql += ` LIMIT -1 OFFSET ${pageOffset}`;
         }
-      } else if (limitCount > 0) {
-        sql += ` LIMIT ${limitCount}`;
       }
 
       // ── Execute ──
@@ -436,16 +851,22 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       // Total count (for pagination)
       let total = null;
       if (pagination) {
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        try {
-          const _countSql = `SELECT COUNT(*) AS cnt FROM (${baseSql})`;
-          const _t0Count = performance.now();
-          const countRow = syncDb.prepare(_countSql).get(allParams);
-          T.sql(_countSql, allParams, 1, performance.now() - _t0Count);
-          total = countRow?.cnt ?? rows.length;
-        } catch (e) {
-          if (e.code !== 'SQLITE_INTERRUPT') throw e;
-          total = rows.length;
+        if (useWindowPaginationTotal && rows.length > 0 && Number.isFinite(Number(rows[0]._total))) {
+          total = Number(rows[0]._total);
+        } else {
+          // Empty page (offset beyond end) won't carry _total; run COUNT fallback.
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          try {
+            const countSourceSql = useWindowPaginationTotal ? baseKeySql : baseSql;
+            const _countSql = `SELECT COUNT(*) AS cnt FROM (${countSourceSql})`;
+            const _t0Count = performance.now();
+            const countRow = syncDb.prepare(_countSql).get(allParams);
+            T.sql(_countSql, allParams, 1, performance.now() - _t0Count);
+            total = countRow?.cnt ?? rows.length;
+          } catch (e) {
+            if (e.code !== 'SQLITE_INTERRUPT') throw e;
+            total = rows.length;
+          }
         }
       }
 
@@ -513,11 +934,13 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     const safeLabel = String(label || 'codes').replace(/[^A-Za-z0-9_]/g, '_');
     const seq = (++EXPAND_TEMP_TABLE_SEQ).toString(36);
     const tbl = `_expand_${safeLabel}_${Date.now().toString(36)}_${seq}`;
+    if (syncDb._resetEffort) syncDb._resetEffort();
     syncDb.exec(`CREATE TEMP TABLE ${tbl} (code TEXT PRIMARY KEY)`);
     const ins = syncDb.prepare(`INSERT OR IGNORE INTO ${tbl} (code) VALUES (?)`);
     const tx = syncDb.transaction((list) => {
       for (const c of list) ins.run(c);
     });
+    if (syncDb._resetEffort) syncDb._resetEffort();
     tx(codes);
     tempTables.push(tbl);
     return tbl;
@@ -533,7 +956,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
   #getSyncDb() {
     if (this._syncDb) return this._syncDb;
-    if (!BetterSqlite3 || !this.dbPath) return null;
+    if (!this.dbPath) {
+      throw new Error('sqlite-runtime-v0 missing dbPath for better-sqlite3');
+    }
     this._syncDb = new BetterSqlite3(this.dbPath, { readonly: true });
     // SQL query tracing (enabled via SQLITE_TRACE=1)
     if (process.env.SQLITE_TRACE) {
@@ -652,7 +1077,6 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
     // Property filter: resolve via property_def → concept_link or concept_literal
     const syncDb = this.#getSyncDb();
-    if (!syncDb) return null;
 
     const propDef = syncDb.prepare(
       'SELECT property_id, value_kind FROM property_def WHERE cs_id = ? AND property_code = ? LIMIT 1'
@@ -951,7 +1375,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
     for (const row of rows) {
       displays.addDesignation(
-        row.preferred === 1,
+        false,
         row.active === 1 ? 'active' : 'inactive',
         row.language_code || this.defLang(),
         useFromDesignation(row, this.runtime, this.system()),
@@ -1252,24 +1676,14 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return false;
   }
 
-  async getPrepContext(iterate, params, excludeInactive, offset = -1, count = -1, limitCheck = -1) {
+  async getPrepContext(iterate) {
     const ctx = new FilterExecutionContext(iterate);
     ctx._v0Excludes = [];
-    ctx._v0Offset = offset;
-    ctx._v0Count = count;
-    ctx._v0LimitCheck = limitCheck;
-    // Combine compose-level and request-level active filtering:
-    // "exclude" wins — client can narrow but can't widen beyond the ValueSet's rule
-    ctx._v0ExcludeInactive = excludeInactive || !!(params && params.activeOnly);
-    // Extract designation hints from params (replaces separate prepareDesignations call)
-    if (params) {
-      const langs = typeof params.workingLanguages === 'function' ? params.workingLanguages() : null;
-      ctx._v0DesignationHints = {
-        includeDesignations: !!params.includeDesignations,
-        languages: langs || null,
-        designations: params.designations || null,
-      };
-    }
+    ctx._v0Offset = -1;
+    ctx._v0Count = -1;
+    ctx._v0LimitCheck = -1;
+    ctx._v0ExcludeInactive = false;
+    ctx._v0DesignationHints = null;
     return ctx;
   }
 
@@ -1366,58 +1780,26 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     filterContext._v0Deferred.push({ property: prop, op, value, isConcept: true });
   }
 
-  /**
-   * Accumulate exclude filter groups for later SQL generation in executeFilters.
-   * Each call represents one exclude clause; all filters in the array are conjunctive.
-   * Throws if any filter is unsupported.
-   * @param {FilterExecutionContext} filterContext
-   * @param {Object[]} filters - array of {prop, op, value}
-   */
-  async filterExcludeFilters(filterContext, filters) {
-    if (!filterContext._v0Excludes) filterContext._v0Excludes = [];
-    // Validate all filters are supported by trying to build SQL for each
-    for (let i = 0; i < filters.length; i++) {
-      const f = filters[i];
-      if (f.prop === 'code' && f.op === 'in') continue; // concept-code excludes always supported
-      const result = this.#buildV0FilterSql(
-        { property: f.prop, op: f.op, value: f.value }, `_val${i}`
-      );
-      if (!result) {
-        throw new Error(`Unsupported exclude filter: property '${f.prop}' op '${f.op}'`);
-      }
-    }
-    filterContext._v0Excludes.push(filters);
-  }
-
-  /**
-   * Record intent to include specific concept codes.
-   * No SQL — executeFilters() incorporates these into combined SQL.
-   */
-  async includeConcepts(filterContext, codes) {
-    if (!filterContext._v0IncludeConcepts) filterContext._v0IncludeConcepts = [];
-    filterContext._v0IncludeConcepts.push(...codes);
-  }
-
-  /**
-   * Record intent to exclude specific concept codes.
-   * No SQL — executeFilters() incorporates these into combined SQL as NOT IN.
-   */
-  async filterExcludeConcepts(filterContext, codes) {
-    if (!filterContext._v0ExcludeConcepts) filterContext._v0ExcludeConcepts = [];
-    filterContext._v0ExcludeConcepts.push(...codes);
-  }
-
   async executeFilters(filterContext) {
-    const hasIncludeFilters = filterContext._v0IncludeFilters && filterContext._v0IncludeFilters.length > 0;
-    const hasIncludeConcepts = filterContext._v0IncludeConcepts && filterContext._v0IncludeConcepts.length > 0;
-    const hasExcludeConcepts = filterContext._v0ExcludeConcepts && filterContext._v0ExcludeConcepts.length > 0;
-    const syncDb = this.#getSyncDb();
+    const _tExec = T.begin('v0.executeFilters', {
+      system: this.meta?.system,
+      forIterate: !!filterContext?.forIterate,
+      includeFilters: (filterContext?._v0IncludeFilters || []).length,
+      excludeGroups: (filterContext?._v0Excludes || []).length,
+      hasSearch: !!filterContext?._v0SearchText,
+      offset: filterContext?._v0Offset,
+      count: filterContext?._v0Count,
+      limitCheck: filterContext?._v0LimitCheck,
+    });
+    try {
+      const hasIncludeFilters = filterContext._v0IncludeFilters && filterContext._v0IncludeFilters.length > 0;
+      const syncDb = this.#getSyncDb();
 
-    // Build combined SQL when we have sync DB. Fires for filters, concepts,
-    // or bare "all codes" (no filters/concepts = whole code system).
-    if (syncDb && (hasIncludeFilters || hasIncludeConcepts || filterContext.forIterate)) {
-      const csId = this.meta.csId;
-      const allParams = { _csId: csId };
+      // Build combined SQL when we have sync DB. Fires for filters
+      // or bare "all codes" (no filters = whole code system).
+      if (hasIncludeFilters || filterContext.forIterate) {
+        const csId = this.meta.csId;
+        const allParams = { _csId: csId };
 
       // Build include filter SQL
       let joins = '';
@@ -1429,15 +1811,6 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         joins += result.joins;
         where += result.sql;
         Object.assign(allParams, result.params);
-      }
-
-      // Include concept list → WHERE code IN (...)
-      if (!unsupported && hasIncludeConcepts) {
-        const placeholders = filterContext._v0IncludeConcepts.map((c, j) => {
-          allParams[`_ic${j}`] = c;
-          return `@_ic${j}`;
-        }).join(',');
-        where += ` AND c.code IN (${placeholders})`;
       }
 
       if (!unsupported) {
@@ -1470,15 +1843,6 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
               excludeSql += ` AND ${clause}`;
             }
           }
-        }
-
-        // Exclude concept list → AND code NOT IN (...)
-        if (hasExcludeConcepts) {
-          const placeholders = filterContext._v0ExcludeConcepts.map((c, j) => {
-            allParams[`_xc${j}`] = c;
-            return `@_xc${j}`;
-          }).join(',');
-          excludeSql += ` AND t.code NOT IN (${placeholders})`;
         }
 
         // Intersect with text search filter if present
@@ -1529,7 +1893,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         if (filterContext._v0LimitCheck > 0 && filterContext._v0Count <= 0) {
           const boundedSql = `SELECT COUNT(*) AS cnt FROM (${baseSql} LIMIT ${filterContext._v0LimitCheck + 1})`;
           if (syncDb._resetEffort) syncDb._resetEffort();
+          const _t0Bounded = performance.now();
           const probe = syncDb.prepare(boundedSql).get(allParams);
+          T.sql(boundedSql, allParams, 1, performance.now() - _t0Bounded);
           if (probe && probe.cnt > filterContext._v0LimitCheck) {
             const result = new SqliteRuntimeV0FilterSet('v0-exceeds-limit', [], true);
             result._v0ExceedsLimit = true;
@@ -1550,11 +1916,13 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         if (syncDb._resetEffort) syncDb._resetEffort();
         let rows;
         try {
+          const _t0Main = performance.now();
           const stmt = syncDb.prepare(sql);
           rows = [];
           for (const row of stmt.iterate(allParams)) {
             rows.push(row);
           }
+          T.sql(sql, allParams, rows.length, performance.now() - _t0Main);
         } catch (e) {
           if (e.code === 'SQLITE_INTERRUPT') {
             throw new Issue('error', 'too-costly', null, null,
@@ -1590,6 +1958,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
             const batch = conceptIds.slice(i, i + BATCH);
             const dPlaceholders = batch.map(() => '?').join(',');
             if (syncDb._resetEffort) syncDb._resetEffort();
+            const _t0Desig = performance.now();
+            let _dRowCount = 0;
             const dStmt = syncDb.prepare(
               `SELECT concept_id, language_code, use_code, term, preferred, active
                FROM ${designationTableRef}
@@ -1600,7 +1970,17 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
               let arr = designationMap.get(dRow.concept_id);
               if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
               arr.push(dRow);
+              _dRowCount++;
             }
+            T.sql(
+              `SELECT concept_id, language_code, use_code, term, preferred, active
+               FROM ${designationTableRef}
+               WHERE concept_id IN (${dPlaceholders})${langFilter}
+               ORDER BY concept_id, preferred DESC, term`,
+              [...batch, ...langParams],
+              _dRowCount,
+              performance.now() - _t0Desig
+            );
           }
         }
 
@@ -1612,7 +1992,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         if (filterContext._v0Count > 0) {
           const countSql = `SELECT COUNT(*) AS cnt FROM (${innerSql}) AS t WHERE 1=1${excludeSql}`;
           if (syncDb._resetEffort) syncDb._resetEffort();
+          const _t0Count = performance.now();
           const countRow = syncDb.prepare(countSql).get(allParams);
+          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
           combinedSet._v0Total = countRow ? countRow.cnt : rows.length;
         }
         // Always attach the designation map (even if empty) so designations()
@@ -1631,6 +2013,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     }
 
     return filterContext.filters || [];
+    } finally {
+      _tExec.end();
+    }
   }
 
   /** Eagerly materialize a single include filter into filterContext.filters (fallback path). */
@@ -1680,6 +2065,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
   capabilities() {
     return {
+      ...this._expandCapabilities(),
       filterPage: true
     };
   }
@@ -2581,8 +2967,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       sql.push(
         `SELECT c.concept_id, c.code, c.display, c.definition, c.active`,
         `FROM concept c`,
-        `WHERE c.cs_id = ?`,
-        `  AND c.active = 1`
+        `WHERE c.cs_id = ?`
       );
       params.push(this.meta.csId);
     } else if (iteratorContext.mode === 'roots') {
@@ -2595,7 +2980,6 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         ` AND l.edge_set_id = ?`,
         ` AND l.active = 1`,
         `WHERE c.cs_id = ?`,
-        `  AND c.active = 1`,
         `  AND l.edge_id IS NULL`
       );
       params.push(this.meta.hierarchyPropertyId, this.meta.hierarchyEdgeSetId, this.meta.csId);

@@ -771,8 +771,8 @@ class SnomedSqliteV0Importer {
       ['runtime.languages', JSON.stringify({ default: 'en' })],
       ['runtime.designations', JSON.stringify({
         useMapping: {
-          fsn: { system: BASE_URI, code: FSN_TYPE_ID, display: 'Fully specified name' },
-          synonym: { system: BASE_URI, code: SYNONYM_TYPE_ID, display: 'Synonym (core metadata concept)' }
+          [FSN_TYPE_ID]: { system: BASE_URI, code: FSN_TYPE_ID, display: 'Fully specified name' },
+          [SYNONYM_TYPE_ID]: { system: BASE_URI, code: SYNONYM_TYPE_ID, display: 'Synonym (core metadata concept)' }
         },
         primaryDisplay: {
           source: 'designation',
@@ -998,8 +998,6 @@ function edgeSetIdFromCharacteristic(characteristicTypeId) {
 }
 
 function mapUseCode(typeId) {
-  if (typeId === FSN_TYPE_ID) return 'fsn';
-  if (typeId === SYNONYM_TYPE_ID) return 'synonym';
   return typeId || null;
 }
 

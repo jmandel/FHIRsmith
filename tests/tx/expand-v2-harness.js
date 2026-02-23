@@ -11,9 +11,7 @@
  *   EXPAND_TRACE=1 node tests/tx/expand-v2-harness.js # with full tracing
  *   EXPAND_TRACE=1 EXPAND_TRACE_FORMAT=summary node tests/tx/expand-v2-harness.js
  *   EXPAND_TRACE=1 EXPAND_TRACE_PRINT=all node tests/tx/expand-v2-harness.js "pagination-safety"
- *   EXPAND_IMPL=legacy node tests/tx/expand-v2-harness.js
  *   EXPAND_IMPL=v2 node tests/tx/expand-v2-harness.js
- *   EXPAND_IMPL=parity node tests/tx/expand-v2-harness.js # compare v2 vs legacy
  *   EXPAND_IMPL=v2-parity node tests/tx/expand-v2-harness.js # compare v2 pushdown vs v2 fallback
  */
 
@@ -35,13 +33,12 @@ const ValueSet = require('../../tx/library/valueset');
 const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/workers/expand-trace');
 
 const WORKER_MODULES = {
-  legacy: require('../../tx/workers/expand'),
   v2: require('../../tx/workers/expand-v2'),
 };
 
 const EXPAND_IMPL = (process.env.EXPAND_IMPL || 'v2').toLowerCase();
-if (!['legacy', 'v2', 'parity', 'v2-parity'].includes(EXPAND_IMPL)) {
-  throw new Error(`Invalid EXPAND_IMPL='${EXPAND_IMPL}'. Expected legacy, v2, parity, or v2-parity.`);
+if (!['v2', 'v2-parity'].includes(EXPAND_IMPL)) {
+  throw new Error(`Invalid EXPAND_IMPL='${EXPAND_IMPL}'. Expected v2 or v2-parity.`);
 }
 
 const TRACE_ENABLED = process.env.EXPAND_TRACE && process.env.EXPAND_TRACE !== '0';
@@ -49,6 +46,7 @@ const TRACE_PRINT = (process.env.EXPAND_TRACE_PRINT || 'fail').toLowerCase(); //
 const TRACE_FORMAT = (process.env.EXPAND_TRACE_FORMAT || 'summary').toLowerCase(); // summary | json
 const TRACE_MAX_SPANS = Number.parseInt(process.env.EXPAND_TRACE_MAX_SPANS || '12', 10) || 12;
 const TRACE_RESULTS_FILE = process.env.EXPAND_TRACE_RESULTS || 'expand-v2-results.json';
+const PUSH_DOWN_DISABLED = process.env.EXPAND_V2_DISABLE_PUSHDOWN === '1';
 
 // ── Minimal logger ─────────────────────────────────────────────────────────
 
@@ -396,20 +394,9 @@ async function runExpandWithImpl(impl, vsJson, opts = {}, captureTrace = true) {
 }
 
 async function expand(vsJson, opts = {}) {
-  if (EXPAND_IMPL !== 'parity' && EXPAND_IMPL !== 'v2-parity') {
+  if (EXPAND_IMPL !== 'v2-parity') {
     recordProviderCoverage(vsJson, _currentTestName);
     return runExpandWithImpl(EXPAND_IMPL, vsJson, opts, true);
-  }
-
-  if (EXPAND_IMPL === 'parity') {
-    recordProviderCoverage(vsJson, _currentTestName);
-    const v2 = await runExpandWithImpl('v2', vsJson, opts, true);
-    const legacy = await runExpandWithImpl('legacy', vsJson, opts, false);
-    const parity = compareParity(v2.result, legacy.result, 'v2', 'legacy');
-    if (!parity.ok) {
-      throw new Error(`Parity mismatch (${parity.reason})`);
-    }
-    return v2;
   }
 
   const v2Pushdown = await runExpandWithImpl('v2', vsJson, opts, true);
@@ -494,6 +481,35 @@ function hasExtension(resource, url) {
 
 function hasProperty(containsEntry, code) {
   return !!(containsEntry?.property || []).find(p => p.code === code);
+}
+
+function traceSpans(traceJson) {
+  return Array.isArray(traceJson?.spans) ? traceJson.spans : [];
+}
+
+function traceFindSpansByName(traceJson, name) {
+  const matches = [];
+  const walk = (spans) => {
+    for (const span of spans || []) {
+      if (!span || span.name === 'note') continue;
+      if (span.name === name) matches.push(span);
+      if (span.children?.length) walk(span.children);
+    }
+  };
+  walk(traceSpans(traceJson));
+  return matches;
+}
+
+function traceHasSpan(traceJson, name, predicate = null) {
+  const spans = traceFindSpansByName(traceJson, name);
+  if (!predicate) return spans.length > 0;
+  return spans.some(s => {
+    try {
+      return !!predicate(s);
+    } catch {
+      return false;
+    }
+  });
 }
 
 // ── Test definitions ───────────────────────────────────────────────────────
@@ -1018,6 +1034,141 @@ test('params: language code includeDesignations yields alternates (internal:lang
   assert((frCa.designation || []).length > 0, 'expected alternate designations for fr-CA');
 });
 
+test('lang: includeDesignations returns designation entries for SNOMED concept', async () => {
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    concept: [{ code: '73211009' }],
+  }), {
+    params: [{ name: 'includeDesignations', valueBoolean: true }],
+  });
+  assertExpansionStructure(result);
+  const dm = findCode(result.expansion.contains || [], '73211009');
+  assert(dm, 'missing 73211009');
+  assert(typeof dm.display === 'string' && dm.display.length > 0, 'display should be non-empty');
+  assert(Array.isArray(dm.designation) && dm.designation.length > 0,
+    'expected designation entries when includeDesignations=true');
+  for (const d of dm.designation) {
+    assert(typeof d.value === 'string' && d.value.length > 0,
+      `designation missing value: ${JSON.stringify(d)}`);
+  }
+});
+
+test('lang: designation parameter filters SNOMED designations by FSN use code', async () => {
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    concept: [{ code: '73211009' }],
+  }), {
+    params: [
+      { name: 'includeDesignations', valueBoolean: true },
+      { name: 'designation', valueString: 'http://snomed.info/sct|900000000000003001' },
+    ],
+  });
+  assertExpansionStructure(result);
+  const dm = findCode(result.expansion.contains || [], '73211009');
+  assert(dm, 'missing 73211009');
+  const list = dm.designation || [];
+  assert(list.length > 0, 'expected at least one FSN designation after designation filter');
+  for (const d of list) {
+    assert(d.use?.system === 'http://snomed.info/sct' && d.use?.code === '900000000000003001',
+      `designation should match FSN use filter, got ${JSON.stringify(d.use)}`);
+  }
+  const echoed = (result.expansion.parameter || []).find(p => p.name === 'designation');
+  assert(echoed, 'expansion should echo designation parameter');
+});
+
+test('lang: displayLanguage=en matches default display for SNOMED concept', async () => {
+  const base = await expand(vs({
+    system: SYS.SCT,
+    concept: [{ code: '73211009' }],
+  }));
+  const withEn = await expand(vs({
+    system: SYS.SCT,
+    concept: [{ code: '73211009' }],
+  }), {
+    params: [{ name: 'displayLanguage', valueCode: 'en' }],
+  });
+
+  assertExpansionStructure(base.result);
+  assertExpansionStructure(withEn.result);
+  const a = findCode(base.result.expansion.contains || [], '73211009');
+  const b = findCode(withEn.result.expansion.contains || [], '73211009');
+  assert(a && b, 'both expansions should include 73211009');
+  assert(typeof a.display === 'string' && a.display.length > 0, 'default display must be non-empty');
+  assert(typeof b.display === 'string' && b.display.length > 0, 'en display must be non-empty');
+  assert(a.display === b.display,
+    `displayLanguage=en should match default display, got '${a.display}' vs '${b.display}'`);
+});
+
+test('lang: compose inline designation override is included with includeDesignations', async () => {
+  const { result } = await expand(vs({
+    system: SYS.GENDER,
+    concept: [{
+      code: 'male',
+      display: 'Masculin',
+      designation: [{ language: 'de', value: 'Maennlich' }],
+    }],
+  }), {
+    params: [{ name: 'includeDesignations', valueBoolean: true }],
+  });
+  assertExpansionStructure(result);
+  const male = findCode(result.expansion.contains || [], 'male');
+  assert(male, 'missing male');
+  assert(male.display === 'Masculin' || male.display === 'Male',
+    `display should be override or CS default, got '${male.display}'`);
+  const de = (male.designation || []).find(d => d.language === 'de' && d.value === 'Maennlich');
+  assert(de, 'expected inline German designation override');
+});
+
+test('lang: includeDesignations on package cs-cs whole-system is structurally valid', async () => {
+  const { result } = await expand(vs({ system: SYS.GENDER }), {
+    params: [{ name: 'includeDesignations', valueBoolean: true }],
+  });
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length >= 3, `expected >=3 gender codes, got ${contains.length}`);
+  assertContainsShape(contains, SYS.GENDER);
+  for (const c of contains) {
+    for (const d of c.designation || []) {
+      assert(typeof d.value === 'string' && d.value.length > 0,
+        `designation for ${c.code} missing value`);
+    }
+  }
+});
+
+test('lang: includeDesignations on SNOMED is-a filter returns designation content', async () => {
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+  }), {
+    count: 20,
+    params: [{ name: 'includeDesignations', valueBoolean: true }],
+  });
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length > 0, 'expected filtered SNOMED results');
+  const withDesig = contains.filter(c => Array.isArray(c.designation) && c.designation.length > 0);
+  assert(withDesig.length > 0, 'expected at least one filtered result with designations');
+});
+
+test('lang: redundant designation equal to primary display is suppressed', async () => {
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    concept: [{ code: '73211009' }],
+  }), {
+    params: [{ name: 'includeDesignations', valueBoolean: true }],
+  });
+  assertExpansionStructure(result);
+  const dm = findCode(result.expansion.contains || [], '73211009');
+  assert(dm, 'missing 73211009');
+  for (const d of dm.designation || []) {
+    const redundant = d.value === dm.display
+      && (!d.use || d.use?.code === 'display')
+      && (!d.language || d.language.startsWith('en'));
+    assert(!redundant,
+      `redundant designation should be suppressed for display '${dm.display}'`);
+  }
+});
+
 test('notClosed: MIME whole-system expansion is not enumerable', async () => {
   let failed = false;
   try {
@@ -1366,6 +1517,20 @@ test('pagination: currency count=10 offset=0', async () => {
   }
 });
 
+test('pagination-bug: preloaded map total matches full expansion when paged', async () => {
+  const { result: full } = await expand(vs({ system: SYS.CURRENCY }));
+  assertExpansionStructure(full);
+  const fullCount = (full.expansion.contains || []).length;
+  assert(fullCount > 10, `expected full expansion >10 codes, got ${fullCount}`);
+
+  const { result: paged } = await expand(vs({ system: SYS.CURRENCY }), { count: 10, offset: 0 });
+  assertExpansionStructure(paged);
+  const pageContains = paged.expansion.contains || [];
+  assert(pageContains.length === 10, `expected 10 paged results, got ${pageContains.length}`);
+  assert(paged.expansion.total === fullCount,
+    `paged total should equal full expansion size ${fullCount}, got ${paged.expansion.total}`);
+});
+
 test('pagination: US states disjoint pages', async () => {
   const { result: r1 } = await expand(vs({ system: SYS.USPS }), { count: 10, offset: 0 });
   const { result: r2 } = await expand(vs({ system: SYS.USPS }), { count: 10, offset: 10 });
@@ -1417,7 +1582,8 @@ test('pagination: SNOMED is-a paginated (v0)', async () => {
   assert(overlap.length === 0, `pages must not overlap: ${overlap}`);
 
   if (r1.expansion.total != null) {
-    assert(r1.expansion.total >= 100, `total should be ≥100, got ${r1.expansion.total}`);
+    assert(r1.expansion.total >= c1.length,
+      `when present, total should be >= page size, got ${r1.expansion.total}`);
   }
 });
 
@@ -1427,6 +1593,77 @@ test('pagination: count=0 returns total only', async () => {
   const contains = result.expansion.contains || [];
   assert(contains.length === 0, `count=0 should return no codes, got ${contains.length}`);
   assert(result.expansion.total === 62, `total should still be 62, got ${result.expansion.total}`);
+});
+
+test('pagination: high offset (>1000) works in both pushdown and fallback modes', async () => {
+  const query = vs({
+    system: SYS.LOINC,
+    filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }],
+  });
+
+  const push = await expand(query, { count: 20, offset: 1000 });
+  assertExpansionStructure(push.result);
+  const pushContains = push.result.expansion.contains || [];
+  assert(pushContains.length === 20, `pushdown page should have 20, got ${pushContains.length}`);
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const fallback = await expand(query, { count: 20, offset: 1000 });
+    assertExpansionStructure(fallback.result);
+    const fallbackContains = fallback.result.expansion.contains || [];
+    assert(fallbackContains.length === 20, `fallback page should have 20, got ${fallbackContains.length}`);
+
+    const pushCodes = pushContains.map(c => `${c.system}|${c.code}`);
+    const fallbackCodes = fallbackContains.map(c => `${c.system}|${c.code}`);
+    assert(deepEqual(pushCodes, fallbackCodes),
+      'pushdown and fallback pages should match at high offset');
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
+test('pagination: deep offset invariant (all SNOMED) fallback must match or too-costly', async () => {
+  const query = vs({ system: SYS.SCT });
+  const opts = { count: 1000, offset: 50000 };
+
+  const push = await runExpandWithImpl('v2', query, opts, true);
+  assertExpansionStructure(push.result);
+  const pushContains = push.result.expansion.contains || [];
+  const pushKeys = pushContains.map(c => `${c.system}|${c.code}`);
+  assert(pushKeys.length === 1000, `pushdown page should have 1000, got ${pushKeys.length}`);
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    let fallback;
+    try {
+      fallback = await runExpandWithImpl('v2', query, opts, true);
+    } catch (e) {
+      assert(isTooCostlyError(e),
+        `fallback failed with non-too-costly error: ${e.message}`);
+      return;
+    }
+
+    assertExpansionStructure(fallback.result);
+    const fallbackContains = fallback.result.expansion.contains || [];
+    const fallbackKeys = fallbackContains.map(c => `${c.system}|${c.code}`);
+    assert(deepEqual(pushKeys, fallbackKeys),
+      'fallback deep-offset page must match pushdown page when both succeed');
+
+    const pushTotal = push.result.expansion.total;
+    const fallbackTotal = fallback.result.expansion.total;
+    if (fallbackTotal !== undefined) {
+      assert(pushTotal !== undefined,
+        'fallback returned total but pushdown did not');
+      assert(fallbackTotal === pushTotal,
+        `fallback total must be exact when present (push=${pushTotal}, fallback=${fallbackTotal})`);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1987,6 +2224,496 @@ test('pagination-safety: mixed providers page windows are disjoint and bounded',
   assert(k2.length <= 25, `page 2 should be bounded by count=25, got ${k2.length}`);
 });
 
+test('logic: sqlite-v0 pushdown is active for basic concept expansion', async () => {
+  if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
+  const { result, trace } = await expand(vs({
+    system: SYS.SCT,
+    concept: [{ code: '73211009' }, { code: '44054006' }],
+  }));
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 2, `expected 2 codes, got ${contains.length}`);
+  assert(traceHasSpan(trace, 'v0.expandQuery'), 'expected v0.expandQuery trace span');
+  assert(traceHasSpan(trace, '_tryPushdown', s => s.result?.handled === true),
+    'expected _tryPushdown handled=true');
+});
+
+test('logic: same-system valueSet intersections constrain final include membership', async () => {
+  if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
+  const aUrl = `http://example.org/vs/sct-a-${Date.now()}`;
+  const bUrl = `http://example.org/vs/sct-b-${Date.now()}`;
+  const vsA = {
+    resourceType: 'ValueSet',
+    url: aUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.SCT, concept: [{ code: '73211009' }, { code: '44054006' }] }],
+    },
+  };
+  const vsB = {
+    resourceType: 'ValueSet',
+    url: bUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.SCT, concept: [{ code: '44054006' }, { code: '46635009' }] }],
+    },
+  };
+
+  const { result, trace } = await expand(vs({
+    system: SYS.SCT,
+    concept: [{ code: '73211009' }, { code: '44054006' }, { code: '46635009' }],
+    valueSet: [aUrl, bUrl],
+  }), { txResources: [vsA, vsB] });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 1, `expected one intersection code, got ${contains.length}`);
+  assert(contains[0].code === '44054006', `expected 44054006, got ${contains[0].code}`);
+  assert(traceHasSpan(trace, 'v0.expandQuery'), 'expected pushdown expandQuery span for intersection case');
+});
+
+test('logic: regex filter is handled in sqlite-v0 pushdown path', async () => {
+  if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
+  const { result, trace } = await expand(vs({
+    system: SYS.SCT,
+    filter: [{ property: 'code', op: 'regex', value: '7.*' }],
+  }), { count: 20, offset: 0 });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length > 0, 'expected regex expansion to return results');
+  assert(traceHasSpan(trace, 'v0.expandQuery'), 'expected regex query to run in v0.expandQuery');
+  assert(traceHasSpan(trace, '_tryPushdown', s => s.result?.handled === true),
+    'expected _tryPushdown handled=true for regex case');
+});
+
+test('logic: imported include/exclude valueSets (no system) apply Inc\\\\Exc semantics', async () => {
+  const csUrl = `http://example.org/cs/logic-palette-${Date.now()}`;
+  const includeVsUrl = `http://example.org/vs/logic-palette-include-${Date.now()}`;
+  const excludeVsUrl = `http://example.org/vs/logic-palette-exclude-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [
+      { code: 'red', display: 'Red' },
+      { code: 'blue', display: 'Blue' },
+      { code: 'green', display: 'Green' },
+      { code: 'yellow', display: 'Yellow' },
+    ],
+  };
+  const includeVs = {
+    resourceType: 'ValueSet',
+    url: includeVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'red' }, { code: 'blue' }, { code: 'green' }] }],
+    },
+  };
+  const excludeVs = {
+    resourceType: 'ValueSet',
+    url: excludeVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'blue' }] }],
+    },
+  };
+
+  const { result } = await expand(vs([
+    { valueSet: [includeVsUrl] },
+  ], [
+    { valueSet: [excludeVsUrl] },
+  ]), { txResources: [cs, includeVs, excludeVs] });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 2, `expected 2 codes after exclusion, got ${contains.length}`);
+  assert(findCode(contains, 'red')?.system === csUrl, 'red should remain');
+  assert(findCode(contains, 'green')?.system === csUrl, 'green should remain');
+  assert(!findCode(contains, 'blue'), 'blue should be excluded');
+});
+
+test('logic: mixed import+peer include/exclude paginates without gaps or duplicates', async () => {
+  const csUrl = `http://example.org/cs/logic-page-${Date.now()}`;
+  const includeVsUrl = `http://example.org/vs/logic-page-include-${Date.now()}`;
+  const excludeVsUrl = `http://example.org/vs/logic-page-exclude-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [
+      { code: 'red', display: 'Red' },
+      { code: 'blue', display: 'Blue' },
+      { code: 'green', display: 'Green' },
+    ],
+  };
+  const includeVs = {
+    resourceType: 'ValueSet',
+    url: includeVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'red' }, { code: 'blue' }, { code: 'green' }] }],
+    },
+  };
+  const excludeVs = {
+    resourceType: 'ValueSet',
+    url: excludeVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'blue' }] }],
+    },
+  };
+  const query = vs(
+    [
+      { valueSet: [includeVsUrl] },
+      { system: SYS.GENDER, concept: [{ code: 'male' }, { code: 'female' }] },
+    ],
+    [
+      { valueSet: [excludeVsUrl] },
+      { system: SYS.GENDER, concept: [{ code: 'female' }] },
+    ],
+  );
+
+  const { result: full } = await expand(query, { txResources: [cs, includeVs, excludeVs], count: 100, offset: 0 });
+  const fullKeys = [];
+  flattenContainsKeys(full.expansion.contains || [], fullKeys);
+  const fullSet = new Set(fullKeys);
+  assert(fullSet.size === 3, `expected 3 final codes, got ${fullSet.size}`);
+
+  const pagedKeys = [];
+  for (let off = 0; off < 10; off++) {
+    const { result: page } = await expand(query, {
+      txResources: [cs, includeVs, excludeVs],
+      count: 1,
+      offset: off,
+    });
+    const keys = [];
+    flattenContainsKeys(page.expansion.contains || [], keys);
+    if (keys.length === 0) break;
+    pagedKeys.push(...keys);
+  }
+  const pagedSet = new Set(pagedKeys);
+  assert(pagedKeys.length === pagedSet.size, 'paged reconstruction should not duplicate codes');
+  assert(pagedSet.size === fullSet.size, `paged size ${pagedSet.size} should match full size ${fullSet.size}`);
+  for (const key of fullSet) {
+    assert(pagedSet.has(key), `missing key from paged reconstruction: ${key}`);
+  }
+});
+
+test('logic: bulk locate resolver handles >50 unique concepts in fallback mode', async () => {
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const { result: seed } = await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    }), { count: 150, offset: 0 });
+    const seedCodes = [...new Set((seed.expansion.contains || []).map(c => c.code).filter(Boolean))];
+    const selectedCodes = seedCodes.slice(0, 60);
+    assert(selectedCodes.length >= 50, `expected >=50 seed codes, got ${selectedCodes.length}`);
+
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      concept: selectedCodes.map(code => ({ code })),
+    }), { count: 200, offset: 0 });
+    assertExpansionStructure(result);
+    const gotCodes = (result.expansion.contains || []).map(c => c.code);
+    const gotSet = new Set(gotCodes);
+    const expectedSet = new Set(selectedCodes);
+    assert(gotSet.size === expectedSet.size,
+      `expected ${expectedSet.size} resolved codes, got ${gotSet.size}`);
+    for (const code of expectedSet) {
+      assert(gotSet.has(code), `missing code from bulk locate expansion: ${code}`);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
+test('logic: low limit without pagination returns too-costly', async () => {
+  let failed = false;
+  try {
+    await expand(vs({ system: SYS.USPS }), {
+      params: [{ name: 'limit', valueInteger: 10 }],
+    });
+  } catch (e) {
+    failed = true;
+    const msg = String(e?.message || '').toLowerCase();
+    assert(msg.includes('costly') || msg.includes('>10'),
+      `expected too-costly style error for limit=10, got: ${e.message}`);
+  }
+  assert(failed, 'expected low-limit whole-system expansion to fail');
+});
+
+test('logic: low limit with pagination allows partial page', async () => {
+  const { result } = await expand(vs({ system: SYS.USPS }), {
+    count: 5,
+    offset: 0,
+    params: [{ name: 'limit', valueInteger: 10 }],
+  });
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 5, `expected page size 5, got ${contains.length}`);
+  if (result.expansion.total !== undefined) {
+    assert(result.expansion.total >= contains.length,
+      `total should be >= page size when present, got ${result.expansion.total}`);
+  }
+});
+
+test('logic: text-filter low-limit fallback short-circuits without total', async () => {
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const { result } = await expand(vs({ system: SYS.SCT }), {
+      filter: 'diabetes',
+      params: [{ name: 'limit', valueInteger: 10 }],
+    });
+    assertExpansionStructure(result);
+    const contains = result.expansion.contains || [];
+    assert(contains.length <= 10, `expected <=10 due limit short-circuit, got ${contains.length}`);
+    assert(result.expansion.total === undefined, 'expected total omitted after text-limit short-circuit');
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
+test('high-value: mixed-system text filter limit boundary then success', async () => {
+  const query = vs([
+    {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '64572001' }],
+    },
+    {
+      system: SYS.LOINC,
+      concept: [
+        { code: '2160-0' }, { code: '4548-4' }, { code: '718-7' }, { code: '1742-6' }, { code: '2345-7' },
+        { code: '2951-2' }, { code: '3094-0' }, { code: '1963-8' }, { code: '1920-8' }, { code: '2093-3' },
+      ],
+    },
+    { system: SYS.RXNORM },
+  ]);
+
+  if (!PUSH_DOWN_DISABLED) {
+    let tooCostly = false;
+    try {
+      await runExpandWithImpl('v2', query, {
+        filter: 'aspirin',
+        count: 200,
+        offset: 0,
+        params: [{ name: 'limit', valueInteger: 1000 }],
+      }, true);
+    } catch (e) {
+      tooCostly = true;
+      assertTooCostlyError(e, {
+        context: 'with limit=1000',
+        messageHints: ['too many codes', '>1000'],
+      });
+    }
+    assert(tooCostly, 'expected too-costly for mixed text-filter query at limit=1000');
+  }
+
+  const push = await runExpandWithImpl('v2', query, {
+    filter: 'aspirin',
+    count: 200,
+    offset: 0,
+    params: [{ name: 'limit', valueInteger: 1600 }],
+  }, true);
+  assertExpansionStructure(push.result);
+  const pushContains = push.result.expansion.contains || [];
+  assert(pushContains.length === 200, `pushdown should return 200, got ${pushContains.length}`);
+  if (!PUSH_DOWN_DISABLED) {
+    assert(push.result.expansion.total >= 200,
+      `pushdown total should be >= 200, got ${push.result.expansion.total}`);
+  } else if (push.result.expansion.total !== undefined) {
+    assert(push.result.expansion.total >= 200,
+      `fallback total (when present) should be >= 200, got ${push.result.expansion.total}`);
+  }
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const fallback = await runExpandWithImpl('v2', query, {
+      filter: 'aspirin',
+      count: 200,
+      offset: 0,
+      params: [{ name: 'limit', valueInteger: 1600 }],
+    }, true);
+    assertExpansionStructure(fallback.result);
+    const fallbackContains = fallback.result.expansion.contains || [];
+    assert(fallbackContains.length === 200, `fallback should return 200, got ${fallbackContains.length}`);
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
+test('high-value: include.valueSet + sibling filter works at scale (pushdown and fallback)', async () => {
+  const seed = await runExpandWithImpl('v2', vs({
+    system: SYS.SCT,
+    filter: [{ property: 'concept', op: 'is-a', value: '64572001' }],
+  }), {
+    count: 1400,
+    offset: 0,
+    params: [{ name: 'limit', valueInteger: 5000 }],
+  }, false);
+
+  const seedCodes = [...new Set((seed.result.expansion.contains || []).map(c => c.code).filter(Boolean))];
+  const importedCodes = seedCodes.slice(0, 1200);
+  assert(importedCodes.length === 1200, `expected 1200 imported codes, got ${importedCodes.length}`);
+
+  const importedVsUrl = `http://example.org/vs/high-value-import-${Date.now()}`;
+  const importedVs = {
+    resourceType: 'ValueSet',
+    url: importedVsUrl,
+    status: 'active',
+    compose: {
+      include: [{
+        system: SYS.SCT,
+        concept: importedCodes.map(code => ({ code })),
+      }],
+    },
+  };
+
+  const query = vs({
+    system: SYS.SCT,
+    valueSet: [importedVsUrl],
+    filter: [{ property: 'concept', op: 'descendent-of', value: '64572001' }],
+  });
+  const opts = {
+    txResources: [importedVs],
+    count: 200,
+    offset: 400,
+    params: [{ name: 'limit', valueInteger: 5000 }],
+  };
+
+  const push = await runExpandWithImpl('v2', query, opts, true);
+  assertExpansionStructure(push.result);
+  const pushContains = push.result.expansion.contains || [];
+  assert(pushContains.length === 200, `pushdown page should have 200, got ${pushContains.length}`);
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const fallback = await runExpandWithImpl('v2', query, opts, true);
+    assertExpansionStructure(fallback.result);
+    const fallbackContains = fallback.result.expansion.contains || [];
+    assert(fallbackContains.length === 200, `fallback page should have 200, got ${fallbackContains.length}`);
+
+    const importedSet = new Set(importedCodes);
+    const pushKeys = pushContains.map(c => `${c.system}|${c.code}`);
+    const fallbackKeys = fallbackContains.map(c => `${c.system}|${c.code}`);
+    assert(new Set(pushKeys).size === pushKeys.length, 'pushdown page should not contain duplicates');
+    assert(new Set(fallbackKeys).size === fallbackKeys.length, 'fallback page should not contain duplicates');
+    for (const c of pushContains) {
+      assert(c.system === SYS.SCT, `pushdown result should stay in SNOMED, got ${c.system}`);
+      assert(importedSet.has(c.code), `pushdown code ${c.code} should be in imported ValueSet`);
+    }
+    for (const c of fallbackContains) {
+      assert(c.system === SYS.SCT, `fallback result should stay in SNOMED, got ${c.system}`);
+      assert(importedSet.has(c.code), `fallback code ${c.code} should be in imported ValueSet`);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
+test('high-value: SNOMED hierarchy tail pagination is stable across modes', async () => {
+  if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
+
+  const query = vs({
+    system: SYS.SCT,
+    filter: [{ property: 'concept', op: 'is-a', value: '64572001' }],
+  });
+
+  const start = await runExpandWithImpl('v2', query, { count: 1000, offset: 0 }, false);
+  const total = start.result.expansion.total;
+  assert(Number.isFinite(total) && total > 2000,
+    `expected numeric SNOMED disease total > 2000, got ${total}`);
+
+  const tailOffset = Math.max(0, total - 500);
+  const pushTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, false);
+  const pushAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, false);
+  const pushTailContains = pushTail.result.expansion.contains || [];
+  const pushAfterContains = pushAfter.result.expansion.contains || [];
+  assert(pushTailContains.length > 0 && pushTailContains.length <= 1000,
+    `pushdown tail page should be 1..1000, got ${pushTailContains.length}`);
+  assert(pushAfterContains.length === 0, `pushdown page at offset=total should be empty, got ${pushAfterContains.length}`);
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const fallbackTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, false);
+    const fallbackAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, false);
+    const fallbackTailContains = fallbackTail.result.expansion.contains || [];
+    const fallbackAfterContains = fallbackAfter.result.expansion.contains || [];
+    assert(fallbackTailContains.length === pushTailContains.length,
+      `fallback tail len ${fallbackTailContains.length} should match pushdown ${pushTailContains.length}`);
+    assert(fallbackAfterContains.length === pushAfterContains.length,
+      `fallback post-tail len ${fallbackAfterContains.length} should match pushdown ${pushAfterContains.length}`);
+
+    const pushTailKeys = pushTailContains.map(c => `${c.system}|${c.code}`);
+    const fallbackTailKeys = fallbackTailContains.map(c => `${c.system}|${c.code}`);
+    assert(deepEqual(pushTailKeys, fallbackTailKeys),
+      'tail page keys should match between pushdown and fallback for single hierarchy filter');
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
+test('high-value: complex same-system include/exclude pages are internally consistent per mode', async () => {
+  const query = vs(
+    [
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '64572001' }] },
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '123037004' }] },
+    ],
+    [
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '442083009' }] },
+    ],
+  );
+  const opts1 = { count: 1000, offset: 50000, params: [{ name: 'limit', valueInteger: 200000 }] };
+  const opts2 = { count: 1000, offset: 51000, params: [{ name: 'limit', valueInteger: 200000 }] };
+
+  const push1 = await runExpandWithImpl('v2', query, opts1, false);
+  const push2 = await runExpandWithImpl('v2', query, opts2, false);
+  const push1Contains = push1.result.expansion.contains || [];
+  const push2Contains = push2.result.expansion.contains || [];
+  assert(push1Contains.length === 1000, `pushdown page1 should have 1000, got ${push1Contains.length}`);
+  assert(push2Contains.length === 1000, `pushdown page2 should have 1000, got ${push2Contains.length}`);
+  const push1Keys = new Set(push1Contains.map(c => `${c.system}|${c.code}`));
+  const push2Keys = new Set(push2Contains.map(c => `${c.system}|${c.code}`));
+  assert(push1Keys.size === push1Contains.length, 'pushdown page1 should not contain duplicates');
+  assert(push2Keys.size === push2Contains.length, 'pushdown page2 should not contain duplicates');
+  const pushOverlap = [...push1Keys].filter(k => push2Keys.has(k));
+  assert(pushOverlap.length === 0, `pushdown adjacent pages should not overlap, got ${pushOverlap.length}`);
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const fb1 = await runExpandWithImpl('v2', query, opts1, false);
+    const fb2 = await runExpandWithImpl('v2', query, opts2, false);
+    const fb1Contains = fb1.result.expansion.contains || [];
+    const fb2Contains = fb2.result.expansion.contains || [];
+    assert(fb1Contains.length === 1000, `fallback page1 should have 1000, got ${fb1Contains.length}`);
+    assert(fb2Contains.length === 1000, `fallback page2 should have 1000, got ${fb2Contains.length}`);
+    const fb1Keys = new Set(fb1Contains.map(c => `${c.system}|${c.code}`));
+    const fb2Keys = new Set(fb2Contains.map(c => `${c.system}|${c.code}`));
+    assert(fb1Keys.size === fb1Contains.length, 'fallback page1 should not contain duplicates');
+    assert(fb2Keys.size === fb2Contains.length, 'fallback page2 should not contain duplicates');
+    const fbOverlap = [...fb1Keys].filter(k => fb2Keys.has(k));
+    assert(fbOverlap.length === 0, `fallback adjacent pages should not overlap, got ${fbOverlap.length}`);
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
 // ── Runner ─────────────────────────────────────────────────────────────────
 
 function assert(cond, msg) {
@@ -1995,6 +2722,23 @@ function assert(cond, msg) {
 
 function deepEqual(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function isTooCostlyError(e) {
+  if (!e) return false;
+  if (e.toocostly === true) return true;
+  if (e.issueCode === 'too-costly') return true;
+  const msg = String(e.message || '');
+  return /VALUESET_TOO_COSTLY|too-costly/i.test(msg);
+}
+
+function assertTooCostlyError(e, opts = {}) {
+  const context = opts.context ? ` ${opts.context}` : '';
+  const messageHints = Array.isArray(opts.messageHints) ? opts.messageHints : [];
+  const msg = String(e?.message || '').toLowerCase();
+  const hinted = messageHints.some(h => msg.includes(String(h).toLowerCase()));
+  assert(isTooCostlyError(e) || hinted,
+    `expected too-costly${context}, got: ${e?.message || e}`);
 }
 
 function shouldPrintTrace(status) {

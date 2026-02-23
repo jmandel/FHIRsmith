@@ -13,7 +13,7 @@ const {TxParameters} = require("../params");
 const {Extensions} = require("../library/extensions");
 const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const ValueSet = require("../library/valueset");
-const {ValueSetExpander} = require("./expand");
+const {ValueSetExpander} = require("./expand-v2");
 const {SearchFilterText} = require("../library/designations");
 const {ArrayMatcher} = require("../../library/utilities");
 

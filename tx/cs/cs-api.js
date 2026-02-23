@@ -452,17 +452,20 @@ class CodeSystemProvider {
    *
    * Known keys currently consumed by expand-v2:
    * - expandQuery: boolean
-   * - handlesExcludes: boolean
-   * - handlesOffset: boolean
+   * - pushdown.supportsExcludes: boolean
+   * - pushdown.supportsPagination: boolean
+   * - pushdown.includeShapes: string[]
+   * - pushdown.excludeShapes: string[]
+   * - pushdown.supportsTextFilter: boolean
+   * - pushdown.supportsIntersectCodes: boolean
    *
    * @returns {Object}
    */
   capabilities() {
     const proto = CodeSystemProvider.prototype;
     return {
-      expandQuery: (this.expandQuery !== proto.expandQuery) || (this.expandComponent !== proto.expandComponent),
-      handlesExcludes: this.handlesExcludes(),
-      handlesOffset: this.handlesOffset(),
+      expandQuery: (this.expandQuery !== proto.expandQuery),
+      pushdown: null,
     };
   }
 
@@ -524,15 +527,6 @@ class CodeSystemProvider {
    */
   async expandQuery(request) {
     void request;
-    return await this.expandComponent(request);
-  }
-
-  /**
-   * Backward-compatible alias for older providers that implemented
-   * `expandComponent` before `expandQuery` was introduced.
-   */
-  async expandComponent(request) {
-    void request;
     return null;
   }
 
@@ -589,48 +583,19 @@ class CodeSystemProvider {
   async doesFilter(prop, op, value) { return false; }
 
   /**
-   * @return true if the cs provider handles excludes when building filters. If true, and the value set is a clean include+exclude,
-   * the handleExclude will be called between getPrepContext and executeFilters
-   */
-  handlesExcludes() {
-    return false;
-  }
-
-  /**
-   * @return true if the cs provider handles offset/count (paging) within its filter pipeline.
-   * If true, offset and count are passed to getPrepContext.
-   */
-  handlesOffset() {
-    return false;
-  }
-  /**
    * gets a single context in which filters will be evaluated. The server doesn't doesn't make use of this context;
    * it's only use is to be passed back to the CodeSystem provider so it can make use of it to organise the filter process
    *
    * The function is passed several pieces of information about the use of the filters that can help it optimise the
    * behaviour:
-   *   - iterate: whether the value set is being expanded, or instead that membership is just being checked (expand vs validate-code).
-   *       But note, though, that when iterating, only the first filter set (see executeFilters) will be iterated - the rest will
-   *       have filterCheck called
-   *   - excludeInactive: whether to exclude inactive codes from the results. Note that the expand worker will check this anyway,
-   *       so it can be ignored, but it's more efficient to never return inactive codes if they're going to be ignored
-   *   - params: a handle to the parameters passed from the client. The provider doesn't need to do anything because of these
-   *       but it might decide how to optimise loading based on e.g languages, properties, designations, etc. The server will
-   *       reprocess these anyway, so it can be ignored, but again, efficiency
-   *   - offset & count: if the user is paging through the expansion, their offset and count request. Note that if the
-   *       provider does anything with these, it needs to return true from handlesOffset() so the expand worker doesn't try
-   *       to reprocess the offset and count. Note that there is information in the params about offset and count, but
-   *       the provider should ignore these, as it only gets to check offset and count when the conditions are correct
+   *   - iterate: whether the conceptSets that result from this will be iterated,
+   *       or used for membership checks only (expand vs validate-code)
    *
    * @param {boolean} iterate true if the conceptSets that result from this will be iterated, and false if they'll be used to locate a single code
-   * @param {TxParameters} params: information from the request that the user made, to help optimise loading
-   * @param {boolean} excludeInactive: whether the server will use inactive codes or not
-   * @param {int} offset if handlesOffset() and !iterate, and if the value set is a simple one that only uses this provider, then this is the applicable offset. -1 if not applicable
-   * @param {int} count if handlesOffset() and !iterate, and if the value set is a simple one that only uses this provider, then this is the applicable count. -1 if not applicable
    * @returns {FilterExecutionContext} filter
    *
    **/
-  async getPrepContext(iterate, params, excludeInactive, offset = -1, count = -1) { return new FilterExecutionContext(iterate); }
+  async getPrepContext(iterate) { return new FilterExecutionContext(iterate); }
 
 
   /**
@@ -645,19 +610,6 @@ class CodeSystemProvider {
   async searchFilter(filterContext, filter, sort) { throw new Error("Must override"); } // ? must override?
 
   /**
-   * Used for searching ucum (see specialEnumeration)
-   *
-   * throws an exception if the search filter can't be handled
-   * @param {FilterExecutionContext} filterContext filtering context
-   * @param {boolean} sort ?
-   **/
-  async specialFilter(filterContext, sort) {
-    if (this.specialEnumeration()) {
-      throw new Error("Must override");
-    }
-  } // ? must override?
-
-  /**
    * inform the CS provider about a filter
    *
    * throws an exception if the search filter can't be handled
@@ -668,38 +620,6 @@ class CodeSystemProvider {
    * @param {String} prop
    **/
   async filter(filterContext, prop, op, value) { throw new Error("Must override"); } // well, only if any filters are actually supported
-
-  /**
-   * if handlesExcludes(), then inform the CS provider about an applicable set of exclude filters
-   *
-   * this might be called more than once. For each iteration, all of the filters apply
-   *
-   * the objects each have prop, op, and value.
-   *
-   * throws an exception if the search filter can't be handled
-   *
-   * @param {FilterExecutionContext} filterContext filtering context
-   * @param {Object[]} filters
-   **/
-  async filterExcludeFilters(filterContext, filters) { throw new Error("Must override"); } // well, only if any filters are actually supported
-
-  /**
-   * if handlesExcludes(), then inform the CS provider about an applicable set of excluded codes
-   *
-   * @param {FilterExecutionContext} }filterContext - filter context
-   * @param {String[]} code list of codes to exclude
-   */
-  async filterExcludeConcepts(filterContext, code) { throw new Error("Must override"); } // well, only if any filters are actually supported
-
-  /**
-   * Inform the CS provider about explicitly included concept codes from the value set compose.
-   * This allows the provider to include them in the same SQL query as filters, enabling
-   * correct offset/count handling and batch designation pre-fetch.
-   *
-   * @param {FilterExecutionContext} filterContext filtering context
-   * @param {String[]} codes list of codes to include
-   */
-  async includeConcepts(filterContext, codes) { /* no-op by default */ }
 
   /**
    * called once all the filters have been handled, and iteration is about to happen.

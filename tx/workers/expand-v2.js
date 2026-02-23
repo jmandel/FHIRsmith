@@ -595,6 +595,70 @@ class BulkLocateResolver {
   }
 }
 
+class HierarchyCollector {
+  constructor(expander) {
+    this.expander = expander;
+  }
+
+  async collect(cs, context, expansion, imports, parent, excludeInactive, srcUrl, mode) {
+    let count = 0;
+    const e = this.expander;
+    e.worker.deadCheck('processDescendants');
+
+    const system = await cs.system();
+    const version = await cs.version();
+    const code = await cs.code(context);
+
+    if (expansion) {
+      e._addParam(expansion, 'used-codesystem', 'valueUri', canonical(system, version));
+      for (const v of cs.listSupplements()) {
+        e.worker.deadCheck('processDescendants:supplements');
+        e._addParam(expansion, 'used-supplement', 'valueUri', v);
+      }
+    }
+
+    const isAbstract = await cs.isAbstract(context);
+    const isInactive = await cs.isInactive(context);
+    const shouldInclude = (!e.params.excludeNotForUI || !isAbstract)
+      && (!e.params.activeOnly || !isInactive);
+
+    let treeParent = parent;
+    if (shouldInclude) {
+      if (mode === 'exclude') {
+        e._addExclusion(cs, system, version, code, expansion, imports, srcUrl);
+      } else if (!await e._isExcludedByFilterPredicates(cs, context)) {
+        e._enforceIncludePaginationShortCircuit();
+        const cds = new Designations(e.worker.i18n.languageDefinitions);
+        await e._listDisplays(cds, cs, context);
+        const csProperties = await e._loadProperties(cs, context);
+        const added = e._addToExpansion(cs, parent, system, version, code,
+          isAbstract, isInactive, await cs.isDeprecated(context), await cs.getStatus(context),
+          cds, await cs.definition(context), await cs.itemWeight(context),
+          expansion, imports, await cs.extensions(context), null,
+          csProperties, null, excludeInactive, srcUrl);
+        if (added) {
+          count++;
+          treeParent = added;
+        }
+      }
+    }
+
+    if (!e.canBeHierarchy) return count;
+
+    const childIter = await cs.iterator(context);
+    if (childIter) {
+      let child = await cs.nextContext(childIter);
+      while (child) {
+        e.worker.deadCheck('processDescendants:children');
+        count += await this.collect(cs, child, expansion, imports,
+          treeParent, excludeInactive, srcUrl, mode);
+        child = await cs.nextContext(childIter);
+      }
+    }
+    return count;
+  }
+}
+
 // ── ValueSetExpander ───────────────────────────────────────────────────────────
 // Core expansion engine. Processes compose includes/excludes via shared pipeline.
 
@@ -619,6 +683,7 @@ class ValueSetExpander {
     this.renderer = new ContainsRenderer(this);
     this.pushdownRequestBuilder = new PushdownRequestBuilder(this);
     this.sourceHandlers = new ExpansionSourceHandlers(this);
+    this.hierarchyCollector = new HierarchyCollector(this);
 
     // Total tracking
     this.total = 0;
@@ -629,6 +694,8 @@ class ValueSetExpander {
     this.offset = -1;
     this.count = -1;
     this.hasTextFilter = false;
+    this.paginationAlreadyApplied = false;
+    this.knownSafeTotal = null;
 
     // Per-system counters for expandLimitation
     this.csCounter = new Map();
@@ -729,10 +796,17 @@ class ValueSetExpander {
       if (!(e instanceof Issue)) throw e;
       if (e.finished) {
         if (this.totalStatus === 'uninitialised') {
-          // When paginating, don't suppress total — set it from fullList count
-          // since we don't have the true total from the (short-circuited) iteration.
           if (this.count > -1 || this.offset > -1) {
-            this.totalStatus = 'set';
+            if (Number.isFinite(this.knownSafeTotal) && this.knownSafeTotal >= 0) {
+              this.totalStatus = 'set';
+              this.total = Math.max(this.total, this.knownSafeTotal);
+            } else if (this.paginationAlreadyApplied && this.total > 0) {
+              this.totalStatus = 'set';
+            } else {
+              // Best-effort totals: if we short-circuit without a known-safe
+              // cardinality, omit total rather than returning a misleading value.
+              this.totalStatus = 'off';
+            }
           } else {
             this.totalStatus = 'off';
           }
@@ -762,6 +836,7 @@ class ValueSetExpander {
 
   async _handleCompose(source, filter, expansion, notClosed) {
     const plan = new ExpansionPlanner(source.jsonObj.compose || {}).build();
+    this._emitPlanSnapshot(plan, expansion);
     const includes = plan.includes;
     const excludes = plan.excludes;
     const _tHandleCompose = T.begin('_handleCompose', { includesCount: includes.length, excludesCount: excludes.length });
@@ -808,7 +883,7 @@ class ValueSetExpander {
 
   // ── Provider pushdown ────────────────────────────────────────────────────────
   //
-  // If a provider implements expandQuery()/expandComponent(), we pass it the full group of
+  // If a provider implements expandQuery(), we pass it the full group of
   // includes and excludes for its system, along with pre-expanded ValueSet
   // import codes as intersection constraints. The provider can handle filters,
   // exclusions, intersections, and optionally pagination in a single native query.
@@ -832,12 +907,13 @@ class ValueSetExpander {
       return { attempt: false, pagination: false, reason: 'no-includes' };
     }
 
+    const pcap = caps.pushdown || null;
+    const pushdownCaps = pcap || {};
     const hasExcludes = (group.excludes?.length || 0) > 0;
-    if (hasExcludes && caps.handlesExcludes !== true) {
+    if (hasExcludes && pushdownCaps.supportsExcludes !== true) {
       return { attempt: false, pagination: false, reason: 'no-exclude-capability' };
     }
 
-    const pcap = caps.pushdown || null;
     if (pcap) {
       const includeShapes = new Set(pcap.includeShapes || []);
       const excludeShapes = new Set(pcap.excludeShapes || []);
@@ -869,7 +945,7 @@ class ValueSetExpander {
 
     const planAllowsPagination = !!this.activePlan?.canPushPaginationForGroup(group);
     const stateAllowsPagination = this.fullList.length === 0 && this.exclusionEvaluator.isEmpty();
-    const providerAllowsPagination = caps.handlesOffset === true;
+    const providerAllowsPagination = pushdownCaps.supportsPagination === true;
     const pagination = planAllowsPagination && stateAllowsPagination && providerAllowsPagination;
 
     return { attempt: true, pagination, reason: pagination ? 'full' : 'no-pagination' };
@@ -894,13 +970,11 @@ class ValueSetExpander {
     if (caps.expandQuery === false) { _tTryPushdown.end({ handled: false, reason: 'capability-off' }); return false; }
     const decision = this._buildPushdownDecision(group, caps);
     if (!decision.attempt) { _tTryPushdown.end({ handled: false, reason: decision.reason }); return false; }
-    const expandFn = typeof cs.expandQuery === 'function'
-      ? cs.expandQuery.bind(cs)
-      : (typeof cs.expandComponent === 'function' ? cs.expandComponent.bind(cs) : null);
-    if (!expandFn) { _tTryPushdown.end({ handled: false, reason: 'no expandQuery' }); return false; }
+    const expandFn = typeof cs.expandQuery === 'function' ? cs.expandQuery.bind(cs) : null;
+    if (!expandFn) { _tTryPushdown.end({ handled: false, reason: 'no-expandQuery' }); return false; }
 
     // Save context state — VS expansions below may register URLs that must be
-    // rolled back if pushdown ultimately fails (expandComponent returns null).
+    // rolled back if pushdown ultimately fails (expandQuery returns null).
     const savedContextsLen = this.worker.opContext.contexts.length;
     const canPushPagination = decision.pagination;
     const request = await this._buildPushdownRequest(
@@ -927,6 +1001,9 @@ class ValueSetExpander {
     }
 
     await this._ingestPushdownResult(result, cs, expansion, vsSrc);
+    if (canPushPagination) {
+      this.paginationAlreadyApplied = true;
+    }
     _tTryPushdown.end({ handled: true, canPushPagination, decision: decision.reason });
     return true;
   }
@@ -965,7 +1042,10 @@ class ValueSetExpander {
       if (row.display) entry.display = row.display;
 
       if (row.designations?.length && this.params.includeDesignations) {
-        entry.designation = row.designations;
+        const desigs = this._normalizePushdownDesignations(entry, row.designations, system);
+        if (desigs.length > 0) {
+          entry.designation = desigs;
+        }
       }
 
       if (row.properties?.length) {
@@ -1074,6 +1154,7 @@ class ValueSetExpander {
       if (mode === 'exclude') {
         this._addExclusion(cs, await cs.system(), await cs.version(), cc.code, expansion, importedSets, vsSrc.url);
       } else {
+        this._enforceIncludePaginationShortCircuit();
         let itemWeight = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight')
           || await cs.itemWeight(located.context);
         const csProperties = await this._loadProperties(cs, located.context);
@@ -1150,6 +1231,7 @@ class ValueSetExpander {
           expansion, null, vsSrc.url);
       } else {
         if (await this._isExcludedByFilterPredicates(cs, context)) return;
+        this._enforceIncludePaginationShortCircuit();
         const cds = new Designations(this.worker.i18n.languageDefinitions);
         await this._listDisplays(cds, cs, context);
         const csProperties = await this._loadProperties(cs, context);
@@ -1207,14 +1289,15 @@ class ValueSetExpander {
         if (!await this._passesSecondaryFilters(cs, context, prep, filterSets, 1)) return;
         if (!this._passesImports(importedSets, cs.system(), await cs.code(context), 0)) return;
 
-        if (mode === 'exclude') {
-          this._addExclusion(cs, await cs.system(), await cs.version(), await cs.code(context),
-            expansion, importedSets, vsSrc.url);
-        } else {
-          if (await this._isExcludedByFilterPredicates(cs, context)) return;
-          const cds = new Designations(this.worker.i18n.languageDefinitions);
-          await this._listDisplays(cds, cs, context);
-          const csProperties = await this._loadProperties(cs, context);
+      if (mode === 'exclude') {
+        this._addExclusion(cs, await cs.system(), await cs.version(), await cs.code(context),
+          expansion, importedSets, vsSrc.url);
+      } else {
+        if (await this._isExcludedByFilterPredicates(cs, context)) return;
+        this._enforceIncludePaginationShortCircuit();
+        const cds = new Designations(this.worker.i18n.languageDefinitions);
+        await this._listDisplays(cds, cs, context);
+        const csProperties = await this._loadProperties(cs, context);
           this._addToExpansion(cs, null, await cs.system(), await cs.version(),
             await cs.code(context), await cs.isAbstract(context), await cs.isInactive(context),
             await cs.isDeprecated(context), await cs.getStatus(context),
@@ -1243,7 +1326,24 @@ class ValueSetExpander {
       notClosed.value = true;
     }
 
-    const iter = await cs.iterator(null);
+    const iter = typeof cs.iteratorAll === 'function'
+      ? await cs.iteratorAll()
+      : await cs.iterator(null);
+
+    const canUseIteratorTotalForPagedTotal =
+      mode === 'include'
+      && importedSets.length === 0
+      && !this.hasExclusions
+      && this.count > -1
+      && this.offset > -1
+      && this.activePlan?.includes?.length === 1
+      && this.activePlan?.excludes?.length === 0
+      && iter
+      && Number.isFinite(iter.total)
+      && iter.total >= 0;
+    if (canUseIteratorTotalForPagedTotal) {
+      this.knownSafeTotal = iter.total;
+    }
 
     // Pre-flight size check for includes
     if (mode === 'include' && importedSets.length === 0 && this.limitCount > 0 &&
@@ -1274,63 +1374,7 @@ class ValueSetExpander {
   // ── Recursive hierarchy traversal (shared) ───────────────────────────────────
 
   async _processDescendants(cs, context, expansion, imports, parent, excludeInactive, srcUrl, mode) {
-    let count = 0;
-    this.worker.deadCheck('processDescendants');
-
-    const system = await cs.system();
-    const version = await cs.version();
-
-    if (expansion) {
-      this._addParam(expansion, 'used-codesystem', 'valueUri', canonical(system, version));
-      for (const v of cs.listSupplements()) {
-        this.worker.deadCheck('processDescendants:supplements');
-        this._addParam(expansion, 'used-supplement', 'valueUri', v);
-      }
-    }
-
-    const isAbstract = await cs.isAbstract(context);
-    const isInactive = await cs.isInactive(context);
-    const shouldInclude = (!this.params.excludeNotForUI || !isAbstract)
-      && (!this.params.activeOnly || !isInactive);
-
-    let treeParent = parent;
-
-    if (shouldInclude) {
-      if (mode === 'exclude') {
-        this._addExclusion(cs, system, version, context.code, expansion, imports, srcUrl);
-      } else {
-        if (await this._isExcludedByFilterPredicates(cs, context)) {
-          // Excluded at membership time; keep traversing children.
-        } else {
-        const cds = new Designations(this.worker.i18n.languageDefinitions);
-        await this._listDisplays(cds, cs, context);
-        const csProperties = await this._loadProperties(cs, context);
-        const added = this._addToExpansion(cs, parent, system, version, context.code,
-          isAbstract, isInactive, await cs.isDeprecated(context), await cs.getStatus(context),
-          cds, await cs.definition(context), await cs.itemWeight(context),
-          expansion, imports, await cs.extensions(context), null,
-          csProperties, null, excludeInactive, srcUrl);
-        if (added) {
-          count++;
-          treeParent = added;
-        }
-        }
-      }
-    }
-
-    if (!this.canBeHierarchy) return count;
-
-    const childIter = await cs.iterator(context);
-    if (childIter) {
-      let child = await cs.nextContext(childIter);
-      while (child) {
-        this.worker.deadCheck('processDescendants:children');
-        count += await this._processDescendants(cs, child, expansion, imports,
-          treeParent, excludeInactive, srcUrl, mode);
-        child = await cs.nextContext(childIter);
-      }
-    }
-    return count;
+    return this.hierarchyCollector.collect(cs, context, expansion, imports, parent, excludeInactive, srcUrl, mode);
   }
 
   // ── Filter iteration ─────────────────────────────────────────────────────────
@@ -1452,6 +1496,7 @@ class ValueSetExpander {
     this.worker.deadCheck('importValueSetItem');
     const matchVersion = this.doingVersion ? c.version : '';
     if (this.exclusionEvaluator.has(c.system, matchVersion, c.code)) return;
+    this._enforceIncludePaginationShortCircuit();
     const key = makeKey(c.system, c.version, c.code, this.doingVersion);
     if (this._passesImports(imports, c.system, c.code, offset) && !this.map.has(key)) {
       this.fullList.push(c);
@@ -1624,6 +1669,35 @@ class ValueSetExpander {
     return value.asString === entry.display;
   }
 
+  _normalizePushdownDesignations(entry, rawDesignations, defaultUseSystem) {
+    const out = [];
+    for (const raw of rawDesignations || []) {
+      if (!raw) continue;
+
+      const valueString = raw.value ?? raw.term;
+      if (valueString == null) continue;
+
+      const use = raw.use
+        ? raw.use
+        : (raw.use_code ? { system: defaultUseSystem, code: raw.use_code } : null);
+      const langCode = raw.language_code
+        ?? raw.language?.code
+        ?? (typeof raw.language === 'string' ? raw.language : null);
+      const lang = langCode ? { code: langCode } : null;
+      const value = { asString: String(valueString) };
+
+      const designationCandidate = { use, language: lang, value };
+      if (!this._useDesignation(designationCandidate)) continue;
+      if (this._redundantDisplay(entry, lang, use, value)) continue;
+
+      const d = { value: value.asString };
+      if (langCode) d.language = langCode;
+      if (use) d.use = use;
+      out.push(d);
+    }
+    return out;
+  }
+
   // ── Property loading ─────────────────────────────────────────────────────────
 
   _shouldLoadProperties() {
@@ -1642,53 +1716,13 @@ class ValueSetExpander {
   _addToExpansion(cs, parent, system, version, code, isAbstract, isInactive, deprecated, status,
                    displays, definition, itemWeight, expansion, imports, csExtList, vsExtList,
                    csProps, expProps, excludeInactive, srcURL) {
-    this._addCount = (this._addCount || 0) + 1;
-    if (this._addCount % 500 === 0) T.note('addToExpansion progress', { count: this._addCount });
+    this._noteAddProgress();
     this.worker.deadCheck('addToExpansion');
 
-    if (!this._passesImports(imports, system, code, 0)) return null;
-    if (isInactive && excludeInactive) return null;
-    const matchVersion = this.doingVersion ? version : '';
-    if (this.exclusionEvaluator.has(system, matchVersion, code)) return null;
-
-    // Per-system expansion cap
-    if (cs?.expandLimitation > 0) {
-      let counter = this.csCounter.get(cs.system);
-      if (!counter) { counter = { count: 0 }; this.csCounter.set(cs.system, counter); }
-      counter.count++;
-      if (counter.count > cs.expandLimitation) return null;
-    }
-
-    // Pagination short-circuit (only when no exclusions to process)
-    if (!this.hasExclusions && this.count > -1 && this.offset > -1
-        && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
-      // Don't suppress total — _assembleOutput will use this.total if set,
-      // or fall back to fullList.length. Total may be approximate (based on
-      // what was counted before the short-circuit).
-      throw new Issue('information', 'informational', null, null, null, null).setFinished();
-    }
-
-    // Too-costly check
-    if (this.limitCount > 0 && this.fullList.length >= this.limitCount && !this.hasExclusions) {
-      if (this.hasTextFilter && this.count < 0 && this.offset < 0) {
-        this._noTotal();
-        throw new Issue('information', 'informational', null, null, null, null).setFinished();
-      }
-      throw new Issue('error', 'too-costly', null, 'VALUESET_TOO_COSTLY',
-        this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages,
-          [srcURL || '??', '>' + this.limitCount]), null, 422)
-        .withDiagnostics(this.worker.opContext.diagnostics());
-    }
-
-    // Track used code systems
-    if (expansion) {
-      this._addParam(expansion, 'used-codesystem', 'valueUri', canonical(system, version));
-      if (cs) {
-        for (const v of cs.listSupplements()) {
-          this._addParam(expansion, 'used-supplement', 'valueUri', v);
-        }
-      }
-    }
+    if (!this._passesMembershipChecks(imports, system, version, code, isInactive, excludeInactive)) return null;
+    if (!this._passesExpandLimitation(cs)) return null;
+    this._enforceTooCostly(srcURL);
+    this._recordUsedCodeSystem(expansion, cs, system, version);
 
     const key = makeKey(system, version, code, this.doingVersion);
     if (this.map.has(key)) return null;
@@ -1698,7 +1732,72 @@ class ValueSetExpander {
       displays, definition, csExtList, vsExtList, csProps,
     });
 
-    // Add to expansion
+    this._appendExpansionEntry(parent, key, entry);
+
+    return entry;
+  }
+
+  _noteAddProgress() {
+    this._addCount = (this._addCount || 0) + 1;
+    if (this._addCount % 500 === 0) T.note('addToExpansion progress', { count: this._addCount });
+  }
+
+  _passesMembershipChecks(imports, system, version, code, isInactive, excludeInactive) {
+    if (!this._passesImports(imports, system, code, 0)) return false;
+    if (isInactive && excludeInactive) return false;
+    const matchVersion = this.doingVersion ? version : '';
+    if (this.exclusionEvaluator.has(system, matchVersion, code)) return false;
+    return true;
+  }
+
+  _passesExpandLimitation(cs) {
+    const limit = cs?.expandLimitation;
+    if (!(typeof limit === 'number' && limit > 0)) return true;
+    let counter = this.csCounter.get(cs.system);
+    if (!counter) {
+      counter = { count: 0 };
+      this.csCounter.set(cs.system, counter);
+    }
+    counter.count++;
+    return counter.count <= limit;
+  }
+
+  _enforceIncludePaginationShortCircuit() {
+    if (!this.hasExclusions && this.count > -1 && this.offset > -1
+        && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
+      // Don't suppress total — _assembleOutput will use this.total if set,
+      // or fall back to fullList.length. Total may be approximate (based on
+      // what was counted before the short-circuit).
+      throw new Issue('information', 'informational', null, null, null, null).setFinished();
+    }
+  }
+
+  _enforceTooCostly(srcURL) {
+    const hasPagination = this.count > -1 && this.offset > -1;
+    const pageNeed = hasPagination ? Math.max(0, this.offset + this.count) : 0;
+    const effectiveLimit = hasPagination ? Math.max(this.limitCount, pageNeed) : this.limitCount;
+    if (effectiveLimit > 0 && this.fullList.length >= effectiveLimit && !this.hasExclusions) {
+      if (this.hasTextFilter && this.count < 0 && this.offset < 0) {
+        this._noTotal();
+        throw new Issue('information', 'informational', null, null, null, null).setFinished();
+      }
+      throw new Issue('error', 'too-costly', null, 'VALUESET_TOO_COSTLY',
+        this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages,
+          [srcURL || '??', '>' + effectiveLimit]), null, 422)
+        .withDiagnostics(this.worker.opContext.diagnostics());
+    }
+  }
+
+  _recordUsedCodeSystem(expansion, cs, system, version) {
+    if (!expansion) return;
+    this._addParam(expansion, 'used-codesystem', 'valueUri', canonical(system, version));
+    if (!cs) return;
+    for (const v of cs.listSupplements()) {
+      this._addParam(expansion, 'used-supplement', 'valueUri', v);
+    }
+  }
+
+  _appendExpansionEntry(parent, key, entry) {
     this.fullList.push(entry);
     this.map.set(key, entry);
     if (parent) {
@@ -1707,8 +1806,60 @@ class ValueSetExpander {
     } else {
       this.rootList.push(entry);
     }
+  }
 
-    return entry;
+  _emitPlanSnapshot(plan, expansion) {
+    const snapshot = this._makePlanSnapshot(plan);
+    T.note('expand-plan', snapshot);
+    if (!this._wantsPlanSnapshot()) return;
+    if (!expansion) return;
+    expansion.extension = expansion.extension || [];
+    expansion.extension.push({
+      url: 'http://fhirsmith.org/StructureDefinition/expand-plan',
+      valueString: JSON.stringify(snapshot),
+    });
+  }
+
+  _makePlanSnapshot(plan) {
+    return {
+      includes: plan.includes.length,
+      excludes: plan.excludes.length,
+      hasExclusions: plan.hasExclusions,
+      groups: (plan.groups || []).map(g => ({
+        groupType: g.groupType,
+        system: g.system,
+        version: g.version || null,
+        includeCount: (g.includes || []).length,
+        excludeCount: (g.excludes || []).length,
+        includeComponents: (g.includeComponents || []).map(c => ({
+          path: c.path,
+          shape: c.shape,
+          hasValueSetImports: !!c.hasValueSetImports,
+        })),
+        excludeComponents: (g.excludeComponents || []).map(c => ({
+          path: c.path,
+          shape: c.shape,
+          hasValueSetImports: !!c.hasValueSetImports,
+        })),
+      })),
+    };
+  }
+
+  _wantsPlanSnapshot() {
+    if (process.env.EXPAND_PLAN_DUMP === '1') return true;
+    const p = this.logExtraOutput;
+    if (!p) return false;
+
+    let raw = null;
+    if (typeof p === 'string' || typeof p === 'boolean' || typeof p === 'number') {
+      raw = p;
+    } else {
+      raw = getValuePrimitive(p);
+    }
+    if (raw === true) return false;
+
+    const tokens = String(raw || '').toLowerCase().split(/[,\s|;]+/).filter(Boolean);
+    return tokens.includes('plan') || tokens.includes('trace-plan') || tokens.includes('plan-json');
   }
 
   _addExclusion(cs, system, version, code, expansion, imports, srcURL) {
@@ -1953,6 +2104,23 @@ class ValueSetExpander {
         this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages,
           [source.vurl, '>' + this.limitCount]), null, 422)
         .withDiagnostics(this.worker.opContext.diagnostics());
+    }
+
+    if (this.paginationAlreadyApplied) {
+      for (const c of list) {
+        this.worker.deadCheck('assembleOutput');
+        const key = makeKey(c.system, c.version, c.code, this.doingVersion);
+        if (!this.map.has(key)) continue;
+        exp.contains = exp.contains || [];
+        exp.contains.push(c);
+        if (table) {
+          const tr = table.tr();
+          tr.td().tx(c.system);
+          tr.td().tx(c.code);
+          tr.td().tx(c.display);
+        }
+      }
+      return;
     }
 
     let t = 0, o = 0;

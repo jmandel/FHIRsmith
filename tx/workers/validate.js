@@ -20,7 +20,7 @@ const {OperationOutcome, Issue} = require("../library/operation-outcome");
 const {Parameters} = require("../library/parameters");
 const {Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText} = require("../library/designations");
 const ValueSet = require("../library/valueset");
-const {ValueSetExpander} = require("./expand");
+const {ValueSetExpander} = require("./expand-v2");
 const {FhirCodeSystemProvider} = require("../cs/cs-cs");
 const {CodeSystem} = require("../library/codesystem");
 

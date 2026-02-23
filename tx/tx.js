@@ -20,7 +20,7 @@ const packageJson = require("../package.json");
 // Import workers
 const ReadWorker = require('./workers/read');
 const SearchWorker = require('./workers/search');
-const { ExpandWorker } = require('./workers/expand');
+const { ExpandWorker } = require('./workers/expand-v2');
 const { ValidateWorker } = require('./workers/validate');
 const TranslateWorker = require('./workers/translate');
 const LookupWorker = require('./workers/lookup');
