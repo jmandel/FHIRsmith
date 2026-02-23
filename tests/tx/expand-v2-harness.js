@@ -2497,6 +2497,63 @@ test('logic: regex filter works for literal-valued property in sqlite-v0', async
   }
 });
 
+test('logic: total resolver state table', async () => {
+  const resolver = WORKER_MODULES.v2.ValueSetExpander.prototype._resolveFinalTotalAndPagingState;
+  const cases = [
+    {
+      name: 'pagination-finished prefers known safe total',
+      input: { count: 10, offset: 10, finishedByPagination: true, knownSafeTotal: 42, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
+      expect: { totalStatus: 'set', total: 42 },
+    },
+    {
+      name: 'pagination-finished preserves provider total',
+      input: { count: 10, offset: 10, finishedByPagination: true, knownSafeTotal: null, paginationAlreadyApplied: true, totalStatus: 'set', total: 99 },
+      expect: { totalStatus: 'set', total: 99 },
+    },
+    {
+      name: 'pagination-finished without safe total omits total',
+      input: { count: 10, offset: 10, finishedByPagination: true, knownSafeTotal: null, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
+      expect: { totalStatus: 'off', total: -1 },
+    },
+    {
+      name: 'no paging leaves uninitialised as off',
+      input: { count: -1, offset: -1, finishedByPagination: false, knownSafeTotal: null, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
+      expect: { totalStatus: 'off', total: 0 },
+    },
+    {
+      name: 'paged non-finished uses known safe total',
+      input: { count: 50, offset: 100, finishedByPagination: false, knownSafeTotal: 250, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 100 },
+      expect: { totalStatus: 'set', total: 250 },
+    },
+    {
+      name: 'paged non-finished keeps provider-applied total when present',
+      input: { count: 50, offset: 100, finishedByPagination: false, knownSafeTotal: null, paginationAlreadyApplied: true, totalStatus: 'uninitialised', total: 180 },
+      expect: { totalStatus: 'set', total: 180 },
+    },
+    {
+      name: 'paged non-finished without total evidence omits total',
+      input: { count: 50, offset: 100, finishedByPagination: false, knownSafeTotal: null, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
+      expect: { totalStatus: 'off', total: 0 },
+    },
+  ];
+
+  for (const tc of cases) {
+    const state = { ...tc.input };
+    resolver.call(state);
+    assert(state.totalStatus === tc.expect.totalStatus,
+      `${tc.name}: expected totalStatus=${tc.expect.totalStatus}, got ${state.totalStatus}`);
+    assert(state.total === tc.expect.total,
+      `${tc.name}: expected total=${tc.expect.total}, got ${state.total}`);
+  }
+});
+
+test('logic: display fast path is exercised on cs-cs provider', async () => {
+  const { result, trace } = await expand(vs({ system: SYS.GENDER }));
+  assertExpansionStructure(result);
+  const hits = trace?.counters?.display_fastpath_hits || 0;
+  assert(hits > 0, `expected display fast path hits > 0, got ${hits}`);
+});
+
 test('logic: imported include/exclude valueSets (no system) apply Inc\\\\Exc semantics', async () => {
   const csUrl = `http://example.org/cs/logic-palette-${Date.now()}`;
   const includeVsUrl = `http://example.org/vs/logic-palette-include-${Date.now()}`;

@@ -31,6 +31,12 @@ const CACHE_WHEN_DEBUGGING = false;
 const BULK_LOCATE_THRESHOLD = 50;
 const BULK_LOCATE_BATCH_SIZE = 500;
 const FILTER_PAGE_SIZE = 256;
+const EXCLUSION_POLICY_STATE = Object.freeze({
+  READY: 'ready',
+  PLANNED: 'planned',
+  DEFERRED: 'deferred',
+  MATERIALIZING: 'materializing',
+});
 
 // Extensions the expand worker copies from code system concepts
 const CS_CONCEPT_EXTENSIONS = [
@@ -226,16 +232,18 @@ class ExpansionExecutor {
   }
 
   async execute(plan, source, filter, expansion, excludeInactive, notClosed) {
-    // If there are no import groups, exclusions can be deferred until fallback
-    // execution is needed. This avoids prebuild overhead for fully pushed-down
-    // requests while preserving global exclude semantics when fallback occurs.
-    const canDeferExclusions = plan.hasExclusions && (plan.importGroups?.length || 0) === 0;
-    let exclusionsBuilt = false;
-    if (!canDeferExclusions && plan.hasExclusions) {
+    let exclusionState = EXCLUSION_POLICY_STATE.READY;
+    if (plan.hasExclusions) {
+      exclusionState = (plan.importGroups?.length || 0) === 0
+        ? EXCLUSION_POLICY_STATE.DEFERRED
+        : EXCLUSION_POLICY_STATE.PLANNED;
+    }
+
+    if (exclusionState === EXCLUSION_POLICY_STATE.PLANNED) {
       await this._buildGlobalExclusionPolicy(
         plan, source, filter, expansion, excludeInactive, notClosed, 'auto');
-      exclusionsBuilt = true;
-    } else if (canDeferExclusions) {
+      exclusionState = EXCLUSION_POLICY_STATE.READY;
+    } else if (exclusionState === EXCLUSION_POLICY_STATE.DEFERRED) {
       T.count('exclusion_policy_deferred_plans');
     }
 
@@ -248,10 +256,11 @@ class ExpansionExecutor {
         excludeInactive, notClosed)) {
         continue;
       }
-      if (plan.hasExclusions && !exclusionsBuilt) {
+      if (exclusionState === EXCLUSION_POLICY_STATE.DEFERRED) {
+        exclusionState = EXCLUSION_POLICY_STATE.MATERIALIZING;
         await this._buildGlobalExclusionPolicy(
           plan, source, filter, expansion, excludeInactive, notClosed, 'materialize');
-        exclusionsBuilt = true;
+        exclusionState = EXCLUSION_POLICY_STATE.READY;
       }
       for (const { cset, index } of group.includes) {
         this.expander.worker.deadCheck('compose:include');
@@ -259,66 +268,6 @@ class ExpansionExecutor {
           expansion, excludeInactive, notClosed, 'include');
       }
     }
-  }
-}
-
-class ContainsRenderer {
-  constructor(expander) {
-    this.expander = expander;
-  }
-
-  render({
-    cs, expansion, system, version, code, isAbstract, isInactive, deprecated, status,
-    displays, definition, csExtList, vsExtList, csProps,
-  }) {
-    const e = this.expander;
-    const entry = { system, code };
-    if (e.doingVersion) entry.version = version;
-    if (isAbstract) entry.abstract = isAbstract;
-    if (isInactive) entry.inactive = true;
-
-    // Status / deprecated properties
-    if (status && status.toLowerCase() !== 'active') {
-      e._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', status);
-    } else if (deprecated) {
-      e._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', 'deprecated');
-    }
-
-    // Extension-driven properties
-    e._applyExtensionProperties(expansion, entry, csExtList, vsExtList);
-
-    // Display
-    const pref = displays.preferredDesignation(e.params.workingLanguages());
-    if (pref?.value) entry.display = pref.value;
-
-    // Designations
-    if (e.params.includeDesignations) {
-      for (const t of displays.designations) {
-        if (t !== pref && e._useDesignation(t) && t.value != null
-            && !e._redundantDisplay(entry, t.language, t.use, t.value)) {
-          entry.designation = entry.designation || [];
-          entry.designation.push(t.asObject());
-        }
-      }
-    }
-
-    // Requested properties
-    for (const pn of e.params.properties) {
-      if (pn === 'definition') {
-        if (definition) {
-          e._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#definition', pn, 'valueString', definition);
-        }
-      } else if (csProps && cs) {
-        for (const cp of csProps) {
-          if (cp.code === pn) {
-            const vn = getValueName(cp);
-            e._defineProperty(expansion, entry, e._getPropUrl(cs, pn), pn, vn, cp[vn]);
-          }
-        }
-      }
-    }
-
-    return entry;
   }
 }
 
@@ -411,57 +360,6 @@ class PushdownRequestBuilder {
   }
 }
 
-class ExpansionSourceHandlers {
-  constructor(expander) {
-    this.expander = expander;
-  }
-
-  async process(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed, mode) {
-    if (!cset.system) {
-      return this.processImport(cset, filter, expansion, notClosed, vsSrc, mode);
-    }
-
-    const cs = await this.expander.worker.findCodeSystem(cset.system, cset.version, this.expander.params,
-      ['complete', 'fragment'], false, mode === 'include' ? false : true, true, null, this.expander.requiredSupplements);
-    if (!cs) return;
-
-    this.expander.worker.checkSupplements(cs, cset, this.expander.requiredSupplements, this.expander.usedSupplements);
-    this.expander.checkProviderCanonicalStatus(expansion, cs, this.expander.valueSet);
-    this.expander._addParam(expansion, 'used-codesystem', 'valueUri', canonical(await cs.system(), await cs.version()));
-
-    const importedSets = [];
-    for (const u of cset.valueSet || []) {
-      this.expander.worker.deadCheck('processComponent:vs-import');
-      const s = this.expander.worker.pinValueSet(u);
-      this.expander.worker.opContext.log(`import value set ${s}`);
-      importedSets.push(new ImportedValueSet(await this.expander._expandNestedValueSet(s, '', filter, notClosed)));
-    }
-
-    if (cset.concept) {
-      return this.processConcepts(cs, cset.concept, filter, expansion, importedSets, excludeInactive, vsSrc, mode);
-    }
-    if (cset.filter) {
-      return this.processFilters(cs, cset.filter, path, filter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
-    }
-    return this.processWhole(cs, filter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
-  }
-
-  async processImport(cset, filter, expansion, notClosed, vsSrc, mode) {
-    return this.expander._processValueSetOnly(cset, filter, expansion, notClosed, vsSrc, mode);
-  }
-
-  async processConcepts(cs, concepts, filter, expansion, importedSets, excludeInactive, vsSrc, mode) {
-    return this.expander._processConcepts(cs, concepts, filter, expansion, importedSets, excludeInactive, vsSrc, mode);
-  }
-
-  async processFilters(cs, filterClauses, path, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode) {
-    return this.expander._processFilters(cs, filterClauses, path, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
-  }
-
-  async processWhole(cs, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode) {
-    return this.expander._processWholeSystem(cs, textFilter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
-  }
-}
 
 // ── BulkLocateResolver ─────────────────────────────────────────────────────────
 // Efficiently resolves codes via locateMany when available, with lazy batching.
@@ -578,22 +476,18 @@ class HierarchyCollector {
 
     let treeParent = parent;
     if (shouldInclude) {
-      if (mode === 'exclude') {
-        e._addExclusion(cs, system, version, code, expansion, imports, srcUrl);
-      } else if (!await e._isExcludedByFilterPredicates(cs, context)) {
-        e._enforceIncludePaginationShortCircuit();
-        const cds = new Designations(e.worker.i18n.languageDefinitions);
-        await e._listDisplays(cds, cs, context);
-        const csProperties = await e._loadProperties(cs, context);
-        const added = e._addToExpansion(cs, parent, system, version, code,
-          isAbstract, isInactive, await cs.isDeprecated(context), await cs.getStatus(context),
-          cds, await cs.definition(context), await cs.itemWeight(context),
-          expansion, imports, await cs.extensions(context), null,
-          csProperties, null, excludeInactive, srcUrl);
-        if (added) {
-          count++;
-          treeParent = added;
-        }
+      const added = await e._handleCandidateFromContext(cs, context, {
+        mode,
+        expansion,
+        importedSets: imports,
+        excludeInactive,
+        vsSrcUrl: srcUrl,
+        parent,
+        candidateCode: code,
+      });
+      if (added) {
+        count++;
+        treeParent = added;
       }
     }
 
@@ -635,9 +529,7 @@ class ValueSetExpander {
     this.canBeHierarchy = !params.excludeNested;
     this.doingVersion = false;
     this.executor = new ExpansionExecutor(this);
-    this.renderer = new ContainsRenderer(this);
     this.pushdownRequestBuilder = new PushdownRequestBuilder(this);
-    this.sourceHandlers = new ExpansionSourceHandlers(this);
     this.hierarchyCollector = new HierarchyCollector(this);
 
     // Total tracking
@@ -753,38 +645,7 @@ class ValueSetExpander {
     } catch (e) {
       if (!(e instanceof Issue)) throw e;
       if (e.finished) {
-        const hasPaging = this.count > -1 || this.offset > -1;
-        const hasKnownSafeTotal = Number.isFinite(this.knownSafeTotal) && this.knownSafeTotal >= 0;
-
-        if (this.finishedByPagination) {
-          // Never return page-progress totals after pagination short-circuit.
-          // Keep total only when we have a known-safe exact cardinality.
-          if (hasKnownSafeTotal) {
-            this.totalStatus = 'set';
-            this.total = this.knownSafeTotal;
-          } else if (this.paginationAlreadyApplied && this.totalStatus === 'set' && this.total > -1) {
-            // Provider-applied pagination may have already set an exact total.
-            // Preserve only when explicitly set.
-          } else {
-            this.totalStatus = 'off';
-            this.total = -1;
-          }
-        } else if (this.totalStatus === 'uninitialised') {
-          if (hasPaging) {
-            if (hasKnownSafeTotal) {
-              this.totalStatus = 'set';
-              this.total = Math.max(this.total, this.knownSafeTotal);
-            } else if (this.paginationAlreadyApplied && this.total > 0) {
-              this.totalStatus = 'set';
-            } else {
-              // Best-effort totals: if we short-circuit without a known-safe
-              // cardinality, omit total rather than returning a misleading value.
-              this.totalStatus = 'off';
-            }
-          } else {
-            this.totalStatus = 'off';
-          }
-        }
+        this._resolveFinalTotalAndPagingState();
       } else if (e.toocostly) {
         Extensions.addBoolean(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly', true);
         if (div_) div_.p().style('color: Maroon').tx(e.message);
@@ -1051,22 +912,30 @@ class ValueSetExpander {
       this._incrementTotal(result.total);
     }
 
+    const traceCounts = {
+      pushdown_candidates_scanned: 0,
+      pushdown_dedup_hits: 0,
+      pushdown_exclusion_checks: 0,
+      pushdown_exclusion_checks_skipped: 0,
+      pushdown_exclusion_hits: 0,
+      pushdown_candidates_survived: 0,
+    };
     for (const row of result.codes || []) {
       this.worker.deadCheck('ingestPushdown');
-      T.count('pushdown_candidates_scanned');
+      traceCounts.pushdown_candidates_scanned++;
 
       const key = makeKey(system, version, row.code, this.doingVersion);
       if (this.map.has(key)) {
-        T.count('pushdown_dedup_hits');
+        traceCounts.pushdown_dedup_hits++;
         continue;
       }
       const matchVersion = this.doingVersion ? version : '';
       if (coveredByProvider) {
-        T.count('pushdown_exclusion_checks_skipped');
+        traceCounts.pushdown_exclusion_checks_skipped++;
       } else {
-        T.count('pushdown_exclusion_checks');
+        traceCounts.pushdown_exclusion_checks++;
         if (this.exclusionEvaluator.has(system, matchVersion, row.code)) {
-          T.count('pushdown_exclusion_hits');
+          traceCounts.pushdown_exclusion_hits++;
           continue;
         }
       }
@@ -1111,8 +980,9 @@ class ValueSetExpander {
       this.fullList.push(entry);
       this.map.set(key, entry);
       this.rootList.push(entry);
-      T.count('pushdown_candidates_survived');
+      traceCounts.pushdown_candidates_survived++;
     }
+    this._countMany(traceCounts);
 
     this.canBeHierarchy = false;
     _tIngest.end();
@@ -1135,8 +1005,38 @@ class ValueSetExpander {
       this.canBeHierarchy = false;
     }
 
-    await this.sourceHandlers.process(
-      cset, path, vsSrc, filter, expansion, excludeInactive, notClosed, mode);
+    if (!cset.system) {
+      await this._processValueSetOnly(cset, filter, expansion, notClosed, vsSrc, mode);
+      _tProcessComponent.end();
+      return;
+    }
+
+    const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params,
+      ['complete', 'fragment'], false, mode === 'include' ? false : true, true, null, this.requiredSupplements);
+    if (!cs) {
+      _tProcessComponent.end();
+      return;
+    }
+
+    this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
+    this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
+    this._addParam(expansion, 'used-codesystem', 'valueUri', canonical(await cs.system(), await cs.version()));
+
+    const importedSets = [];
+    for (const u of cset.valueSet || []) {
+      this.worker.deadCheck('processComponent:vs-import');
+      const s = this.worker.pinValueSet(u);
+      this.worker.opContext.log(`import value set ${s}`);
+      importedSets.push(new ImportedValueSet(await this._expandNestedValueSet(s, '', filter, notClosed)));
+    }
+
+    if (cset.concept) {
+      await this._processConcepts(cs, cset.concept, filter, expansion, importedSets, excludeInactive, vsSrc, mode);
+    } else if (cset.filter) {
+      await this._processFilters(cs, cset.filter, path, filter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
+    } else {
+      await this._processWholeSystem(cs, filter, expansion, importedSets, excludeInactive, notClosed, vsSrc, mode);
+    }
     _tProcessComponent.end();
   }
 
@@ -1168,6 +1068,109 @@ class ValueSetExpander {
     _tVSOnly.end();
   }
 
+  _countMany(counters) {
+    if (!counters) return;
+    for (const [name, value] of Object.entries(counters)) {
+      if (value) T.count(name, value);
+    }
+  }
+
+  _renderContainsEntry({
+    cs, expansion, system, version, code, isAbstract, isInactive, deprecated, status,
+    displays, definition, csExtList, vsExtList, csProps,
+  }) {
+    const entry = { system, code };
+    if (this.doingVersion) entry.version = version;
+    if (isAbstract) entry.abstract = isAbstract;
+    if (isInactive) entry.inactive = true;
+
+    if (status && status.toLowerCase() !== 'active') {
+      this._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', status);
+    } else if (deprecated) {
+      this._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#status', 'status', 'valueCode', 'deprecated');
+    }
+
+    this._applyExtensionProperties(expansion, entry, csExtList, vsExtList);
+
+    const pref = displays.preferredDesignation(this.params.workingLanguages());
+    if (pref?.value) entry.display = pref.value;
+
+    if (this.params.includeDesignations) {
+      for (const t of displays.designations) {
+        if (t !== pref && this._useDesignation(t) && t.value != null
+            && !this._redundantDisplay(entry, t.language, t.use, t.value)) {
+          entry.designation = entry.designation || [];
+          entry.designation.push(t.asObject());
+        }
+      }
+    }
+
+    for (const pn of this.params.properties) {
+      if (pn === 'definition') {
+        if (definition) {
+          this._defineProperty(expansion, entry, 'http://hl7.org/fhir/concept-properties#definition', pn, 'valueString', definition);
+        }
+      } else if (csProps && cs) {
+        for (const cp of csProps) {
+          if (cp.code === pn) {
+            const vn = getValueName(cp);
+            this._defineProperty(expansion, entry, this._getPropUrl(cs, pn), pn, vn, cp[vn]);
+          }
+        }
+      }
+    }
+    return entry;
+  }
+
+  async _handleCandidateFromContext(cs, context, {
+    mode,
+    expansion,
+    importedSets,
+    excludeInactive,
+    vsSrcUrl,
+    parent = null,
+    conceptRef = null,
+    vsSrc = null,
+    preparedDisplays = null,
+    candidateCode = null,
+    skipImportCheck = false,
+  }) {
+    const system = await cs.system();
+    const version = await cs.version();
+    const code = candidateCode || await cs.code(context);
+
+    if (!skipImportCheck && !this._passesImports(importedSets, system, code, 0)) return null;
+
+    if (mode === 'exclude') {
+      this._addExclusion(cs, system, version, code, expansion, importedSets, vsSrcUrl);
+      return null;
+    }
+
+    if (await this._isExcludedByFilterPredicates(cs, context)) return null;
+    this._enforceIncludePaginationShortCircuit();
+
+    const displays = preparedDisplays || new Designations(this.worker.i18n.languageDefinitions);
+    if (!preparedDisplays) {
+      await this._listDisplays(displays, cs, context);
+      if (conceptRef) this._applyConceptOverrides(displays, conceptRef, vsSrc || this.valueSet);
+    }
+
+    const itemWeight = conceptRef
+      ? (Extensions.readString(conceptRef, 'http://hl7.org/fhir/StructureDefinition/itemWeight')
+        || await cs.itemWeight(context))
+      : await cs.itemWeight(context);
+    const csProperties = await this._loadProperties(cs, context);
+
+    const added = this._addToExpansion(cs, parent, system, version, code,
+      await cs.isAbstract(context), await cs.isInactive(context),
+      await cs.isDeprecated(context), await cs.getStatus(context),
+      displays, await cs.definition(context), itemWeight,
+      expansion, importedSets, await cs.extensions(context), conceptRef?.extension || null,
+      csProperties, null, excludeInactive, vsSrcUrl);
+    if (added) this._incrementTotal();
+    return added;
+  }
+
   // ── Case 2a: Enumerated concepts ─────────────────────────────────────────────
 
   async _processConcepts(cs, concepts, filter, expansion, importedSets, excludeInactive, vsSrc, mode) {
@@ -1181,9 +1184,11 @@ class ValueSetExpander {
     );
 
     const cds = new Designations(this.worker.i18n.languageDefinitions);
+    const traceCounts = { concept_candidates: 0, concept_survivors: 0 };
 
     for (const cc of concepts) {
       this.worker.deadCheck('processConcepts');
+      traceCounts.concept_candidates++;
       cds.clear();
       Extensions.checkNoModifiers(cc, 'ValueSetExpander.processConcepts', 'set concept reference');
 
@@ -1195,25 +1200,20 @@ class ValueSetExpander {
       this._applyConceptOverrides(cds, cc, vsSrc);
 
       if (!filter.passesDesignations(cds) && !filter.passes(cc.code)) continue;
-      if (!this._passesImports(importedSets, await cs.system(), cc.code, 0)) continue;
-      if (mode === 'include' && await this._isExcludedByFilterPredicates(cs, located.context)) continue;
-
-      if (mode === 'exclude') {
-        this._addExclusion(cs, await cs.system(), await cs.version(), cc.code, expansion, importedSets, vsSrc.url);
-      } else {
-        this._enforceIncludePaginationShortCircuit();
-        let itemWeight = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight')
-          || await cs.itemWeight(located.context);
-        const csProperties = await this._loadProperties(cs, located.context);
-        const added = this._addToExpansion(cs, null, await cs.system(), await cs.version(), cc.code,
-          await cs.isAbstract(located.context), await cs.isInactive(located.context),
-          await cs.isDeprecated(located.context), await cs.getStatus(located.context),
-          cds, await cs.definition(located.context), itemWeight,
-          expansion, importedSets, await cs.extensions(located.context), cc.extension,
-          csProperties, null, excludeInactive, vsSrc.url);
-        if (added) this._incrementTotal();
-      }
+      const added = await this._handleCandidateFromContext(cs, located.context, {
+        mode,
+        expansion,
+        importedSets,
+        excludeInactive,
+        vsSrcUrl: vsSrc.url,
+        conceptRef: cc,
+        vsSrc,
+        preparedDisplays: cds,
+        candidateCode: cc.code,
+      });
+      if (added) traceCounts.concept_survivors++;
     }
+    this._countMany(traceCounts);
     this.worker.opContext.log('iterate concepts done');
     _tConcepts.end();
   }
@@ -1267,35 +1267,30 @@ class ValueSetExpander {
     }
 
     this.worker.opContext.log('iterate filters');
+    const traceCounts = { filter_candidates: 0, filter_survivors: 0 };
     await this._iterateFilterSet(cs, prep, filterSets, async (context) => {
+      traceCounts.filter_candidates++;
       if (this.params.activeOnly && await cs.isInactive(context)) return;
       if (!await this._passesSecondaryFilters(cs, context, prep, filterSets, 1)) return;
-      if (!this._passesImports(importedSets, cs.system(), await cs.code(context), 0)) return;
-
-      if (mode === 'exclude') {
-        this._addExclusion(cs, await cs.system(), await cs.version(), await cs.code(context),
-          expansion, null, vsSrc.url);
-      } else {
-        if (await this._isExcludedByFilterPredicates(cs, context)) return;
-        this._enforceIncludePaginationShortCircuit();
-        const cds = new Designations(this.worker.i18n.languageDefinitions);
-        await this._listDisplays(cds, cs, context);
-        const csProperties = await this._loadProperties(cs, context);
-        let parent = null;
+      let parent = null;
+      if (mode === 'include') {
         if (cs.hasParents()) {
           parent = this.map.get(makeKey(cs.system(), cs.version(), await cs.parent(context), this.doingVersion));
         } else {
           this.canBeHierarchy = false;
         }
-        const added = this._addToExpansion(cs, parent, await cs.system(), await cs.version(),
-          await cs.code(context), await cs.isAbstract(context), await cs.isInactive(context),
-          await cs.isDeprecated(context), await cs.getStatus(context),
-          cds, await cs.definition(context), await cs.itemWeight(context),
-          expansion, null, await cs.extensions(context), null,
-          csProperties, null, excludeInactive, vsSrc.url);
-        if (added) this._incrementTotal();
       }
+      const added = await this._handleCandidateFromContext(cs, context, {
+        mode,
+        expansion,
+        importedSets,
+        excludeInactive,
+        vsSrcUrl: vsSrc.url,
+        parent,
+      });
+      if (added) traceCounts.filter_survivors++;
     }, 'processFilters');
+    this._countMany(traceCounts);
     this.worker.opContext.log('iterate filters done');
     _tFilters.end();
   }
@@ -1330,27 +1325,20 @@ class ValueSetExpander {
       const filterSets = await cs.executeFilters(prep);
 
       this.worker.opContext.log('iterate text filter results');
+      const traceCounts = { whole_text_candidates: 0, whole_text_survivors: 0 };
       await this._iterateFilterSet(cs, prep, filterSets, async (context) => {
+        traceCounts.whole_text_candidates++;
         if (!await this._passesSecondaryFilters(cs, context, prep, filterSets, 1)) return;
-        if (!this._passesImports(importedSets, cs.system(), await cs.code(context), 0)) return;
-
-      if (mode === 'exclude') {
-        this._addExclusion(cs, await cs.system(), await cs.version(), await cs.code(context),
-          expansion, importedSets, vsSrc.url);
-      } else {
-        if (await this._isExcludedByFilterPredicates(cs, context)) return;
-        this._enforceIncludePaginationShortCircuit();
-        const cds = new Designations(this.worker.i18n.languageDefinitions);
-        await this._listDisplays(cds, cs, context);
-        const csProperties = await this._loadProperties(cs, context);
-          this._addToExpansion(cs, null, await cs.system(), await cs.version(),
-            await cs.code(context), await cs.isAbstract(context), await cs.isInactive(context),
-            await cs.isDeprecated(context), await cs.getStatus(context),
-            cds, await cs.definition(context), await cs.itemWeight(context),
-            expansion, importedSets, await cs.extensions(context), null,
-            csProperties, null, excludeInactive, vsSrc.url);
-        }
+        const added = await this._handleCandidateFromContext(cs, context, {
+          mode,
+          expansion,
+          importedSets,
+          excludeInactive,
+          vsSrcUrl: vsSrc.url,
+        });
+        if (added) traceCounts.whole_text_survivors++;
       }, 'wholeSystem:textFilter');
+      this._countMany(traceCounts);
       this.worker.opContext.log('iterate text filter done');
       _tWhole.end();
       return;
@@ -1411,7 +1399,6 @@ class ValueSetExpander {
       }
       context = await cs.nextContext(iter);
     }
-    if (mode === 'include') this._incrementTotal(tcount);
     _tWhole.end();
   }
 
@@ -1538,7 +1525,6 @@ class ValueSetExpander {
 
   async _importValueSetItem(parent, c, imports, offset) {
     this.worker.deadCheck('importValueSetItem');
-    T.count('import_candidates_scanned');
     const matchVersion = this.doingVersion ? c.version : '';
     if (this.exclusionEvaluator.has(c.system, matchVersion, c.code)) return;
     this._enforceIncludePaginationShortCircuit();
@@ -1553,7 +1539,6 @@ class ValueSetExpander {
       }
       this.map.set(key, c);
       this._incrementTotal();
-      T.count('import_candidates_survived');
     }
     for (const cc of c.contains || []) {
       await this._importValueSetItem(c, cc, imports, offset);
@@ -1654,6 +1639,7 @@ class ValueSetExpander {
 
   async _listDisplays(displays, cs, context) {
     if (this._canUseDisplayFastPath() && typeof cs.display === 'function') {
+      T.count('display_fastpath_hits');
       const display = await cs.display(context);
       if (display != null) {
         const inactive = typeof cs.isInactive === 'function' ? await cs.isInactive(context) : false;
@@ -1745,7 +1731,6 @@ class ValueSetExpander {
                    displays, definition, itemWeight, expansion, imports, csExtList, vsExtList,
                    csProps, expProps, excludeInactive, srcURL) {
     this._noteAddProgress();
-    T.count('candidates_scanned_total');
     this.worker.deadCheck('addToExpansion');
 
     if (!this._passesMembershipChecks(imports, system, version, code, isInactive, excludeInactive)) return null;
@@ -1756,13 +1741,12 @@ class ValueSetExpander {
     const key = makeKey(system, version, code, this.doingVersion);
     if (this.map.has(key)) return null;
 
-    const entry = this.renderer.render({
+    const entry = this._renderContainsEntry({
       cs, expansion, system, version, code, isAbstract, isInactive, deprecated, status,
       displays, definition, csExtList, vsExtList, csProps,
     });
 
     this._appendExpansionEntry(parent, key, entry);
-    T.count('candidates_survived_total');
 
     return entry;
   }
@@ -1773,12 +1757,10 @@ class ValueSetExpander {
   }
 
   _passesMembershipChecks(imports, system, version, code, isInactive, excludeInactive) {
-    T.count('membership_checks');
     if (!this._passesImports(imports, system, code, 0)) return false;
     if (isInactive && excludeInactive) return false;
     const matchVersion = this.doingVersion ? version : '';
     if (this.exclusionEvaluator.has(system, matchVersion, code)) {
-      T.count('membership_exclusion_hits');
       return false;
     }
     return true;
@@ -1936,10 +1918,7 @@ class ValueSetExpander {
   }
 
   async _isExcludedByFilterPredicates(cs, context) {
-    T.count('filter_predicate_candidates');
-    const excluded = await this.exclusionEvaluator.matchesFilterPredicates(cs, context);
-    if (excluded) T.count('filter_predicate_hits');
-    return excluded;
+    return this.exclusionEvaluator.matchesFilterPredicates(cs, context);
   }
 
   // ── Extension-driven property helpers ────────────────────────────────────────
@@ -2115,6 +2094,41 @@ class ValueSetExpander {
       && !(source.status === 'draft' || Extensions.readString(source, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status') === 'draft')) {
       this._addParam(exp, 'warning-draft', 'valueUri', vurl);
     }
+  }
+
+  _resolveFinalTotalAndPagingState() {
+    const hasPaging = this.count > -1 || this.offset > -1;
+    const hasKnownSafeTotal = Number.isFinite(this.knownSafeTotal) && this.knownSafeTotal >= 0;
+
+    if (this.finishedByPagination) {
+      if (hasKnownSafeTotal) {
+        this.totalStatus = 'set';
+        this.total = this.knownSafeTotal;
+        return;
+      }
+      if (this.paginationAlreadyApplied && this.totalStatus === 'set' && this.total > -1) {
+        return;
+      }
+      this.totalStatus = 'off';
+      this.total = -1;
+      return;
+    }
+
+    if (this.totalStatus !== 'uninitialised') return;
+    if (!hasPaging) {
+      this.totalStatus = 'off';
+      return;
+    }
+    if (hasKnownSafeTotal) {
+      this.totalStatus = 'set';
+      this.total = Math.max(this.total, this.knownSafeTotal);
+      return;
+    }
+    if (this.paginationAlreadyApplied && this.total > 0) {
+      this.totalStatus = 'set';
+      return;
+    }
+    this.totalStatus = 'off';
   }
 
   // ── Output assembly ──────────────────────────────────────────────────────────
@@ -2521,9 +2535,7 @@ module.exports = {
   ExpansionPlanner,
   ExpandPlan,
   ExpansionExecutor,
-  ContainsRenderer,
   PushdownRequestBuilder,
-  ExpansionSourceHandlers,
   ExclusionPolicyBuilder,
   ExclusionEvaluator,
   ExclusionIndex,
