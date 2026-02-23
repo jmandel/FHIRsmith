@@ -2636,6 +2636,41 @@ test('logic: total includes direct and imported include contributions', async ()
   assert(result.expansion.total === 4, `expected total=4, got ${result.expansion.total}`);
 });
 
+test('logic: whole-system descendant traversal keeps exact total', async () => {
+  const csUrl = `http://example.org/cs/logic-whole-total-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [
+      {
+        code: 'root-a',
+        display: 'Root A',
+        concept: [
+          { code: 'child-a1', display: 'Child A1' },
+          { code: 'child-a2', display: 'Child A2' },
+        ],
+      },
+      {
+        code: 'root-b',
+        display: 'Root B',
+        concept: [
+          { code: 'child-b1', display: 'Child B1' },
+        ],
+      },
+    ],
+  };
+
+  const { result } = await expand(vs({ system: csUrl }), { txResources: [cs] });
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  const keys = [];
+  flattenContainsKeys(contains, keys);
+  assert(keys.length === 5, `expected 5 flattened codes, got ${keys.length}`);
+  assert(result.expansion.total === 5, `expected total=5, got ${result.expansion.total}`);
+});
+
 test('logic: total reflects imported excludes without mutating accumulated list', async () => {
   const csUrl = `http://example.org/cs/logic-total-exclude-${Date.now()}`;
   const includeVsUrl = `http://example.org/vs/logic-total-exclude-include-${Date.now()}`;

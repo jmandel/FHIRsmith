@@ -476,7 +476,7 @@ class HierarchyCollector {
 
     let treeParent = parent;
     if (shouldInclude) {
-      const added = await e._handleCandidateFromContext(cs, context, {
+      const added = await e._handleHierarchyCandidate(cs, context, {
         mode,
         expansion,
         importedSets: imports,
@@ -1122,6 +1122,95 @@ class ValueSetExpander {
     return entry;
   }
 
+  _candidateOptions(overrides = {}) {
+    return {
+      parent: null,
+      conceptRef: null,
+      vsSrc: null,
+      preparedDisplays: null,
+      candidateCode: null,
+      skipImportCheck: false,
+      ...overrides,
+    };
+  }
+
+  async _handleConceptCandidate(cs, context, {
+    mode,
+    expansion,
+    importedSets,
+    excludeInactive,
+    vsSrc,
+    conceptRef,
+    preparedDisplays,
+    candidateCode,
+  }) {
+    return this._handleCandidateFromContext(cs, context, this._candidateOptions({
+      mode,
+      expansion,
+      importedSets,
+      excludeInactive,
+      vsSrcUrl: vsSrc.url,
+      conceptRef,
+      vsSrc,
+      preparedDisplays,
+      candidateCode,
+    }));
+  }
+
+  async _handleFilterCandidate(cs, context, {
+    mode,
+    expansion,
+    importedSets,
+    excludeInactive,
+    vsSrcUrl,
+    parent = null,
+  }) {
+    return this._handleCandidateFromContext(cs, context, this._candidateOptions({
+      mode,
+      expansion,
+      importedSets,
+      excludeInactive,
+      vsSrcUrl,
+      parent,
+    }));
+  }
+
+  async _handleWholeSystemCandidate(cs, context, {
+    mode,
+    expansion,
+    importedSets,
+    excludeInactive,
+    vsSrcUrl,
+  }) {
+    return this._handleCandidateFromContext(cs, context, this._candidateOptions({
+      mode,
+      expansion,
+      importedSets,
+      excludeInactive,
+      vsSrcUrl,
+    }));
+  }
+
+  async _handleHierarchyCandidate(cs, context, {
+    mode,
+    expansion,
+    importedSets,
+    excludeInactive,
+    vsSrcUrl,
+    parent = null,
+    candidateCode = null,
+  }) {
+    return this._handleCandidateFromContext(cs, context, this._candidateOptions({
+      mode,
+      expansion,
+      importedSets,
+      excludeInactive,
+      vsSrcUrl,
+      parent,
+      candidateCode,
+    }));
+  }
+
   async _handleCandidateFromContext(cs, context, {
     mode,
     expansion,
@@ -1200,14 +1289,13 @@ class ValueSetExpander {
       this._applyConceptOverrides(cds, cc, vsSrc);
 
       if (!filter.passesDesignations(cds) && !filter.passes(cc.code)) continue;
-      const added = await this._handleCandidateFromContext(cs, located.context, {
+      const added = await this._handleConceptCandidate(cs, located.context, {
         mode,
         expansion,
         importedSets,
         excludeInactive,
-        vsSrcUrl: vsSrc.url,
-        conceptRef: cc,
         vsSrc,
+        conceptRef: cc,
         preparedDisplays: cds,
         candidateCode: cc.code,
       });
@@ -1280,7 +1368,7 @@ class ValueSetExpander {
           this.canBeHierarchy = false;
         }
       }
-      const added = await this._handleCandidateFromContext(cs, context, {
+      const added = await this._handleFilterCandidate(cs, context, {
         mode,
         expansion,
         importedSets,
@@ -1329,7 +1417,7 @@ class ValueSetExpander {
       await this._iterateFilterSet(cs, prep, filterSets, async (context) => {
         traceCounts.whole_text_candidates++;
         if (!await this._passesSecondaryFilters(cs, context, prep, filterSets, 1)) return;
-        const added = await this._handleCandidateFromContext(cs, context, {
+        const added = await this._handleWholeSystemCandidate(cs, context, {
           mode,
           expansion,
           importedSets,
@@ -1386,19 +1474,16 @@ class ValueSetExpander {
         .withDiagnostics(this.worker.opContext.diagnostics());
     }
 
-    let tcount = 0;
+    const traceCounts = { whole_roots: 0, whole_survivors: 0 };
     let context = await cs.nextContext(iter);
     while (context) {
       this.worker.deadCheck('wholeSystem:enumerate');
-      if (mode === 'exclude') {
-        tcount += await this._processDescendants(cs, context, expansion, importedSets,
-          null, excludeInactive, vsSrc.url, 'exclude');
-      } else {
-        tcount += await this._processDescendants(cs, context, expansion, importedSets,
-          null, excludeInactive, vsSrc.url, 'include');
-      }
+      traceCounts.whole_roots++;
+      traceCounts.whole_survivors += await this._processDescendants(cs, context, expansion, importedSets,
+        null, excludeInactive, vsSrc.url, mode);
       context = await cs.nextContext(iter);
     }
+    this._countMany(traceCounts);
     _tWhole.end();
   }
 
