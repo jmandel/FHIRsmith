@@ -207,26 +207,206 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.db = null;
   }
 
-  _expandCapabilities() {
+  capabilitiesV3() {
     return {
-      expandQuery: true,
-      pushdown: {
-        deterministicOrder: 'code',
-        supportsExcludes: true,
-        supportsPagination: true,
-        includeShapes: ['whole', 'concept', 'filter'],
-        excludeShapes: ['concept', 'filter'],
-        supportsTextFilter: true,
-        supportsIntersectCodes: true
-      }
+      query: true,
+      membership: true,
+      decorateMany: true,
+      supportsTextFilter: true,
+      supportsSetOps: true,
+      supportsPagination: true,
     };
   }
 
-  expandQuery(request) {
-    return this._expandQueryImpl(request);
+  async openStream(queryIR, opts = {}) {
+    const request = this._queryIrToExpandRequest(queryIR, opts);
+    if (!request) {
+      return null;
+    }
+    const result = this._expandQueryImpl(request);
+    if (!result || result.tooCostly) {
+      return null;
+    }
+
+    const codes = Array.isArray(result.codes) ? result.codes : [];
+    const stream = (async function *() {
+      for (const row of codes) {
+        if (!row || row.code == null) continue;
+        yield row;
+      }
+    })();
+    stream.total = typeof result.total === 'number' ? result.total : null;
+    stream.notClosed = !!result.notClosed;
+    return stream;
   }
 
-  // ── expandQuery: pushdown expansion for expand-v2 ─────────────────────────
+  async prepareMembership(queryIR) {
+    if (!queryIR || !queryIR.select) {
+      return null;
+    }
+
+    const closers = [];
+    const cache = new Map();
+    const rootMatcher = await this.#buildV3MembershipMatcher(queryIR, closers);
+
+    return {
+      batchHas: async (codes) => {
+        const out = new Array(codes.length).fill(false);
+        for (let i = 0; i < codes.length; i++) {
+          const code = String(codes[i] || '');
+          if (!code) continue;
+          if (cache.has(code)) {
+            out[i] = cache.get(code) === true;
+            continue;
+          }
+          const matches = await rootMatcher(code);
+          cache.set(code, !!matches);
+          out[i] = !!matches;
+        }
+        return out;
+      },
+      close: async () => {
+        for (const closer of closers) {
+          await closer();
+        }
+      },
+    };
+  }
+
+  async #buildV3MembershipMatcher(node, closers) {
+    if (!node || !node.select) {
+      return async () => false;
+    }
+    const baseMatcher = await this.#buildV3SelectMatcher(node.select, closers);
+    const opMatchers = [];
+    for (const op of node.ops || []) {
+      if (!op || !op.op || !op.with) continue;
+      opMatchers.push({
+        op: op.op,
+        matcher: await this.#buildV3MembershipMatcher(op.with, closers),
+      });
+    }
+
+    return async (code) => {
+      let matched = await baseMatcher(code);
+      for (const item of opMatchers) {
+        const rhs = await item.matcher(code);
+        if (item.op === 'union') matched = matched || rhs;
+        else if (item.op === 'intersect') matched = matched && rhs;
+        else if (item.op === 'except') matched = matched && !rhs;
+        else return false;
+      }
+      return matched;
+    };
+  }
+
+  async #buildV3SelectMatcher(select, closers) {
+    if (!select || typeof select !== 'object') {
+      return async () => false;
+    }
+
+    if (select.kind === 'all') {
+      const intersectSet = Array.isArray(select.intersectCodes)
+        ? new Set(select.intersectCodes.map(c => String(c || '')).filter(Boolean))
+        : null;
+      return async (code) => {
+        if (intersectSet && !intersectSet.has(code)) return false;
+        const located = await this.locate(code);
+        return !!located?.context;
+      };
+    }
+
+    if (select.kind === 'concept') {
+      const conceptSet = new Set((select.codes || []).map(c => String(c || '')).filter(Boolean));
+      const intersectSet = Array.isArray(select.intersectCodes)
+        ? new Set(select.intersectCodes.map(c => String(c || '')).filter(Boolean))
+        : null;
+      return async (code) => conceptSet.has(code) && (!intersectSet || intersectSet.has(code));
+    }
+
+    if (select.kind === 'filter') {
+      const intersectSet = Array.isArray(select.intersectCodes)
+        ? new Set(select.intersectCodes.map(c => String(c || '')).filter(Boolean))
+        : null;
+      const prep = await this.getPrepContext(false);
+      closers.push(async () => this.filterFinish(prep));
+      if (select.text && typeof this.searchFilter === 'function') {
+        await this.searchFilter(prep, select.text, false);
+      }
+      for (const fc of select.clauses || []) {
+        await this.filter(prep, fc.property, fc.op, fc.value);
+      }
+      const sets = await this.executeFilters(prep);
+      const setList = (Array.isArray(sets) ? sets : [sets]).filter(Boolean);
+      if (setList.length === 0) {
+        return async () => false;
+      }
+      return async (code) => {
+        if (intersectSet && !intersectSet.has(code)) return false;
+        for (const set of setList) {
+          const located = await this.filterLocate(prep, set, code);
+          if (!located || typeof located === 'string') {
+            return false;
+          }
+        }
+        return true;
+      };
+    }
+
+    return async () => false;
+  }
+
+  async decorateMany(codes, opts = {}) {
+    if (!Array.isArray(codes) || codes.length === 0) {
+      return [];
+    }
+
+    const includeDesignations = opts.includeDesignations === true;
+    const requestedProps = new Set((opts.properties || []).map(p => String(p || '')).filter(Boolean));
+    const allPropsRequested = requestedProps.has('*');
+    const allAltCodes = opts.allAltCodes === true;
+    const located = await this.locateMany(codes, allAltCodes);
+
+    const rows = [];
+    for (const rawCode of codes) {
+      const code = String(rawCode || '');
+      if (!code) continue;
+
+      const loc = located.get(code) || await this.locate(code);
+      const context = loc?.context || null;
+      if (!context) {
+        rows.push({ code });
+        continue;
+      }
+
+      const row = {
+        code,
+        display: await this.display(context),
+        isInactive: await this.isInactive(context),
+        isAbstract: await this.isAbstract(context),
+        isDeprecated: await this.isDeprecated(context),
+        status: await this.getStatus(context),
+      };
+
+      if (includeDesignations) {
+        const collector = makeV3DesignationCollector();
+        await this.designations(context, collector);
+        row.designations = collector.rows;
+      }
+
+      if (allPropsRequested || requestedProps.size > 0) {
+        const props = await this.properties(context);
+        row.properties = allPropsRequested
+          ? props
+          : props.filter(p => p && requestedProps.has(String(p.code || '')));
+      }
+
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  // ── internal query execution for openStream / prepareMembership ───────────
   //
   // Handles an entire group of include+exclude compose components in a single
   // SQL query via better-sqlite3 (synchronous).  Reuses #buildV0FilterSql and
@@ -236,7 +416,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   // Returns null when:
   //   - any filter uses an operator we can't translate to SQL
   //
-  // The expand-v2 worker will then fall back to streaming iteration.
+  // The caller can fall back to iterator/filter streaming when this returns null.
 
   _expandQueryImpl(request) {
     const syncDb = this.#getSyncDb();
@@ -1411,6 +1591,17 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     const props = [];
     props.push({ code: 'inactive', valueBoolean: !ctxt.active });
 
+    if (this.supplements) {
+      for (const supplement of this.supplements) {
+        const supplementConcept = supplement.getConceptByCode(ctxt.code);
+        if (!supplementConcept) continue;
+        for (const p of supplementConcept.property || []) {
+          if (!p || !p.code) continue;
+          props.push({ ...p });
+        }
+      }
+    }
+
     if (!this.meta.hierarchyPropertyId) {
       return props;
     }
@@ -2128,13 +2319,6 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     if (propertyCfg) {
       await this.#filterByProperty(filterContext, propertyCfg, op, value);
     }
-  }
-
-  capabilities() {
-    return {
-      ...this._expandCapabilities(),
-      filterPage: true
-    };
   }
 
   async filterPage(filterContext, set, count = 256) {
@@ -4225,6 +4409,27 @@ function all(db, sql, params = []) {
       else resolve(rows || []);
     });
   });
+}
+
+function makeV3DesignationCollector() {
+  const rows = [];
+  return {
+    rows,
+    addDesignation(isDisplay, status, lang, use, value) {
+      const d = { value: String(value || '') };
+      if (lang) d.language_code = String(lang);
+      if (use && typeof use === 'object') {
+        if (use.system) d.use_system = String(use.system);
+        if (use.code) d.use_code = String(use.code);
+      } else if (typeof use === 'string' && use.length > 0) {
+        d.use_code = use;
+      }
+      d.preferred = !!isDisplay;
+      d.active = status !== 'inactive' && status !== 'withdrawn';
+      rows.push(d);
+      return d;
+    },
+  };
 }
 
 module.exports = {

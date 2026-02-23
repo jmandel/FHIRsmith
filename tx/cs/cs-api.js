@@ -447,86 +447,158 @@ class CodeSystemProvider {
   }
 
   /**
-   * Optional provider capabilities descriptor for planner decisions.
-   * Implementors can return a richer object; unknown keys are ignored.
+   * Optional capability descriptor for expand-v3 style execution.
    *
-   * Known keys currently consumed by expand-v2:
-   * - expandQuery: boolean
-   * - pushdown.supportsExcludes: boolean
-   * - pushdown.supportsPagination: boolean
-   * - pushdown.includeShapes: string[]
-   * - pushdown.excludeShapes: string[]
-   * - pushdown.supportsTextFilter: boolean
-   * - pushdown.supportsIntersectCodes: boolean
+   * Legacy providers can ignore this entirely; adapters will fallback
+   * to iterator/filter APIs.
    *
-   * @returns {Object}
+   * @returns {{
+   *   query?: boolean,
+   *   membership?: boolean,
+   *   decorateMany?: boolean,
+   *   supportsTextFilter?: boolean,
+   *   supportsSetOps?: boolean,
+   *   supportsPagination?: boolean
+   * }}
    */
-  capabilities() {
+  capabilitiesV3() {
     const proto = CodeSystemProvider.prototype;
+    const hasOpenStream = (this.openStream !== proto.openStream);
+    const hasPrepareMembership = (this.prepareMembership !== proto.prepareMembership);
+    const hasDecorateMany = (this.decorateMany !== proto.decorateMany);
     return {
-      expandQuery: (this.expandQuery !== proto.expandQuery),
-      pushdown: null,
+      query: hasOpenStream,
+      membership: hasPrepareMembership,
+      decorateMany: hasDecorateMany,
+      supportsTextFilter: hasOpenStream,
+      supportsSetOps: false,
+      supportsPagination: false,
     };
   }
 
   /**
-   * Optional: handle an entire expansion component group (includes + excludes
-   * for this system) in a single native operation. Providers backed by SQL
-   * or similar query engines can override this to push filters, exclusions,
-   * intersections, and pagination into a single query.
+   * Optional v3 streaming hook. Providers can yield stable-ordered candidate rows
+   * for a provider-native query representation.
    *
-   * Return null to fall back to streaming iteration (the default).
-   *
-   * Per FHIR compose invariants (vsd-1/2/3), each component entry has exactly
-   * one of three shapes:
-   *   - concept (enumerated codes)
-   *   - filter  (property-based predicates)
-   *   - neither (whole system)
-   * They are mutually exclusive; both are never present.
-   *
-   * @param {Object} request
-   * @param {ExpandComponentEntry[]} request.includes  - include components for this system
-   * @param {ExpandComponentEntry[]} request.excludes  - exclude components for this system
-   * @param {string|null}  request.textFilter          - user's ?filter= search text
-   * @param {boolean}      request.activeOnly          - skip inactive codes
-   * @param {boolean}      request.excludeInactive     - compose.inactive=false
-   * @param {string[]}     request.properties          - requested property codes
-   * @param {boolean}      request.includeDesignations
-   * @param {Object|null}  request.displayLanguages    - working language context
-   * @param {{offset:number, count:number}|null} request.pagination
-   *        Present only when the orchestrator can guarantee this group is the
-   *        sole source of codes - safe to LIMIT/OFFSET in the query.
-   * @param {number}       request.limitCount          - server-side expansion cap
-   *
-   * Where ExpandComponentEntry is:
-   * @typedef {Object} ExpandComponentEntry
-   * @property {Array<{code:string, display?:string}>|null} concept
-   *           Enumerated codes (shape B/E), or null.
-   * @property {Array<{property:string, op:string, value:string}>|null} filter
-   *           Filter clauses (shape C/F), or null.
-   * @property {string[]|null} intersectCodes
-   *           Codes from pre-expanded ValueSet imports that the results must
-   *           be intersected with. null = no intersection constraint.
-   *           The provider may load these into a temp table for efficient joins.
-   *
-   * @returns {Object|null} null = fall back to streaming. Otherwise:
-   *   {
-   *     codes: Array<{
-   *       code: string,
-   *       display?: string,
-   *       isAbstract?: boolean,
-   *       isInactive?: boolean,
-   *       isDeprecated?: boolean,
-   *       status?: string,
-   *       designations?: Array,
-   *       properties?: Array<{uri:string, code:string, valueName:string, value:any}>,
-   *     }>,
-   *     total: number|null,   // true total (before pagination), if known
-   *     notClosed: boolean,   // true if result set is open-ended
-   *   }
+   * @param {object} queryIR
+   * @param {object} opts
+   * @returns {AsyncGenerator<object>|null}
    */
-  async expandQuery(request) {
-    void request;
+  async openStream(queryIR, opts = {}) {
+    void queryIR;
+    void opts;
+    const stream = null;
+    return stream;
+  }
+
+  _queryIrToExpandRequest(queryIR, opts = {}) {
+    if (!queryIR || typeof queryIR !== 'object' || !queryIR.select) return null;
+
+    const system = this.system();
+    const version = this.version() || null;
+    const qSystem = queryIR.system || null;
+    const qVersion = queryIR.version || null;
+    if (!qSystem || qSystem !== system) return null;
+    if (qVersion && version && qVersion !== version) return null;
+
+    const include = [];
+    const exclude = [];
+
+    const base = this._queryIrSelectToExpandEntry(queryIR.select);
+    if (!base) return null;
+    include.push(base);
+
+    for (const op of queryIR.ops || []) {
+      if (!op || !op.op || !op.with || op.with.ops?.length) return null;
+      const withSystem = op.with.system || null;
+      const withVersion = op.with.version || null;
+      if (!withSystem || withSystem !== system) return null;
+      if (withVersion && version && withVersion !== version) return null;
+      const entry = this._queryIrSelectToExpandEntry(op.with.select);
+      if (!entry) return null;
+      if (op.op === 'union') include.push(entry);
+      else if (op.op === 'except') exclude.push(entry);
+      else return null;
+    }
+
+    let textFilter = null;
+    if (typeof queryIR.select?.text === 'string' && queryIR.select.text.length > 0) {
+      textFilter = queryIR.select.text;
+    } else if (typeof opts.textFilter?.filter === 'string' && opts.textFilter.filter.length > 0) {
+      textFilter = opts.textFilter.filter;
+    } else if (typeof opts.textFilter === 'string' && opts.textFilter.length > 0) {
+      textFilter = opts.textFilter;
+    }
+
+    const offset = Number.isInteger(opts.offset) ? opts.offset : 0;
+    const count = Number.isInteger(opts.count) ? opts.count : -1;
+    const pagination = count >= 0 ? { offset, count } : null;
+
+    return {
+      includes: include,
+      excludes: exclude,
+      textFilter,
+      activeOnly: !!opts.activeOnly,
+      excludeInactive: !!opts.excludeInactive,
+      properties: Array.isArray(opts.properties) ? opts.properties : [],
+      includeDesignations: !!opts.includeDesignations,
+      displayLanguages: opts.displayLanguages || null,
+      pagination,
+      limitCount: Number.isInteger(opts.limitCount) ? opts.limitCount : 0,
+    };
+  }
+
+  _queryIrSelectToExpandEntry(select) {
+    if (!select || typeof select !== 'object') return null;
+    const intersectCodes = Array.isArray(select.intersectCodes)
+      ? select.intersectCodes.map(code => String(code || '')).filter(Boolean)
+      : null;
+    if (select.kind === 'all') {
+      return { concept: null, filter: null, intersectCodes };
+    }
+    if (select.kind === 'concept') {
+      const concept = (select.codes || [])
+        .map(code => ({ code: String(code || '') }))
+        .filter(c => c.code.length > 0);
+      return { concept, filter: null, intersectCodes };
+    }
+    if (select.kind === 'filter') {
+      const filter = (select.clauses || [])
+        .map(fc => ({
+          property: String(fc?.property || ''),
+          op: String(fc?.op || ''),
+          value: String(fc?.value || ''),
+        }))
+        .filter(fc => fc.property && fc.op);
+      return { concept: null, filter, intersectCodes };
+    }
+    return null;
+  }
+
+  /**
+   * Optional v3 membership hook. Providers can return an object with:
+   *   - batchHas(codes[]) -> boolean[]
+   *   - optional close()
+   *
+   * @param {object} queryIR
+   * @returns {object|null}
+   */
+  async prepareMembership(queryIR) {
+    void queryIR;
+    return null;
+  }
+
+  /**
+   * Optional v3 bulk decoration hook. Providers can return rows keyed by code
+   * with display/designations/properties in one batch call.
+   *
+   * @param {string[]} codes
+   * @param {object} opts
+   * @returns {Array<object>|null}
+   */
+  async decorateMany(codes, opts = {}) {
+    void codes;
+    void opts;
     return null;
   }
 

@@ -282,15 +282,14 @@ class TerminologyWorker {
         }
 
         // we consider either language packs or specified supplements
-        if (!(cs.isLangPack() || (statedSupplements && (statedSupplements.has(cs.url) || statedSupplements.has(cs.vurl))))) {
+        const explicitlyRequested = !!(statedSupplements && (statedSupplements.has(cs.url) || statedSupplements.has(cs.vurl)));
+        if (!(cs.isLangPack() || explicitlyRequested)) {
           continue;
         }
         // Handle exact URL match (no version specified in supplements)
         if (supplementsUrl === url) {
-          // If we're looking for a specific version, only include if no version in supplements URL
-          if (!version) {
-            supplements.push(cs);
-          }
+          // Unversioned supplement applies across versions of the same system.
+          supplements.push(cs);
           continue;
         }
 
@@ -300,9 +299,21 @@ class TerminologyWorker {
             // No version specified in search, include all supplements for this URL
             supplements.push(cs);
           } else {
+            if (explicitlyRequested) {
+              supplements.push(cs);
+              continue;
+            }
             // Version specified, check if it matches the tail of supplements URL
             const supplementsVersion = supplementsUrl.substring(`${url}|`.length);
-            if (supplementsVersion === version || VersionUtilities.versionMatches(supplementsVersion, version)) {
+            let versionMatch = supplementsVersion === version;
+            if (!versionMatch) {
+              try {
+                versionMatch = VersionUtilities.versionMatches(supplementsVersion, version);
+              } catch (_e) {
+                versionMatch = false;
+              }
+            }
+            if (versionMatch) {
               supplements.push(cs);
             }
           }

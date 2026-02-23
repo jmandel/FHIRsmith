@@ -17,6 +17,7 @@ const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/worker
 
 const WORKER_MODULES = {
   v2: require('../../tx/workers/expand-v2'),
+  v3: require('../../tx/workers/expand-v3'),
 };
 
 const log = {
@@ -32,7 +33,7 @@ function usage() {
     '  node tests/tx/expand-v2-adhoc.js [options]',
     '',
     'Core options:',
-    '  --impl v2                         Worker impl (default: v2)',
+    '  --impl v2|v3                      Worker impl (default: v2)',
     '  --vs-file <path>                  ValueSet JSON file',
     '  --vs-json <json>                  ValueSet JSON inline',
     '  --include <json>                  Repeated compose.include item JSON',
@@ -53,15 +54,19 @@ function usage() {
     '',
     'Extras:',
     '  --tx-resource-file <path>         Repeated; supports single resource, array, or Bundle',
+    '  --tx-resource-json <json>         Repeated inline tx-resource (single resource or array)',
     '  --disable-pushdown                Set EXPAND_V2_DISABLE_PUSHDOWN=1 for this run',
     '  --trace off|summary|json          Default: off',
     '  --trace-max-spans <n>             Default: 24',
+    '  --trace-file <path>               Optional file path to write trace JSON/summary',
+    '  --out-file <path>                 Optional file path to write final output JSON',
     '  --full-result                     Include full expansion in output',
     '  --contains-preview <n>            Default: 20',
     '  --help',
     '',
     'Example:',
-    '  node tests/tx/expand-v2-adhoc.js --impl v2 --system http://snomed.info/sct --count 1000 --offset 50000 --trace summary',
+    '  node tests/tx/expand-v2-adhoc.js --impl v3 --system http://snomed.info/sct --count 1000 --offset 50000 --trace summary',
+    '  node tests/tx/expand-v2-adhoc.js --impl v3 --vs-file ./my-vs.json --params-file ./my-params.json --trace json',
   ].join('\n');
 }
 
@@ -121,6 +126,19 @@ function parseIntOpt(val, label) {
   const n = Number.parseInt(String(val), 10);
   if (!Number.isFinite(n)) throw new Error(`Invalid integer for ${label}: ${val}`);
   return n;
+}
+
+function firstParamPrimitive(params, name) {
+  for (const p of params || []) {
+    if (!p || p.name !== name) continue;
+    if (Object.prototype.hasOwnProperty.call(p, 'valueInteger')) return p.valueInteger;
+    if (Object.prototype.hasOwnProperty.call(p, 'valueString')) return p.valueString;
+    if (Object.prototype.hasOwnProperty.call(p, 'valueUri')) return p.valueUri;
+    if (Object.prototype.hasOwnProperty.call(p, 'valueCanonical')) return p.valueCanonical;
+    if (Object.prototype.hasOwnProperty.call(p, 'valueCode')) return p.valueCode;
+    if (Object.prototype.hasOwnProperty.call(p, 'valueBoolean')) return p.valueBoolean;
+  }
+  return null;
 }
 
 function flattenContains(contains, out = []) {
@@ -203,7 +221,7 @@ async function main() {
 
   const impl = String(args.impl || 'v2').toLowerCase();
   if (!WORKER_MODULES[impl]) {
-    throw new Error(`Unsupported --impl '${impl}'. Use v2.`);
+    throw new Error(`Unsupported --impl '${impl}'. Use v2 or v3.`);
   }
 
   const traceMode = String(args.trace || 'off').toLowerCase();
@@ -212,6 +230,8 @@ async function main() {
   }
   const traceMaxSpans = parseIntOpt(args['trace-max-spans'], '--trace-max-spans') ?? 24;
   const containsPreview = parseIntOpt(args['contains-preview'], '--contains-preview') ?? 20;
+  const traceFile = args['trace-file'] ? path.resolve(String(args['trace-file'])) : null;
+  const outFile = args['out-file'] ? path.resolve(String(args['out-file'])) : null;
   const fullResult = args['full-result'] === true;
   const disablePushdown = args['disable-pushdown'] === true;
 
@@ -250,8 +270,14 @@ async function main() {
   paramsResource = { resourceType: 'Parameters', parameter: params };
 
   const txResourceFiles = listify(args['tx-resource-file']);
+  const txResourceJson = listify(args['tx-resource-json']);
   const txResources = [];
   for (const rf of txResourceFiles) txResources.push(...loadResourceFile(String(rf)));
+  for (const [idx, rj] of txResourceJson.entries()) {
+    const parsed = parseJson(String(rj), `--tx-resource-json[${idx}]`);
+    if (Array.isArray(parsed)) txResources.push(...parsed);
+    else txResources.push(parsed);
+  }
   for (const p of params) {
     if (p?.name === 'tx-resource' && p.resource) txResources.push(p.resource);
   }
@@ -279,6 +305,11 @@ async function main() {
 
     const txp = new TxParameters(library.languageDefinitions, library.i18n, false);
     txp.readParams(paramsResource);
+    const normalizeNum = (n) => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : null);
+    const effectiveCount = normalizeNum(txp.count ?? firstParamPrimitive(params, 'count'));
+    const effectiveOffset = normalizeNum(txp.offset ?? firstParamPrimitive(params, 'offset'));
+    const effectiveLimit = normalizeNum(txp.limit ?? firstParamPrimitive(params, 'limit'));
+    const effectiveFilter = txp.filter ?? firstParamPrimitive(params, 'filter');
 
     const findParam = (name) => params.find(p => p?.name === name);
     if (!vsJson) {
@@ -329,10 +360,12 @@ async function main() {
       disablePushdown,
       ms,
       request: {
-        count: count ?? null,
-        offset: offset ?? null,
-        limit: limit ?? null,
-        filter,
+        count: effectiveCount ?? null,
+        offset: effectiveOffset ?? null,
+        limit: effectiveLimit ?? null,
+        filter: effectiveFilter ?? null,
+        parameterCount: params.length,
+        txResourceCount: txResources.length,
         paramNames: params.map(p => p.name),
         resolvedFromUrl,
         compose: vsJson?.compose || null,
@@ -366,7 +399,19 @@ async function main() {
       output.trace = traceJson;
     }
 
-    console.log(JSON.stringify(output, null, 2));
+    const rendered = JSON.stringify(output, null, 2);
+    console.log(rendered);
+
+    if (outFile) {
+      fs.writeFileSync(outFile, rendered + '\n');
+    }
+    if (traceFile && traceJson) {
+      if (traceMode === 'summary') {
+        fs.writeFileSync(traceFile, (output.traceSummary || '') + '\n');
+      } else {
+        fs.writeFileSync(traceFile, JSON.stringify(traceJson, null, 2) + '\n');
+      }
+    }
   } finally {
     if (prevPushdown === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
     else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prevPushdown;

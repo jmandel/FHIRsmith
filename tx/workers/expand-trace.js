@@ -1,10 +1,10 @@
 /**
- * Expand Trace — ambient structured tracing for expand-v2 debugging.
+ * Expand Trace — ambient structured tracing for expansion debugging.
  *
  * Uses AsyncLocalStorage so any code in the expand call chain can write
  * trace events without explicit argument threading.
  *
- * Usage from expand-v2 (the entry point):
+ * Usage from an expansion entry point:
  *   const { traceStore, ExpandTrace } = require('./expand-trace');
  *   const trace = new ExpandTrace();
  *   await traceStore.run(trace, async () => {
