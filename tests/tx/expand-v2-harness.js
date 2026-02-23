@@ -689,6 +689,352 @@ test('infra: tx-resource injected ValueSet import resolves against injected Code
   assert(!findCode(contains, 'blue'), 'blue should not be imported');
 });
 
+test('supplement: useSupplement parameter applies supplement content and records used-supplement', async () => {
+  const csUrl = `http://example.org/cs/supp-base-${Date.now()}`;
+  const suppUrl = `http://example.org/cs/supp-pack-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [
+      { code: 'x', display: 'Base Display' },
+    ],
+  };
+  const supplement = {
+    resourceType: 'CodeSystem',
+    url: suppUrl,
+    status: 'active',
+    content: 'supplement',
+    supplements: csUrl,
+    concept: [
+      {
+        code: 'x',
+        display: 'Supplement Display',
+        designation: [
+          { language: 'en', value: 'Supplement Synonym' },
+        ],
+      },
+    ],
+  };
+
+  const { result } = await expand(vs({ system: csUrl, concept: [{ code: 'x' }] }), {
+    txResources: [cs, supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppUrl },
+      { name: 'includeDesignations', valueBoolean: true },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 1, `expected 1 code, got ${contains.length}`);
+  const item = findCode(contains, 'x');
+  assert(item, 'missing code x');
+  assert(typeof item.display === 'string' && item.display.length > 0,
+    'expected non-empty display');
+  assert((item.designation || []).some(d => d.value === 'Supplement Display'),
+    'expected supplement display to be present as a designation');
+  assert((item.designation || []).some(d => d.value === 'Supplement Synonym'),
+    'expected supplement synonym designation');
+
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  assert(usedSupp.includes(suppUrl),
+    `expected used-supplement to include ${suppUrl}, got ${JSON.stringify(usedSupp)}`);
+});
+
+test('supplement: provided but not requested supplement is ignored', async () => {
+  const csUrl = `http://example.org/cs/supp-base-unrequested-${Date.now()}`;
+  const suppUrl = `http://example.org/cs/supp-pack-unrequested-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'x', display: 'Base X' }],
+  };
+  const supplement = {
+    resourceType: 'CodeSystem',
+    url: suppUrl,
+    status: 'active',
+    content: 'supplement',
+    supplements: csUrl,
+    concept: [{ code: 'x', display: 'Supplement X' }],
+  };
+
+  const { result } = await expand(vs({ system: csUrl, concept: [{ code: 'x' }] }), {
+    txResources: [cs, supplement],
+    params: [{ name: 'includeDesignations', valueBoolean: true }],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const item = findCode(result.expansion.contains || [], 'x');
+  assert(item, 'missing code x');
+  assert(item.display === 'Base X', `expected base display, got '${item.display}'`);
+  assert(!(item.designation || []).some(d => d.value === 'Supplement X'),
+    'unrequested supplement designation should not be present');
+  const usedSupp = findParams(result, 'used-supplement');
+  assert(usedSupp.length === 0,
+    `expected no used-supplement parameters when supplement is not requested, got ${usedSupp.length}`);
+});
+
+test('supplement: valueset-supplement extension on ValueSet activates supplement', async () => {
+  const csUrl = `http://example.org/cs/supp-base-ext-${Date.now()}`;
+  const suppUrl = `http://example.org/cs/supp-pack-ext-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'y', display: 'Base Y' }],
+  };
+  const supplement = {
+    resourceType: 'CodeSystem',
+    url: suppUrl,
+    status: 'active',
+    content: 'supplement',
+    supplements: csUrl,
+    concept: [{ code: 'y', display: 'Supplement Y' }],
+  };
+  const query = vs({
+    system: csUrl,
+    concept: [{ code: 'y' }],
+  });
+  query.extension = [{
+      url: 'http://hl7.org/fhir/StructureDefinition/valueset-supplement',
+      valueCanonical: suppUrl,
+    }];
+
+  const { result } = await expand(query, {
+    txResources: [cs, supplement],
+    params: [{ name: 'includeDesignations', valueBoolean: true }],
+  });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const item = findCode(result.expansion.contains || [], 'y');
+  assert(item, 'missing code y');
+  assert((item.designation || []).some(d => d.value === 'Supplement Y'),
+    'expected supplement value via designations when valueset-supplement is declared');
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  assert(usedSupp.includes(suppUrl),
+    `expected used-supplement to include ${suppUrl}, got ${JSON.stringify(usedSupp)}`);
+});
+
+test('supplement: used-supplement parameter is deduped across multiple matched codes', async () => {
+  const csUrl = `http://example.org/cs/supp-base-dedupe-${Date.now()}`;
+  const suppUrl = `http://example.org/cs/supp-pack-dedupe-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [
+      { code: 'a', display: 'Base A' },
+      { code: 'b', display: 'Base B' },
+    ],
+  };
+  const supplement = {
+    resourceType: 'CodeSystem',
+    url: suppUrl,
+    status: 'active',
+    content: 'supplement',
+    supplements: csUrl,
+    concept: [
+      { code: 'a', display: 'Supp A' },
+      { code: 'b', display: 'Supp B' },
+    ],
+  };
+
+  const { result } = await expand(vs({ system: csUrl }), {
+    txResources: [cs, supplement],
+    params: [{ name: 'useSupplement', valueCanonical: suppUrl }],
+  });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 2, `expected 2 codes, got ${contains.length}`);
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  const matched = usedSupp.filter(v => v === suppUrl);
+  assert(matched.length === 1,
+    `expected used-supplement to be deduped to one entry, got ${matched.length}: ${JSON.stringify(usedSupp)}`);
+});
+
+test('supplement: missing required supplement fails expansion', async () => {
+  const csUrl = `http://example.org/cs/supp-base-missing-${Date.now()}`;
+  const missingSuppUrl = `http://example.org/cs/supp-missing-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'z', display: 'Base Z' }],
+  };
+
+  let failed = false;
+  try {
+    await expand(vs({ system: csUrl, concept: [{ code: 'z' }] }), {
+      txResources: [cs],
+      params: [{ name: 'useSupplement', valueCanonical: missingSuppUrl }],
+    });
+  } catch (e) {
+    failed = true;
+    const msg = String(e?.message || '');
+    assert(msg.toLowerCase().includes('supplement'),
+      `expected missing supplement error, got '${msg}'`);
+  }
+  assert(failed, 'expected expansion to fail when a required supplement is missing');
+});
+
+test('supplement: missing ValueSet extension supplement fails expansion', async () => {
+  const csUrl = `http://example.org/cs/supp-base-missing-ext-${Date.now()}`;
+  const missingSuppUrl = `http://example.org/cs/supp-missing-ext-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'm', display: 'Base M' }],
+  };
+  const query = vs({ system: csUrl, concept: [{ code: 'm' }] });
+  query.extension = [{
+    url: 'http://hl7.org/fhir/StructureDefinition/valueset-supplement',
+    valueCanonical: missingSuppUrl,
+  }];
+
+  let failed = false;
+  try {
+    await expand(query, { txResources: [cs] });
+  } catch (e) {
+    failed = true;
+    const msg = String(e?.message || '');
+    assert(msg.toLowerCase().includes('supplement'),
+      `expected missing supplement error, got '${msg}'`);
+  }
+  assert(failed, 'expected expansion to fail when ValueSet extension supplement is missing');
+});
+
+test('supplement: designation filter can select supplement use-coded designation', async () => {
+  const csUrl = `http://example.org/cs/supp-base-design-${Date.now()}`;
+  const suppUrl = `http://example.org/cs/supp-pack-design-${Date.now()}`;
+  const useSystem = 'http://snomed.info/sct';
+  const useCode = '900000000000003001';
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'd', display: 'Base D' }],
+  };
+  const supplement = {
+    resourceType: 'CodeSystem',
+    url: suppUrl,
+    status: 'active',
+    content: 'supplement',
+    supplements: csUrl,
+    concept: [{
+      code: 'd',
+      designation: [{
+        language: 'en',
+        use: { system: useSystem, code: useCode },
+        value: 'Supplement FSN',
+      }],
+    }],
+  };
+
+  const { result } = await expand(vs({ system: csUrl, concept: [{ code: 'd' }] }), {
+    txResources: [cs, supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppUrl },
+      { name: 'includeDesignations', valueBoolean: true },
+      { name: 'designation', valueString: `${useSystem}|${useCode}` },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const item = findCode(result.expansion.contains || [], 'd');
+  assert(item, 'missing code d');
+  const designations = item.designation || [];
+  assert(designations.length > 0, 'expected filtered designations');
+  assert(designations.some(d => d.value === 'Supplement FSN'),
+    'expected supplement FSN designation after use-based designation filtering');
+});
+
+test('supplement: itemWeight extension from supplement is projected into expansion properties', async () => {
+  const csUrl = `http://example.org/cs/supp-base-weight-${Date.now()}`;
+  const suppUrl = `http://example.org/cs/supp-pack-weight-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'w', display: 'Base W' }],
+  };
+  const supplement = {
+    resourceType: 'CodeSystem',
+    url: suppUrl,
+    status: 'active',
+    content: 'supplement',
+    supplements: csUrl,
+    concept: [{
+      code: 'w',
+      extension: [{
+        url: 'http://hl7.org/fhir/StructureDefinition/itemWeight',
+        valueDecimal: 2.5,
+      }],
+    }],
+  };
+
+  const { result } = await expand(vs({ system: csUrl, concept: [{ code: 'w' }] }), {
+    txResources: [cs, supplement],
+    params: [{ name: 'useSupplement', valueCanonical: suppUrl }],
+  });
+
+  assertExpansionStructure(result);
+  const item = findCode(result.expansion.contains || [], 'w');
+  assert(item, 'missing code w');
+  assert(hasProperty(item, 'weight'),
+    'expected weight property derived from supplement itemWeight extension');
+});
+
+test('supplement: version-pinned useSupplement canonical is accepted', async () => {
+  const csUrl = `http://example.org/cs/supp-base-versioned-${Date.now()}`;
+  const suppUrl = `http://example.org/cs/supp-pack-versioned-${Date.now()}`;
+  const suppVersion = '2026-02';
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    version: '1',
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'v', display: 'Base V' }],
+  };
+  const supplement = {
+    resourceType: 'CodeSystem',
+    url: suppUrl,
+    version: suppVersion,
+    status: 'active',
+    content: 'supplement',
+    supplements: `${csUrl}|1`,
+    concept: [{ code: 'v', display: 'Supp V' }],
+  };
+  const pinnedSupp = `${suppUrl}|${suppVersion}`;
+
+  const { result } = await expand(vs({ system: csUrl, version: '1', concept: [{ code: 'v' }] }), {
+    txResources: [cs, supplement],
+    params: [{ name: 'useSupplement', valueCanonical: pinnedSupp }],
+  });
+
+  assertExpansionStructure(result);
+  const item = findCode(result.expansion.contains || [], 'v');
+  assert(item, 'missing code v');
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  assert(usedSupp.includes(pinnedSupp),
+    `expected used-supplement to include pinned canonical ${pinnedSupp}, got ${JSON.stringify(usedSupp)}`);
+});
+
 test('params: property=definition includes definition property on contains entries', async () => {
   const csUrl = `http://example.org/cs/defs-${Date.now()}`;
   const cs = {
