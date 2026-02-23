@@ -1098,3 +1098,157 @@ Impact:
 Follow-up:
 - Rebuild SNOMED v0 artifacts from importer (instead of spot-fix) for canonicalization by construction.
 - Add parity assertion across pushdown/fallback for designation-filtered result content in the main harness matrix.
+
+## Update: four targeted correctness/performance hardening items
+
+Date: 2026-02-23
+
+Completed in `expand-v2`:
+- Pushdown safety guard for global excludes with import includes:
+  - Pushdown is now skipped for groups with excludes when the active plan also contains import groups.
+  - Reason emitted in trace: `global-excludes-with-imports`.
+- `valueset-unclosed` extension typing fixed:
+  - Replaced string-valued writes with canonical boolean extension emission.
+  - Added centralized `_setUnclosed(expansion)` helper and switched all current call sites.
+- Total accounting for imported includes fixed:
+  - `_importValueSetItem` now increments total when a new unique code is added.
+- `count=0` fast-path added for common whole-system shape:
+  - Preconditions: single system group, one whole-system include, no excludes/imports/text filter/active-only-style restrictions, closed complete system.
+  - Uses provider `totalCount()` and returns total-only without enumeration.
+
+Harness additions/updates:
+- UCUM unclosed test now asserts boolean `valueset-unclosed` and forbids string-typed payload.
+- Count=0 test now asserts fast-path activation via trace metadata.
+- Added mixed direct+import include total test to ensure total counts imported members.
+- Added pushdown-guard regression test for same-system exclude plus import include semantics.
+
+## Update: structural step 1 (exclusion policy extraction)
+
+Date: 2026-02-23
+
+Completed:
+- Extracted exclusion policy primitives from `expand-v2.js` into dedicated module:
+  - `tx/workers/expand-v2-exclusion-policy.js`
+  - `ExclusionIndex`
+  - `ExclusionEvaluator`
+- Updated `expand-v2.js` to consume the new module (no intended semantic change).
+
+Why:
+- Reduces engine interleaving by giving exclusion membership and deferred filter-predicate logic a clear boundary.
+- Sets up subsequent refactor slices to build exclusions first and stream includes against a single policy surface.
+
+Next structural slice:
+- Introduce explicit `ExclusionPolicyBuilder` orchestration object (build-first step) while preserving existing behavior and tests.
+
+## Perf baseline sweep checkpoint (pre next pushdown-impact refactor)
+
+Date: 2026-02-23
+
+Command set:
+- `EXPAND_IMPL=v2 EXPAND_TRACE_RESULTS=.timing/v2-push.json node tests/tx/expand-v2-harness.js`
+- `EXPAND_IMPL=v2 EXPAND_V2_DISABLE_PUSHDOWN=1 EXPAND_TRACE_RESULTS=.timing/v2-fallback.json node tests/tx/expand-v2-harness.js`
+- `EXPAND_IMPL=v2-parity node tests/tx/expand-v2-harness.js`
+
+Results snapshot:
+- v2 pushdown: 106/0/0, summed per-test runtime 9731ms, p50 1ms, p95 50ms, max 4833ms.
+- v2 fallback: 101/0/5 in console semantics (skip-intended tests), summed per-test runtime 11792ms, p50 1ms, p95 60ms, max 8513ms.
+- v2 parity: 106/0/0.
+
+Comparative summary (pushdown vs fallback where both measured >0ms):
+- comparable tests: 78
+- median fallback/pushdown ratio: 1.00x
+- p95 fallback/pushdown ratio: 6.00x
+- median abs delta (fallback - pushdown): 0ms
+- p95 abs delta (fallback - pushdown): +135ms
+
+Largest fallback slowdowns observed:
+- `high-value: complex same-system include/exclude pages...` +3680ms
+- `pagination: deep offset invariant (all SNOMED)...` +671ms
+- `high-value: include.valueSet + sibling filter...` +293ms
+- `filter: LOINC STATUS=ACTIVE` +135ms
+
+Note:
+- A few microcases favored fallback due runtime variance / path differences; guardrail remains to run this same sweep before and after any pushdown-affecting changes.
+
+## Update: structural step 2 (explicit ExclusionPolicyBuilder wiring)
+
+Date: 2026-02-23
+
+Completed:
+- Added `ExclusionPolicyBuilder` in `tx/workers/expand-v2-exclusion-policy.js`.
+- `expand-v2` now owns:
+  - `this.exclusionPolicyBuilder`
+  - `this.exclusionEvaluator = this.exclusionPolicyBuilder.create()`
+- Reinitialize exclusion evaluator per compose handling (`_handleCompose`) via builder.
+- Routed exclusion mutations through builder methods:
+  - exact excludes
+  - imported ValueSet exclusion predicates
+  - deferred filter predicates
+
+Behavior intent:
+- No semantic change expected; this is a boundary/ownership refactor to prepare build-first exclusion orchestration.
+
+## Update: structural step 3 (executor phase split for fallback)
+
+Date: 2026-02-23
+
+Completed:
+- Refactored `ExpansionExecutor.execute(...)` to perform fallback execution in two explicit phases:
+  - Phase 1: process all fallback-group excludes
+  - Phase 2: process all fallback-group includes
+- Pushdown attempt remains first-pass per group; groups handled by pushdown are excluded from fallback phases.
+
+Why:
+- Makes exclusion policy construction more explicit and global for fallback paths.
+- Reduces order-coupling from per-group exclude/include interleaving and aligns with set-algebra intent (`Union(include) - Union(exclude)`).
+
+Scope:
+- Structural only in executor flow; no pushdown query shape changes in this step.
+
+## Update: structural step 4 (ExclusionPolicyBuilder.buildFromPlan orchestration)
+
+Date: 2026-02-23
+
+Completed:
+- Added `ExclusionPolicyBuilder.buildFromPlan(plan, fallbackGroups, applyExclude)`.
+- `ExpansionExecutor.execute(...)` now uses builder orchestration to construct fallback exclusion policy in one centralized pass.
+- Fallback execution flow is now explicit:
+  - classify groups (pushdown-handled vs fallback)
+  - build exclusion policy for fallback groups via builder
+  - stream fallback includes against that policy
+
+Notes:
+- This step is intended as structural/no-pushdown-query-shape change.
+- Existing exclusion registration behavior (exact/imported/filter-predicate) is preserved; ownership is centralized.
+
+## Update: structural step 5 (prebuild excludes before any include execution)
+
+Date: 2026-02-23
+
+Completed:
+- Executor flow now prebuilds exclusion policy across all plan groups before any include execution.
+- Include execution phase then runs per group:
+  - attempt pushdown include execution
+  - fallback include streaming when pushdown not handled
+
+Intent:
+- Align execution flow toward explicit set phases: build exclusions first, then include/selection.
+- Keep pushdown request/query behavior unchanged in this step.
+
+## Update: structural step 6 (exclude policy-only, no list splicing) + perf checkpoint
+
+Date: 2026-02-23
+
+Completed:
+- `_excludeFromExpansion(...)` no longer mutates accumulated include state (`fullList`/`map`) via index/splice/delete.
+- Exclude-by-import now registers exclusion membership predicates only.
+- Pushdown ingestion now checks exclusion policy before accepting provider rows to keep global exclusions authoritative.
+- Added regression test:
+  - `logic: total reflects imported excludes without mutating accumulated list`
+
+Post-change sweep:
+- `EXPAND_IMPL=v2`: 107/0/0
+- `EXPAND_IMPL=v2` + fallback: 102/0/5 (skip-intended pushdown-required tests)
+- `EXPAND_IMPL=v2-parity`: 107/0/0
+
+Timing comparison against earlier baseline showed slower wall-times in this run set (median +1ms per test, high-value tails materially higher), likely requiring follow-up profiling before additional structural changes.

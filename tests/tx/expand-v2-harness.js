@@ -701,6 +701,13 @@ test('notClosed: UCUM expansion reports valueset-unclosed extension', async () =
   assertExpansionStructure(result);
   const contains = result.expansion.contains || [];
   assert(contains.length > 0, 'UCUM expansion should return at least one code');
+  const unclosed = (result.expansion.extension || [])
+    .find(e => e.url === 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+  assert(unclosed, 'UCUM expansion should carry valueset-unclosed extension');
+  assert(unclosed.valueBoolean === true,
+    `valueset-unclosed should be valueBoolean=true, got ${JSON.stringify(unclosed)}`);
+  assert(unclosed.valueString == null,
+    `valueset-unclosed must not use valueString, got ${JSON.stringify(unclosed)}`);
   assert(hasExtension(result.expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed'),
     'UCUM expansion should carry valueset-unclosed extension');
 });
@@ -1588,11 +1595,13 @@ test('pagination: SNOMED is-a paginated (v0)', async () => {
 });
 
 test('pagination: count=0 returns total only', async () => {
-  const { result } = await expand(vs({ system: SYS.USPS }), { count: 0 });
+  const { result, trace } = await expand(vs({ system: SYS.USPS }), { count: 0 });
   assertExpansionStructure(result);
   const contains = result.expansion.contains || [];
   assert(contains.length === 0, `count=0 should return no codes, got ${contains.length}`);
   assert(result.expansion.total === 62, `total should still be 62, got ${result.expansion.total}`);
+  assert(traceHasSpan(trace, '_handleCompose', s => s.result?.fastPath === 'count-zero-total-only'),
+    'count=0 whole-system expansion should use fast-path total-only handling');
 });
 
 test('pagination: high offset (>1000) works in both pushdown and fallback modes', async () => {
@@ -2332,6 +2341,129 @@ test('logic: imported include/exclude valueSets (no system) apply Inc\\\\Exc sem
   assert(findCode(contains, 'red')?.system === csUrl, 'red should remain');
   assert(findCode(contains, 'green')?.system === csUrl, 'green should remain');
   assert(!findCode(contains, 'blue'), 'blue should be excluded');
+});
+
+test('logic: total includes direct and imported include contributions', async () => {
+  const csUrl = `http://example.org/cs/logic-total-${Date.now()}`;
+  const importVsUrl = `http://example.org/vs/logic-total-import-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [
+      { code: 'red', display: 'Red' },
+      { code: 'blue', display: 'Blue' },
+      { code: 'green', display: 'Green' },
+      { code: 'yellow', display: 'Yellow' },
+    ],
+  };
+  const importedVs = {
+    resourceType: 'ValueSet',
+    url: importVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'green' }, { code: 'yellow' }] }],
+    },
+  };
+
+  const { result } = await expand(vs([
+    { system: csUrl, concept: [{ code: 'red' }, { code: 'blue' }] },
+    { valueSet: [importVsUrl] },
+  ]), { txResources: [cs, importedVs] });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 4, `expected 4 total codes, got ${contains.length}`);
+  assert(result.expansion.total === 4, `expected total=4, got ${result.expansion.total}`);
+});
+
+test('logic: total reflects imported excludes without mutating accumulated list', async () => {
+  const csUrl = `http://example.org/cs/logic-total-exclude-${Date.now()}`;
+  const includeVsUrl = `http://example.org/vs/logic-total-exclude-include-${Date.now()}`;
+  const excludeVsUrl = `http://example.org/vs/logic-total-exclude-exclude-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [
+      { code: 'red', display: 'Red' },
+      { code: 'blue', display: 'Blue' },
+      { code: 'green', display: 'Green' },
+      { code: 'yellow', display: 'Yellow' },
+    ],
+  };
+  const includeVs = {
+    resourceType: 'ValueSet',
+    url: includeVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'red' }, { code: 'blue' }, { code: 'green' }, { code: 'yellow' }] }],
+    },
+  };
+  const excludeVs = {
+    resourceType: 'ValueSet',
+    url: excludeVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'blue' }, { code: 'yellow' }] }],
+    },
+  };
+
+  const query = vs([
+    { valueSet: [includeVsUrl] },
+  ], [
+    { valueSet: [excludeVsUrl] },
+  ]);
+
+  const { result: full } = await expand(query, { txResources: [cs, includeVs, excludeVs] });
+  assertExpansionStructure(full);
+  const fullContains = full.expansion.contains || [];
+  assert(fullContains.length === 2, `expected 2 survivors, got ${fullContains.length}`);
+  if (full.expansion.total != null) {
+    assert(full.expansion.total === 2, `expected total=2 after imported excludes, got ${full.expansion.total}`);
+  }
+  assert(findCode(fullContains, 'red'), 'red should remain');
+  assert(findCode(fullContains, 'green'), 'green should remain');
+  assert(!findCode(fullContains, 'blue'), 'blue should be excluded');
+  assert(!findCode(fullContains, 'yellow'), 'yellow should be excluded');
+
+  const { result: page } = await expand(query, { txResources: [cs, includeVs, excludeVs], count: 1, offset: 0 });
+  assertExpansionStructure(page);
+  const pageContains = page.expansion.contains || [];
+  assert(pageContains.length === 1, `expected one item on page, got ${pageContains.length}`);
+  if (page.expansion.total != null) {
+    assert(page.expansion.total === 2, `paged total should remain 2, got ${page.expansion.total}`);
+  }
+});
+
+test('logic: system exclude remains global when import include is present (pushdown guard)', async () => {
+  if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
+
+  const importVsUrl = `http://example.org/vs/logic-sct-import-${Date.now()}`;
+  const importedVs = {
+    resourceType: 'ValueSet',
+    url: importVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.SCT, concept: [{ code: '44054006' }] }],
+    },
+  };
+
+  const { result, trace } = await expand(vs([
+    { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+    { valueSet: [importVsUrl] },
+  ], [
+    { system: SYS.SCT, concept: [{ code: '44054006' }] },
+  ]), { txResources: [importedVs] });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(!findCode(contains, '44054006'), 'system exclude should remain effective across later import include');
+  assert(traceHasSpan(trace, '_tryPushdown', s =>
+    s.result?.handled === false && s.result?.reason === 'global-excludes-with-imports'
+  ), 'expected pushdown guard to defer to fallback when excludes coexist with import includes');
 });
 
 test('logic: mixed import+peer include/exclude paginates without gaps or duplicates', async () => {

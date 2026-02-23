@@ -37,6 +37,7 @@ function currentTrace() {
 const trace = {
   begin(name, args) { return currentTrace().begin(name, args); },
   sql(sql, params, rows, ms) { currentTrace().sql(sql, params, rows, ms); },
+  count(name, delta) { currentTrace().count(name, delta); },
   note(message, data) { currentTrace().note(message, data); },
   get active() { return traceStore.getStore() != null; },
 };
@@ -48,6 +49,7 @@ class ExpandTrace {
     this.root = { name: 'expand', children: [], t0: performance.now() };
     this.stack = [this.root];
     this.sqlQueries = [];
+    this.counters = Object.create(null);
   }
 
   begin(name, args) {
@@ -75,6 +77,13 @@ class ExpandTrace {
     this.sqlQueries.push(entry);
   }
 
+  count(name, delta = 1) {
+    if (!name) return;
+    const n = Number(delta);
+    if (!Number.isFinite(n) || n === 0) return;
+    this.counters[name] = (this.counters[name] || 0) + n;
+  }
+
   note(message, data) {
     this.stack[this.stack.length - 1].children.push({
       name: 'note', message,
@@ -99,6 +108,7 @@ class ExpandTrace {
       totalMs: this.root.ms,
       sqlCount: this.sqlQueries.length,
       sqlMs: rnd(this.sqlQueries.reduce((s, q) => s + (q.ms || 0), 0)),
+      counters: summarize(this.counters),
       spans: this.root.children,
     };
   }
@@ -138,6 +148,7 @@ class Span {
 
   begin(name, args) { return this._owner.begin(name, args); }
   sql(sql, params, rows, ms) { this._owner.sql(sql, params, rows, ms); }
+  count(name, delta) { this._owner.count(name, delta); }
   note(msg, data) { this._owner.note(msg, data); }
 }
 
@@ -145,12 +156,12 @@ class Span {
 
 const NOOP_SPAN = Object.freeze({
   end() {}, begin() { return NOOP_SPAN; },
-  sql() {}, note() {},
+  sql() {}, count() {}, note() {},
 });
 
 const NOOP_TRACE = Object.freeze({
   begin() { return NOOP_SPAN; },
-  sql() {}, note() {},
+  sql() {}, count() {}, note() {},
   toJSON() { return null; },
   attachTo() {},
 });
@@ -217,6 +228,18 @@ function formatTraceSummary(traceJson, opts = {}) {
         const rowsTxt = typeof q.rows === 'number' ? ` rows=${q.rows}` : '';
         lines.push(`  - [${q.span}] ${formatMs(q.ms || 0)}${rowsTxt} ${trunc(q.sql || '', 180)}`);
       }
+    }
+  }
+
+  const counters = traceJson.counters || {};
+  const counterRows = Object.entries(counters)
+    .filter(([, v]) => typeof v === 'number' && Number.isFinite(v) && v !== 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12);
+  if (counterRows.length > 0) {
+    lines.push(`counters (top ${counterRows.length}):`);
+    for (const [k, v] of counterRows) {
+      lines.push(`  - ${k}: ${v}`);
     }
   }
 

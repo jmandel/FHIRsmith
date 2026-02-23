@@ -19,6 +19,7 @@ const { VersionUtilities } = require('../../library/version-utilities');
 const crypto = require('crypto');
 const ValueSet = require('../library/valueset');
 const { ExpandTrace, traceStore, trace: T, formatTraceSummary } = require('./expand-trace');
+const { ExclusionPolicyBuilder, ExclusionEvaluator, ExclusionIndex } = require('./expand-v2-exclusion-policy');
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -59,8 +60,6 @@ const canonical = (system, version) => version ? `${system}|${version}` : system
 
 const makeKey = (system, version, code, versioned) =>
   versioned ? `${system}~${version}~${code}` : `${system}~${code}`;
-
-const excludeKey = (system, version, code) => `${system}|${version || ''}#${code}`;
 
 // ── ImportedValueSet ───────────────────────────────────────────────────────────
 
@@ -200,122 +199,40 @@ class ExpansionPlanner {
   }
 }
 
-class ExclusionIndex {
-  constructor(passesImports) {
-    this._passesImports = passesImports;
-    this._exact = new Set();
-    this._predicates = [];
-  }
-
-  addExact(system, version, code) {
-    this._exact.add(excludeKey(system, version, code));
-  }
-
-  addImportedPredicate(baseSet, imports, offset = 0) {
-    if (!baseSet) return;
-    this._predicates.push({ baseSet, imports: imports || null, offset });
-  }
-
-  has(system, version, code) {
-    if (this._exact.has(excludeKey(system, version, code))) {
-      return true;
-    }
-    for (const p of this._predicates) {
-      if (!p.baseSet.hasCode(system, code)) continue;
-      if (p.imports && !this._passesImports(p.imports, system, code, p.offset)) continue;
-      return true;
-    }
-    return false;
-  }
-
-  isEmpty() {
-    return this._exact.size === 0 && this._predicates.length === 0;
-  }
-}
-
-class ExclusionEvaluator {
-  constructor(passesImports) {
-    this.index = new ExclusionIndex(passesImports);
-    this.filterPredicates = new Map(); // "system|version" -> [{ cs, prep, filterSets }]
-  }
-
-  addExact(system, version, code) {
-    this.index.addExact(system, version, code);
-  }
-
-  addImportedPredicate(baseSet, imports, offset = 0) {
-    this.index.addImportedPredicate(baseSet, imports, offset);
-  }
-
-  has(system, version, code) {
-    return this.index.has(system, version, code);
-  }
-
-  isEmpty() {
-    return this.index.isEmpty();
-  }
-
-  registerFilterPredicate(cs, prep, filterSets) {
-    const key = canonical(cs.system(), cs.version());
-    if (!this.filterPredicates.has(key)) {
-      this.filterPredicates.set(key, []);
-    }
-    this.filterPredicates.get(key).push({ cs, prep, filterSets: filterSets || [] });
-  }
-
-  async matchesFilterPredicates(cs, context) {
-    const key = canonical(cs.system(), cs.version());
-    const predicates = this.filterPredicates.get(key);
-    if (!predicates || predicates.length === 0) return false;
-
-    for (const p of predicates) {
-      let ok = true;
-      for (const set of p.filterSets) {
-        if (await p.cs.filterCheck(p.prep, set, context) !== true) {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) return true;
-    }
-    return false;
-  }
-}
-
 class ExpansionExecutor {
   constructor(expander) {
     this.expander = expander;
   }
 
   async execute(plan, source, filter, expansion, excludeInactive, notClosed) {
+    // Phase 1: build global exclusion policy across all plan excludes before any
+    // include execution (including pushdown attempts).
+    this.expander.exclusionEvaluator = await this.expander.exclusionPolicyBuilder.buildFromPlan(
+      plan,
+      plan.groups,
+      async ({ evaluator, exclude }) => {
+        const { cset, index } = exclude;
+        this.expander.exclusionEvaluator = evaluator;
+        this.expander.worker.deadCheck('compose:exclude');
+        await this.expander._processComponent(cset, `ValueSet.compose.exclude[${index}]`, source, filter,
+          expansion, excludeInactive, notClosed, 'exclude');
+      }
+    );
+
+    // Phase 2: execute includes (pushdown when handled, otherwise fallback stream)
+    // against the prebuilt exclusion policy.
     for (const group of plan.groups) {
-      await this._executeGroup(group, source, filter, expansion, excludeInactive, notClosed);
-    }
-  }
+      this.expander.worker.deadCheck('compose:group');
 
-  async _executeGroup(group, source, filter, expansion, excludeInactive, notClosed) {
-    this.expander.worker.deadCheck('compose:group');
-
-    // Attempt pushdown for system-based groups with a capable provider.
-    if (group.system && await this.expander._tryPushdown(group, source, filter, expansion,
+      if (group.system && await this.expander._tryPushdown(group, source, filter, expansion,
         excludeInactive, notClosed)) {
-      return;
-    }
-
-    await this._executeFallbackGroup(group, source, filter, expansion, excludeInactive, notClosed);
-  }
-
-  async _executeFallbackGroup(group, source, filter, expansion, excludeInactive, notClosed) {
-    // Fallback: process excludes then includes via streaming.
-    for (const { cset, index } of group.excludes) {
-      this.expander.worker.deadCheck('compose:exclude');
-      await this.expander._processComponent(cset, `ValueSet.compose.exclude[${index}]`, source, filter,
-        expansion, excludeInactive, notClosed, 'exclude');
-    }
-    for (const { cset, index } of group.includes) {
-      this.expander.worker.deadCheck('compose:include');
-      await this.expander._processComponent(cset, `ValueSet.compose.include[${index}]`, source, filter,
-        expansion, excludeInactive, notClosed, 'include');
+        continue;
+      }
+      for (const { cset, index } of group.includes) {
+        this.expander.worker.deadCheck('compose:include');
+        await this.expander._processComponent(cset, `ValueSet.compose.include[${index}]`, source, filter,
+          expansion, excludeInactive, notClosed, 'include');
+      }
     }
   }
 }
@@ -674,8 +591,9 @@ class ValueSetExpander {
     this.map = new Map();           // key → contains entry (dedup)
     this.fullList = [];             // all included entries (flat order)
     this.rootList = [];             // root entries for hierarchy output
-    this.exclusionEvaluator = new ExclusionEvaluator((imports, system, code, offset) =>
+    this.exclusionPolicyBuilder = new ExclusionPolicyBuilder((imports, system, code, offset) =>
       this._passesImports(imports, system, code, offset));
+    this.exclusionEvaluator = this.exclusionPolicyBuilder.create();
     this.hasExclusions = false;
     this.canBeHierarchy = !params.excludeNested;
     this.doingVersion = false;
@@ -835,6 +753,7 @@ class ValueSetExpander {
   // ── Compose processing ───────────────────────────────────────────────────────
 
   async _handleCompose(source, filter, expansion, notClosed) {
+    this.exclusionEvaluator = this.exclusionPolicyBuilder.create();
     const plan = new ExpansionPlanner(source.jsonObj.compose || {}).build();
     this._emitPlanSnapshot(plan, expansion);
     const includes = plan.includes;
@@ -860,12 +779,53 @@ class ValueSetExpander {
     const groups = plan.groups;
     const excludeInactive = this._excludeInactives(source);
 
+    if (await this._tryCountZeroFastPath(plan, filter, expansion, excludeInactive)) {
+      _tHandleCompose.end({ groupsCount: groups.length, fastPath: 'count-zero-total-only' });
+      return;
+    }
+
     try {
       await this.executor.execute(plan, source, filter, expansion, excludeInactive, notClosed);
     } finally {
       this.activePlan = null;
     }
     _tHandleCompose.end({ groupsCount: groups.length });
+  }
+
+  async _tryCountZeroFastPath(plan, filter, expansion, excludeInactive) {
+    if (this.count !== 0) return false;
+    if (!filter.isNull) return false;
+    if (plan.hasExclusions) return false;
+    if (this.params.activeOnly || this.params.excludeNotForUI || excludeInactive) return false;
+    if (plan.groups.length !== 1) return false;
+
+    const group = plan.groups[0];
+    if (!group?.system || group.includes.length !== 1) return false;
+
+    const cset = group.includes[0].cset;
+    if (!cset || cset.concept || cset.filter || (cset.valueSet?.length || 0) > 0) return false;
+
+    const cs = await this.worker.findCodeSystem(group.system, group.version, this.params,
+      ['complete', 'fragment'], false, false, true, null, this.requiredSupplements);
+    if (!cs) return false;
+    if (cs.contentMode() !== 'complete') return false;
+    if (cs.isNotClosed && cs.isNotClosed()) return false;
+
+    const totalFn = cs.totalCount;
+    const total = await (typeof totalFn === 'function' ? totalFn.call(cs) : totalFn);
+    if (!Number.isFinite(total) || total < 0) return false;
+
+    this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
+    this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
+    this._addParam(expansion, 'used-codesystem', 'valueUri', canonical(await cs.system(), await cs.version()));
+    for (const v of cs.listSupplements()) {
+      this._addParam(expansion, 'used-supplement', 'valueUri', v);
+    }
+
+    this.total = total;
+    this.totalStatus = 'set';
+    this.knownSafeTotal = total;
+    return true;
   }
 
   async _executePlan(plan, source, filter, expansion, excludeInactive, notClosed) {
@@ -912,6 +872,9 @@ class ValueSetExpander {
     const hasExcludes = (group.excludes?.length || 0) > 0;
     if (hasExcludes && pushdownCaps.supportsExcludes !== true) {
       return { attempt: false, pagination: false, reason: 'no-exclude-capability' };
+    }
+    if (hasExcludes && (this.activePlan?.importGroups?.length || 0) > 0) {
+      return { attempt: false, pagination: false, reason: 'global-excludes-with-imports' };
     }
 
     if (pcap) {
@@ -962,6 +925,7 @@ class ValueSetExpander {
     }
     if (group.includes.length === 0) return false;
     const _tTryPushdown = T.begin('_tryPushdown', { system: group.system, includesCount: group.includes.length, excludesCount: group.excludes.length });
+    T.count('pushdown_groups_attempted');
 
     const cs = await this.worker.findCodeSystem(group.system, group.version, this.params,
       ['complete', 'fragment'], false, false, true, null, this.requiredSupplements);
@@ -1000,10 +964,17 @@ class ValueSetExpander {
       this._addParam(expansion, 'used-supplement', 'valueUri', v);
     }
 
-    await this._ingestPushdownResult(result, cs, expansion, vsSrc);
+    await this._ingestPushdownResult(result, cs, expansion, vsSrc, {
+      exclusionCoverage: {
+        coveredByProvider: Array.isArray(request.excludes) && request.excludes.length > 0,
+        system: group.system,
+      },
+    });
     if (canPushPagination) {
       this.paginationAlreadyApplied = true;
+      T.count('pushdown_pagination_applied_groups');
     }
+    T.count('pushdown_groups_handled');
     _tTryPushdown.end({ handled: true, canPushPagination, decision: decision.reason });
     return true;
   }
@@ -1013,10 +984,12 @@ class ValueSetExpander {
   // optionally pagination. We trust the result set but still build proper FHIR
   // contains entries and enforce the server-side limit as a safety net.
 
-  async _ingestPushdownResult(result, cs, expansion, vsSrc) {
+  async _ingestPushdownResult(result, cs, expansion, vsSrc, ingestOptions = null) {
     const _tIngest = T.begin('_ingestPushdownResult', { codesCount: result.codes?.length || 0, total: result.total });
     const system = await cs.system();
     const version = await cs.version();
+    const coveredByProvider = ingestOptions?.exclusionCoverage?.coveredByProvider === true
+      && ingestOptions?.exclusionCoverage?.system === system;
 
     if (result.total != null && result.total > -1) {
       this._incrementTotal(result.total);
@@ -1024,9 +997,23 @@ class ValueSetExpander {
 
     for (const row of result.codes || []) {
       this.worker.deadCheck('ingestPushdown');
+      T.count('pushdown_candidates_scanned');
 
       const key = makeKey(system, version, row.code, this.doingVersion);
-      if (this.map.has(key)) continue;
+      if (this.map.has(key)) {
+        T.count('pushdown_dedup_hits');
+        continue;
+      }
+      const matchVersion = this.doingVersion ? version : '';
+      if (coveredByProvider) {
+        T.count('pushdown_exclusion_checks_skipped');
+      } else {
+        T.count('pushdown_exclusion_checks');
+        if (this.exclusionEvaluator.has(system, matchVersion, row.code)) {
+          T.count('pushdown_exclusion_hits');
+          continue;
+        }
+      }
 
       if (this.limitCount > 0 && this.fullList.length >= this.limitCount) {
         throw new Issue('error', 'too-costly', null, 'VALUESET_TOO_COSTLY',
@@ -1065,6 +1052,7 @@ class ValueSetExpander {
       this.fullList.push(entry);
       this.map.set(key, entry);
       this.rootList.push(entry);
+      T.count('pushdown_candidates_survived');
     }
 
     this.canBeHierarchy = false;
@@ -1185,8 +1173,7 @@ class ValueSetExpander {
     }
 
     if (cs.specialEnumeration()) {
-      Extensions.addString(expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed',
-        `The code System "${cs.system()}" has a grammar and so has infinite members. This extension is based on ${cs.specialEnumeration()}`);
+      this._setUnclosed(expansion);
       notClosed.value = true;
     }
 
@@ -1262,8 +1249,7 @@ class ValueSetExpander {
     if (cs.specialEnumeration() && importedSets.length === 0) {
       this.worker.opContext.log(`import special value set ${cs.specialEnumeration()}`);
       const base = await this._expandNestedValueSet(cs.specialEnumeration(), '', textFilter, notClosed);
-      Extensions.addString(expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed',
-        `The code System "${cs.system()}" has a grammar and so has infinite members. This extension is based on ${cs.specialEnumeration()}`);
+      this._setUnclosed(expansion);
       notClosed.value = true;
 
       if (mode === 'exclude') {
@@ -1316,8 +1302,7 @@ class ValueSetExpander {
 
     if (cs.isNotClosed()) {
       if (cs.specialEnumeration()) {
-        Extensions.addString(expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed',
-          `The code System "${cs.system()}" has a grammar and so has infinite members. This extension is based on ${cs.specialEnumeration()}`);
+        this._setUnclosed(expansion);
       } else {
         throw new Issue('error', 'too-costly', null, null,
           `The code System "${cs.system()}" has a grammar, and cannot be enumerated directly`, null, 422)
@@ -1494,6 +1479,7 @@ class ValueSetExpander {
 
   async _importValueSetItem(parent, c, imports, offset) {
     this.worker.deadCheck('importValueSetItem');
+    T.count('import_candidates_scanned');
     const matchVersion = this.doingVersion ? c.version : '';
     if (this.exclusionEvaluator.has(c.system, matchVersion, c.code)) return;
     this._enforceIncludePaginationShortCircuit();
@@ -1507,6 +1493,8 @@ class ValueSetExpander {
         this.rootList.push(c);
       }
       this.map.set(key, c);
+      this._incrementTotal();
+      T.count('import_candidates_survived');
     }
     for (const cc of c.contains || []) {
       await this._importValueSetItem(c, cc, imports, offset);
@@ -1517,24 +1505,7 @@ class ValueSetExpander {
     const baseSet = (imports && imports.length > 0 && imports[0]?.valueSet === vs)
       ? imports[0]
       : new ImportedValueSet(vs);
-    this.exclusionEvaluator.addImportedPredicate(baseSet, imports, offset);
-
-    const walk = (contains) => {
-      for (const c of contains || []) {
-        this.worker.deadCheck('excludeFromExpansion');
-        const key = makeKey(c.system, c.version, c.code, this.doingVersion);
-        if (this._passesImports(imports, c.system, c.code, offset) && this.map.has(key)) {
-          const idx = this.fullList.indexOf(this.map.get(key));
-          if (idx >= 0) this.fullList.splice(idx, 1);
-          this.map.delete(key);
-          this._decrementTotal();
-        }
-        if (c.contains?.length) {
-          walk(c.contains);
-        }
-      }
-    };
-    walk(vs.expansion?.contains || []);
+    this.exclusionPolicyBuilder.addImportedPredicate(this.exclusionEvaluator, baseSet, imports, offset);
   }
 
   // ── Pre-flight source validation ─────────────────────────────────────────────
@@ -1576,8 +1547,7 @@ class ValueSetExpander {
           `The code system definition for ${cset.system} defines a supplement, so this expansion cannot be performed`, 'invalid');
       }
       this._addParam(exp, content, 'valueUri', `${cs.system()}|${cs.version()}`);
-      Extensions.addString(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed',
-        `This extension is based on a fragment of the code system ${cset.system}`);
+      this._setUnclosed(exp);
     }
 
     if (!cset.concept && !cset.filter) {
@@ -1586,8 +1556,7 @@ class ValueSetExpander {
       } else if (filter.isNull) {
         if (cs.isNotClosed()) {
           if (cs.specialEnumeration()) {
-            Extensions.addString(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed',
-              `The code System "${cs.system()}" has a grammar and so has infinite members. This extension is based on ${cs.specialEnumeration()}`);
+            this._setUnclosed(exp);
           } else {
             throw new Issue('error', 'too-costly', null, null,
               `The code System "${cs.system()}" has a grammar, and cannot be enumerated directly`, null, 422)
@@ -1717,6 +1686,7 @@ class ValueSetExpander {
                    displays, definition, itemWeight, expansion, imports, csExtList, vsExtList,
                    csProps, expProps, excludeInactive, srcURL) {
     this._noteAddProgress();
+    T.count('candidates_scanned_total');
     this.worker.deadCheck('addToExpansion');
 
     if (!this._passesMembershipChecks(imports, system, version, code, isInactive, excludeInactive)) return null;
@@ -1733,6 +1703,7 @@ class ValueSetExpander {
     });
 
     this._appendExpansionEntry(parent, key, entry);
+    T.count('candidates_survived_total');
 
     return entry;
   }
@@ -1743,10 +1714,14 @@ class ValueSetExpander {
   }
 
   _passesMembershipChecks(imports, system, version, code, isInactive, excludeInactive) {
+    T.count('membership_checks');
     if (!this._passesImports(imports, system, code, 0)) return false;
     if (isInactive && excludeInactive) return false;
     const matchVersion = this.doingVersion ? version : '';
-    if (this.exclusionEvaluator.has(system, matchVersion, code)) return false;
+    if (this.exclusionEvaluator.has(system, matchVersion, code)) {
+      T.count('membership_exclusion_hits');
+      return false;
+    }
     return true;
   }
 
@@ -1876,7 +1851,7 @@ class ValueSetExpander {
     }
 
     const matchVersion = this.doingVersion ? version : '';
-    this.exclusionEvaluator.addExact(system, matchVersion, code);
+    this.exclusionPolicyBuilder.addExact(this.exclusionEvaluator, system, matchVersion, code);
   }
 
   // ── Import filter helpers ────────────────────────────────────────────────────
@@ -1890,11 +1865,14 @@ class ValueSetExpander {
   }
 
   _registerFilterExclusionPredicate(cs, prep, filterSets) {
-    this.exclusionEvaluator.registerFilterPredicate(cs, prep, filterSets);
+    this.exclusionPolicyBuilder.registerFilterPredicate(this.exclusionEvaluator, cs, prep, filterSets);
   }
 
   async _isExcludedByFilterPredicates(cs, context) {
-    return this.exclusionEvaluator.matchesFilterPredicates(cs, context);
+    T.count('filter_predicate_candidates');
+    const excluded = await this.exclusionEvaluator.matchesFilterPredicates(cs, context);
+    if (excluded) T.count('filter_predicate_hits');
+    return excluded;
   }
 
   // ── Extension-driven property helpers ────────────────────────────────────────
@@ -1998,6 +1976,13 @@ class ValueSetExpander {
   _noTotal() {
     this.total = -1;
     this.totalStatus = 'off';
+  }
+
+  _setUnclosed(expansion) {
+    if (!expansion) return;
+    if (!Extensions.has(expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed')) {
+      Extensions.addBoolean(expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed', true);
+    }
   }
 
   // ── Expansion parameter helpers ──────────────────────────────────────────────
@@ -2472,6 +2457,7 @@ module.exports = {
   ContainsRenderer,
   PushdownRequestBuilder,
   ExpansionSourceHandlers,
+  ExclusionPolicyBuilder,
   ExclusionEvaluator,
   ExclusionIndex,
   ImportedValueSet,
