@@ -1,4 +1,4 @@
-const {CodeSystemProvider} = require("./cs-api");
+const {CodeSystemProvider} = require("./provider-base");
 
 class BaseCSServices extends CodeSystemProvider {
 

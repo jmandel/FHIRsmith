@@ -1,7 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
-const { CodeSystemProvider, CodeSystemFactoryProvider } = require('./cs-api');
+const { CodeSystemProvider, CodeSystemFactoryProvider } = require('./provider-legacy-filter');
 const {Designations} = require("../library/designations");
 const {validateArrayParameter} = require("../../library/utilities");
 

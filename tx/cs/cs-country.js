@@ -1,7 +1,6 @@
-const { CodeSystemProvider, FilterExecutionContext } = require('../../tx/cs/cs-api');
+const { CodeSystemProvider, FilterExecutionContext, CodeSystemFactoryProvider } = require('./provider-legacy-filter');
 const assert = require('assert');
 const { CodeSystem } = require("../library/codesystem");
-const {CodeSystemFactoryProvider} = require("./cs-api");
 
 class CountryCodeConcept {
   constructor(code, display) {
