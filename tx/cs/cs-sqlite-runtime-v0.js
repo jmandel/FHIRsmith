@@ -1107,6 +1107,24 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return null;
     }
 
+    if (op === 'regex' && propDef.value_kind !== 'concept') {
+      params[`${paramPrefix}_prop`] = propDef.property_id;
+      params[`${paramPrefix}_re`] = value;
+      return {
+        sql: '',
+        params,
+        joins: ` JOIN concept_literal lit_${paramPrefix}`
+          + ` ON lit_${paramPrefix}.source_concept_id = ${alias}.concept_id`
+          + ` AND lit_${paramPrefix}.property_id = @${paramPrefix}_prop`
+          + ` AND lit_${paramPrefix}.active = 1`
+          + ` AND (`
+          + ` (lit_${paramPrefix}.value_text IS NOT NULL AND lit_${paramPrefix}.value_text REGEXP @${paramPrefix}_re)`
+          + ` OR `
+          + ` (lit_${paramPrefix}.value_text IS NULL AND lit_${paramPrefix}.value_raw IS NOT NULL AND lit_${paramPrefix}.value_raw REGEXP @${paramPrefix}_re)`
+          + ` )`,
+      };
+    }
+
     if (propDef.value_kind === 'string' || propDef.value_kind === 'literal') {
       if (op === '=' || op === 'in') {
         const values = op === 'in' ? splitFilterValueList(value) : [value];
@@ -1667,6 +1685,12 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     if (prop === 'code' && op === 'regex') {
       return true;
     }
+    if (op === 'regex') {
+      const propertyDef = await this.#resolvePropertyDef(prop);
+      if (propertyDef && propertyDef.value_kind !== 'concept') {
+        return true;
+      }
+    }
 
     const propertyCfg = await this.#resolvePropertyFilterConfig(prop);
     if (propertyCfg?.operators && Array.isArray(propertyCfg.operators)) {
@@ -1726,6 +1750,40 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     }
 
     if (prop !== 'concept') {
+      if (op === 'regex') {
+        const propertyDef = await this.#resolvePropertyDef(prop);
+        if (propertyDef && propertyDef.value_kind !== 'concept') {
+          const propertyCfg = {
+            propertyId: propertyDef.property_id,
+            propertyCode: prop,
+            operators: ['regex'],
+            sources: ['literal'],
+            linkMatch: 'code-only',
+            value: {},
+            specialHandler: null
+          };
+          if (this.#useMembershipPredicate(filterContext)) {
+            const predicate = await this.#buildPropertyPredicateFilter(
+              `property-${propertyCfg.propertyCode}-${op}:${value}`,
+              propertyCfg,
+              op,
+              value
+            );
+            if (predicate) {
+              filterContext.filters.push(predicate);
+              return;
+            }
+          }
+          if (!filterContext._v0Deferred) filterContext._v0Deferred = [];
+          filterContext._v0Deferred.push({
+            propertyCfg,
+            op,
+            value,
+            filterName: `property-${propertyCfg.propertyCode}-${op}:${value}`
+          });
+          return;
+        }
+      }
       const propertyCfg = await this.#resolvePropertyFilterConfig(prop);
       if (!propertyCfg) {
         throw new Error(`Unsupported sqlite runtime filter property '${prop}'`);
@@ -1792,6 +1850,15 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       limitCheck: filterContext?._v0LimitCheck,
     });
     try {
+      // Membership-only mode (forIterate=false) should avoid combined SQL set
+      // materialization. filter()/searchFilter() already prepared predicate or
+      // explicit filter sets for filterCheck/filterLocate usage.
+      if (filterContext && filterContext.forIterate === false) {
+        const prepared = filterContext.filters || [];
+        _tExec.end({ mode: 'membership', sets: prepared.length });
+        return prepared;
+      }
+
       const hasIncludeFilters = filterContext._v0IncludeFilters && filterContext._v0IncludeFilters.length > 0;
       const syncDb = this.#getSyncDb();
 

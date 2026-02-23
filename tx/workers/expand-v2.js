@@ -23,9 +23,9 @@ const { ExclusionPolicyBuilder, ExclusionEvaluator, ExclusionIndex } = require('
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const UPPER_LIMIT_NO_TEXT = 1000;
-const UPPER_LIMIT_TEXT = 1000;
-const INTERNAL_LIMIT = 10000;
+const UPPER_LIMIT_NO_TEXT = 100000;
+const UPPER_LIMIT_TEXT = 100000;
+const INTERNAL_LIMIT = 200000;
 const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
 const BULK_LOCATE_THRESHOLD = 50;
@@ -204,20 +204,40 @@ class ExpansionExecutor {
     this.expander = expander;
   }
 
+  async _buildGlobalExclusionPolicy(plan, source, filter, expansion, excludeInactive, notClosed, strategy = 'auto') {
+    T.count('exclusion_policy_builds');
+    const prevStrategy = this.expander.excludeBuildStrategy;
+    this.expander.excludeBuildStrategy = strategy;
+    try {
+      this.expander.exclusionEvaluator = await this.expander.exclusionPolicyBuilder.buildFromPlan(
+        plan,
+        plan.groups,
+        async ({ evaluator, exclude }) => {
+          const { cset, index } = exclude;
+          this.expander.exclusionEvaluator = evaluator;
+          this.expander.worker.deadCheck('compose:exclude');
+          await this.expander._processComponent(cset, `ValueSet.compose.exclude[${index}]`, source, filter,
+            expansion, excludeInactive, notClosed, 'exclude');
+        }
+      );
+    } finally {
+      this.expander.excludeBuildStrategy = prevStrategy;
+    }
+  }
+
   async execute(plan, source, filter, expansion, excludeInactive, notClosed) {
-    // Phase 1: build global exclusion policy across all plan excludes before any
-    // include execution (including pushdown attempts).
-    this.expander.exclusionEvaluator = await this.expander.exclusionPolicyBuilder.buildFromPlan(
-      plan,
-      plan.groups,
-      async ({ evaluator, exclude }) => {
-        const { cset, index } = exclude;
-        this.expander.exclusionEvaluator = evaluator;
-        this.expander.worker.deadCheck('compose:exclude');
-        await this.expander._processComponent(cset, `ValueSet.compose.exclude[${index}]`, source, filter,
-          expansion, excludeInactive, notClosed, 'exclude');
-      }
-    );
+    // If there are no import groups, exclusions can be deferred until fallback
+    // execution is needed. This avoids prebuild overhead for fully pushed-down
+    // requests while preserving global exclude semantics when fallback occurs.
+    const canDeferExclusions = plan.hasExclusions && (plan.importGroups?.length || 0) === 0;
+    let exclusionsBuilt = false;
+    if (!canDeferExclusions && plan.hasExclusions) {
+      await this._buildGlobalExclusionPolicy(
+        plan, source, filter, expansion, excludeInactive, notClosed, 'auto');
+      exclusionsBuilt = true;
+    } else if (canDeferExclusions) {
+      T.count('exclusion_policy_deferred_plans');
+    }
 
     // Phase 2: execute includes (pushdown when handled, otherwise fallback stream)
     // against the prebuilt exclusion policy.
@@ -227,6 +247,11 @@ class ExpansionExecutor {
       if (group.system && await this.expander._tryPushdown(group, source, filter, expansion,
         excludeInactive, notClosed)) {
         continue;
+      }
+      if (plan.hasExclusions && !exclusionsBuilt) {
+        await this._buildGlobalExclusionPolicy(
+          plan, source, filter, expansion, excludeInactive, notClosed, 'materialize');
+        exclusionsBuilt = true;
       }
       for (const { cset, index } of group.includes) {
         this.expander.worker.deadCheck('compose:include');
@@ -353,9 +378,21 @@ class PushdownRequestBuilder {
     const intersectCeiling = intersectSizes.length > 0
       ? Math.min(...intersectSizes)
       : null;
-    const effectiveLimit = intersectCeiling != null
+    let effectiveLimit = intersectCeiling != null
       ? Math.min(e.limitCount, intersectCeiling)
       : e.limitCount;
+
+    // When pagination is requested but this group cannot safely push pagination
+    // (e.g. mixed system+import plans), avoid silently clipping results to the
+    // worker cap. Ensure the provider can return at least the requested page
+    // window for this group.
+    if (!canPushPagination && (e.offset > -1 || e.count > -1)) {
+      const pageNeed = e.count > -1 ? Math.max(0, e.offset) + Math.max(0, e.count) : -1;
+      if (pageNeed > 0) {
+        const needed = intersectCeiling != null ? Math.min(pageNeed, intersectCeiling) : pageNeed;
+        if (needed > effectiveLimit) effectiveLimit = needed;
+      }
+    }
 
     return {
       includes: includeRequests,
@@ -613,7 +650,9 @@ class ValueSetExpander {
     this.count = -1;
     this.hasTextFilter = false;
     this.paginationAlreadyApplied = false;
+    this.excludeBuildStrategy = 'auto'; // auto | materialize
     this.knownSafeTotal = null;
+    this.finishedByPagination = false;
 
     // Per-system counters for expandLimitation
     this.csCounter = new Map();
@@ -663,6 +702,7 @@ class ValueSetExpander {
     }
 
     // Initialize limits
+    this.finishedByPagination = false;
     this.limitCount = this.params.limit > 0
       ? Math.min(this.params.limit, INTERNAL_LIMIT)
       : (filter.isNull ? UPPER_LIMIT_NO_TEXT : UPPER_LIMIT_TEXT);
@@ -713,9 +753,25 @@ class ValueSetExpander {
     } catch (e) {
       if (!(e instanceof Issue)) throw e;
       if (e.finished) {
-        if (this.totalStatus === 'uninitialised') {
-          if (this.count > -1 || this.offset > -1) {
-            if (Number.isFinite(this.knownSafeTotal) && this.knownSafeTotal >= 0) {
+        const hasPaging = this.count > -1 || this.offset > -1;
+        const hasKnownSafeTotal = Number.isFinite(this.knownSafeTotal) && this.knownSafeTotal >= 0;
+
+        if (this.finishedByPagination) {
+          // Never return page-progress totals after pagination short-circuit.
+          // Keep total only when we have a known-safe exact cardinality.
+          if (hasKnownSafeTotal) {
+            this.totalStatus = 'set';
+            this.total = this.knownSafeTotal;
+          } else if (this.paginationAlreadyApplied && this.totalStatus === 'set' && this.total > -1) {
+            // Provider-applied pagination may have already set an exact total.
+            // Preserve only when explicitly set.
+          } else {
+            this.totalStatus = 'off';
+            this.total = -1;
+          }
+        } else if (this.totalStatus === 'uninitialised') {
+          if (hasPaging) {
+            if (hasKnownSafeTotal) {
               this.totalStatus = 'set';
               this.total = Math.max(this.total, this.knownSafeTotal);
             } else if (this.paginationAlreadyApplied && this.total > 0) {
@@ -1015,10 +1071,13 @@ class ValueSetExpander {
         }
       }
 
-      if (this.limitCount > 0 && this.fullList.length >= this.limitCount) {
+      const hasPagination = this.count > -1 && this.offset > -1;
+      const pageNeed = hasPagination ? Math.max(0, this.offset + this.count) : 0;
+      const effectiveLimit = hasPagination ? Math.max(this.limitCount, pageNeed) : this.limitCount;
+      if (effectiveLimit > 0 && this.fullList.length >= effectiveLimit) {
         throw new Issue('error', 'too-costly', null, 'VALUESET_TOO_COSTLY',
           this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages,
-            [vsSrc.vurl || '??', '>' + this.limitCount]), null, 422)
+            [vsSrc.vurl || '??', '>' + effectiveLimit]), null, 422)
           .withDiagnostics(this.worker.opContext.diagnostics());
       }
 
@@ -1201,7 +1260,7 @@ class ValueSetExpander {
     if (mode === 'exclude'
         && importedSets.length === 0
         && textFilter.isNull
-        && typeof cs.filterCheck === 'function') {
+        && this.excludeBuildStrategy !== 'materialize') {
       this._registerFilterExclusionPredicate(cs, prep, filterSets);
       _tFilters.end({ deferred: true });
       return;
@@ -1738,11 +1797,19 @@ class ValueSetExpander {
   }
 
   _enforceIncludePaginationShortCircuit() {
-    if (!this.hasExclusions && this.count > -1 && this.offset > -1
+    if (this.count > -1 && this.offset > -1
         && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
-      // Don't suppress total — _assembleOutput will use this.total if set,
-      // or fall back to fullList.length. Total may be approximate (based on
-      // what was counted before the short-circuit).
+      // With exclusions, we can still safely short-circuit page collection
+      // because excludes are enforced at membership time. Total is unknown
+      // once we stop early, so omit it rather than returning an approximation.
+      if (this.hasExclusions) {
+        // Keep first-page behavior (offset=0) unchanged so we can still
+        // compute exact totals where tests and clients expect them.
+        if (this.offset <= 0) return;
+        this._noTotal();
+      }
+      this.finishedByPagination = true;
+      // Without exclusions keep existing behavior: short-circuit page fill.
       throw new Issue('information', 'informational', null, null, null, null).setFinished();
     }
   }

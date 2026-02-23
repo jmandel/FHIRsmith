@@ -46,6 +46,7 @@ const TRACE_PRINT = (process.env.EXPAND_TRACE_PRINT || 'fail').toLowerCase(); //
 const TRACE_FORMAT = (process.env.EXPAND_TRACE_FORMAT || 'summary').toLowerCase(); // summary | json
 const TRACE_MAX_SPANS = Number.parseInt(process.env.EXPAND_TRACE_MAX_SPANS || '12', 10) || 12;
 const TRACE_RESULTS_FILE = process.env.EXPAND_TRACE_RESULTS || 'expand-v2-results.json';
+const TRACE_HEAVY = process.env.EXPAND_TRACE_HEAVY && process.env.EXPAND_TRACE_HEAVY !== '0';
 const PUSH_DOWN_DISABLED = process.env.EXPAND_V2_DISABLE_PUSHDOWN === '1';
 
 // ── Minimal logger ─────────────────────────────────────────────────────────
@@ -451,6 +452,22 @@ function assertExpansionStructure(result) {
   assert(result.expansion.identifier.startsWith('urn:uuid:'), 'identifier should be a UUID URN');
 }
 
+/** Assert expansion.parameter entries are structurally well-formed. */
+function assertExpansionParams(result) {
+  const params = result?.expansion?.parameter || [];
+  for (const p of params) {
+    assert(typeof p.name === 'string' && p.name.length > 0,
+      `parameter missing name: ${JSON.stringify(p)}`);
+    const valueKeys = Object.keys(p).filter(k => k.startsWith('value'));
+    assert(valueKeys.length === 1,
+      `parameter '${p.name}' should have exactly 1 value[x], got ${valueKeys.length}`);
+  }
+}
+
+function findParams(result, name) {
+  return (result?.expansion?.parameter || []).filter(p => p.name === name);
+}
+
 /** Assert each contains entry has required fields. */
 function assertContainsShape(contains, expectedSystem) {
   for (const c of contains) {
@@ -699,6 +716,7 @@ test('params: property=definition includes definition property on contains entri
 test('notClosed: UCUM expansion reports valueset-unclosed extension', async () => {
   const { result } = await expand(vs({ system: 'http://unitsofmeasure.org' }), { count: 20 });
   assertExpansionStructure(result);
+  assertExpansionParams(result);
   const contains = result.expansion.contains || [];
   assert(contains.length > 0, 'UCUM expansion should return at least one code');
   const unclosed = (result.expansion.extension || [])
@@ -710,6 +728,162 @@ test('notClosed: UCUM expansion reports valueset-unclosed extension', async () =
     `valueset-unclosed must not use valueString, got ${JSON.stringify(unclosed)}`);
   assert(hasExtension(result.expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed'),
     'UCUM expansion should carry valueset-unclosed extension');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Expansion metadata (parameters, warnings, provenance)
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('meta: multi-system expansion emits used-codesystem for each system', async () => {
+  const { result } = await expand(vs([
+    { system: SYS.GENDER, concept: [{ code: 'male' }] },
+    { system: SYS.PUBSTAT, concept: [{ code: 'active' }] },
+  ]));
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const usedCs = findParams(result, 'used-codesystem').map(p => p.valueUri || '');
+  assert(usedCs.some(v => v.startsWith(SYS.GENDER)), 'should include administrative-gender in used-codesystem');
+  assert(usedCs.some(v => v.startsWith(SYS.PUBSTAT)), 'should include publication-status in used-codesystem');
+});
+
+test('meta: used-codesystem dedupes repeated same-system usage', async () => {
+  const { result } = await expand(vs({
+    system: SYS.GENDER,
+    concept: [{ code: 'male' }, { code: 'female' }, { code: 'other' }],
+  }));
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const usedCs = findParams(result, 'used-codesystem')
+    .filter(p => typeof p.valueUri === 'string' && p.valueUri.startsWith(SYS.GENDER));
+  assert(usedCs.length === 1, `expected exactly 1 used-codesystem for ${SYS.GENDER}, got ${usedCs.length}`);
+});
+
+test('meta: ValueSet import emits used-valueset parameter', async () => {
+  const csUrl = `http://example.org/cs/meta-used-vs-${Date.now()}`;
+  const importedVsUrl = `http://example.org/vs/meta-used-vs-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'a', display: 'A' }, { code: 'b', display: 'B' }],
+  };
+  const importedVs = {
+    resourceType: 'ValueSet',
+    url: importedVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'a' }] }],
+    },
+  };
+
+  const { result } = await expand(vs({ valueSet: [importedVsUrl] }), { txResources: [cs, importedVs] });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const usedVs = findParams(result, 'used-valueset');
+  assert(usedVs.some(p => typeof p.valueUri === 'string' && p.valueUri.startsWith(importedVsUrl)),
+    `expected used-valueset to include ${importedVsUrl}`);
+});
+
+test('meta: offset/count are echoed in expansion parameters', async () => {
+  const { result } = await expand(vs({ system: SYS.USPS }), { count: 5, offset: 2 });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const offsetP = findParams(result, 'offset')[0];
+  const countP = findParams(result, 'count')[0];
+  assert(offsetP?.valueInteger === 2, `expected offset=2, got ${offsetP?.valueInteger}`);
+  assert(countP?.valueInteger === 5, `expected count=5, got ${countP?.valueInteger}`);
+  assert(result.expansion.offset === 2, `expected expansion.offset=2, got ${result.expansion.offset}`);
+});
+
+test('meta: text filter is echoed in expansion parameters', async () => {
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+  }), { filter: 'mell', count: 5 });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const filterP = findParams(result, 'filter')[0];
+  assert(filterP?.valueString === 'mell', `expected filter='mell', got '${filterP?.valueString}'`);
+});
+
+test('meta: draft code system emits warning-draft parameter', async () => {
+  const csUrl = `http://example.org/cs/meta-draft-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'draft',
+    content: 'complete',
+    concept: [{ code: 'x', display: 'X' }],
+  };
+
+  const { result } = await expand(vs({ system: csUrl, concept: [{ code: 'x' }] }), { txResources: [cs] });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  assert(findParams(result, 'warning-draft').length > 0, 'expected warning-draft parameter');
+});
+
+test('meta: retired code system emits warning-retired parameter', async () => {
+  const csUrl = `http://example.org/cs/meta-retired-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'retired',
+    content: 'complete',
+    concept: [{ code: 'y', display: 'Y' }],
+  };
+
+  const { result } = await expand(vs({ system: csUrl, concept: [{ code: 'y' }] }), { txResources: [cs] });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  assert(findParams(result, 'warning-retired').length > 0, 'expected warning-retired parameter');
+});
+
+test('meta: draft code system warning is suppressed when source ValueSet is draft', async () => {
+  const csUrl = `http://example.org/cs/meta-draft-suppressed-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'draft',
+    content: 'complete',
+    concept: [{ code: 'z', display: 'Z' }],
+  };
+  const draftVs = {
+    resourceType: 'ValueSet',
+    url: `http://example.org/vs/meta-draft-suppressed-${Date.now()}`,
+    status: 'draft',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'z' }] }],
+    },
+  };
+
+  const { result } = await expand(draftVs, { txResources: [cs] });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  assert(findParams(result, 'warning-draft').length === 0,
+    'warning-draft should be suppressed when source ValueSet is draft');
+});
+
+test('meta: fragment content mode emits valueset-unclosed as valueBoolean', async () => {
+  const csUrl = `http://example.org/cs/meta-fragment-${Date.now()}`;
+  const cs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'fragment',
+    concept: [{ code: 'f1', display: 'Fragment 1' }],
+  };
+
+  const { result } = await expand(vs({ system: csUrl, concept: [{ code: 'f1' }] }), { txResources: [cs] });
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const unclosed = (result.expansion.extension || [])
+    .find(e => e.url === 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+  assert(unclosed, 'fragment expansion should include valueset-unclosed extension');
+  assert(unclosed.valueBoolean === true,
+    `valueset-unclosed should be valueBoolean=true, got ${JSON.stringify(unclosed)}`);
+  assert(unclosed.valueString == null,
+    `valueset-unclosed must not use valueString, got ${JSON.stringify(unclosed)}`);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2296,6 +2470,33 @@ test('logic: regex filter is handled in sqlite-v0 pushdown path', async () => {
     'expected _tryPushdown handled=true for regex case');
 });
 
+test('logic: regex filter works for literal-valued property in sqlite-v0', async () => {
+  const query = vs({
+    system: SYS.LOINC,
+    filter: [{ property: 'STATUS', op: 'regex', value: '^ACT' }],
+  });
+  const opts = { count: 20, offset: 0 };
+
+  const push = await runExpandWithImpl('v2', query, opts, true);
+  assertExpansionStructure(push.result);
+  const pushContains = push.result.expansion.contains || [];
+  assert(pushContains.length > 0, 'expected pushdown literal-property regex to return results');
+  assert(traceHasSpan(push.trace, '_tryPushdown', s => s.result?.handled === true),
+    'expected _tryPushdown handled=true for literal-property regex');
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const fallback = await runExpandWithImpl('v2', query, opts, true);
+    assertExpansionStructure(fallback.result);
+    const fallbackContains = fallback.result.expansion.contains || [];
+    assert(fallbackContains.length > 0, 'expected fallback literal-property regex to return results');
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
 test('logic: imported include/exclude valueSets (no system) apply Inc\\\\Exc semantics', async () => {
   const csUrl = `http://example.org/cs/logic-palette-${Date.now()}`;
   const includeVsUrl = `http://example.org/vs/logic-palette-include-${Date.now()}`;
@@ -2435,6 +2636,41 @@ test('logic: total reflects imported excludes without mutating accumulated list'
   assert(pageContains.length === 1, `expected one item on page, got ${pageContains.length}`);
   if (page.expansion.total != null) {
     assert(page.expansion.total === 2, `paged total should remain 2, got ${page.expansion.total}`);
+  }
+});
+
+test('logic: fallback deep-offset page never reports partial total', async () => {
+  const query = vs({
+    system: SYS.SCT,
+    filter: [{ property: 'concept', op: 'is-a', value: '123037004' }],
+  });
+  const opts = { count: 1000, offset: 40000 };
+
+  const push = await runExpandWithImpl('v2', query, opts, true);
+  assertExpansionStructure(push.result);
+  const pushContains = push.result.expansion.contains || [];
+  const pushTotal = push.result.expansion.total;
+  assert(pushContains.length === 1000, `expected 1000 pushdown results, got ${pushContains.length}`);
+  assert(
+    Number.isFinite(pushTotal) && pushTotal > opts.offset + pushContains.length,
+    `expected pushdown to provide exact total > page window, got ${pushTotal}`
+  );
+
+  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  try {
+    const fallback = await runExpandWithImpl('v2', query, opts, true);
+    assertExpansionStructure(fallback.result);
+    const fallbackContains = fallback.result.expansion.contains || [];
+    const fallbackTotal = fallback.result.expansion.total;
+    assert(fallbackContains.length === 1000, `expected 1000 fallback results, got ${fallbackContains.length}`);
+    assert(
+      fallbackTotal == null || fallbackTotal === pushTotal,
+      `fallback total must be exact or omitted; push=${pushTotal}, fallback=${fallbackTotal}`
+    );
+  } finally {
+    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -2754,6 +2990,61 @@ test('high-value: include.valueSet + sibling filter works at scale (pushdown and
   }
 });
 
+test('pagination-safety: mixed import+system high-count page is not silently capped', async () => {
+  if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
+
+  const baseline = await runExpandWithImpl('v2', vs({ system: SYS.LOINC }), {
+    count: 120000,
+    offset: 0,
+  }, false);
+  const baselineCount = (baseline.result.expansion.contains || []).length;
+  if (baselineCount < 120000) {
+    return { skipped: `requires local LOINC with >=120000 concepts, got ${baselineCount}` };
+  }
+
+  const csUrl = `http://example.org/cs/mixed-cap-peer-${Date.now()}`;
+  const vsUrl = `http://example.org/vs/mixed-cap-peer-${Date.now()}`;
+  const peerCs = {
+    resourceType: 'CodeSystem',
+    url: csUrl,
+    status: 'active',
+    content: 'complete',
+    concept: [{ code: 'peer-only', display: 'Peer Only' }],
+  };
+  const peerVs = {
+    resourceType: 'ValueSet',
+    url: vsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: csUrl, concept: [{ code: 'peer-only' }] }],
+    },
+  };
+
+  const mixedQuery = vs([
+    { system: SYS.LOINC },
+    { valueSet: [vsUrl] },
+  ]);
+
+  const mixed = await runExpandWithImpl('v2', mixedQuery, {
+    txResources: [peerCs, peerVs],
+    count: 120000,
+    offset: 0,
+  }, true);
+
+  assertExpansionStructure(mixed.result);
+  const mixedContains = mixed.result.expansion.contains || [];
+  assert(
+    mixedContains.length === 120000,
+    `mixed import+system page should fill requested count=120000; got ${mixedContains.length}`
+  );
+
+  return {
+    baselineCount,
+    mixedCount: mixedContains.length,
+    ms: { baseline: baseline.ms, mixed: mixed.ms },
+  };
+});
+
 test('high-value: SNOMED hierarchy tail pagination is stable across modes', async () => {
   if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
 
@@ -2762,14 +3053,14 @@ test('high-value: SNOMED hierarchy tail pagination is stable across modes', asyn
     filter: [{ property: 'concept', op: 'is-a', value: '64572001' }],
   });
 
-  const start = await runExpandWithImpl('v2', query, { count: 1000, offset: 0 }, false);
+  const start = await runExpandWithImpl('v2', query, { count: 1000, offset: 0 }, TRACE_HEAVY);
   const total = start.result.expansion.total;
   assert(Number.isFinite(total) && total > 2000,
     `expected numeric SNOMED disease total > 2000, got ${total}`);
 
   const tailOffset = Math.max(0, total - 500);
-  const pushTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, false);
-  const pushAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, false);
+  const pushTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, TRACE_HEAVY);
+  const pushAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, TRACE_HEAVY);
   const pushTailContains = pushTail.result.expansion.contains || [];
   const pushAfterContains = pushAfter.result.expansion.contains || [];
   assert(pushTailContains.length > 0 && pushTailContains.length <= 1000,
@@ -2779,8 +3070,8 @@ test('high-value: SNOMED hierarchy tail pagination is stable across modes', asyn
   const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
   process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
   try {
-    const fallbackTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, false);
-    const fallbackAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, false);
+    const fallbackTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, TRACE_HEAVY);
+    const fallbackAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, TRACE_HEAVY);
     const fallbackTailContains = fallbackTail.result.expansion.contains || [];
     const fallbackAfterContains = fallbackAfter.result.expansion.contains || [];
     assert(fallbackTailContains.length === pushTailContains.length,
@@ -2792,6 +3083,17 @@ test('high-value: SNOMED hierarchy tail pagination is stable across modes', asyn
     const fallbackTailKeys = fallbackTailContains.map(c => `${c.system}|${c.code}`);
     assert(deepEqual(pushTailKeys, fallbackTailKeys),
       'tail page keys should match between pushdown and fallback for single hierarchy filter');
+    return {
+      total,
+      tailOffset,
+      ms: {
+        start: start.ms,
+        pushTail: pushTail.ms,
+        pushAfter: pushAfter.ms,
+        fallbackTail: fallbackTail.ms,
+        fallbackAfter: fallbackAfter.ms,
+      },
+    };
   } finally {
     if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
     else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
@@ -2812,8 +3114,8 @@ test('high-value: complex same-system include/exclude pages are internally consi
   const opts1 = { count: 1000, offset: 50000, params: [{ name: 'limit', valueInteger: 200000 }] };
   const opts2 = { count: 1000, offset: 51000, params: [{ name: 'limit', valueInteger: 200000 }] };
 
-  const push1 = await runExpandWithImpl('v2', query, opts1, false);
-  const push2 = await runExpandWithImpl('v2', query, opts2, false);
+  const push1 = await runExpandWithImpl('v2', query, opts1, TRACE_HEAVY);
+  const push2 = await runExpandWithImpl('v2', query, opts2, TRACE_HEAVY);
   const push1Contains = push1.result.expansion.contains || [];
   const push2Contains = push2.result.expansion.contains || [];
   assert(push1Contains.length === 1000, `pushdown page1 should have 1000, got ${push1Contains.length}`);
@@ -2828,8 +3130,8 @@ test('high-value: complex same-system include/exclude pages are internally consi
   const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
   process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
   try {
-    const fb1 = await runExpandWithImpl('v2', query, opts1, false);
-    const fb2 = await runExpandWithImpl('v2', query, opts2, false);
+    const fb1 = await runExpandWithImpl('v2', query, opts1, TRACE_HEAVY);
+    const fb2 = await runExpandWithImpl('v2', query, opts2, TRACE_HEAVY);
     const fb1Contains = fb1.result.expansion.contains || [];
     const fb2Contains = fb2.result.expansion.contains || [];
     assert(fb1Contains.length === 1000, `fallback page1 should have 1000, got ${fb1Contains.length}`);
@@ -2840,6 +3142,20 @@ test('high-value: complex same-system include/exclude pages are internally consi
     assert(fb2Keys.size === fb2Contains.length, 'fallback page2 should not contain duplicates');
     const fbOverlap = [...fb1Keys].filter(k => fb2Keys.has(k));
     assert(fbOverlap.length === 0, `fallback adjacent pages should not overlap, got ${fbOverlap.length}`);
+    return {
+      opts1,
+      opts2,
+      ms: {
+        push1: push1.ms,
+        push2: push2.ms,
+        fallback1: fb1.ms,
+        fallback2: fb2.ms,
+      },
+      overlap: {
+        push: pushOverlap.length,
+        fallback: fbOverlap.length,
+      },
+    };
   } finally {
     if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
     else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;

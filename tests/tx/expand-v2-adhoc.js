@@ -41,10 +41,14 @@ function usage() {
     '  --url <uri>                       Override ValueSet.url',
     '',
     'Parameters:',
+    '  --params-file <path>              Full Parameters JSON (resourceType=Parameters)',
+    '  --params-json <json>              Full Parameters JSON inline',
     '  --count <n>',
     '  --offset <n>',
     '  --limit <n>',
     '  --filter <text>                   Also used for SearchFilterText',
+    '  --url-param <uri>                 Convenience for Parameters.url',
+    '  --value-set-version <ver>         Convenience for Parameters.valueSetVersion',
     '  --param <json>                    Repeated full Parameters.parameter entry',
     '',
     'Extras:',
@@ -140,6 +144,12 @@ function loadResourceFile(filePath) {
   return [parsed];
 }
 
+function loadJsonFile(filePath) {
+  const full = path.resolve(filePath);
+  const raw = fs.readFileSync(full, 'utf8');
+  return JSON.parse(raw);
+}
+
 function buildVs(args) {
   if (args['vs-file']) {
     const p = path.resolve(String(args['vs-file']));
@@ -205,22 +215,45 @@ async function main() {
   const fullResult = args['full-result'] === true;
   const disablePushdown = args['disable-pushdown'] === true;
 
-  const vsJson = buildVs(args);
-  const txResourceFiles = listify(args['tx-resource-file']);
-  const txResources = [];
-  for (const rf of txResourceFiles) txResources.push(...loadResourceFile(String(rf)));
+  const hasExplicitVsInput = !!(args['vs-file'] || args['vs-json'] || args.include || args.system);
+  let vsJson = hasExplicitVsInput ? buildVs(args) : null;
 
-  const params = [];
+  let paramsResource;
+  if (args['params-file']) {
+    paramsResource = loadJsonFile(String(args['params-file']));
+  } else if (args['params-json']) {
+    paramsResource = parseJson(String(args['params-json']), '--params-json');
+  } else {
+    paramsResource = { resourceType: 'Parameters', parameter: [] };
+  }
+  if (!paramsResource || paramsResource.resourceType !== 'Parameters') {
+    throw new Error('Parameters input must be a Parameters resource (resourceType=Parameters)');
+  }
+
+  const params = Array.isArray(paramsResource.parameter) ? [...paramsResource.parameter] : [];
   const count = parseIntOpt(args.count, '--count');
   const offset = parseIntOpt(args.offset, '--offset');
   const limit = parseIntOpt(args.limit, '--limit');
   const filter = args.filter !== undefined ? String(args.filter) : null;
+  const urlParam = args['url-param'] !== undefined ? String(args['url-param']) : null;
+  const valueSetVersion = args['value-set-version'] !== undefined ? String(args['value-set-version']) : null;
+
   if (count !== undefined) params.push({ name: 'count', valueInteger: count });
   if (offset !== undefined) params.push({ name: 'offset', valueInteger: offset });
   if (limit !== undefined) params.push({ name: 'limit', valueInteger: limit });
   if (filter !== null) params.push({ name: 'filter', valueString: filter });
+  if (urlParam) params.push({ name: 'url', valueUri: urlParam });
+  if (valueSetVersion) params.push({ name: 'valueSetVersion', valueString: valueSetVersion });
   for (const [idx, p] of listify(args.param).entries()) {
     params.push(parseJson(String(p), `--param[${idx}]`));
+  }
+  paramsResource = { resourceType: 'Parameters', parameter: params };
+
+  const txResourceFiles = listify(args['tx-resource-file']);
+  const txResources = [];
+  for (const rf of txResourceFiles) txResources.push(...loadResourceFile(String(rf)));
+  for (const p of params) {
+    if (p?.name === 'tx-resource' && p.resource) txResources.push(p.resource);
   }
 
   const { ExpandWorker, ValueSetExpander } = WORKER_MODULES[impl];
@@ -234,18 +267,49 @@ async function main() {
     const opContext = new OperationContext('en', library.i18n, null, 120);
     const worker = new ExpandWorker(opContext, log, provider, library.languageDefinitions, library.i18n);
 
+    if (typeof worker.setupAdditionalResources === 'function') {
+      worker.setupAdditionalResources(paramsResource);
+    }
     if (txResources.length > 0) {
-      worker.additionalResources = txResources
+      const wrapped = txResources
         .map(res => worker.wrapRawResource ? worker.wrapRawResource(res) : null)
         .filter(Boolean);
+      worker.additionalResources = (worker.additionalResources || []).concat(wrapped);
     }
 
     const txp = new TxParameters(library.languageDefinitions, library.i18n, false);
-    txp.readParams({ resourceType: 'Parameters', parameter: params });
+    txp.readParams(paramsResource);
 
-    const vs = new ValueSet(vsJson);
+    const findParam = (name) => params.find(p => p?.name === name);
+    if (!vsJson) {
+      const vsParam = findParam('valueSet');
+      if (vsParam?.resource) vsJson = vsParam.resource;
+    }
+
+    let resolvedFromUrl = null;
+    if (!vsJson) {
+      const up = findParam('url');
+      if (up) {
+        const url = up.valueUri || up.valueCanonical || up.valueString || null;
+        if (!url) throw new Error('url parameter provided but no valueUri/valueCanonical/valueString present');
+        const vp = findParam('valueSetVersion');
+        const version = vp ? (vp.valueString || vp.valueUri || vp.valueCanonical || null) : null;
+        const found = await worker.findValueSet(url, version);
+        if (!found) {
+          throw new Error(version ? `ValueSet not found: ${url} version ${version}` : `ValueSet not found: ${url}`);
+        }
+        resolvedFromUrl = { url, version };
+        vsJson = found.jsonObj || found;
+      }
+    }
+
+    if (!vsJson) {
+      throw new Error('Need one of: explicit ValueSet (--vs-file/--vs-json/--include/--system), Parameters.valueSet, or Parameters.url');
+    }
+
+    const vs = new ValueSet(vsJson.jsonObj || vsJson);
     const expander = new ValueSetExpander(worker, txp);
-    const searchFilter = new SearchFilterText(filter);
+    const searchFilter = new SearchFilterText(txp.filter || filter);
 
     const t0 = performance.now();
     let result;
@@ -269,6 +333,8 @@ async function main() {
         offset: offset ?? null,
         limit: limit ?? null,
         filter,
+        paramNames: params.map(p => p.name),
+        resolvedFromUrl,
         compose: vsJson?.compose || null,
       },
       expansion: {

@@ -16,6 +16,10 @@ function parseArgs(argv) {
     librarySource: 'tx/tx.snomed-v0.yml',
     intendedSource: 'prod',
     compare: null,
+    mode: 'status',
+    onlyExpand: false,
+    match: null,
+    limit: 0,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -27,6 +31,10 @@ function parseArgs(argv) {
     else if (a === '--library' && argv[i + 1]) out.librarySource = argv[++i];
     else if (a === '--intended-source' && argv[i + 1]) out.intendedSource = argv[++i];
     else if (a === '--compare' && argv[i + 1]) out.compare = argv[++i];
+    else if (a === '--mode' && argv[i + 1]) out.mode = String(argv[++i]).toLowerCase();
+    else if (a === '--only-expand') out.onlyExpand = true;
+    else if (a === '--match' && argv[i + 1]) out.match = argv[++i];
+    else if (a === '--limit' && argv[i + 1]) out.limit = Number(argv[++i]);
   }
 
   if (!['prod', 'dev'].includes(out.intendedSource)) {
@@ -34,6 +42,12 @@ function parseArgs(argv) {
   }
   if (!Number.isFinite(out.port) || out.port <= 0) {
     throw new Error(`Invalid --port: ${out.port}`);
+  }
+  if (!['status', 'perf'].includes(out.mode)) {
+    throw new Error(`--mode must be status|perf (got "${out.mode}")`);
+  }
+  if (!Number.isFinite(out.limit) || out.limit < 0) {
+    throw new Error(`Invalid --limit: ${out.limit}`);
   }
 
   return out;
@@ -111,8 +125,8 @@ function summarizeResults(results) {
   const byIntendedPair = {};
   const topMismatches = {};
 
-  let intendedPass = 0;
-  let intendedFail = 0;
+  let baselineMatch = 0;
+  let baselineMismatch = 0;
   let prodMatch = 0;
   let devMatch = 0;
   let noActual = 0;
@@ -129,8 +143,8 @@ function summarizeResults(results) {
     const pair = `${r.intendedStatus}->${statusKey}`;
     byIntendedPair[pair] = (byIntendedPair[pair] || 0) + 1;
 
-    if (r.statusMatch.intended === true) intendedPass += 1;
-    else intendedFail += 1;
+    if (r.statusMatch.intended === true) baselineMatch += 1;
+    else baselineMismatch += 1;
 
     if (r.statusMatch.prod === true) prodMatch += 1;
     if (r.statusMatch.dev === true) devMatch += 1;
@@ -156,8 +170,8 @@ function summarizeResults(results) {
 
   return {
     total: results.length,
-    intendedPass,
-    intendedFail,
+    baselineMatch,
+    baselineMismatch,
     prodMatch,
     devMatch,
     noActual,
@@ -170,6 +184,74 @@ function summarizeResults(results) {
     topPairs,
     topFailSigs,
   };
+}
+
+function percentile(sorted, p) {
+  if (!sorted || sorted.length === 0) return 0;
+  const idx = Math.max(0, Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p)));
+  return sorted[idx];
+}
+
+function summarizePerf(results) {
+  const durations = results.map(r => r.durationMs).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  const bySignature = new Map();
+  for (const r of results) {
+    const key = r.signature || `${r.method} ${r.url}`;
+    if (!bySignature.has(key)) bySignature.set(key, []);
+    bySignature.get(key).push(r.durationMs);
+  }
+
+  const topSignatures = [...bySignature.entries()].map(([signature, values]) => {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const sum = sorted.reduce((a, b) => a + b, 0);
+    return {
+      signature,
+      count: sorted.length,
+      avgMs: Math.round(sum / sorted.length),
+      p50Ms: percentile(sorted, 0.50),
+      p95Ms: percentile(sorted, 0.95),
+      maxMs: sorted[sorted.length - 1],
+    };
+  }).sort((a, b) => b.p95Ms - a.p95Ms).slice(0, 30);
+
+  const slowest = results
+    .map((r) => ({
+      id: r.id,
+      method: r.method,
+      url: r.url,
+      signature: r.signature || `${r.method} ${r.url}`,
+      status: r.actualStatus,
+      durationMs: r.durationMs,
+    }))
+    .sort((a, b) => b.durationMs - a.durationMs)
+    .slice(0, 50);
+
+  return {
+    total: results.length,
+    errors: results.filter(r => r.actualStatus == null).length,
+    avgMs: durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0,
+    p50Ms: percentile(durations, 0.50),
+    p95Ms: percentile(durations, 0.95),
+    p99Ms: percentile(durations, 0.99),
+    maxMs: durations.length ? durations[durations.length - 1] : 0,
+    topSignatures,
+    slowest,
+  };
+}
+
+function filterSamples(samples, args) {
+  let out = samples;
+  if (args.onlyExpand) {
+    out = out.filter((s) => String(s.url || '').includes('/$expand'));
+  }
+  if (args.match) {
+    const rx = new RegExp(String(args.match), 'i');
+    out = out.filter((s) => rx.test(String(s.signature || '')) || rx.test(String(s.url || '')));
+  }
+  if (args.limit > 0) {
+    out = out.slice(0, args.limit);
+  }
+  return out;
 }
 
 function actualStatusFromPrior(record) {
@@ -249,7 +331,7 @@ function compareAgainstPrior(currentResults, priorResults, sampleById) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const samples = readNdjson(args.input);
+  const samples = filterSamples(readNdjson(args.input), args);
   const sampleById = new Map(samples.map((s) => [s.id, s]));
 
   const outAbs = path.resolve(args.out);
@@ -330,6 +412,7 @@ async function main() {
   const overall = summarizeResults(results);
   const r4 = summarizeResults(results.filter((r) => String(r.url).startsWith('/r4/')));
   const r5 = summarizeResults(results.filter((r) => String(r.url).startsWith('/r5/')));
+  const perf = summarizePerf(results);
 
   let comparison = null;
   if (args.compare) {
@@ -349,9 +432,16 @@ async function main() {
     endpointPath: args.endpointPath,
     librarySource: args.librarySource,
     intendedSource: args.intendedSource,
+    mode: args.mode,
+    filters: {
+      onlyExpand: args.onlyExpand,
+      match: args.match,
+      limit: args.limit,
+    },
     overall,
     r4,
     r5,
+    perf,
     comparison,
     results,
   };
@@ -360,14 +450,25 @@ async function main() {
 
   const cliSummary = {
     out: outAbs,
+    mode: args.mode,
+    selectedSamples: samples.length,
     intendedSource: args.intendedSource,
     overall: {
       total: overall.total,
-      intendedPass: overall.intendedPass,
-      intendedFail: overall.intendedFail,
+      baselineMatch: overall.baselineMatch,
+      baselineMismatch: overall.baselineMismatch,
       prodMatch: overall.prodMatch,
       devMatch: overall.devMatch,
     },
+    perf: args.mode === 'perf' ? {
+      total: perf.total,
+      avgMs: perf.avgMs,
+      p50Ms: perf.p50Ms,
+      p95Ms: perf.p95Ms,
+      p99Ms: perf.p99Ms,
+      maxMs: perf.maxMs,
+      topSignatures: perf.topSignatures.slice(0, 10),
+    } : null,
     comparison: comparison ? comparison.summary : null,
   };
   console.log(JSON.stringify(cliSummary, null, 2));
@@ -377,4 +478,3 @@ main().catch((error) => {
   console.error(error);
   process.exit(1);
 });
-
