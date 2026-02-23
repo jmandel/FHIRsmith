@@ -19,6 +19,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const Database = require('better-sqlite3');
 
 // Bootstrap folder-setup before anything else touches it
 const folders = require('../../library/folder-setup');
@@ -34,11 +35,12 @@ const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/worker
 
 const WORKER_MODULES = {
   v2: require('../../tx/workers/expand-v2'),
+  v3: require('../../tx/workers/expand-v3'),
 };
 
 const EXPAND_IMPL = (process.env.EXPAND_IMPL || 'v2').toLowerCase();
-if (!['v2', 'v2-parity'].includes(EXPAND_IMPL)) {
-  throw new Error(`Invalid EXPAND_IMPL='${EXPAND_IMPL}'. Expected v2 or v2-parity.`);
+if (!['v2', 'v2-parity', 'v3'].includes(EXPAND_IMPL)) {
+  throw new Error(`Invalid EXPAND_IMPL='${EXPAND_IMPL}'. Expected v2, v2-parity, or v3.`);
 }
 
 const TRACE_ENABLED = process.env.EXPAND_TRACE && process.env.EXPAND_TRACE !== '0';
@@ -500,6 +502,153 @@ function hasProperty(containsEntry, code) {
   return !!(containsEntry?.property || []).find(p => p.code === code);
 }
 
+function getProperty(containsEntry, code) {
+  return (containsEntry?.property || []).find(p => p.code === code);
+}
+
+function hasUsedSupplementCanonical(values, canonical) {
+  if (!canonical) return false;
+  return (values || []).some(v => v === canonical || String(v || '').startsWith(`${canonical}|`));
+}
+
+function buildSupplementResourceFromSqlite(dbPath, codes) {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const manifest = db.prepare(`
+      SELECT supplement_uri, supplement_version, target_system, target_version
+      FROM supplement_manifest
+      LIMIT 1
+    `).get();
+    if (!manifest) throw new Error(`supplement manifest missing in ${dbPath}`);
+
+    const cleanCodes = [...new Set((codes || []).map(c => String(c || '')).filter(Boolean))];
+    if (cleanCodes.length === 0) {
+      const allCodes = db.prepare(`
+        SELECT code
+        FROM supplement_code
+        ORDER BY code
+      `).all();
+      cleanCodes.push(...allCodes.map(r => String(r.code || '')).filter(Boolean));
+    }
+    if (cleanCodes.length === 0) throw new Error('no codes provided');
+    const placeholders = cleanCodes.map(() => '?').join(',');
+
+    const dRows = db.prepare(`
+      SELECT code, designation, designation_system, language_code, val, preferred, active
+      FROM supplement_designation_by_code
+      WHERE code IN (${placeholders}) AND active = 1
+      ORDER BY code, designation
+    `).all(...cleanCodes);
+
+    const pRows = db.prepare(`
+      SELECT code, property, value_type, value_string, value_code, value_decimal, value_integer, value_boolean, active
+      FROM supplement_property_by_code
+      WHERE code IN (${placeholders}) AND active = 1
+      ORDER BY code, property
+    `).all(...cleanCodes);
+
+    const concepts = new Map();
+    const propTypes = new Map();
+    for (const code of cleanCodes) {
+      concepts.set(code, { code, designation: [], property: [] });
+    }
+
+    for (const r of dRows) {
+      const c = concepts.get(String(r.code));
+      if (!c) continue;
+      const d = {
+        value: String(r.val || ''),
+      };
+      if (r.language_code) d.language = String(r.language_code);
+      if (r.designation_system || r.designation) {
+        d.use = {
+          system: r.designation_system ? String(r.designation_system) : undefined,
+          code: r.designation ? String(r.designation) : undefined,
+        };
+      }
+      c.designation.push(d);
+    }
+
+    for (const r of pRows) {
+      const c = concepts.get(String(r.code));
+      if (!c) continue;
+      const code = String(r.property || '');
+      if (!code) continue;
+      const vt = String(r.value_type || '').toLowerCase();
+      let prop = { code };
+      if (vt === 'code' && r.value_code != null) {
+        prop.valueCode = String(r.value_code);
+        propTypes.set(code, 'code');
+      } else if (vt === 'decimal' && r.value_decimal != null) {
+        prop.valueDecimal = Number(r.value_decimal);
+        propTypes.set(code, 'decimal');
+      } else if (vt === 'integer' && r.value_integer != null) {
+        prop.valueInteger = Number(r.value_integer);
+        propTypes.set(code, 'integer');
+      } else if (vt === 'boolean' && r.value_boolean != null) {
+        prop.valueBoolean = Number(r.value_boolean) === 1;
+        propTypes.set(code, 'boolean');
+      } else {
+        const sv = r.value_string ?? r.value_code;
+        if (sv == null) continue;
+        prop.valueString = String(sv);
+        if (!propTypes.has(code)) propTypes.set(code, 'string');
+      }
+      c.property.push(prop);
+    }
+
+    const property = [...propTypes.entries()].map(([code, type]) => ({
+      code,
+      uri: `http://example.org/fhir/CodeSystemProperty/${code}`,
+      type,
+    }));
+
+    return {
+      resourceType: 'CodeSystem',
+      url: String(manifest.supplement_uri),
+      ...(manifest.supplement_version ? { version: String(manifest.supplement_version) } : {}),
+      status: 'active',
+      content: 'supplement',
+      supplements: manifest.target_version
+        ? `${manifest.target_system}|${manifest.target_version}`
+        : String(manifest.target_system),
+      ...(property.length > 0 ? { property } : {}),
+      concept: cleanCodes.map(code => concepts.get(code)),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+function sampleD20CodesFromSupplementSqlite(dbPath, lowCount = 3, highCount = 3) {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const lows = db.prepare(`
+      SELECT code, value_integer
+      FROM supplement_property_by_code
+      WHERE property = 'd20' AND active = 1 AND value_integer < 5
+      ORDER BY code
+      LIMIT ?
+    `).all(lowCount);
+    const highs = db.prepare(`
+      SELECT code, value_integer
+      FROM supplement_property_by_code
+      WHERE property = 'd20' AND active = 1 AND value_integer >= 5
+      ORDER BY code
+      LIMIT ?
+    `).all(highCount);
+    const selected = [...lows, ...highs];
+    const valueByCode = new Map(selected.map(r => [String(r.code), Number(r.value_integer)]));
+    return {
+      lowCodes: lows.map(r => String(r.code)),
+      highCodes: highs.map(r => String(r.code)),
+      valueByCode,
+    };
+  } finally {
+    db.close();
+  }
+}
+
 function traceSpans(traceJson) {
   return Array.isArray(traceJson?.spans) ? traceJson.spans : [];
 }
@@ -527,6 +676,16 @@ function traceHasSpan(traceJson, name, predicate = null) {
       return false;
     }
   });
+}
+
+function assertSqlitePushdownTrace(traceJson, label = 'expected sqlite-v0 pushdown trace span') {
+  assert(traceHasSpan(traceJson, 'v0.expandQuery'), label);
+  if (EXPAND_IMPL !== 'v3') {
+    assert(
+      traceHasSpan(traceJson, '_tryPushdown', s => s.result?.handled === true),
+      'expected _tryPushdown handled=true'
+    );
+  }
 }
 
 // ── Test definitions ───────────────────────────────────────────────────────
@@ -740,7 +899,7 @@ test('supplement: useSupplement parameter applies supplement content and records
     'expected supplement synonym designation');
 
   const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
-  assert(usedSupp.includes(suppUrl),
+  assert(hasUsedSupplementCanonical(usedSupp, suppUrl),
     `expected used-supplement to include ${suppUrl}, got ${JSON.stringify(usedSupp)}`);
 });
 
@@ -818,7 +977,7 @@ test('supplement: valueset-supplement extension on ValueSet activates supplement
   assert((item.designation || []).some(d => d.value === 'Supplement Y'),
     'expected supplement value via designations when valueset-supplement is declared');
   const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
-  assert(usedSupp.includes(suppUrl),
+  assert(hasUsedSupplementCanonical(usedSupp, suppUrl),
     `expected used-supplement to include ${suppUrl}, got ${JSON.stringify(usedSupp)}`);
 });
 
@@ -1033,6 +1192,297 @@ test('supplement: version-pinned useSupplement canonical is accepted', async () 
   const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
   assert(usedSupp.includes(pinnedSupp),
     `expected used-supplement to include pinned canonical ${pinnedSupp}, got ${JSON.stringify(usedSupp)}`);
+});
+
+test('supplement-sqlite: D20 LOINC fixture projects property/designation', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-loinc-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const propertyCode = 'd20';
+  const loincCodes = ['2160-0', '4548-4', '718-7'];
+  const supplement = buildSupplementResourceFromSqlite(dbPath, loincCodes);
+  const suppCanonical = supplement.url;
+
+  const { result } = await expand(vs({
+    system: SYS.LOINC,
+    concept: loincCodes.map(code => ({ code })),
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'property', valueCode: propertyCode },
+      { name: 'includeDesignations', valueBoolean: true },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === loincCodes.length, `expected ${loincCodes.length} codes, got ${contains.length}`);
+  for (const code of loincCodes) {
+    const entry = findCode(contains, code);
+    assert(entry, `missing LOINC code ${code}`);
+    assert(hasProperty(entry, propertyCode), `expected ${propertyCode} on ${code}`);
+    const prop = getProperty(entry, propertyCode);
+    assert(Number.isInteger(prop.valueInteger), `expected integer ${propertyCode} on ${code}, got ${JSON.stringify(prop)}`);
+    assert(prop.valueInteger >= 1 && prop.valueInteger <= 20,
+      `expected ${propertyCode} in [1,20] on ${code}, got ${JSON.stringify(prop)}`);
+    assert((entry.designation || []).some(d => d.value === `D20 ${code}`),
+      `expected D20 designation on ${code}`);
+    const dndDesignations = (entry.designation || []).filter(d => d.use?.code === 'DND');
+    if (prop.valueInteger < 5) {
+      assert(dndDesignations.some(d => d.language === 'en'), `expected DND en designation on ${code} when ${propertyCode}<5`);
+      assert(dndDesignations.some(d => d.language === 'fr'), `expected DND fr designation on ${code} when ${propertyCode}<5`);
+    } else {
+      assert(dndDesignations.length === 0, `expected no DND designation on ${code} when ${propertyCode}>=5`);
+    }
+  }
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  assert(hasUsedSupplementCanonical(usedSupp, suppCanonical), `expected used-supplement ${suppCanonical}`);
+});
+
+test('supplement-sqlite: D20 RxNorm fixture projects property/designation', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-rxnorm-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const propertyCode = 'd20';
+  const rxnormCodes = ['161', '5640', '1191'];
+  const supplement = buildSupplementResourceFromSqlite(dbPath, rxnormCodes);
+  const suppCanonical = supplement.url;
+
+  const { result } = await expand(vs({
+    system: SYS.RXNORM,
+    concept: rxnormCodes.map(code => ({ code })),
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'property', valueCode: propertyCode },
+      { name: 'includeDesignations', valueBoolean: true },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === rxnormCodes.length, `expected ${rxnormCodes.length} codes, got ${contains.length}`);
+  for (const code of rxnormCodes) {
+    const entry = findCode(contains, code);
+    assert(entry, `missing RxNorm code ${code}`);
+    assert(hasProperty(entry, propertyCode), `expected ${propertyCode} on ${code}`);
+    const prop = getProperty(entry, propertyCode);
+    assert(Number.isInteger(prop.valueInteger), `expected integer ${propertyCode} on ${code}, got ${JSON.stringify(prop)}`);
+    assert(prop.valueInteger >= 1 && prop.valueInteger <= 20,
+      `expected ${propertyCode} in [1,20] on ${code}, got ${JSON.stringify(prop)}`);
+    assert((entry.designation || []).some(d => d.value === `D20 ${code}`),
+      `expected D20 designation on ${code}`);
+    const dndDesignations = (entry.designation || []).filter(d => d.use?.code === 'DND');
+    if (prop.valueInteger < 5) {
+      assert(dndDesignations.some(d => d.language === 'en'), `expected DND en designation on ${code} when ${propertyCode}<5`);
+      assert(dndDesignations.some(d => d.language === 'fr'), `expected DND fr designation on ${code} when ${propertyCode}<5`);
+    } else {
+      assert(dndDesignations.length === 0, `expected no DND designation on ${code} when ${propertyCode}>=5`);
+    }
+  }
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  assert(hasUsedSupplementCanonical(usedSupp, suppCanonical), `expected used-supplement ${suppCanonical}`);
+});
+
+test('supplement-sqlite: D20 LOINC + RxNorm fixtures both apply in one expansion', async () => {
+  const loincDbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-loinc-d20.v0.db');
+  const rxDbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-rxnorm-d20.v0.db');
+  if (!fs.existsSync(loincDbPath) || !fs.existsSync(rxDbPath)) {
+    return { skipped: `missing fixture(s): ${loincDbPath}, ${rxDbPath}` };
+  }
+  const loincPropertyCode = 'd20';
+  const rxPropertyCode = 'd20';
+  const loincCode = '2160-0';
+  const rxCode = '1191';
+
+  const loincSupp = buildSupplementResourceFromSqlite(loincDbPath, [loincCode]);
+  const rxSupp = buildSupplementResourceFromSqlite(rxDbPath, [rxCode]);
+  const loincSuppCanonical = loincSupp.url;
+  const rxSuppCanonical = rxSupp.url;
+
+  const { result } = await expand(vs([
+    { system: SYS.LOINC, concept: [{ code: loincCode }] },
+    { system: SYS.RXNORM, concept: [{ code: rxCode }] },
+  ]), {
+    txResources: [loincSupp, rxSupp],
+    params: [
+      { name: 'useSupplement', valueCanonical: loincSuppCanonical },
+      { name: 'useSupplement', valueCanonical: rxSuppCanonical },
+      { name: 'property', valueCode: loincPropertyCode },
+      { name: 'property', valueCode: rxPropertyCode },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 2, `expected 2 codes, got ${contains.length}`);
+  assert(hasProperty(findCode(contains, loincCode), loincPropertyCode), `expected ${loincPropertyCode} on ${loincCode}`);
+  assert(hasProperty(findCode(contains, rxCode), rxPropertyCode), `expected ${rxPropertyCode} on ${rxCode}`);
+
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  assert(hasUsedSupplementCanonical(usedSupp, loincSuppCanonical), `expected used-supplement ${loincSuppCanonical}`);
+  assert(hasUsedSupplementCanonical(usedSupp, rxSuppCanonical), `expected used-supplement ${rxSuppCanonical}`);
+});
+
+test('supplement-sqlite: D20 SNOMED fixture projects property/designation', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const propertyCode = 'd20';
+  const snomedCodes = ['73211009', '44054006', '46635009'];
+  const supplement = buildSupplementResourceFromSqlite(dbPath, snomedCodes);
+  const suppCanonical = supplement.url;
+
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    concept: snomedCodes.map(code => ({ code })),
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'property', valueCode: propertyCode },
+      { name: 'includeDesignations', valueBoolean: true },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === snomedCodes.length, `expected ${snomedCodes.length} codes, got ${contains.length}`);
+  for (const code of snomedCodes) {
+    const entry = findCode(contains, code);
+    assert(entry, `missing SNOMED code ${code}`);
+    assert(hasProperty(entry, propertyCode), `expected ${propertyCode} on ${code}`);
+    const prop = getProperty(entry, propertyCode);
+    assert(Number.isInteger(prop.valueInteger), `expected integer ${propertyCode} on ${code}, got ${JSON.stringify(prop)}`);
+    assert(prop.valueInteger >= 1 && prop.valueInteger <= 20,
+      `expected ${propertyCode} in [1,20] on ${code}, got ${JSON.stringify(prop)}`);
+    assert((entry.designation || []).some(d => d.value === `D20 ${code}`),
+      `expected D20 designation on ${code}`);
+    const dndDesignations = (entry.designation || []).filter(d => d.use?.code === 'DND');
+    if (prop.valueInteger < 5) {
+      assert(dndDesignations.some(d => d.language === 'en'), `expected DND en designation on ${code} when ${propertyCode}<5`);
+      assert(dndDesignations.some(d => d.language === 'fr'), `expected DND fr designation on ${code} when ${propertyCode}<5`);
+    } else {
+      assert(dndDesignations.length === 0, `expected no DND designation on ${code} when ${propertyCode}>=5`);
+    }
+  }
+  const usedSupp = findParams(result, 'used-supplement').map(p => p.valueUri || p.valueCanonical || '');
+  assert(hasUsedSupplementCanonical(usedSupp, suppCanonical), `expected used-supplement ${suppCanonical}`);
+});
+
+test('supplement-sqlite: full SNOMED D20 supplement + designation filter returns DND only for low rolls', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+
+  const { lowCodes, highCodes, valueByCode } = sampleD20CodesFromSupplementSqlite(dbPath, 3, 3);
+  if (lowCodes.length < 3 || highCodes.length < 3) {
+    return { skipped: 'insufficient low/high d20 samples in SNOMED supplement fixture' };
+  }
+  const allCodes = [...lowCodes, ...highCodes];
+  const supplement = buildSupplementResourceFromSqlite(dbPath);
+  const suppCanonical = supplement.url;
+
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    concept: allCodes.map(code => ({ code })),
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'includeDesignations', valueBoolean: true },
+      { name: 'designation', valueString: 'http://example.org/fhir/CodeSystem/d20|DND' },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === allCodes.length, `expected ${allCodes.length} concepts, got ${contains.length}`);
+  for (const code of allCodes) {
+    const entry = findCode(contains, code);
+    assert(entry, `missing SNOMED code ${code}`);
+    const dnd = (entry.designation || []).filter(d =>
+      d.use?.system === 'http://example.org/fhir/CodeSystem/d20' && d.use?.code === 'DND'
+    );
+    const d20 = valueByCode.get(code);
+    assert(Number.isInteger(d20), `missing sampled d20 for ${code}`);
+    if (d20 < 5) {
+      assert(dnd.some(d => d.language === 'en'), `expected DND en for low-roll code ${code}`);
+      assert(dnd.some(d => d.language === 'fr'), `expected DND fr for low-roll code ${code}`);
+    } else {
+      assert(dnd.length === 0, `expected no DND designation for high-roll code ${code}`);
+    }
+  }
+});
+
+test('supplement-sqlite: full SNOMED D20 supplement + concept filter + property/designation requests', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const { lowCodes, valueByCode } = sampleD20CodesFromSupplementSqlite(dbPath, 1, 0);
+  if (lowCodes.length < 1) return { skipped: 'insufficient low d20 samples in SNOMED supplement fixture' };
+
+  const code = lowCodes[0];
+  const supplement = buildSupplementResourceFromSqlite(dbPath);
+  const suppCanonical = supplement.url;
+
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    filter: [{ property: 'concept', op: '=', value: code }],
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'property', valueCode: 'd20' },
+      { name: 'includeDesignations', valueBoolean: true },
+      { name: 'designation', valueString: 'http://example.org/fhir/CodeSystem/d20|DND' },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  assertExpansionParams(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 1, `expected single filtered concept, got ${contains.length}`);
+  const entry = contains[0];
+  assert(entry.code === code, `expected code ${code}, got ${entry.code}`);
+
+  const prop = getProperty(entry, 'd20');
+  assert(prop && Number.isInteger(prop.valueInteger), `expected integer d20 property on ${code}`);
+  assert(prop.valueInteger === valueByCode.get(code),
+    `expected d20=${valueByCode.get(code)} on ${code}, got ${JSON.stringify(prop)}`);
+  const dnd = (entry.designation || []).filter(d =>
+    d.use?.system === 'http://example.org/fhir/CodeSystem/d20' && d.use?.code === 'DND'
+  );
+  assert(dnd.some(d => d.language === 'en'), `expected DND en designation for ${code}`);
+  assert(dnd.some(d => d.language === 'fr'), `expected DND fr designation for ${code}`);
+});
+
+test('supplement-sqlite: filter by supplement property value is unsupported for sqlite-v0', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const supplement = buildSupplementResourceFromSqlite(dbPath);
+  const suppCanonical = supplement.url;
+
+  let failed = false;
+  try {
+    await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'd20', op: '=', value: '4' }],
+    }), {
+      txResources: [supplement],
+      params: [{ name: 'useSupplement', valueCanonical: suppCanonical }],
+    });
+  } catch (e) {
+    failed = true;
+    const msg = String(e?.message || '').toLowerCase();
+    assert(
+      msg.includes("unsupported sqlite runtime filter property 'd20'"),
+      `expected unsupported supplement-property filter error, got '${e?.message}'`
+    );
+  }
+  assert(failed, 'expected sqlite-v0 supplement property filter to fail until provider support is implemented');
 });
 
 test('params: property=definition includes definition property on contains entries', async () => {
@@ -2120,8 +2570,10 @@ test('pagination: count=0 returns total only', async () => {
   const contains = result.expansion.contains || [];
   assert(contains.length === 0, `count=0 should return no codes, got ${contains.length}`);
   assert(result.expansion.total === 62, `total should still be 62, got ${result.expansion.total}`);
-  assert(traceHasSpan(trace, '_handleCompose', s => s.result?.fastPath === 'count-zero-total-only'),
-    'count=0 whole-system expansion should use fast-path total-only handling');
+  if (EXPAND_IMPL !== 'v3') {
+    assert(traceHasSpan(trace, '_handleCompose', s => s.result?.fastPath === 'count-zero-total-only'),
+      'count=0 whole-system expansion should use fast-path total-only handling');
+  }
 });
 
 test('pagination: high offset (>1000) works in both pushdown and fallback modes', async () => {
@@ -2762,9 +3214,7 @@ test('logic: sqlite-v0 pushdown is active for basic concept expansion', async ()
   assertExpansionStructure(result);
   const contains = result.expansion.contains || [];
   assert(contains.length === 2, `expected 2 codes, got ${contains.length}`);
-  assert(traceHasSpan(trace, 'v0.expandQuery'), 'expected v0.expandQuery trace span');
-  assert(traceHasSpan(trace, '_tryPushdown', s => s.result?.handled === true),
-    'expected _tryPushdown handled=true');
+  assertSqlitePushdownTrace(trace, 'expected v0.expandQuery trace span');
 });
 
 test('logic: same-system valueSet intersections constrain final include membership', async () => {
@@ -2811,9 +3261,7 @@ test('logic: regex filter is handled in sqlite-v0 pushdown path', async () => {
   assertExpansionStructure(result);
   const contains = result.expansion.contains || [];
   assert(contains.length > 0, 'expected regex expansion to return results');
-  assert(traceHasSpan(trace, 'v0.expandQuery'), 'expected regex query to run in v0.expandQuery');
-  assert(traceHasSpan(trace, '_tryPushdown', s => s.result?.handled === true),
-    'expected _tryPushdown handled=true for regex case');
+  assertSqlitePushdownTrace(trace, 'expected regex query to run in v0.expandQuery');
 });
 
 test('logic: regex filter works for literal-valued property in sqlite-v0', async () => {
@@ -2896,6 +3344,7 @@ test('logic: total resolver state table', async () => {
 test('logic: display fast path is exercised on cs-cs provider', async () => {
   const { result, trace } = await expand(vs({ system: SYS.GENDER }));
   assertExpansionStructure(result);
+  if (EXPAND_IMPL === 'v3') return { skipped: 'v3 does not expose v2 display_fastpath trace counter' };
   const hits = trace?.counters?.display_fastpath_hits || 0;
   assert(hits > 0, `expected display fast path hits > 0, got ${hits}`);
 });
@@ -3135,9 +3584,16 @@ test('logic: system exclude remains global when import include is present (pushd
   assertExpansionStructure(result);
   const contains = result.expansion.contains || [];
   assert(!findCode(contains, '44054006'), 'system exclude should remain effective across later import include');
-  assert(traceHasSpan(trace, '_tryPushdown', s =>
-    s.result?.handled === false && s.result?.reason === 'global-excludes-with-imports'
-  ), 'expected pushdown guard to defer to fallback when excludes coexist with import includes');
+  if (EXPAND_IMPL !== 'v3') {
+    assert(traceHasSpan(trace, '_tryPushdown', s =>
+      s.result?.handled === false && s.result?.reason === 'global-excludes-with-imports'
+    ), 'expected pushdown guard to defer to fallback when excludes coexist with import includes');
+  } else {
+    assert(
+      traceHasSpan(trace, 'v0.expandQuery') || traceHasSpan(trace, 'v3.openStream'),
+      'expected v3 to evaluate include sources through provider stream/pushdown'
+    );
+  }
 });
 
 test('logic: mixed import+peer include/exclude paginates without gaps or duplicates', async () => {
@@ -3425,6 +3881,64 @@ test('high-value: include.valueSet + sibling filter works at scale (pushdown and
   } finally {
     if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
     else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+  }
+});
+
+test('v3-invariant: same-system import+filter deep page matches with pushdown on/off', async () => {
+  if (EXPAND_IMPL !== 'v3') return { skipped: 'v3-only invariant test' };
+
+  const importedVsUrl = `http://example.org/vs/v3-import-clinical-${Date.now()}`;
+  const importedVs = {
+    resourceType: 'ValueSet',
+    url: importedVsUrl,
+    status: 'active',
+    compose: {
+      include: [{
+        system: SYS.SCT,
+        filter: [{ property: 'concept', op: 'is-a', value: '404684003' }], // Clinical finding
+      }],
+    },
+  };
+
+  const query = vs({
+    system: SYS.SCT,
+    valueSet: [importedVsUrl],
+    filter: [{ property: 'concept', op: 'descendent-of', value: '64572001' }], // Disease
+  });
+  const opts = {
+    txResources: [importedVs],
+    count: 1000,
+    offset: 50000,
+    params: [{ name: 'limit', valueInteger: 200000 }],
+  };
+
+  const prevV2 = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  const prevV3 = process.env.EXPAND_V3_DISABLE_PUSHDOWN;
+  try {
+    delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    delete process.env.EXPAND_V3_DISABLE_PUSHDOWN;
+    const pushOn = await runExpandWithImpl('v3', query, opts, true);
+    assertExpansionStructure(pushOn.result);
+    assertSqlitePushdownTrace(pushOn.trace, 'expected pushdown trace in v3 pushdown-on mode');
+    const onContains = pushOn.result.expansion.contains || [];
+    assert(onContains.length === 1000, `pushdown-on should return 1000, got ${onContains.length}`);
+
+    process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+    process.env.EXPAND_V3_DISABLE_PUSHDOWN = '1';
+    const pushOff = await runExpandWithImpl('v3', query, opts, true);
+    assertExpansionStructure(pushOff.result);
+    assert(!traceHasSpan(pushOff.trace, 'v0.expandQuery'),
+      'pushdown-off should not use v0.expandQuery');
+    const offContains = pushOff.result.expansion.contains || [];
+    assert(offContains.length === 1000, `pushdown-off should return 1000, got ${offContains.length}`);
+
+    const parity = compareParity(pushOn.result, pushOff.result, 'v3-pushdown-on', 'v3-pushdown-off');
+    assert(parity.ok, `v3 pushdown parity mismatch (${parity.reason})`);
+  } finally {
+    if (prevV2 === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prevV2;
+    if (prevV3 === undefined) delete process.env.EXPAND_V3_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_V3_DISABLE_PUSHDOWN = prevV3;
   }
 });
 

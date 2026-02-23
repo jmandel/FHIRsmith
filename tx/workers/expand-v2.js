@@ -2082,7 +2082,8 @@ class ValueSetExpander {
   }
 
   _getPropUrl(cs, pn) {
-    for (const p of cs.propertyDefinitions()) {
+    const defs = (typeof cs.propertyDefinitions === 'function' ? cs.propertyDefinitions() : null) || [];
+    for (const p of defs) {
       if (pn === p.code) return p.uri;
     }
     return undefined;
