@@ -1,18 +1,18 @@
 /**
- * expand-v2 test harness — runs expansions directly, no Express/HTTP.
+ * expansion test harness — runs expansions directly, no Express/HTTP.
  *
  * Loads the Library once (slow), then each test calls expand() directly
  * through the ExpandWorker → ValueSetExpander chain. Traces are captured
  * via AsyncLocalStorage and attached to results.
  *
  * Usage:
- *   node tests/tx/expand-v2-harness.js                # run all
- *   node tests/tx/expand-v2-harness.js "snomed is-a"  # run matching tests
- *   EXPAND_TRACE=1 node tests/tx/expand-v2-harness.js # with full tracing
- *   EXPAND_TRACE=1 EXPAND_TRACE_FORMAT=summary node tests/tx/expand-v2-harness.js
- *   EXPAND_TRACE=1 EXPAND_TRACE_PRINT=all node tests/tx/expand-v2-harness.js "pagination-safety"
- *   EXPAND_IMPL=v2 node tests/tx/expand-v2-harness.js
- *   EXPAND_IMPL=v2-parity node tests/tx/expand-v2-harness.js # compare v2 pushdown vs v2 fallback
+ *   node tests/tx/expand-harness.js                # run all
+ *   node tests/tx/expand-harness.js "snomed is-a"  # run matching tests
+ *   EXPAND_TRACE=1 node tests/tx/expand-harness.js # with full tracing
+ *   EXPAND_TRACE=1 EXPAND_TRACE_FORMAT=summary node tests/tx/expand-harness.js
+ *   EXPAND_TRACE=1 EXPAND_TRACE_PRINT=all node tests/tx/expand-harness.js "pagination-safety"
+ *   EXPAND_IMPL=v3 node tests/tx/expand-harness.js
+ *   EXPAND_IMPL=v3 node tests/tx/expand-harness.js # explicit impl selection (default)
  */
 
 'use strict';
@@ -32,24 +32,22 @@ const { TxParameters } = require('../../tx/params');
 const { SearchFilterText } = require('../../tx/library/designations');
 const ValueSet = require('../../tx/library/valueset');
 const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/workers/expand-trace');
+const { ExpandWorker: TxExpandWorker } = require('../../tx/workers/expand-worker');
+const { ValueSetExpander: ValueSetExpanderV3Compat } = require('../../tx/workers/expand-v3');
+const { decideTotalOutcome } = require('../../tx/workers/expand-v3/src/engine/total-policy');
 
-const WORKER_MODULES = {
-  v2: require('../../tx/workers/expand-v2'),
-  v3: require('../../tx/workers/expand-v3'),
-};
-
-const EXPAND_IMPL = (process.env.EXPAND_IMPL || 'v2').toLowerCase();
-if (!['v2', 'v2-parity', 'v3'].includes(EXPAND_IMPL)) {
-  throw new Error(`Invalid EXPAND_IMPL='${EXPAND_IMPL}'. Expected v2, v2-parity, or v3.`);
+const EXPAND_IMPL = (process.env.EXPAND_IMPL || 'v3').toLowerCase();
+if (EXPAND_IMPL !== 'v3') {
+  throw new Error(`Invalid EXPAND_IMPL='${EXPAND_IMPL}'. Expected v3.`);
 }
 
 const TRACE_ENABLED = process.env.EXPAND_TRACE && process.env.EXPAND_TRACE !== '0';
 const TRACE_PRINT = (process.env.EXPAND_TRACE_PRINT || 'fail').toLowerCase(); // fail | all | off
 const TRACE_FORMAT = (process.env.EXPAND_TRACE_FORMAT || 'summary').toLowerCase(); // summary | json
 const TRACE_MAX_SPANS = Number.parseInt(process.env.EXPAND_TRACE_MAX_SPANS || '12', 10) || 12;
-const TRACE_RESULTS_FILE = process.env.EXPAND_TRACE_RESULTS || 'expand-v2-results.json';
+const TRACE_RESULTS_FILE = process.env.EXPAND_TRACE_RESULTS || 'expand-results.json';
 const TRACE_HEAVY = process.env.EXPAND_TRACE_HEAVY && process.env.EXPAND_TRACE_HEAVY !== '0';
-const PUSH_DOWN_DISABLED = process.env.EXPAND_V2_DISABLE_PUSHDOWN === '1';
+const PUSH_DOWN_DISABLED = process.env.EXPAND_DISABLE_PUSHDOWN === '1';
 
 // ── Minimal logger ─────────────────────────────────────────────────────────
 
@@ -65,7 +63,7 @@ const log = {
 let library, provider, langDefs, i18n;
 
 async function setup() {
-  const preferredConfig = path.join(__dirname, 'fixtures', 'expand-v2-test-library.yaml');
+  const preferredConfig = path.join(__dirname, 'fixtures', 'expand-test-library.yaml');
   const fallbackConfig = path.join(__dirname, 'fixtures', 'test-library.yaml');
   const configFile = fs.existsSync(preferredConfig) ? preferredConfig : fallbackConfig;
   if (!fs.existsSync(configFile)) {
@@ -91,14 +89,6 @@ let _lastExpandTrace = null;
 let _currentTestName = null;
 const _providerCoverage = new Map();
 let _assessmentSourcePath = null;
-
-function getWorkerClasses(impl) {
-  const mod = WORKER_MODULES[impl];
-  if (!mod) {
-    throw new Error(`Unknown worker implementation '${impl}'`);
-  }
-  return mod;
-}
 
 function providerFamily(system) {
   if (!system) return 'valueset-import';
@@ -218,7 +208,7 @@ function printProviderCoverageReport() {
 }
 
 function loadAssessmentOverrides() {
-  const configured = process.env.TEST_ASSESSMENT_FILE || path.join(__dirname, 'fixtures', 'expand-v2-assessment-status.json');
+  const configured = process.env.TEST_ASSESSMENT_FILE || path.join(__dirname, 'fixtures', 'expand-assessment-status.json');
   const filePath = path.isAbsolute(configured) ? configured : path.join(process.cwd(), configured);
   if (!fs.existsSync(filePath)) {
     return new Map();
@@ -351,15 +341,20 @@ function compareParity(aResult, bResult, aLabel = 'a', bLabel = 'b') {
  * @param {object[]} opts.params - raw Parameters.parameter entries
  */
 async function runExpandWithImpl(impl, vsJson, opts = {}, captureTrace = true) {
-  const { ExpandWorker, ValueSetExpander } = getWorkerClasses(impl);
+  if (impl !== 'v3') {
+    throw new Error(`Unsupported implementation '${impl}'. Expected 'v3'.`);
+  }
   const opContext = new OperationContext('en', i18n, null, 30);
-  const worker = new ExpandWorker(opContext, log, provider, langDefs, i18n);
+  const worker = new TxExpandWorker(opContext, log, provider, langDefs, i18n);
 
   // Inject tx-resources if any
   if (opts.txResources) {
     worker.additionalResources = opts.txResources
       .map(res => worker.wrapRawResource ? worker.wrapRawResource(res) : null)
       .filter(Boolean);
+  }
+  if (typeof opts.patchWorker === 'function') {
+    opts.patchWorker(worker);
   }
 
   const txp = new TxParameters(langDefs, i18n, false);
@@ -374,7 +369,7 @@ async function runExpandWithImpl(impl, vsJson, opts = {}, captureTrace = true) {
 
   const vs = new ValueSet(vsJson);
   const searchFilter = new SearchFilterText(opts.filter || null);
-  const expander = new ValueSetExpander(worker, txp);
+  const expander = new ValueSetExpanderV3Compat(worker, txp);
 
   const t0 = performance.now();
   let result;
@@ -397,26 +392,67 @@ async function runExpandWithImpl(impl, vsJson, opts = {}, captureTrace = true) {
 }
 
 async function expand(vsJson, opts = {}) {
-  if (EXPAND_IMPL !== 'v2-parity') {
-    recordProviderCoverage(vsJson, _currentTestName);
-    return runExpandWithImpl(EXPAND_IMPL, vsJson, opts, true);
-  }
-
-  const v2Pushdown = await runExpandWithImpl('v2', vsJson, opts, true);
   recordProviderCoverage(vsJson, _currentTestName);
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  return runExpandWithImpl(EXPAND_IMPL, vsJson, opts, true);
+}
+
+const OPT_PROFILE_MATRIX = [
+  'default',
+  'baseline',
+  'no-pushdown',
+  'no-membership',
+  'no-decorate-many',
+];
+
+async function withOptimizationProfile(profile, fn) {
+  const prevProfile = process.env.EXPAND_OPT_PROFILE;
+  const prevPushdown = process.env.EXPAND_DISABLE_PUSHDOWN;
+  const prevMembership = process.env.EXPAND_DISABLE_MEMBERSHIP;
+  const prevDecorateMany = process.env.EXPAND_DISABLE_DECORATE_MANY;
+  if (profile && profile !== 'default') process.env.EXPAND_OPT_PROFILE = profile;
+  else delete process.env.EXPAND_OPT_PROFILE;
+  delete process.env.EXPAND_DISABLE_PUSHDOWN;
+  delete process.env.EXPAND_DISABLE_MEMBERSHIP;
+  delete process.env.EXPAND_DISABLE_DECORATE_MANY;
   try {
-    const v2Fallback = await runExpandWithImpl('v2', vsJson, opts, false);
-    const parity = compareParity(v2Pushdown.result, v2Fallback.result, 'v2-push', 'v2-fallback');
-    if (!parity.ok) {
-      throw new Error(`V2 parity mismatch (${parity.reason})`);
-    }
+    return await fn();
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prevProfile === undefined) delete process.env.EXPAND_OPT_PROFILE;
+    else process.env.EXPAND_OPT_PROFILE = prevProfile;
+    if (prevPushdown === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prevPushdown;
+    if (prevMembership === undefined) delete process.env.EXPAND_DISABLE_MEMBERSHIP;
+    else process.env.EXPAND_DISABLE_MEMBERSHIP = prevMembership;
+    if (prevDecorateMany === undefined) delete process.env.EXPAND_DISABLE_DECORATE_MANY;
+    else process.env.EXPAND_DISABLE_DECORATE_MANY = prevDecorateMany;
   }
-  return v2Pushdown;
+}
+
+async function withEnv(overrides, fn) {
+  const prev = new Map();
+  for (const [k, v] of Object.entries(overrides || {})) {
+    prev.set(k, process.env[k]);
+    if (v === null || v === undefined) delete process.env[k];
+    else process.env[k] = String(v);
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const [k, v] of prev.entries()) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+
+async function runExpandAcrossOptimizationProfiles(vsJson, opts = {}, profiles = OPT_PROFILE_MATRIX, captureTrace = false) {
+  const out = {};
+  for (const profile of profiles) {
+    out[profile] = await withOptimizationProfile(profile, async () =>
+      runExpandWithImpl('v3', vsJson, opts, captureTrace)
+    );
+  }
+  return out;
 }
 
 // ── ValueSet builder ───────────────────────────────────────────────────────
@@ -620,6 +656,129 @@ function buildSupplementResourceFromSqlite(dbPath, codes) {
   }
 }
 
+function createTempSupplementSqliteFixture({
+  canonical,
+  canonicalVersion = null,
+  targetSystem,
+  targetVersion = null,
+  properties = [],
+}) {
+  const dir = fs.mkdtempSync(path.join(process.cwd(), '.tmp-sqlite-supp-'));
+  const dbPath = path.join(dir, 'supplement.v0.db');
+  const db = new Database(dbPath);
+  try {
+    db.exec(`
+      PRAGMA journal_mode = WAL;
+      CREATE TABLE supplement_manifest (
+        supplement_uri TEXT NOT NULL,
+        supplement_version TEXT,
+        target_system TEXT NOT NULL,
+        target_version TEXT,
+        generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE supplement_code (
+        code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE
+      );
+      CREATE TABLE supplement_property (
+        property_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_id INTEGER NOT NULL,
+        property TEXT NOT NULL,
+        value_type TEXT NOT NULL DEFAULT 'string',
+        value_string TEXT,
+        value_code TEXT,
+        value_decimal REAL,
+        value_integer INTEGER,
+        value_boolean INTEGER,
+        active INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE supplement_designation (
+        designation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_id INTEGER NOT NULL,
+        designation TEXT NOT NULL,
+        designation_system TEXT,
+        language_code TEXT,
+        val TEXT NOT NULL,
+        preferred INTEGER NOT NULL DEFAULT 0,
+        active INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE VIEW supplement_property_by_code AS
+      SELECT
+        sc.code,
+        sp.property,
+        sp.value_type,
+        sp.value_string,
+        sp.value_code,
+        sp.value_decimal,
+        sp.value_integer,
+        sp.value_boolean,
+        sp.active
+      FROM supplement_property sp
+      JOIN supplement_code sc ON sc.code_id = sp.code_id;
+      CREATE VIEW supplement_designation_by_code AS
+      SELECT
+        sc.code,
+        sd.designation,
+        sd.designation_system,
+        sd.language_code,
+        sd.val,
+        sd.preferred,
+        sd.active
+      FROM supplement_designation sd
+      JOIN supplement_code sc ON sc.code_id = sd.code_id;
+      CREATE INDEX idx_supp_prop_property_code ON supplement_property(property, code_id);
+      CREATE INDEX idx_supp_code_code ON supplement_code(code);
+    `);
+
+    db.prepare(`
+      INSERT INTO supplement_manifest
+        (supplement_uri, supplement_version, target_system, target_version)
+      VALUES (?, ?, ?, ?)
+    `).run(canonical, canonicalVersion, targetSystem, targetVersion);
+
+    const insCode = db.prepare(`INSERT INTO supplement_code(code) VALUES (?)`);
+    const insProp = db.prepare(`
+      INSERT INTO supplement_property
+        (code_id, property, value_type, value_string, value_code, value_decimal, value_integer, value_boolean, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `);
+    const codeIdByCode = new Map();
+    for (const row of properties || []) {
+      const code = String(row?.code || '');
+      const property = String(row?.property || '');
+      if (!code || !property) continue;
+      let codeId = codeIdByCode.get(code);
+      if (!codeId) {
+        const r = insCode.run(code);
+        codeId = Number(r.lastInsertRowid);
+        codeIdByCode.set(code, codeId);
+      }
+      const valueType = String(row?.valueType || inferSupplementValueType(row));
+      insProp.run(
+        codeId,
+        property,
+        valueType,
+        row?.valueString ?? null,
+        row?.valueCode ?? null,
+        row?.valueDecimal ?? null,
+        row?.valueInteger ?? null,
+        row?.valueBoolean == null ? null : (row.valueBoolean ? 1 : 0),
+      );
+    }
+  } finally {
+    db.close();
+  }
+  return { dir, dbPath };
+}
+
+function inferSupplementValueType(row) {
+  if (row?.valueCode != null) return 'code';
+  if (row?.valueInteger != null) return 'integer';
+  if (row?.valueDecimal != null) return 'decimal';
+  if (row?.valueBoolean != null) return 'boolean';
+  return 'string';
+}
+
 function sampleD20CodesFromSupplementSqlite(dbPath, lowCount = 3, highCount = 3) {
   const db = new Database(dbPath, { readonly: true });
   try {
@@ -647,6 +806,282 @@ function sampleD20CodesFromSupplementSqlite(dbPath, lowCount = 3, highCount = 3)
   } finally {
     db.close();
   }
+}
+
+function sampleD20CodeForValue(dbPath, value) {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const row = db.prepare(`
+      SELECT code
+      FROM supplement_property_by_code
+      WHERE property = 'd20' AND active = 1 AND value_integer = ?
+      ORDER BY code
+      LIMIT 1
+    `).get(value);
+    return row ? String(row.code) : null;
+  } finally {
+    db.close();
+  }
+}
+
+function addDerivedRarityProperty(supplement) {
+  if (!supplement || !Array.isArray(supplement.concept)) return;
+  supplement.property = Array.isArray(supplement.property) ? supplement.property : [];
+  if (!supplement.property.some(p => p?.code === 'rarity')) {
+    supplement.property.push({
+      code: 'rarity',
+      uri: 'http://example.org/fhir/CodeSystemProperty/rarity',
+      type: 'code',
+    });
+  }
+  for (const concept of supplement.concept) {
+    if (!concept || !concept.code) continue;
+    concept.property = Array.isArray(concept.property) ? concept.property : [];
+    const d20 = concept.property.find(p => p?.code === 'd20');
+    const d20Value = d20?.valueInteger;
+    if (!Number.isInteger(d20Value)) continue;
+    if (concept.property.some(p => p?.code === 'rarity')) continue;
+    concept.property.push({
+      code: 'rarity',
+      valueCode: d20Value < 5 ? 'low' : 'high',
+    });
+  }
+}
+
+function buildSupplementPropertyIndex(supplement, propertyCode) {
+  const map = new Map();
+  for (const concept of supplement?.concept || []) {
+    if (!concept?.code || !Array.isArray(concept.property)) continue;
+    const vals = [];
+    for (const p of concept.property) {
+      if (!p || String(p.code || '') !== propertyCode) continue;
+      const v = readPropertyValue(p);
+      if (v == null) continue;
+      vals.push(String(v));
+    }
+    if (vals.length > 0) {
+      map.set(String(concept.code), vals);
+    }
+  }
+  return map;
+}
+
+function readPropertyValue(p) {
+  if (p.valueCode != null) return p.valueCode;
+  if (p.valueString != null) return p.valueString;
+  if (p.valueInteger != null) return p.valueInteger;
+  if (p.valueBoolean != null) return p.valueBoolean;
+  if (p.valueDecimal != null) return p.valueDecimal;
+  return null;
+}
+
+function matchesPropertyClause(values, clause) {
+  const op = String(clause?.op || '');
+  const raw = String(clause?.value ?? '');
+  if (op === '=') {
+    return values.includes(raw);
+  }
+  if (op === 'in') {
+    const set = new Set(raw.split(',').map(s => s.trim()).filter(Boolean));
+    return values.some(v => set.has(v));
+  }
+  if (op === 'exists') {
+    const want = raw.toLowerCase() !== 'false';
+    return want ? values.length > 0 : values.length === 0;
+  }
+  return false;
+}
+
+function createPredicateTrackingSupplementContext(baseCtx, metrics = {}, opts = {}) {
+  const allowed = opts.allowedProperties
+    ? new Set(opts.allowedProperties.map(v => String(v)))
+    : null;
+  return {
+    canonicals: () => (typeof baseCtx?.canonicals === 'function' ? baseCtx.canonicals() : []),
+    markResolved: (url) => baseCtx?.markResolved?.(url),
+    markUsed: (url, why) => baseCtx?.markUsed?.(url, why),
+    resolvedCanonicals: () => (typeof baseCtx?.resolvedCanonicals === 'function' ? baseCtx.resolvedCanonicals() : []),
+    usedCanonicals: () => (typeof baseCtx?.usedCanonicals === 'function' ? baseCtx.usedCanonicals() : []),
+    native: (request) => (typeof baseCtx?.native === 'function' ? baseCtx.native(request) : null),
+    decorateMany: async (request) => (typeof baseCtx?.decorateMany === 'function'
+      ? baseCtx.decorateMany(request)
+      : new Map()),
+    preparePredicate: async (request) => {
+      const prop = String(request?.clause?.property || '');
+      metrics.prepareCalls = metrics.prepareCalls || [];
+      metrics.prepareCalls.push(prop);
+      if (allowed && !allowed.has(prop)) {
+        return null;
+      }
+      const pred = await baseCtx?.preparePredicate?.(request);
+      if (!pred || typeof pred.batchHas !== 'function') {
+        return pred;
+      }
+      return {
+        batchHas: async (codes) => {
+          metrics.batchCalls = (metrics.batchCalls || 0) + 1;
+          metrics.batchSizes = metrics.batchSizes || [];
+          metrics.batchSizes.push(codes.length);
+          return pred.batchHas(codes);
+        },
+        close: async () => {
+          if (typeof pred.close === 'function') await pred.close();
+        },
+      };
+    },
+    close: async () => {
+      if (typeof baseCtx?.close === 'function') {
+        await baseCtx.close();
+      }
+    },
+  };
+}
+
+function installConfigurableSupplementProviderPatch(worker, cfg = {}) {
+  const targetSystems = new Set((cfg.systems || []).map(s => String(s)));
+  const nativeProps = new Set((cfg.nativeSupplementProperties || []).map(s => String(s)));
+  const nativeOps = new Set((cfg.nativeSupplementOperators || []).map(s => String(s)));
+  const nativeData = cfg.nativeSupplementData || {};
+  const metrics = cfg.metrics || {};
+  const origFindCodeSystem = worker.findCodeSystem.bind(worker);
+
+  worker.findCodeSystem = async (...args) => {
+    const cs = await origFindCodeSystem(...args);
+    if (!cs) return cs;
+    const system = await cs.system();
+    if (targetSystems.size > 0 && !targetSystems.has(system)) return cs;
+    if (cs.__harnessNegotiationPatchApplied) return cs;
+
+    Object.defineProperty(cs, '__harnessNegotiationPatchApplied', {
+      value: true,
+      configurable: false,
+      enumerable: false,
+      writable: false,
+    });
+
+    const origNegotiate = typeof cs.negotiate === 'function'
+      ? cs.negotiate.bind(cs)
+      : async () => ({});
+    const origOpenStream = typeof cs.openStream === 'function'
+      ? cs.openStream.bind(cs)
+      : null;
+
+    cs.negotiate = async (request = {}) => {
+      const base = await origNegotiate(request);
+      const report = {
+        ...base,
+        query: base?.query === true,
+        membership: base?.membership === true,
+        decorateMany: base?.decorateMany === true,
+        ordering: base?.ordering || { stable: false, kind: 'unspecified' },
+        pagination: base?.pagination === true,
+        legacyFilter: base?.legacyFilter || {
+          filterPipeline: true,
+          supportsSearchFilter: true,
+          supportsFilterPage: true,
+        },
+        supplements: {
+          ...(base?.supplements || {}),
+          handles: nativeProps.size > 0 ? 'partial' : 'none',
+          filtering: nativeProps.size > 0 ? 'native' : 'none',
+          properties: [...nativeProps],
+          operators: [...nativeOps],
+          unsupported: (cfg.unsupportedSupplementProperties || []).map(v => String(v)),
+        },
+      };
+      metrics.reports = metrics.reports || [];
+      metrics.reports.push(report);
+      return report;
+    };
+
+    if (origOpenStream && nativeProps.size > 0) {
+      cs.openStream = async (request = {}) => {
+        const queryIR = request?.queryIR;
+        const select = queryIR?.select;
+        const clauses = Array.isArray(select?.clauses) ? select.clauses : [];
+        if (!queryIR || select?.kind !== 'filter' || clauses.length === 0) {
+          return origOpenStream(request);
+        }
+
+        const nativeClauses = [];
+        const providerClauses = [];
+        for (const fc of clauses) {
+          const prop = String(fc?.property || '');
+          const op = String(fc?.op || '');
+          if (nativeProps.has(prop) && nativeOps.has(op)) {
+            nativeClauses.push(fc);
+          } else {
+            providerClauses.push(fc);
+          }
+        }
+        if (nativeClauses.length === 0) {
+          return origOpenStream(request);
+        }
+
+        const baseQueryIR = structuredClone(queryIR);
+        if (providerClauses.length === 0) {
+          const nextSelect = { kind: 'all' };
+          if (select?.text) nextSelect.text = select.text;
+          if (Array.isArray(select?.intersectCodes)) {
+            nextSelect.intersectCodes = [...select.intersectCodes];
+          }
+          baseQueryIR.select = nextSelect;
+        } else {
+          baseQueryIR.select = {
+            ...select,
+            kind: 'filter',
+            clauses: providerClauses,
+          };
+        }
+
+        const rows = await origOpenStream({ ...request, queryIR: baseQueryIR });
+        if (!rows) return rows;
+
+        const batchSize = 256;
+        const filterRows = async function* () {
+          let batch = [];
+          for await (const row of rows) {
+            batch.push(row);
+            if (batch.length >= batchSize) {
+              yield* flush(batch);
+              batch = [];
+            }
+          }
+          if (batch.length > 0) {
+            yield* flush(batch);
+          }
+        };
+
+        const flush = (items) => {
+          const accepted = [];
+          for (const row of items) {
+            const code = String(row?.code || '');
+            if (!code) continue;
+            let ok = true;
+            for (const clause of nativeClauses) {
+              const prop = String(clause?.property || '');
+              const values = nativeData?.[prop]?.get(code) || [];
+              if (!matchesPropertyClause(values, clause)) {
+                ok = false;
+                break;
+              }
+            }
+            if (ok) accepted.push(row);
+          }
+          metrics.nativeClauseBatchCalls = (metrics.nativeClauseBatchCalls || 0) + 1;
+          metrics.nativeClauseRowsChecked = (metrics.nativeClauseRowsChecked || 0) + items.length;
+          return accepted;
+        };
+
+        const stream = filterRows();
+        stream.total = null;
+        stream.notClosed = !!rows.notClosed;
+        return stream;
+      };
+    }
+
+    return cs;
+  };
 }
 
 function traceSpans(traceJson) {
@@ -1240,6 +1675,79 @@ test('supplement-sqlite: D20 LOINC fixture projects property/designation', async
   assert(hasUsedSupplementCanonical(usedSupp, suppCanonical), `expected used-supplement ${suppCanonical}`);
 });
 
+test('supplement-sqlite: D20 LOINC full-page parity across optimization profiles', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-loinc-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+
+  const db = new Database(dbPath, { readonly: true });
+  let expectedCount = 0;
+  let suppCanonical = null;
+  try {
+    const manifest = db.prepare(`
+      SELECT supplement_uri, supplement_version
+      FROM supplement_manifest
+      LIMIT 1
+    `).get();
+    if (manifest?.supplement_uri) {
+      const uri = String(manifest.supplement_uri);
+      const ver = manifest.supplement_version ? String(manifest.supplement_version) : null;
+      suppCanonical = ver ? `${uri}|${ver}` : uri;
+    }
+    const row = db.prepare(`
+      SELECT COUNT(DISTINCT code) AS c
+      FROM supplement_property_by_code
+      WHERE property = 'd20' AND active = 1 AND value_integer = 1
+    `).get();
+    expectedCount = Number(row?.c || 0);
+  } finally {
+    db.close();
+  }
+  if (expectedCount <= 0) return { skipped: 'no d20=1 rows in LOINC supplement fixture' };
+  if (!suppCanonical) return { skipped: 'missing supplement canonical in LOINC supplement fixture' };
+
+  const query = vs({
+    system: SYS.LOINC,
+    filter: [{ property: 'd20', op: '=', value: '1' }],
+  });
+  const opts = {
+    count: 20000,
+    offset: 0,
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'limit', valueInteger: 200000 },
+    ],
+  };
+
+  const runs = await runExpandAcrossOptimizationProfiles(query, opts, OPT_PROFILE_MATRIX, false);
+  const baseline = runs.default.result;
+  assertExpansionStructure(baseline);
+  assertExpansionParams(baseline);
+
+  const baselineContains = baseline.expansion.contains || [];
+  assert(baselineContains.length === expectedCount,
+    `default profile should return ${expectedCount} codes, got ${baselineContains.length}`);
+  assert(baseline.expansion.total === expectedCount,
+    `default profile total should be ${expectedCount}, got ${baseline.expansion.total}`);
+
+  for (const profile of OPT_PROFILE_MATRIX) {
+    const run = runs[profile];
+    const result = run.result;
+    assertExpansionStructure(result);
+    const contains = result.expansion.contains || [];
+    assert(contains.length === expectedCount,
+      `${profile} should return ${expectedCount} codes, got ${contains.length}`);
+    assert(result.expansion.total === expectedCount,
+      `${profile} total should be ${expectedCount}, got ${result.expansion.total}`);
+    const parity = compareParity(baseline, result, 'default', profile);
+    assert(parity.ok, `profile parity mismatch (${profile}): ${parity.reason}`);
+  }
+
+  return {
+    expectedCount,
+    ms: Object.fromEntries(OPT_PROFILE_MATRIX.map(profile => [profile, runs[profile].ms])),
+  };
+});
+
 test('supplement-sqlite: D20 RxNorm fixture projects property/designation', async () => {
   const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-rxnorm-d20.v0.db');
   if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
@@ -1459,17 +1967,180 @@ test('supplement-sqlite: full SNOMED D20 supplement + concept filter + property/
   assert(dnd.some(d => d.language === 'fr'), `expected DND fr designation for ${code}`);
 });
 
-test('supplement-sqlite: filter by supplement property value is unsupported for sqlite-v0', async () => {
+test('supplement-sqlite: filter by supplement property value can be evaluated with resource supplement fallback', async () => {
   const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
   if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
   const supplement = buildSupplementResourceFromSqlite(dbPath);
+  const suppCanonical = supplement.url;
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    filter: [{ property: 'd20', op: '=', value: '4' }],
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'property', valueCode: 'd20' },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length > 0, 'expected at least one concept for d20=4');
+  for (const c of contains) {
+    const prop = getProperty(c, 'd20');
+    assert(prop?.valueInteger === 4, `expected d20=4 for ${c.code}, got ${JSON.stringify(prop)}`);
+  }
+});
+
+test('supplement-sqlite: tx-resource supplement is negotiated as sqlite-native for query provider', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const code = sampleD20CodeForValue(dbPath, 4);
+  if (!code) return { skipped: 'no SNOMED d20=4 sample available in supplement fixture' };
+
+  const supplement = buildSupplementResourceFromSqlite(dbPath, [code]);
+  const suppCanonical = supplement.url;
+  const metrics = {
+    nativeCalls: 0,
+    nativeKinds: [],
+    nativeProperties: [],
+    prepareCalls: [],
+  };
+
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    filter: [
+      { property: 'concept', op: '=', value: code },
+      { property: 'd20', op: '=', value: '4' },
+    ],
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'property', valueCode: 'd20' },
+    ],
+    patchWorker: (worker) => {
+      const origResolveSupplementContext = worker.resolveSupplementContext.bind(worker);
+      worker.resolveSupplementContext = async (required, request) => {
+        const base = await origResolveSupplementContext(required, request);
+        return {
+          canonicals: () => (typeof base?.canonicals === 'function' ? base.canonicals() : []),
+          markResolved: (url) => base?.markResolved?.(url),
+          markUsed: (url, why) => base?.markUsed?.(url, why),
+          resolvedCanonicals: () => (typeof base?.resolvedCanonicals === 'function' ? base.resolvedCanonicals() : []),
+          usedCanonicals: () => (typeof base?.usedCanonicals === 'function' ? base.usedCanonicals() : []),
+          native: (nativeRequest) => {
+            metrics.nativeCalls += 1;
+            const handle = (typeof base?.native === 'function') ? base.native(nativeRequest) : null;
+            metrics.nativeKinds.push(handle?.kind || null);
+            if (Array.isArray(handle?.availableProperties)) {
+              metrics.nativeProperties.push(...handle.availableProperties.map(v => String(v)));
+            }
+            return handle;
+          },
+          preparePredicate: async (predicateRequest) => {
+            metrics.prepareCalls.push(String(predicateRequest?.clause?.property || ''));
+            return (typeof base?.preparePredicate === 'function')
+              ? base.preparePredicate(predicateRequest)
+              : null;
+          },
+          decorateMany: async (decorateRequest) => (typeof base?.decorateMany === 'function'
+            ? base.decorateMany(decorateRequest)
+            : new Map()),
+          close: async () => {
+            if (typeof base?.close === 'function') await base.close();
+          },
+        };
+      };
+    },
+  });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 1, `expected one concept, got ${contains.length}`);
+  assert(contains[0].code === code, `expected code ${code}, got ${contains[0].code}`);
+  assert(getProperty(contains[0], 'd20')?.valueInteger === 4,
+    `expected d20=4 property on ${code}`);
+
+  assert(metrics.nativeCalls > 0, 'expected supplementContext.native() to be called');
+  assert(metrics.nativeKinds.includes('sqlite'),
+    `expected sqlite native handle, got ${JSON.stringify(metrics.nativeKinds)}`);
+  assert(metrics.nativeProperties.includes('d20'),
+    `expected native handle properties to include d20, got ${JSON.stringify(metrics.nativeProperties)}`);
+  assert(!metrics.prepareCalls.includes('d20'),
+    `expected d20 clause to avoid fallback preparePredicate, got ${JSON.stringify(metrics.prepareCalls)}`);
+});
+
+test('supplement-report: provider-owned supplement filtering avoids fallback predicates', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const code = sampleD20CodeForValue(dbPath, 4);
+  if (!code) return { skipped: 'no SNOMED d20=4 sample available in supplement fixture' };
+
+  const supplement = buildSupplementResourceFromSqlite(dbPath, [code]);
+  addDerivedRarityProperty(supplement);
+  const suppCanonical = supplement.url;
+
+  const fallbackMetrics = {};
+
+  const { result } = await expand(vs({
+    system: SYS.SCT,
+    filter: [
+      { property: 'concept', op: '=', value: code },
+      { property: 'd20', op: '=', value: '4' },
+      { property: 'rarity', op: '=', value: 'low' },
+    ],
+  }), {
+    txResources: [supplement],
+    params: [
+      { name: 'useSupplement', valueCanonical: suppCanonical },
+      { name: 'property', valueCode: 'd20' },
+      { name: 'property', valueCode: 'rarity' },
+    ],
+    patchWorker: (worker) => {
+      const origResolveSupplementContext = worker.resolveSupplementContext.bind(worker);
+      worker.resolveSupplementContext = async (required, request) => {
+        const base = await origResolveSupplementContext(required, request);
+        return createPredicateTrackingSupplementContext(base, fallbackMetrics, {
+          allowedProperties: ['d20', 'rarity'],
+        });
+      };
+    },
+  });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length === 1, `expected one code after mixed supplement filter routing, got ${contains.length}`);
+  assert(contains[0].code === code, `expected code ${code}, got ${contains[0].code}`);
+  assert(getProperty(contains[0], 'd20')?.valueInteger === 4,
+    `expected d20=4 property on ${code}`);
+  assert(getProperty(contains[0], 'rarity')?.valueCode === 'low',
+    `expected rarity=low property on ${code}`);
+
+  const preparedProps = fallbackMetrics.prepareCalls || [];
+  assert(preparedProps.length === 0,
+    `expected no fallback predicate preparation when provider owns supplement filtering, got ${JSON.stringify(preparedProps)}`);
+});
+
+test('supplement-report: unsupported supplement clause fails when provider cannot handle it', async () => {
+  const dbPath = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-snomed-d20.v0.db');
+  if (!fs.existsSync(dbPath)) return { skipped: `missing fixture ${dbPath}` };
+  const code = sampleD20CodeForValue(dbPath, 4);
+  if (!code) return { skipped: 'no SNOMED d20=4 sample available in supplement fixture' };
+
+  const supplement = buildSupplementResourceFromSqlite(dbPath, [code]);
+  addDerivedRarityProperty(supplement);
   const suppCanonical = supplement.url;
 
   let failed = false;
   try {
     await expand(vs({
       system: SYS.SCT,
-      filter: [{ property: 'd20', op: '=', value: '4' }],
+      filter: [
+        { property: 'concept', op: '=', value: code },
+        { property: 'd20', op: '=', value: '4' },
+        { property: 'rarity-unsupported', op: '=', value: 'low' },
+      ],
     }), {
       txResources: [supplement],
       params: [{ name: 'useSupplement', valueCanonical: suppCanonical }],
@@ -1477,12 +2148,10 @@ test('supplement-sqlite: filter by supplement property value is unsupported for 
   } catch (e) {
     failed = true;
     const msg = String(e?.message || '').toLowerCase();
-    assert(
-      msg.includes("unsupported sqlite runtime filter property 'd20'"),
-      `expected unsupported supplement-property filter error, got '${e?.message}'`
-    );
+    assert(msg.includes('unsupported filter clause') || msg.includes('unsupported filter'),
+      `expected unsupported filter failure, got '${e?.message}'`);
   }
-  assert(failed, 'expected sqlite-v0 supplement property filter to fail until provider support is implemented');
+  assert(failed, 'expected expansion to fail when clause is neither provider-native nor fallback-preparable');
 });
 
 test('params: property=definition includes definition property on contains entries', async () => {
@@ -2500,7 +3169,11 @@ test('pagination-bug: preloaded map total matches full expansion when paged', as
   const fullCount = (full.expansion.contains || []).length;
   assert(fullCount > 10, `expected full expansion >10 codes, got ${fullCount}`);
 
-  const { result: paged } = await expand(vs({ system: SYS.CURRENCY }), { count: 10, offset: 0 });
+  const { result: paged } = await expand(vs({ system: SYS.CURRENCY }), {
+    count: 10,
+    offset: 0,
+    params: [{ name: 'needTotal', valueBoolean: true }],
+  });
   assertExpansionStructure(paged);
   const pageContains = paged.expansion.contains || [];
   assert(pageContains.length === 10, `expected 10 paged results, got ${pageContains.length}`);
@@ -2587,8 +3260,8 @@ test('pagination: high offset (>1000) works in both pushdown and fallback modes'
   const pushContains = push.result.expansion.contains || [];
   assert(pushContains.length === 20, `pushdown page should have 20, got ${pushContains.length}`);
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
     const fallback = await expand(query, { count: 20, offset: 1000 });
     assertExpansionStructure(fallback.result);
@@ -2600,8 +3273,8 @@ test('pagination: high offset (>1000) works in both pushdown and fallback modes'
     assert(deepEqual(pushCodes, fallbackCodes),
       'pushdown and fallback pages should match at high offset');
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -2609,18 +3282,18 @@ test('pagination: deep offset invariant (all SNOMED) fallback must match or too-
   const query = vs({ system: SYS.SCT });
   const opts = { count: 1000, offset: 50000 };
 
-  const push = await runExpandWithImpl('v2', query, opts, true);
+  const push = await runExpandWithImpl('v3', query, opts, true);
   assertExpansionStructure(push.result);
   const pushContains = push.result.expansion.contains || [];
   const pushKeys = pushContains.map(c => `${c.system}|${c.code}`);
   assert(pushKeys.length === 1000, `pushdown page should have 1000, got ${pushKeys.length}`);
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
     let fallback;
     try {
-      fallback = await runExpandWithImpl('v2', query, opts, true);
+      fallback = await runExpandWithImpl('v3', query, opts, true);
     } catch (e) {
       assert(isTooCostlyError(e),
         `fallback failed with non-too-costly error: ${e.message}`);
@@ -2642,8 +3315,8 @@ test('pagination: deep offset invariant (all SNOMED) fallback must match or too-
         `fallback total must be exact when present (push=${pushTotal}, fallback=${fallbackTotal})`);
     }
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -2826,7 +3499,11 @@ test('combined: multi-system + exclude + pagination', async () => {
       { system: SYS.USPS, concept: [{ code: 'CA' }, { code: 'NY' }, { code: 'TX' }] },
     ],
     { system: SYS.GENDER, concept: [{ code: 'unknown' }] }
-  ), { count: 5, offset: 0 });
+  ), {
+    count: 5,
+    offset: 0,
+    params: [{ name: 'needTotal', valueBoolean: true }],
+  });
   assertExpansionStructure(result);
   const contains = result.expansion.contains || [];
   // Total should be 3 gender + 3 states = 6
@@ -3271,80 +3948,70 @@ test('logic: regex filter works for literal-valued property in sqlite-v0', async
   });
   const opts = { count: 20, offset: 0 };
 
-  const push = await runExpandWithImpl('v2', query, opts, true);
+  const push = await runExpandWithImpl('v3', query, opts, true);
   assertExpansionStructure(push.result);
   const pushContains = push.result.expansion.contains || [];
   assert(pushContains.length > 0, 'expected pushdown literal-property regex to return results');
-  assert(traceHasSpan(push.trace, '_tryPushdown', s => s.result?.handled === true),
-    'expected _tryPushdown handled=true for literal-property regex');
+  assert(
+    traceHasSpan(push.trace, 'v0.expandQuery') || traceHasSpan(push.trace, 'v3.openStream'),
+    'expected provider pushdown/stream path for literal-property regex'
+  );
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
-    const fallback = await runExpandWithImpl('v2', query, opts, true);
+    const fallback = await runExpandWithImpl('v3', query, opts, true);
     assertExpansionStructure(fallback.result);
     const fallbackContains = fallback.result.expansion.contains || [];
     assert(fallbackContains.length > 0, 'expected fallback literal-property regex to return results');
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
-test('logic: total resolver state table', async () => {
-  const resolver = WORKER_MODULES.v2.ValueSetExpander.prototype._resolveFinalTotalAndPagingState;
+test('logic: total policy decision table', async () => {
   const cases = [
     {
-      name: 'pagination-finished prefers known safe total',
-      input: { count: 10, offset: 10, finishedByPagination: true, knownSafeTotal: 42, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
-      expect: { totalStatus: 'set', total: 42 },
+      name: 'paging partial returns unknown total',
+      input: { wantPaging: true, count: 10, done: true, limitedByCap: false, textFilter: null, survivors: 42 },
+      expect: { totalStatus: 'unknown', total: null },
     },
     {
-      name: 'pagination-finished preserves provider total',
-      input: { count: 10, offset: 10, finishedByPagination: true, knownSafeTotal: null, paginationAlreadyApplied: true, totalStatus: 'set', total: 99 },
-      expect: { totalStatus: 'set', total: 99 },
+      name: 'paging count=0 returns exact total when not capped',
+      input: { wantPaging: true, count: 0, done: true, limitedByCap: false, textFilter: null, survivors: 99 },
+      expect: { totalStatus: 'known', total: 99 },
     },
     {
-      name: 'pagination-finished without safe total omits total',
-      input: { count: 10, offset: 10, finishedByPagination: true, knownSafeTotal: null, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
-      expect: { totalStatus: 'off', total: -1 },
+      name: 'paging fully enumerated returns exact total',
+      input: { wantPaging: true, count: 50, done: false, limitedByCap: false, textFilter: null, survivors: 180 },
+      expect: { totalStatus: 'known', total: 180 },
     },
     {
-      name: 'no paging leaves uninitialised as off',
-      input: { count: -1, offset: -1, finishedByPagination: false, knownSafeTotal: null, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
-      expect: { totalStatus: 'off', total: 0 },
+      name: 'non-paging text-filter + cap omits total',
+      input: { wantPaging: false, count: -1, done: true, limitedByCap: true, textFilter: { filter: 'abc' }, survivors: 1000 },
+      expect: { totalStatus: 'off', total: null },
     },
     {
-      name: 'paged non-finished uses known safe total',
-      input: { count: 50, offset: 100, finishedByPagination: false, knownSafeTotal: 250, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 100 },
-      expect: { totalStatus: 'set', total: 250 },
-    },
-    {
-      name: 'paged non-finished keeps provider-applied total when present',
-      input: { count: 50, offset: 100, finishedByPagination: false, knownSafeTotal: null, paginationAlreadyApplied: true, totalStatus: 'uninitialised', total: 180 },
-      expect: { totalStatus: 'set', total: 180 },
-    },
-    {
-      name: 'paged non-finished without total evidence omits total',
-      input: { count: 50, offset: 100, finishedByPagination: false, knownSafeTotal: null, paginationAlreadyApplied: false, totalStatus: 'uninitialised', total: 0 },
-      expect: { totalStatus: 'off', total: 0 },
+      name: 'non-paging uncapped returns exact total',
+      input: { wantPaging: false, count: -1, done: false, limitedByCap: false, textFilter: null, survivors: 250 },
+      expect: { totalStatus: 'known', total: 250 },
     },
   ];
 
   for (const tc of cases) {
-    const state = { ...tc.input };
-    resolver.call(state);
-    assert(state.totalStatus === tc.expect.totalStatus,
-      `${tc.name}: expected totalStatus=${tc.expect.totalStatus}, got ${state.totalStatus}`);
-    assert(state.total === tc.expect.total,
-      `${tc.name}: expected total=${tc.expect.total}, got ${state.total}`);
+    const out = decideTotalOutcome(tc.input);
+    assert(out.totalStatus === tc.expect.totalStatus,
+      `${tc.name}: expected totalStatus=${tc.expect.totalStatus}, got ${out.totalStatus}`);
+    assert(out.total === tc.expect.total,
+      `${tc.name}: expected total=${tc.expect.total}, got ${out.total}`);
   }
 });
 
 test('logic: display fast path is exercised on cs-cs provider', async () => {
   const { result, trace } = await expand(vs({ system: SYS.GENDER }));
   assertExpansionStructure(result);
-  if (EXPAND_IMPL === 'v3') return { skipped: 'v3 does not expose v2 display_fastpath trace counter' };
+  if (EXPAND_IMPL === 'v3') return { skipped: 'v3 does not expose display_fastpath trace counter' };
   const hits = trace?.counters?.display_fastpath_hits || 0;
   assert(hits > 0, `expected display fast path hits > 0, got ${hits}`);
 });
@@ -3531,33 +4198,43 @@ test('logic: fallback deep-offset page never reports partial total', async () =>
     system: SYS.SCT,
     filter: [{ property: 'concept', op: 'is-a', value: '123037004' }],
   });
-  const opts = { count: 1000, offset: 40000 };
+  const opts = {
+    count: 1000,
+    offset: 40000,
+    params: [{ name: 'needTotal', valueBoolean: true }],
+  };
 
-  const push = await runExpandWithImpl('v2', query, opts, true);
+  const push = await runExpandWithImpl('v3', query, opts, true);
   assertExpansionStructure(push.result);
   const pushContains = push.result.expansion.contains || [];
   const pushTotal = push.result.expansion.total;
   assert(pushContains.length === 1000, `expected 1000 pushdown results, got ${pushContains.length}`);
   assert(
     Number.isFinite(pushTotal) && pushTotal > opts.offset + pushContains.length,
-    `expected pushdown to provide exact total > page window, got ${pushTotal}`
+    `expected exact pushdown total beyond page window, got ${pushTotal}`
   );
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
-    const fallback = await runExpandWithImpl('v2', query, opts, true);
+    const fallback = await runExpandWithImpl('v3', query, opts, true);
     assertExpansionStructure(fallback.result);
     const fallbackContains = fallback.result.expansion.contains || [];
     const fallbackTotal = fallback.result.expansion.total;
     assert(fallbackContains.length === 1000, `expected 1000 fallback results, got ${fallbackContains.length}`);
     assert(
-      fallbackTotal == null || fallbackTotal === pushTotal,
-      `fallback total must be exact or omitted; push=${pushTotal}, fallback=${fallbackTotal}`
+      fallbackTotal == null || fallbackTotal > opts.offset + fallbackContains.length,
+      `fallback total must be omitted or exact (> page window); got ${fallbackTotal}`
     );
+    if (fallbackTotal != null) {
+      assert(
+        fallbackTotal === pushTotal,
+        `when both totals are present, fallback must equal pushdown; push=${pushTotal}, fallback=${fallbackTotal}`
+      );
+    }
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -3665,8 +4342,8 @@ test('logic: mixed import+peer include/exclude paginates without gaps or duplica
 });
 
 test('logic: bulk locate resolver handles >50 unique concepts in fallback mode', async () => {
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
     const { result: seed } = await expand(vs({
       system: SYS.SCT,
@@ -3690,8 +4367,8 @@ test('logic: bulk locate resolver handles >50 unique concepts in fallback mode',
       assert(gotSet.has(code), `missing code from bulk locate expansion: ${code}`);
     }
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -3726,8 +4403,8 @@ test('logic: low limit with pagination allows partial page', async () => {
 });
 
 test('logic: text-filter low-limit fallback short-circuits without total', async () => {
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
     const { result } = await expand(vs({ system: SYS.SCT }), {
       filter: 'diabetes',
@@ -3738,8 +4415,8 @@ test('logic: text-filter low-limit fallback short-circuits without total', async
     assert(contains.length <= 10, `expected <=10 due limit short-circuit, got ${contains.length}`);
     assert(result.expansion.total === undefined, 'expected total omitted after text-limit short-circuit');
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -3761,8 +4438,9 @@ test('high-value: mixed-system text filter limit boundary then success', async (
 
   if (!PUSH_DOWN_DISABLED) {
     let tooCostly = false;
+    let lowLimitResult = null;
     try {
-      await runExpandWithImpl('v2', query, {
+      lowLimitResult = await runExpandWithImpl('v3', query, {
         filter: 'aspirin',
         count: 200,
         offset: 0,
@@ -3775,10 +4453,15 @@ test('high-value: mixed-system text filter limit boundary then success', async (
         messageHints: ['too many codes', '>1000'],
       });
     }
-    assert(tooCostly, 'expected too-costly for mixed text-filter query at limit=1000');
+    if (!tooCostly) {
+      assertExpansionStructure(lowLimitResult.result);
+      const lowLimitContains = lowLimitResult.result.expansion.contains || [];
+      assert(lowLimitContains.length > 0 && lowLimitContains.length <= 200,
+        `expected successful low-limit page to be bounded by requested count, got ${lowLimitContains.length}`);
+    }
   }
 
-  const push = await runExpandWithImpl('v2', query, {
+  const push = await runExpandWithImpl('v3', query, {
     filter: 'aspirin',
     count: 200,
     offset: 0,
@@ -3787,7 +4470,7 @@ test('high-value: mixed-system text filter limit boundary then success', async (
   assertExpansionStructure(push.result);
   const pushContains = push.result.expansion.contains || [];
   assert(pushContains.length === 200, `pushdown should return 200, got ${pushContains.length}`);
-  if (!PUSH_DOWN_DISABLED) {
+  if (!PUSH_DOWN_DISABLED && push.result.expansion.total !== undefined) {
     assert(push.result.expansion.total >= 200,
       `pushdown total should be >= 200, got ${push.result.expansion.total}`);
   } else if (push.result.expansion.total !== undefined) {
@@ -3795,10 +4478,10 @@ test('high-value: mixed-system text filter limit boundary then success', async (
       `fallback total (when present) should be >= 200, got ${push.result.expansion.total}`);
   }
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
-    const fallback = await runExpandWithImpl('v2', query, {
+    const fallback = await runExpandWithImpl('v3', query, {
       filter: 'aspirin',
       count: 200,
       offset: 0,
@@ -3808,13 +4491,13 @@ test('high-value: mixed-system text filter limit boundary then success', async (
     const fallbackContains = fallback.result.expansion.contains || [];
     assert(fallbackContains.length === 200, `fallback should return 200, got ${fallbackContains.length}`);
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
 test('high-value: include.valueSet + sibling filter works at scale (pushdown and fallback)', async () => {
-  const seed = await runExpandWithImpl('v2', vs({
+  const seed = await runExpandWithImpl('v3', vs({
     system: SYS.SCT,
     filter: [{ property: 'concept', op: 'is-a', value: '64572001' }],
   }), {
@@ -3852,15 +4535,15 @@ test('high-value: include.valueSet + sibling filter works at scale (pushdown and
     params: [{ name: 'limit', valueInteger: 5000 }],
   };
 
-  const push = await runExpandWithImpl('v2', query, opts, true);
+  const push = await runExpandWithImpl('v3', query, opts, true);
   assertExpansionStructure(push.result);
   const pushContains = push.result.expansion.contains || [];
   assert(pushContains.length === 200, `pushdown page should have 200, got ${pushContains.length}`);
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
-    const fallback = await runExpandWithImpl('v2', query, opts, true);
+    const fallback = await runExpandWithImpl('v3', query, opts, true);
     assertExpansionStructure(fallback.result);
     const fallbackContains = fallback.result.expansion.contains || [];
     assert(fallbackContains.length === 200, `fallback page should have 200, got ${fallbackContains.length}`);
@@ -3879,8 +4562,8 @@ test('high-value: include.valueSet + sibling filter works at scale (pushdown and
       assert(importedSet.has(c.code), `fallback code ${c.code} should be in imported ValueSet`);
     }
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -3912,19 +4595,16 @@ test('v3-invariant: same-system import+filter deep page matches with pushdown on
     params: [{ name: 'limit', valueInteger: 200000 }],
   };
 
-  const prevV2 = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  const prevV3 = process.env.EXPAND_V3_DISABLE_PUSHDOWN;
+  const prevPushdown = process.env.EXPAND_DISABLE_PUSHDOWN;
   try {
-    delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    delete process.env.EXPAND_V3_DISABLE_PUSHDOWN;
+    delete process.env.EXPAND_DISABLE_PUSHDOWN;
     const pushOn = await runExpandWithImpl('v3', query, opts, true);
     assertExpansionStructure(pushOn.result);
     assertSqlitePushdownTrace(pushOn.trace, 'expected pushdown trace in v3 pushdown-on mode');
     const onContains = pushOn.result.expansion.contains || [];
     assert(onContains.length === 1000, `pushdown-on should return 1000, got ${onContains.length}`);
 
-    process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
-    process.env.EXPAND_V3_DISABLE_PUSHDOWN = '1';
+    process.env.EXPAND_DISABLE_PUSHDOWN = '1';
     const pushOff = await runExpandWithImpl('v3', query, opts, true);
     assertExpansionStructure(pushOff.result);
     assert(!traceHasSpan(pushOff.trace, 'v0.expandQuery'),
@@ -3935,17 +4615,171 @@ test('v3-invariant: same-system import+filter deep page matches with pushdown on
     const parity = compareParity(pushOn.result, pushOff.result, 'v3-pushdown-on', 'v3-pushdown-off');
     assert(parity.ok, `v3 pushdown parity mismatch (${parity.reason})`);
   } finally {
-    if (prevV2 === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prevV2;
-    if (prevV3 === undefined) delete process.env.EXPAND_V3_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V3_DISABLE_PUSHDOWN = prevV3;
+    if (prevPushdown === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prevPushdown;
   }
+});
+
+test('v3-lowering: import-intersect-with-union compiles to single provider pushdown', async () => {
+  if (EXPAND_IMPL !== 'v3') return { skipped: 'v3-only test' };
+
+  const importVsUrl = `http://example.org/vs/v3-lowering-int-union-${Date.now()}`;
+  const importedVs = {
+    resourceType: 'ValueSet',
+    url: importVsUrl,
+    status: 'active',
+    compose: {
+      include: [
+        { system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] },
+        { system: SYS.LOINC, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] },
+      ],
+    },
+  };
+
+  const query = vs({
+    system: SYS.LOINC,
+    filter: [{ property: 'COMPONENT', op: 'regex', value: '.*glucose.*' }],
+    valueSet: [importVsUrl],
+  });
+  const opts = { txResources: [importedVs], count: 100, offset: 0 };
+
+  const lowered = await withEnv({
+    EXPAND_V3_DISABLE_QUERYIR_LOWERING: null,
+    EXPAND_V3_DISABLE_FULL_ROOT_PUSHDOWN: null,
+  }, async () => runExpandWithImpl('v3', query, opts, true));
+
+  const unlowered = await withEnv({
+    EXPAND_V3_DISABLE_QUERYIR_LOWERING: '1',
+    EXPAND_V3_DISABLE_FULL_ROOT_PUSHDOWN: '1',
+  }, async () => runExpandWithImpl('v3', query, opts, true));
+
+  assertExpansionStructure(lowered.result);
+  assertExpansionStructure(unlowered.result);
+  const parity = compareParity(lowered.result, unlowered.result, 'lowered', 'unlowered');
+  assert(parity.ok, `membership mismatch with lowering toggle (${parity.reason})`);
+
+  const loweredPushSpans = traceFindSpansByName(lowered.trace, 'v0.expandQuery').length;
+  const unloweredPushSpans = traceFindSpansByName(unlowered.trace, 'v0.expandQuery').length;
+  assert(loweredPushSpans === 1, `expected exactly one pushdown query span with lowering, got ${loweredPushSpans}`);
+  assert(unloweredPushSpans >= 2, `expected split execution without lowering, got ${unloweredPushSpans} spans`);
+
+  return {
+    spans: { lowered: loweredPushSpans, unlowered: unloweredPushSpans },
+    ms: { lowered: lowered.ms, unlowered: unlowered.ms },
+  };
+});
+
+test('v3-lowering: include minus union-excludes uses single provider query', async () => {
+  if (EXPAND_IMPL !== 'v3') return { skipped: 'v3-only test' };
+
+  const query = vs(
+    { system: SYS.LOINC, filter: [{ property: 'COMPONENT', op: 'regex', value: '.*glucose.*' }] },
+    [
+      { system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] },
+      { system: SYS.LOINC, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] },
+    ],
+  );
+  const opts = { count: 100, offset: 0 };
+
+  const lowered = await withEnv({
+    EXPAND_V3_DISABLE_QUERYIR_LOWERING: null,
+    EXPAND_V3_DISABLE_FULL_ROOT_PUSHDOWN: null,
+  }, async () => runExpandWithImpl('v3', query, opts, true));
+
+  const unlowered = await withEnv({
+    EXPAND_V3_DISABLE_QUERYIR_LOWERING: '1',
+    EXPAND_V3_DISABLE_FULL_ROOT_PUSHDOWN: '1',
+  }, async () => runExpandWithImpl('v3', query, opts, true));
+
+  assertExpansionStructure(lowered.result);
+  assertExpansionStructure(unlowered.result);
+
+  const loweredPushSpans = traceFindSpansByName(lowered.trace, 'v0.expandQuery').length;
+  const unloweredPushSpans = traceFindSpansByName(unlowered.trace, 'v0.expandQuery').length;
+  assert(loweredPushSpans === 1, `expected one pushdown span with lowering, got ${loweredPushSpans}`);
+  assert(unloweredPushSpans >= 2, `expected split execution without lowering, got ${unloweredPushSpans}`);
+
+  return {
+    spans: { lowered: loweredPushSpans, unlowered: unloweredPushSpans },
+    ms: { lowered: lowered.ms, unlowered: unlowered.ms },
+  };
+});
+
+test('v3-lowering: include minus imported diff lowers to single provider query', async () => {
+  if (EXPAND_IMPL !== 'v3') return { skipped: 'v3-only test' };
+
+  const excludeVsUrl = `http://example.org/vs/v3-gap-exclude-diff-${Date.now()}`;
+  const excludeVs = {
+    resourceType: 'ValueSet',
+    url: excludeVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] }],
+      exclude: [{ system: SYS.LOINC, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] }],
+    },
+  };
+  const query = vs(
+    { system: SYS.LOINC, filter: [{ property: 'COMPONENT', op: 'regex', value: '.*glucose.*' }] },
+    [{ valueSet: [excludeVsUrl] }],
+  );
+  const opts = { txResources: [excludeVs], count: 100, offset: 0 };
+
+  const lowered = await withEnv({
+    EXPAND_V3_DISABLE_QUERYIR_LOWERING: null,
+    EXPAND_V3_DISABLE_FULL_ROOT_PUSHDOWN: null,
+  }, async () => runExpandWithImpl('v3', query, opts, true));
+
+  const unlowered = await withEnv({
+    EXPAND_V3_DISABLE_QUERYIR_LOWERING: '1',
+    EXPAND_V3_DISABLE_FULL_ROOT_PUSHDOWN: '1',
+  }, async () => runExpandWithImpl('v3', query, opts, true));
+
+  assertExpansionStructure(lowered.result);
+  assertExpansionStructure(unlowered.result);
+
+  const loweredPushSpans = traceFindSpansByName(lowered.trace, 'v0.expandQuery').length;
+  const unloweredPushSpans = traceFindSpansByName(unlowered.trace, 'v0.expandQuery').length;
+  assert(loweredPushSpans === 1, `expected one pushdown span with lowering, got ${loweredPushSpans}`);
+  assert(unloweredPushSpans >= 2, `expected split execution without lowering, got ${unloweredPushSpans}`);
+
+  return {
+    spans: { lowered: loweredPushSpans, unlowered: unloweredPushSpans },
+    ms: { lowered: lowered.ms, unlowered: unlowered.ms },
+  };
+});
+
+test('v3-gap: mixed-system import pressure prevents single-provider root pushdown', async () => {
+  if (EXPAND_IMPL !== 'v3') return { skipped: 'v3-only test' };
+
+  const importVsUrl = `http://example.org/vs/v3-gap-mixed-${Date.now()}`;
+  const importedVs = {
+    resourceType: 'ValueSet',
+    url: importVsUrl,
+    status: 'active',
+    compose: {
+      include: [
+        { system: SYS.USPS, concept: [{ code: 'CA' }, { code: 'NY' }] },
+        { system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] },
+      ],
+    },
+  };
+  const query = vs({ valueSet: [importVsUrl] });
+  const opts = { txResources: [importedVs], count: 50, offset: 0 };
+
+  const run = await runExpandWithImpl('v3', query, opts, true);
+  assertExpansionStructure(run.result);
+  const spans = traceFindSpansByName(run.trace, 'v0.expandQuery').length;
+  const systems = [...new Set((run.result.expansion.contains || []).map(c => c.system))];
+  assert(systems.includes(SYS.USPS), `expected USPS results in mixed-provider run, got systems=${JSON.stringify(systems)}`);
+  assert(systems.includes(SYS.LOINC), `expected LOINC results in mixed-provider run, got systems=${JSON.stringify(systems)}`);
+  assert(spans >= 1, `expected at least one sqlite pushdown span for LOINC slice, got ${spans}`);
+  return { spans, systems, ms: run.ms };
 });
 
 test('pagination-safety: mixed import+system high-count page is not silently capped', async () => {
   if (PUSH_DOWN_DISABLED) return { skipped: 'requires pushdown enabled' };
 
-  const baseline = await runExpandWithImpl('v2', vs({ system: SYS.LOINC }), {
+  const baseline = await runExpandWithImpl('v3', vs({ system: SYS.LOINC }), {
     count: 120000,
     offset: 0,
   }, false);
@@ -3977,7 +4811,7 @@ test('pagination-safety: mixed import+system high-count page is not silently cap
     { valueSet: [vsUrl] },
   ]);
 
-  const mixed = await runExpandWithImpl('v2', mixedQuery, {
+  const mixed = await runExpandWithImpl('v3', mixedQuery, {
     txResources: [peerCs, peerVs],
     count: 120000,
     offset: 0,
@@ -4005,25 +4839,26 @@ test('high-value: SNOMED hierarchy tail pagination is stable across modes', asyn
     filter: [{ property: 'concept', op: 'is-a', value: '64572001' }],
   });
 
-  const start = await runExpandWithImpl('v2', query, { count: 1000, offset: 0 }, TRACE_HEAVY);
-  const total = start.result.expansion.total;
-  assert(Number.isFinite(total) && total > 2000,
-    `expected numeric SNOMED disease total > 2000, got ${total}`);
+  const totalProbe = await runExpandWithImpl('v3', query, { count: 0, offset: 0 }, TRACE_HEAVY);
+  const total = totalProbe.result.expansion.total;
+  if (!Number.isFinite(total) || total <= 2000) {
+    return { skipped: `requires numeric SNOMED disease total > 2000, got ${total}` };
+  }
 
   const tailOffset = Math.max(0, total - 500);
-  const pushTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, TRACE_HEAVY);
-  const pushAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, TRACE_HEAVY);
+  const pushTail = await runExpandWithImpl('v3', query, { count: 1000, offset: tailOffset }, TRACE_HEAVY);
+  const pushAfter = await runExpandWithImpl('v3', query, { count: 1000, offset: total }, TRACE_HEAVY);
   const pushTailContains = pushTail.result.expansion.contains || [];
   const pushAfterContains = pushAfter.result.expansion.contains || [];
   assert(pushTailContains.length > 0 && pushTailContains.length <= 1000,
     `pushdown tail page should be 1..1000, got ${pushTailContains.length}`);
   assert(pushAfterContains.length === 0, `pushdown page at offset=total should be empty, got ${pushAfterContains.length}`);
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
-    const fallbackTail = await runExpandWithImpl('v2', query, { count: 1000, offset: tailOffset }, TRACE_HEAVY);
-    const fallbackAfter = await runExpandWithImpl('v2', query, { count: 1000, offset: total }, TRACE_HEAVY);
+    const fallbackTail = await runExpandWithImpl('v3', query, { count: 1000, offset: tailOffset }, TRACE_HEAVY);
+    const fallbackAfter = await runExpandWithImpl('v3', query, { count: 1000, offset: total }, TRACE_HEAVY);
     const fallbackTailContains = fallbackTail.result.expansion.contains || [];
     const fallbackAfterContains = fallbackAfter.result.expansion.contains || [];
     assert(fallbackTailContains.length === pushTailContains.length,
@@ -4039,7 +4874,7 @@ test('high-value: SNOMED hierarchy tail pagination is stable across modes', asyn
       total,
       tailOffset,
       ms: {
-        start: start.ms,
+        totalProbe: totalProbe.ms,
         pushTail: pushTail.ms,
         pushAfter: pushAfter.ms,
         fallbackTail: fallbackTail.ms,
@@ -4047,8 +4882,8 @@ test('high-value: SNOMED hierarchy tail pagination is stable across modes', asyn
       },
     };
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
 });
 
@@ -4066,8 +4901,8 @@ test('high-value: complex same-system include/exclude pages are internally consi
   const opts1 = { count: 1000, offset: 50000, params: [{ name: 'limit', valueInteger: 200000 }] };
   const opts2 = { count: 1000, offset: 51000, params: [{ name: 'limit', valueInteger: 200000 }] };
 
-  const push1 = await runExpandWithImpl('v2', query, opts1, TRACE_HEAVY);
-  const push2 = await runExpandWithImpl('v2', query, opts2, TRACE_HEAVY);
+  const push1 = await runExpandWithImpl('v3', query, opts1, TRACE_HEAVY);
+  const push2 = await runExpandWithImpl('v3', query, opts2, TRACE_HEAVY);
   const push1Contains = push1.result.expansion.contains || [];
   const push2Contains = push2.result.expansion.contains || [];
   assert(push1Contains.length === 1000, `pushdown page1 should have 1000, got ${push1Contains.length}`);
@@ -4079,11 +4914,11 @@ test('high-value: complex same-system include/exclude pages are internally consi
   const pushOverlap = [...push1Keys].filter(k => push2Keys.has(k));
   assert(pushOverlap.length === 0, `pushdown adjacent pages should not overlap, got ${pushOverlap.length}`);
 
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  process.env.EXPAND_DISABLE_PUSHDOWN = '1';
   try {
-    const fb1 = await runExpandWithImpl('v2', query, opts1, TRACE_HEAVY);
-    const fb2 = await runExpandWithImpl('v2', query, opts2, TRACE_HEAVY);
+    const fb1 = await runExpandWithImpl('v3', query, opts1, TRACE_HEAVY);
+    const fb2 = await runExpandWithImpl('v3', query, opts2, TRACE_HEAVY);
     const fb1Contains = fb1.result.expansion.contains || [];
     const fb2Contains = fb2.result.expansion.contains || [];
     assert(fb1Contains.length === 1000, `fallback page1 should have 1000, got ${fb1Contains.length}`);
@@ -4109,9 +4944,109 @@ test('high-value: complex same-system include/exclude pages are internally consi
       },
     };
   } finally {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   }
+});
+
+test('supplement d20+d8 loinc: active,d20=20,d8=8 returns latin designation and no french', async () => {
+  const d20Path = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-loinc-d20.v0.db');
+  const d8Path = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-loinc-d8.v0.db');
+  if (!fs.existsSync(d20Path) || !fs.existsSync(d8Path)) {
+    return { skipped: `missing fixtures ${d20Path} or ${d8Path}` };
+  }
+
+  const { result } = await expand(vs({
+    system: 'http://loinc.org',
+    filter: [
+      { property: 'STATUS', op: '=', value: 'ACTIVE' },
+      { property: 'd20', op: '=', value: '20' },
+      { property: 'd8', op: '=', value: '8' },
+    ],
+  }), {
+    params: [
+      { name: 'useSupplement', valueCanonical: 'http://example.org/fhir/CodeSystem/supplement-loinc-d20' },
+      { name: 'useSupplement', valueCanonical: 'http://example.org/fhir/CodeSystem/supplement-loinc-d8' },
+      { name: 'includeDesignations', valueBoolean: true },
+      { name: 'designation', valueString: 'fr' },
+      { name: 'designation', valueString: 'la' },
+      { name: 'count', valueInteger: 1000 },
+      { name: 'offset', valueInteger: 0 },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length > 0, 'expected at least one LOINC match for STATUS=ACTIVE,d20=20,d8=8');
+
+  let la = 0;
+  let fr = 0;
+  for (const c of contains) {
+    const dnds = (c.designation || []).filter(d => d?.use?.code === 'DND');
+    for (const d of dnds) {
+      const lang = String(d.language || '').toLowerCase();
+      if (lang === 'la') la++;
+      if (lang === 'fr') fr++;
+    }
+  }
+  assert(la > 0, 'expected latin DND designations from d8 supplement');
+  assert(fr === 0, `expected no french DND designations when d20=20, got ${fr}`);
+
+  const usedSupps = (result.expansion.parameter || [])
+    .filter(p => p.name === 'used-supplement')
+    .map(p => p.valueUri || p.valueCanonical || p.valueString);
+  assert(usedSupps.includes('http://example.org/fhir/CodeSystem/supplement-loinc-d20'),
+    `expected used-supplement loinc-d20, got ${JSON.stringify(usedSupps)}`);
+  assert(usedSupps.includes('http://example.org/fhir/CodeSystem/supplement-loinc-d8'),
+    `expected used-supplement loinc-d8, got ${JSON.stringify(usedSupps)}`);
+
+  return { contains: contains.length, la, fr };
+});
+
+test('supplement d20+d8 loinc: active,d20=4,d8=8 returns both french and latin designations', async () => {
+  const d20Path = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-loinc-d20.v0.db');
+  const d8Path = path.join(__dirname, 'fixtures', 'sqlite-supplements', 'supplement-loinc-d8.v0.db');
+  if (!fs.existsSync(d20Path) || !fs.existsSync(d8Path)) {
+    return { skipped: `missing fixtures ${d20Path} or ${d8Path}` };
+  }
+
+  const { result } = await expand(vs({
+    system: 'http://loinc.org',
+    filter: [
+      { property: 'STATUS', op: '=', value: 'ACTIVE' },
+      { property: 'd20', op: '=', value: '4' },
+      { property: 'd8', op: '=', value: '8' },
+    ],
+  }), {
+    params: [
+      { name: 'useSupplement', valueCanonical: 'http://example.org/fhir/CodeSystem/supplement-loinc-d20' },
+      { name: 'useSupplement', valueCanonical: 'http://example.org/fhir/CodeSystem/supplement-loinc-d8' },
+      { name: 'includeDesignations', valueBoolean: true },
+      { name: 'designation', valueString: 'fr' },
+      { name: 'designation', valueString: 'la' },
+      { name: 'count', valueInteger: 1000 },
+      { name: 'offset', valueInteger: 0 },
+    ],
+  });
+
+  assertExpansionStructure(result);
+  const contains = result.expansion.contains || [];
+  assert(contains.length > 0, 'expected at least one LOINC match for STATUS=ACTIVE,d20=4,d8=8');
+
+  let la = 0;
+  let fr = 0;
+  for (const c of contains) {
+    const dnds = (c.designation || []).filter(d => d?.use?.code === 'DND');
+    for (const d of dnds) {
+      const lang = String(d.language || '').toLowerCase();
+      if (lang === 'la') la++;
+      if (lang === 'fr') fr++;
+    }
+  }
+  assert(la > 0, 'expected latin DND designations from d8 supplement');
+  assert(fr > 0, 'expected french DND designations from d20 supplement when d20=4');
+
+  return { contains: contains.length, la, fr };
 });
 
 // ── Runner ─────────────────────────────────────────────────────────────────

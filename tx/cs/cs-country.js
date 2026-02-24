@@ -1,4 +1,4 @@
-const { CodeSystemProvider, FilterExecutionContext, CodeSystemFactoryProvider } = require('./provider-legacy-filter');
+const { CodeSystemProvider, FilterExecutionContext, CodeSystemFactoryProvider } = require('./provider-core');
 const assert = require('assert');
 const { CodeSystem } = require("../library/codesystem");
 

@@ -33,6 +33,7 @@ class TxParameters {
   count = -1;
   limit = -1;
   offset = -1;
+  needTotal = false;
   validating = false;
   abstractOk = true; // note true!
   inferSystem = false;
@@ -222,6 +223,11 @@ class TxParameters {
 
         case 'limit' : {
           this.limit = Utilities.parseIntOrDefault(getValuePrimitive(p), -1);
+          break;
+        }
+        case 'needTotal':
+        case 'need-total': {
+          this.needTotal = strToBool(getValuePrimitive(p), false);
           break;
         }
 
@@ -520,7 +526,7 @@ class TxParameters {
       return v ? '1|' : '0|';
     };
 
-    let s = '|'+this.count+'|'+this.limit+'|'+this.offset+
+    let s = '|'+this.count+'|'+this.limit+'|'+this.offset+'|'+(this.needTotal ? '1' : '0')+
       this.FUid + '|' + b(this.FMembershipOnly) + '|' + this.FProperties.join(',') + '|' +
       b(this.FActiveOnly) + b(this.FDisplayWarning) + b(this.FExcludeNested) + b(this.FGenerateNarrative) + b(this.FExcludeNotForUI) + b(this.FExcludePostCoordinated) +
       b(this.FIncludeDesignations) + b(this.FIncludeDefinition) + b(this.hasActiveOnly) + b(this.hasExcludeNested) + b(this.hasGenerateNarrative) +
@@ -560,6 +566,7 @@ class TxParameters {
     this.count = other.count;
     this.offset = other.offset;
     this.limit = other.limit;
+    this.needTotal = !!other.needTotal;
     this.filter = other.filter;
     this.limitedExpansion = other.limitedExpansion;
     this.incompleteOK = other.incompleteOK;

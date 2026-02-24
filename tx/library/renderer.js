@@ -1,4 +1,4 @@
-const {CodeSystemProvider} = require("../cs/provider-base");
+const {CodeSystemProvider} = require("../cs/provider-core");
 const {Extensions} = require("./extensions");
 const {div} = require("../../library/html");
 const {getValuePrimitive} = require("../../library/utilities");

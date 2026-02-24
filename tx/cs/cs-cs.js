@@ -1,5 +1,5 @@
 const { CodeSystem}  = require("../library/codesystem");
-const { CodeSystemFactoryProvider, FilterExecutionContext }  = require('./provider-legacy-filter');
+const { CodeSystemFactoryProvider, FilterExecutionContext }  = require('./provider-core');
 const { VersionUtilities }  = require("../../library/version-utilities");
 const { Language }  = require ("../../library/languages");
 const { validateOptionalParameter, getValuePrimitive, validateArrayParameter} = require("../../library/utilities");

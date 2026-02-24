@@ -1,7 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
-const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./provider-base');
+const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./provider-core');
 
 class UniiConcept {
   constructor(code, display) {

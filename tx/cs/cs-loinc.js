@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
 const { Language, Languages} = require('../../library/languages');
-const { CodeSystemFactoryProvider} = require('./provider-base');
+const { CodeSystemFactoryProvider} = require('./provider-core');
 const { validateOptionalParameter, validateArrayParameter} = require("../../library/utilities");
 const {BaseCSServices} = require("./cs-base");
 

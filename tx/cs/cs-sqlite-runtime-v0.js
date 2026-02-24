@@ -89,7 +89,7 @@ try { BetterSqlite3 = require('better-sqlite3-with-progress'); } catch (_) {
   }
 }
 const { CodeSystem } = require('../library/codesystem');
-const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./provider-v3-query');
+const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./provider-core');
 const { Issue } = require('../library/operation-outcome');
 const { trace: T } = require('../workers/expand-trace');
 

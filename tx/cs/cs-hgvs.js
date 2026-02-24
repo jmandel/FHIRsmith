@@ -4,7 +4,7 @@
 
 const assert = require('assert');
 const https = require('https');
-const { CodeSystemProvider, CodeSystemFactoryProvider } = require('./provider-legacy-filter');
+const { CodeSystemProvider, CodeSystemFactoryProvider } = require('./provider-core');
 
 class HGVSCode {
   constructor(code) {

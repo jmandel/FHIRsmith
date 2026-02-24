@@ -1,4 +1,4 @@
-const { CodeSystemContentMode, CodeSystemFactoryProvider} = require('./provider-base');
+const { CodeSystemContentMode, CodeSystemFactoryProvider} = require('./provider-core');
 const {
   SnomedStrings, SnomedWords, SnomedStems, SnomedReferences,
   SnomedDescriptions, SnomedDescriptionIndex, SnomedConceptList,

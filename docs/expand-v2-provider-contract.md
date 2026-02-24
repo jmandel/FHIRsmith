@@ -10,7 +10,7 @@ Providers can accelerate parts of this computation, but they do not own semantic
 
 ## CS provider interface changes
 
-The provider base contract in `tx/cs/cs-api.js` now has two key extension points for expand orchestration.
+The provider base contract in `tx/cs/provider-core.js` now has two key extension points for expand orchestration.
 
 `capabilities()` is the planning handshake. It lets a provider describe whether it supports grouped pushdown, and which request shapes it can evaluate. The worker uses capabilities to decide when pushdown is possible and when fallback is required.
 

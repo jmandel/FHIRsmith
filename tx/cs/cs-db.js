@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
 const { Language, Languages} = require('../../library/languages');
-const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./provider-legacy-filter');
+const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./provider-core');
 const { validateOptionalParameter, validateArrayParameter} = require("../../library/utilities");
 
 class CachedDesignation {

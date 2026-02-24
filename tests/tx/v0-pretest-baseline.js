@@ -160,7 +160,7 @@ function buildScenarios() {
 }
 
 async function setupLibrary() {
-  const preferredConfig = path.join(__dirname, 'fixtures', 'expand-v2-test-library.yaml');
+  const preferredConfig = path.join(__dirname, 'fixtures', 'expand-test-library.yaml');
   const fallbackConfig = path.join(__dirname, 'fixtures', 'test-library.yaml');
   const configFile = fs.existsSync(preferredConfig) ? preferredConfig : fallbackConfig;
   const lib = new Library(configFile, null, log, null, {});
@@ -170,12 +170,12 @@ async function setupLibrary() {
 }
 
 function setPushdownDisabled(disabled) {
-  const prev = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  if (disabled) process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
-  else delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  const prev = process.env.EXPAND_DISABLE_PUSHDOWN;
+  if (disabled) process.env.EXPAND_DISABLE_PUSHDOWN = '1';
+  else delete process.env.EXPAND_DISABLE_PUSHDOWN;
   return () => {
-    if (prev === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prev;
+    if (prev === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prev;
   };
 }
 

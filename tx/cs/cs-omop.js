@@ -1,7 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
-const { FilterExecutionContext, CodeSystemFactoryProvider } = require('./provider-legacy-filter');
+const { FilterExecutionContext, CodeSystemFactoryProvider } = require('./provider-core');
 const {validateOptionalParameter, validateArrayParameter} = require("../../library/utilities");
 const {ConceptMap} = require("../library/conceptmap");
 const {BaseCSServices} = require("./cs-base");

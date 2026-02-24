@@ -8,6 +8,12 @@ const {Languages} = require("../../library/languages");
 const {ConceptMap} = require("../library/conceptmap");
 const {Renderer} = require("../library/renderer");
 const perfCounters = require('../perf-counters');
+const {
+  EmptySupplementContext,
+  ResourceSupplementContext,
+  CompositeSupplementContext,
+  SqliteSupplementContext,
+} = require('./expand-v3/src/supplements');
 
 /**
  * Custom error for terminology setup issues
@@ -322,6 +328,102 @@ class TerminologyWorker {
     }
 
     return supplements;
+  }
+
+  /**
+   * Resolve a supplement context for v3 execution.
+   * Resolution sources:
+   * - request/additional resource supplements (CodeSystem resources)
+   * - provider-declared supplement entries (knownSupplementEntries)
+   *
+   * @param {Set<string>} requiredCanonicals
+   * @param {Object} request
+   * @param {string} request.system
+   * @param {string|null} request.version
+   * @param {Object|null} request.providerHint
+   * @returns {SupplementContext}
+   */
+  async resolveSupplementContext(requiredCanonicals, request = {}) {
+    const system = request.system || '';
+    const version = request.version || '';
+    const required = requiredCanonicals instanceof Set
+      ? [...requiredCanonicals]
+      : Array.isArray(requiredCanonicals) ? requiredCanonicals : [];
+
+    if (!system || required.length === 0) {
+      return new EmptySupplementContext();
+    }
+
+    const contexts = [];
+
+    const supplements = this.loadSupplements(system, version, new Set(required));
+    if (supplements && supplements.length > 0) {
+      contexts.push(new ResourceSupplementContext(supplements));
+    }
+
+    const sqliteEntries = await this._resolveSqliteSupplementEntries(required, system, version, request.providerHint || null);
+    if (sqliteEntries.length > 0) {
+      contexts.push(new SqliteSupplementContext(sqliteEntries));
+    }
+
+    if (contexts.length === 0) {
+      return new EmptySupplementContext();
+    }
+
+    if (contexts.length === 1) {
+      return contexts[0];
+    }
+
+    const composite = new CompositeSupplementContext(contexts);
+    for (const ctx of contexts) {
+      for (const c of (ctx.canonicals ? ctx.canonicals() : [])) {
+        composite.markResolved(c);
+      }
+    }
+    return composite;
+  }
+
+  async _resolveSqliteSupplementEntries(requiredCanonicals, system, version, providerHint = null) {
+    if (!Array.isArray(requiredCanonicals) || requiredCanonicals.length === 0 || !system) return [];
+    const selected = [];
+    const seenPaths = new Set();
+    const collect = (entry) => {
+      if (!entry || !entry.path || seenPaths.has(entry.path)) return;
+      if (entry.targetSystem !== system) return;
+      if (entry.targetVersion && version && !this._supplementVersionMatches(entry.targetVersion, version)) return;
+      seenPaths.add(entry.path);
+      selected.push(entry);
+    };
+
+    const providerEntries = await this._resolveProviderSupplementEntries(providerHint, requiredCanonicals, system, version);
+    for (const entry of providerEntries) collect(entry);
+
+    return selected;
+  }
+
+  async _resolveProviderSupplementEntries(providerHint, requiredCanonicals, system, version) {
+    if (!providerHint || typeof providerHint.knownSupplementEntries !== 'function') return [];
+    try {
+      const entries = await providerHint.knownSupplementEntries({
+        requiredCanonicals,
+        system,
+        version: version || null,
+      });
+      return Array.isArray(entries) ? entries : [];
+    } catch (_e) {
+      return [];
+    }
+  }
+
+  _supplementVersionMatches(expected, actual) {
+    if (!expected || !actual) return true;
+    if (expected === actual) return true;
+    try {
+      return VersionUtilities.versionMatches(expected, actual)
+        || VersionUtilities.versionMatches(actual, expected);
+    } catch (_e) {
+      return false;
+    }
   }
 
   /**

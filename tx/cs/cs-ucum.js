@@ -3,7 +3,7 @@
  * Implementation of CodeSystemProvider for UCUM (Unified Code for Units of Measure)
  */
 
-const { FilterExecutionContext, CodeSystemFactoryProvider} = require('./provider-legacy-filter');
+const { FilterExecutionContext, CodeSystemFactoryProvider} = require('./provider-core');
 const ValueSet = require("../library/valueset");
 const assert = require('assert');
 const {UcumService} = require("../library/ucum-service");

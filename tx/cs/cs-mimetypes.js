@@ -1,4 +1,4 @@
-const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./provider-base');
+const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./provider-core');
 const assert = require('assert');
 const { CodeSystem } = require("../library/codesystem");
 

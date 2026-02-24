@@ -14,11 +14,8 @@ const { TxParameters } = require('../../tx/params');
 const { SearchFilterText } = require('../../tx/library/designations');
 const ValueSet = require('../../tx/library/valueset');
 const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/workers/expand-trace');
-
-const WORKER_MODULES = {
-  v2: require('../../tx/workers/expand-v2'),
-  v3: require('../../tx/workers/expand-v3'),
-};
+const { ExpandWorker: TxExpandWorker } = require('../../tx/workers/expand-worker');
+const { ValueSetExpander: ValueSetExpanderV3Compat } = require('../../tx/workers/expand-v3');
 
 const log = {
   info: (...a) => process.env.ADHOC_VERBOSE ? console.log('[INFO]', ...a) : null,
@@ -30,10 +27,10 @@ const log = {
 function usage() {
   return [
     'Usage:',
-    '  node tests/tx/expand-v2-adhoc.js [options]',
+    '  node tests/tx/expand-adhoc.js [options]',
     '',
     'Core options:',
-    '  --impl v2|v3                      Worker impl (default: v2)',
+    '  --impl v3                         Worker impl (default: v3)',
     '  --vs-file <path>                  ValueSet JSON file',
     '  --vs-json <json>                  ValueSet JSON inline',
     '  --include <json>                  Repeated compose.include item JSON',
@@ -55,7 +52,10 @@ function usage() {
     'Extras:',
     '  --tx-resource-file <path>         Repeated; supports single resource, array, or Bundle',
     '  --tx-resource-json <json>         Repeated inline tx-resource (single resource or array)',
-    '  --disable-pushdown                Set EXPAND_V2_DISABLE_PUSHDOWN=1 for this run',
+    '  --opt-profile <name>              Set EXPAND_OPT_PROFILE (default|baseline|no-pushdown|no-membership|no-decorate-many)',
+    '  --disable-pushdown                Set EXPAND_DISABLE_PUSHDOWN=1 for this run',
+    '  --disable-membership              Set EXPAND_DISABLE_MEMBERSHIP=1 for this run',
+    '  --disable-decorate-many           Set EXPAND_DISABLE_DECORATE_MANY=1 for this run',
     '  --trace off|summary|json          Default: off',
     '  --trace-max-spans <n>             Default: 24',
     '  --trace-file <path>               Optional file path to write trace JSON/summary',
@@ -65,8 +65,8 @@ function usage() {
     '  --help',
     '',
     'Example:',
-    '  node tests/tx/expand-v2-adhoc.js --impl v3 --system http://snomed.info/sct --count 1000 --offset 50000 --trace summary',
-    '  node tests/tx/expand-v2-adhoc.js --impl v3 --vs-file ./my-vs.json --params-file ./my-params.json --trace json',
+    '  node tests/tx/expand-adhoc.js --impl v3 --system http://snomed.info/sct --count 1000 --offset 50000 --trace summary',
+    '  node tests/tx/expand-adhoc.js --impl v3 --vs-file ./my-vs.json --params-file ./my-params.json --trace json',
   ].join('\n');
 }
 
@@ -200,7 +200,7 @@ function buildVs(args) {
 }
 
 async function setupLibrary() {
-  const preferredConfig = path.join(__dirname, 'fixtures', 'expand-v2-test-library.yaml');
+  const preferredConfig = path.join(__dirname, 'fixtures', 'expand-test-library.yaml');
   const fallbackConfig = path.join(__dirname, 'fixtures', 'test-library.yaml');
   const configFile = fs.existsSync(preferredConfig) ? preferredConfig : fallbackConfig;
   if (!fs.existsSync(configFile)) {
@@ -219,9 +219,9 @@ async function main() {
     return;
   }
 
-  const impl = String(args.impl || 'v2').toLowerCase();
-  if (!WORKER_MODULES[impl]) {
-    throw new Error(`Unsupported --impl '${impl}'. Use v2 or v3.`);
+  const impl = String(args.impl || 'v3').toLowerCase();
+  if (impl !== 'v3') {
+    throw new Error(`Unsupported --impl '${impl}'. Use v3.`);
   }
 
   const traceMode = String(args.trace || 'off').toLowerCase();
@@ -233,7 +233,10 @@ async function main() {
   const traceFile = args['trace-file'] ? path.resolve(String(args['trace-file'])) : null;
   const outFile = args['out-file'] ? path.resolve(String(args['out-file'])) : null;
   const fullResult = args['full-result'] === true;
+  const optProfile = args['opt-profile'] !== undefined ? String(args['opt-profile']) : null;
   const disablePushdown = args['disable-pushdown'] === true;
+  const disableMembership = args['disable-membership'] === true;
+  const disableDecorateMany = args['disable-decorate-many'] === true;
 
   const hasExplicitVsInput = !!(args['vs-file'] || args['vs-json'] || args.include || args.system);
   let vsJson = hasExplicitVsInput ? buildVs(args) : null;
@@ -282,16 +285,24 @@ async function main() {
     if (p?.name === 'tx-resource' && p.resource) txResources.push(p.resource);
   }
 
-  const { ExpandWorker, ValueSetExpander } = WORKER_MODULES[impl];
   const { library, provider } = await setupLibrary();
 
-  const prevPushdown = process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-  if (disablePushdown) process.env.EXPAND_V2_DISABLE_PUSHDOWN = '1';
-  else delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
+  const prevOptProfile = process.env.EXPAND_OPT_PROFILE;
+  const prevPushdown = process.env.EXPAND_DISABLE_PUSHDOWN;
+  const prevMembership = process.env.EXPAND_DISABLE_MEMBERSHIP;
+  const prevDecorateMany = process.env.EXPAND_DISABLE_DECORATE_MANY;
+  if (optProfile) process.env.EXPAND_OPT_PROFILE = optProfile;
+  else delete process.env.EXPAND_OPT_PROFILE;
+  if (disablePushdown) process.env.EXPAND_DISABLE_PUSHDOWN = '1';
+  else delete process.env.EXPAND_DISABLE_PUSHDOWN;
+  if (disableMembership) process.env.EXPAND_DISABLE_MEMBERSHIP = '1';
+  else delete process.env.EXPAND_DISABLE_MEMBERSHIP;
+  if (disableDecorateMany) process.env.EXPAND_DISABLE_DECORATE_MANY = '1';
+  else delete process.env.EXPAND_DISABLE_DECORATE_MANY;
 
   try {
     const opContext = new OperationContext('en', library.i18n, null, 120);
-    const worker = new ExpandWorker(opContext, log, provider, library.languageDefinitions, library.i18n);
+    const worker = new TxExpandWorker(opContext, log, provider, library.languageDefinitions, library.i18n);
 
     if (typeof worker.setupAdditionalResources === 'function') {
       worker.setupAdditionalResources(paramsResource);
@@ -339,7 +350,7 @@ async function main() {
     }
 
     const vs = new ValueSet(vsJson.jsonObj || vsJson);
-    const expander = new ValueSetExpander(worker, txp);
+    const expander = new ValueSetExpanderV3Compat(worker, txp);
     const searchFilter = new SearchFilterText(txp.filter || filter);
 
     const t0 = performance.now();
@@ -357,7 +368,10 @@ async function main() {
     const flat = flattenContains(result?.expansion?.contains || []);
     const output = {
       impl,
+      optProfile,
       disablePushdown,
+      disableMembership,
+      disableDecorateMany,
       ms,
       request: {
         count: effectiveCount ?? null,
@@ -413,8 +427,14 @@ async function main() {
       }
     }
   } finally {
-    if (prevPushdown === undefined) delete process.env.EXPAND_V2_DISABLE_PUSHDOWN;
-    else process.env.EXPAND_V2_DISABLE_PUSHDOWN = prevPushdown;
+    if (prevOptProfile === undefined) delete process.env.EXPAND_OPT_PROFILE;
+    else process.env.EXPAND_OPT_PROFILE = prevOptProfile;
+    if (prevPushdown === undefined) delete process.env.EXPAND_DISABLE_PUSHDOWN;
+    else process.env.EXPAND_DISABLE_PUSHDOWN = prevPushdown;
+    if (prevMembership === undefined) delete process.env.EXPAND_DISABLE_MEMBERSHIP;
+    else process.env.EXPAND_DISABLE_MEMBERSHIP = prevMembership;
+    if (prevDecorateMany === undefined) delete process.env.EXPAND_DISABLE_DECORATE_MANY;
+    else process.env.EXPAND_DISABLE_DECORATE_MANY = prevDecorateMany;
   }
 }
 

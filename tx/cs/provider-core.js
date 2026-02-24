@@ -9,6 +9,12 @@ const {validateParameter, validateArrayParameter} = require("../../library/utili
 const {I18nSupport} = require("../../library/i18nsupport");
 const {VersionUtilities} = require("../../library/version-utilities");
 
+const ProviderNegotiationMode = Object.freeze({
+  QUERY_TARGET: 'query-target',
+  LEGACY_FILTER: 'legacy-filter',
+  BASE_ONLY: 'base-only',
+});
+
 class FilterExecutionContext {
   filters = [];
   forIterate = false;
@@ -27,6 +33,15 @@ class CodeSystemProvider {
 
   /**
    * @type {CodeSystem[]}
+   *
+   * Compatibility note:
+   * - This provider-owned resource supplement list is still used by non-v3
+   *   call paths (lookup/validate/translate/subsumes and legacy provider code).
+   * - expand-v3 is moving to SupplementContext as the primary supplement
+   *   interface for filtering, negotiation, and batched decoration.
+   * - Providers may continue to consult this list during migration, but new v3
+   *   supplement behavior should be exposed through negotiate/openStream/
+   *   prepareMembership/decorateMany request objects.
    */
   supplements;
 
@@ -447,32 +462,85 @@ class CodeSystemProvider {
   }
 
   /**
-   * Optional capability descriptor for expand-v3 style execution.
+   * Returns the provider's primary execution mode for expand-v3 routing.
    *
-   * Legacy providers can ignore this entirely; adapters will fallback
-   * to iterator/filter APIs.
+   * Modes:
+   * - query-target: provider can execute compiled query requests (openStream)
+   * - legacy-filter: provider uses getPrepContext/filter/executeFilters pipeline
+   * - base-only: provider offers lookup/iterator, but no full filter pipeline
    *
-   * @returns {{
-   *   query?: boolean,
-   *   membership?: boolean,
-   *   decorateMany?: boolean,
-   *   supportsTextFilter?: boolean,
-   *   supportsSetOps?: boolean,
-   *   supportsPagination?: boolean
-   * }}
+   * Default implementation is conservative and infers mode from implemented
+   * methods. Providers can override to make this explicit.
+   *
+   * @returns {'query-target'|'legacy-filter'|'base-only'}
    */
-  capabilitiesV3() {
+  providerMode() {
     const proto = CodeSystemProvider.prototype;
-    const hasOpenStream = (this.openStream !== proto.openStream);
-    const hasPrepareMembership = (this.prepareMembership !== proto.prepareMembership);
-    const hasDecorateMany = (this.decorateMany !== proto.decorateMany);
+    const hasOverride = (name) => typeof this[name] === 'function' && this[name] !== proto[name];
+    if (hasOverride('openStream')) {
+      return ProviderNegotiationMode.QUERY_TARGET;
+    }
+    const hasFilterExecution = hasOverride('filter') && hasOverride('executeFilters');
+    const hasFilterIteration = hasOverride('filterPage') || (hasOverride('filterMore') && hasOverride('filterConcept'));
+    if (hasFilterExecution && hasFilterIteration) {
+      return ProviderNegotiationMode.LEGACY_FILTER;
+    }
+    return ProviderNegotiationMode.BASE_ONLY;
+  }
+
+  /**
+   * Optional v3 negotiation hook.
+   * Returns an adapter-scoped capability report for a specific request context.
+   *
+   * Report should describe:
+   * - query/membership/decoration hook availability
+   * - ordering/pagination safety
+   * - legacy filter-pipeline support (if any)
+   * - supplement-native handling capabilities for this request
+   *
+   * @param {{system?: string, version?: string|null, supplements?: any, params?: any, mode?: string}} request
+   * @returns {object}
+   */
+  async negotiate(request = {}) {
+    const proto = CodeSystemProvider.prototype;
+    const hasOverride = (name) => typeof this[name] === 'function' && this[name] !== proto[name];
+    const mode = this.providerMode();
+    const query = mode === ProviderNegotiationMode.QUERY_TARGET || hasOverride('openStream');
+    const membership = hasOverride('prepareMembership');
+    const decorateMany = hasOverride('decorateMany');
+    const supportsSearchFilter = hasOverride('searchFilter');
+    const supportsFilterPage = hasOverride('filterPage');
+    const hasFilterExecution = hasOverride('filter') && hasOverride('executeFilters');
+    const hasFilterIteration = supportsFilterPage || (hasOverride('filterMore') && hasOverride('filterConcept'));
+    const legacyFilterPipeline = mode === ProviderNegotiationMode.LEGACY_FILTER
+      || (hasFilterExecution && hasFilterIteration);
+    const supplements = request?.supplements || null;
+    const supplementCanonicals = (supplements && typeof supplements.canonicals === 'function')
+      ? (supplements.canonicals() || [])
+      : [];
+
     return {
-      query: hasOpenStream,
-      membership: hasPrepareMembership,
-      decorateMany: hasDecorateMany,
-      supportsTextFilter: hasOpenStream,
-      supportsSetOps: false,
-      supportsPagination: false,
+      mode,
+      query,
+      membership,
+      decorateMany,
+      ordering: { stable: false, kind: 'unspecified' },
+      pagination: false,
+      legacyFilter: {
+        filterPipeline: legacyFilterPipeline,
+        supportsSearchFilter,
+        supportsFilterPage,
+      },
+      supplements: {
+        handles: 'none',
+        filtering: 'none',
+        properties: [],
+        operators: [],
+        unsupported: supplementCanonicals,
+        attachments: null,
+      },
+      system: request?.system || null,
+      version: request?.version || null,
     };
   }
 
@@ -480,13 +548,14 @@ class CodeSystemProvider {
    * Optional v3 streaming hook. Providers can yield stable-ordered candidate rows
    * for a provider-native query representation.
    *
-   * @param {object} queryIR
-   * @param {object} opts
+   * request.supplements is a SupplementContext (or equivalent) for request-
+   * scoped supplement handling.
+   *
+   * @param {{queryIR: object, exec?: object, supplements?: any}} request
    * @returns {AsyncGenerator<object>|null}
    */
-  async openStream(queryIR, opts = {}) {
-    void queryIR;
-    void opts;
+  async openStream(request = {}) {
+    void request;
     const stream = null;
     return stream;
   }
@@ -533,6 +602,7 @@ class CodeSystemProvider {
     const offset = Number.isInteger(opts.offset) ? opts.offset : 0;
     const count = Number.isInteger(opts.count) ? opts.count : -1;
     const pagination = count >= 0 ? { offset, count } : null;
+    const includeTotal = opts.includeTotal !== false;
 
     return {
       includes: include,
@@ -544,6 +614,7 @@ class CodeSystemProvider {
       includeDesignations: !!opts.includeDesignations,
       displayLanguages: opts.displayLanguages || null,
       pagination,
+      includeTotal,
       limitCount: Number.isInteger(opts.limitCount) ? opts.limitCount : 0,
     };
   }
@@ -580,11 +651,13 @@ class CodeSystemProvider {
    *   - batchHas(codes[]) -> boolean[]
    *   - optional close()
    *
-   * @param {object} queryIR
+   * request.supplements is a SupplementContext (or equivalent).
+   *
+   * @param {{queryIR: object, exec?: object, supplements?: any}} request
    * @returns {object|null}
    */
-  async prepareMembership(queryIR) {
-    void queryIR;
+  async prepareMembership(request = {}) {
+    void request;
     return null;
   }
 
@@ -592,14 +665,41 @@ class CodeSystemProvider {
    * Optional v3 bulk decoration hook. Providers can return rows keyed by code
    * with display/designations/properties in one batch call.
    *
-   * @param {string[]} codes
-   * @param {object} opts
+   * request.supplements is a SupplementContext (or equivalent). Providers can
+   * combine base decoration with supplement-native overlays when available.
+   *
+   * @param {{codes: string[], opts?: object, supplements?: any}} request
    * @returns {Array<object>|null}
    */
-  async decorateMany(codes, opts = {}) {
-    void codes;
-    void opts;
+  async decorateMany(request = {}) {
+    void request;
     return null;
+  }
+
+  /**
+   * Optional provider-declared supplement discovery hook for v3 resolution.
+   *
+   * Providers can return supplement descriptors they know about on disk or in
+   * native catalogs, so the worker can resolve canonical-only supplement
+   * requests into SupplementContext without relying on global filesystem scans.
+   *
+   * Descriptor shape:
+   * {
+   *   path: string,
+   *   canonical: string,
+   *   canonicalVersioned?: string,
+   *   targetSystem: string,
+   *   targetVersion?: string|null,
+   *   availableProperties?: string[],
+   *   availableOperators?: string[]
+   * }
+   *
+   * @param {{system?: string, version?: string|null, requiredCanonicals?: string[]}} request
+   * @returns {Promise<object[]>}
+   */
+  async knownSupplementEntries(request = {}) {
+    void request;
+    return [];
   }
 
   /**
@@ -950,6 +1050,7 @@ class CodeSystemFactoryProvider {
 }
 
 module.exports = {
+  ProviderNegotiationMode,
   FilterExecutionContext,
   CodeSystemProvider,
   CodeSystemContentMode,
