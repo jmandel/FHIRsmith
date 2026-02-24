@@ -230,13 +230,7 @@ class SqliteSupplementContext extends SupplementContext {
     return this.entries.filter(e => {
       if (!e || e.targetSystem !== system) return false;
       if (!e.targetVersion || !version) return true;
-      if (e.targetVersion === version) return true;
-      try {
-        return VersionUtilities.versionMatches(e.targetVersion, version)
-          || VersionUtilities.versionMatches(version, e.targetVersion);
-      } catch (_e) {
-        return false;
-      }
+      return VersionUtilities.supplementVersionMatches(e.targetVersion, version);
     });
   }
 

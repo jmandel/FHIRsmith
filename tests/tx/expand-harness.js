@@ -31,6 +31,7 @@ const { Languages } = require('../../library/languages');
 const { TxParameters } = require('../../tx/params');
 const { SearchFilterText } = require('../../tx/library/designations');
 const ValueSet = require('../../tx/library/valueset');
+const { VersionUtilities } = require('../../library/version-utilities');
 const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/workers/expand-trace');
 const { ExpandWorker: TxExpandWorker } = require('../../tx/workers/expand-worker');
 const { ValueSetExpander: ValueSetExpanderV3Compat } = require('../../tx/workers/expand-v3');
@@ -639,14 +640,18 @@ function buildSupplementResourceFromSqlite(dbPath, codes) {
       type,
     }));
 
+    const targetVersionToken = manifest.target_version == null
+      ? null
+      : (VersionUtilities.normalizeVersionToken(String(manifest.target_version)) || null);
+
     return {
       resourceType: 'CodeSystem',
       url: String(manifest.supplement_uri),
       ...(manifest.supplement_version ? { version: String(manifest.supplement_version) } : {}),
       status: 'active',
       content: 'supplement',
-      supplements: manifest.target_version
-        ? `${manifest.target_system}|${manifest.target_version}`
+      supplements: targetVersionToken
+        ? `${manifest.target_system}|${targetVersionToken}`
         : String(manifest.target_system),
       ...(property.length > 0 ? { property } : {}),
       concept: cleanCodes.map(code => concepts.get(code)),
@@ -730,11 +735,15 @@ function createTempSupplementSqliteFixture({
       CREATE INDEX idx_supp_code_code ON supplement_code(code);
     `);
 
+    const normalizedTargetVersion = targetVersion == null
+      ? null
+      : (VersionUtilities.normalizeVersionToken(String(targetVersion)) || null);
+
     db.prepare(`
       INSERT INTO supplement_manifest
         (supplement_uri, supplement_version, target_system, target_version)
       VALUES (?, ?, ?, ?)
-    `).run(canonical, canonicalVersion, targetSystem, targetVersion);
+    `).run(canonical, canonicalVersion, targetSystem, normalizedTargetVersion);
 
     const insCode = db.prepare(`INSERT INTO supplement_code(code) VALUES (?)`);
     const insProp = db.prepare(`

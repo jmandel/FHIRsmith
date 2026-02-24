@@ -410,20 +410,18 @@ class TerminologyWorker {
         version: version || null,
       });
       return Array.isArray(entries) ? entries : [];
-    } catch (_e) {
-      return [];
+    } catch (e) {
+      const providerName = providerHint?.constructor?.name || 'unknown-provider';
+      const requested = Array.isArray(requiredCanonicals) ? requiredCanonicals.join(', ') : '';
+      throw new TerminologySetupError(
+        `Failed resolving provider supplement entries for ${system}${version ? `|${version}` : ''} ` +
+        `via ${providerName}; requested=[${requested}]: ${e?.message || e}`
+      );
     }
   }
 
   _supplementVersionMatches(expected, actual) {
-    if (!expected || !actual) return true;
-    if (expected === actual) return true;
-    try {
-      return VersionUtilities.versionMatches(expected, actual)
-        || VersionUtilities.versionMatches(actual, expected);
-    } catch (_e) {
-      return false;
-    }
+    return VersionUtilities.supplementVersionMatches(expected, actual);
   }
 
   /**

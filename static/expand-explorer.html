@@ -192,6 +192,7 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
           <div class="param-group"><label>Offset</label><input type="number" id="pOffset" min="0" placeholder="0"></div>
           <div class="param-group"><label>Filter</label><input type="text" id="pFilter" placeholder="text search"></div>
           <div class="param-group"><label>Property</label><input type="text" id="pProperty" placeholder="comma-sep"></div>
+          <div class="param-group"><label>useSupplement</label><input type="text" id="pSupplement" placeholder="comma-sep URLs"></div>
           <div class="param-group check"><input type="checkbox" id="pDesignations"><label for="pDesignations">includeDesignations</label></div>
           <div class="param-group check"><input type="checkbox" id="pActiveOnly"><label for="pActiveOnly">activeOnly</label></div>
           <button class="btn-run" id="btnRun">Run</button>
@@ -212,132 +213,89 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
 <script>
 /* ===== Test Cases ===== */
 const TEST_CASES = [
-  // --- Whole System ---
-  {name:"US States (whole system)",category:"Whole System",description:"All 62 US postal codes from USPS",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"https://www.usps.com/"}]}},params:{}},
-  {name:"Currencies (whole system)",category:"Whole System",description:"All ISO 4217 currencies (150+ codes)",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{}},
-  {name:"Gender (whole system)",category:"Whole System",description:"All 4 administrative-gender codes",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}]}},params:{}},
-  {name:"Area Codes (whole system)",category:"Whole System",description:"UN M49 area codes (260+ codes)",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://unstats.un.org/unsd/methods/m49/m49.htm"}]}},params:{}},
+  // --- SQL Pushdown Core ---
+  {name:"SNOMED is-a deep page",category:"SQL Pushdown Core",description:"Large hierarchy expansion with deep paging (pushdown windowing).",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},
+   params:{count:1000,offset:50000}},
+  {name:"SNOMED complex include/exclude",category:"SQL Pushdown Core",description:"Same-provider union minus union over SNOMED hierarchies.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"64572001"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"123037004"}]}],exclude:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"442083009"}]}]}},
+   params:{count:500}},
+  {name:"SNOMED complex count-only",category:"SQL Pushdown Core",description:"Count-only fast path for same complex SNOMED expression.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"64572001"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"123037004"}]}],exclude:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"442083009"}]}]}},
+   params:{count:0}},
+  {name:"LOINC STATUS=ACTIVE deep page",category:"SQL Pushdown Core",description:"Large non-hierarchy property filter in LOINC with deep offset.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]}]}},
+   params:{count:1000,offset:20000}},
+  {name:"RxNorm TTY=SBD",category:"SQL Pushdown Core",description:"RxNorm property filter using TTY semantic class.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm",filter:[{property:"TTY",op:"=",value:"SBD"}]}]}},
+   params:{count:1000}},
+  {name:"SNOMED concept regex 7.*",category:"SQL Pushdown Core",description:"Regex filter over concept code domain.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"regex",value:"7.*"}]}]}},
+   params:{count:20}},
+  {name:"LOINC supplement d20 filter",category:"SQL Pushdown Core",description:"Supplement-aware native property filter (d20=1).",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"d20",op:"=",value:"1"}]}]}},
+   params:{count:1000,useSupplement:["http://example.org/fhir/CodeSystem/supplement-loinc-d20"],property:["d20"]}},
+  {name:"LOINC supplement d20+d8 filter",category:"SQL Pushdown Core",description:"Two supplement predicates in one include clause.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"d20",op:"=",value:"20"},{property:"d8",op:"=",value:"8"}]}]}},
+   params:{count:500,useSupplement:["http://example.org/fhir/CodeSystem/supplement-loinc-d20","http://example.org/fhir/CodeSystem/supplement-loinc-d8"],property:["d20","d8"]}},
+  {name:"LOINC supplement decoration-only",category:"SQL Pushdown Core",description:"Attach supplement properties/designations without supplement filtering.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"},{code:"718-7"}]}]}},
+   params:{useSupplement:["http://example.org/fhir/CodeSystem/supplement-loinc-d20","http://example.org/fhir/CodeSystem/supplement-loinc-d8"],property:["d20","d8"],includeDesignations:true}},
+  {name:"RxNorm filter + supplement decoration",category:"SQL Pushdown Core",description:"Base-system filter plus supplement overlays in one request.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm",filter:[{property:"TTY",op:"=",value:"SBD"}]}]}},
+   params:{count:200,useSupplement:["http://example.org/fhir/CodeSystem/supplement-rxnorm-d20"],property:["d20"],includeDesignations:true}},
 
-  // --- Enumerated Concepts ---
-  {name:"SNOMED enumerated",category:"Enumerated Concepts",description:"Three specific SNOMED CT codes",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"},{code:"44054006"},{code:"46635009"}]}]}},params:{}},
-  {name:"LOINC enumerated",category:"Enumerated Concepts",description:"Two specific LOINC codes",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"2345-7"}]}]}},params:{}},
-  {name:"RxNorm enumerated",category:"Enumerated Concepts",description:"Three specific RxNorm codes",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm",concept:[{code:"161"},{code:"5640"},{code:"1191"}]}]}},params:{}},
-  {name:"Gender subset",category:"Enumerated Concepts",description:"Only male and female from administrative-gender",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"male"},{code:"female"}]}]}},params:{}},
-
-  // --- Hierarchy Filters ---
-  {name:"SNOMED is-a diabetes",category:"Hierarchy Filters",description:"All descendants (inclusive) of diabetes mellitus (73211009)",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{count:50}},
-  {name:"SNOMED descendent-of diabetes",category:"Hierarchy Filters",description:"Strict descendants of diabetes mellitus (73211009)",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"descendent-of",value:"73211009"}]}]}},params:{count:50}},
-  {name:"Condition-ver-status is-a",category:"Hierarchy Filters",description:"Condition verification status descendants of 'unconfirmed'",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://terminology.hl7.org/CodeSystem/condition-ver-status",filter:[{property:"concept",op:"is-a",value:"unconfirmed"}]}]}},params:{}},
-
-  // --- Property Filters ---
-  {name:"M49 class=region",category:"Property Filters",description:"M49 codes where class property equals 'region'",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://unstats.un.org/unsd/methods/m49/m49.htm",filter:[{property:"class",op:"=",value:"region"}]}]}},params:{}},
-  {name:"Currency decimals=0",category:"Property Filters",description:"Currencies with zero decimal places",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217",filter:[{property:"decimals",op:"=",value:"0"}]}]}},params:{}},
-  {name:"Country regex ^A",category:"Property Filters",description:"ISO 3166 countries whose display starts with A",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:3166",filter:[{property:"display",op:"regex",value:"^A.*"}]}]}},params:{}},
-  {name:"Gender regex [mf]",category:"Property Filters",description:"Gender codes with display matching [mf].*",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",filter:[{property:"display",op:"regex",value:"[mf].*"}]}]}},params:{}},
-
-  // --- Text Search ---
-  {name:'SNOMED "diabetes"',category:"Text Search",description:"Text search for 'diabetes' across all SNOMED CT",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct"}]}},params:{filter:"diabetes",count:20}},
-  {name:'RxNorm "aspirin"',category:"Text Search",description:"Text search for 'aspirin' across RxNorm",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm"}]}},params:{filter:"aspirin",count:20}},
-  {name:'LOINC "creatinine"',category:"Text Search",description:"Text search for 'creatinine' across LOINC",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org"}]}},params:{filter:"creatinine",count:20}},
-  {name:'Gender "male"',category:"Text Search",description:"Filter gender codes by text 'male'",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}]}},params:{filter:"male"}},
-
-  // --- Excludes ---
-  {name:"Gender minus other+unknown",category:"Excludes",description:"All gender codes except 'other' and 'unknown'",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}],exclude:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"other"},{code:"unknown"}]}]}},params:{}},
-  {name:"SNOMED is-a minus subtree",category:"Excludes",description:"Diabetes is-a tree minus type-1 subtree (46635009)",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}],exclude:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"46635009"}]}]}},params:{count:50}},
-
-  // --- Pagination ---
-  {name:"Currency page 1",category:"Pagination",description:"First 10 currencies (offset 0)",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{count:10,offset:0}},
-  {name:"Currency page 2",category:"Pagination",description:"Currencies 11–20 (offset 10)",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{count:10,offset:10}},
-  {name:"US States count=0 (total only)",category:"Pagination",description:"Request only the total count, no concepts returned",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"https://www.usps.com/"}]}},params:{count:0}},
-  {name:"SNOMED is-a paginated",category:"Pagination",description:"First page of diabetes is-a expansion",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{count:10,offset:0}},
-
-  // --- Multi-System ---
-  {name:"Gender + US States",category:"Multi-System",description:"Two whole systems in a single ValueSet",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"},{system:"https://www.usps.com/"}]}},params:{}},
-  {name:"SNOMED + LOINC + RxNorm",category:"Multi-System",description:"One concept from each of three large code systems",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"}]},{system:"http://loinc.org",concept:[{code:"2160-0"}]},{system:"http://www.nlm.nih.gov/research/umls/rxnorm",concept:[{code:"161"}]}]}},params:{count:20}},
-
-  // --- Combined ---
-  {name:"SNOMED is-a + text filter",category:"Combined",description:"Diabetes is-a hierarchy filtered by text 'type'",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{filter:"type",count:50}},
-  {name:"Multi-system + exclude + pagination",category:"Combined",description:"Gender + publication status with excludes and pagination",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"},{system:"http://hl7.org/fhir/publication-status"}],exclude:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"unknown"}]}]}},params:{count:5,offset:0}},
-
-  // --- ValueSet Imports ---
-  {name:"Pure VS import (gender)",category:"ValueSet Imports",
-   description:"Import built-in administrative-gender ValueSet by canonical URL",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://hl7.org/fhir/ValueSet/administrative-gender"]}]}},
-   params:{}},
-  {name:"Import with system intersection",category:"ValueSet Imports",
-   description:"System+concept+valueSet on same include = intersection. 3 enumerated ∩ full VS = 3",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"male"},{code:"female"},{code:"other"}],valueSet:["http://hl7.org/fhir/ValueSet/administrative-gender"]}]}},
-   params:{}},
-  {name:"Import + peer + exclude",category:"ValueSet Imports",
-   description:"VS import (gender) + USPS peer include − USPS exclude. Shows cross-system composition.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://hl7.org/fhir/ValueSet/administrative-gender"]},{system:"https://www.usps.com/",concept:[{code:"CA"},{code:"NY"}]}],exclude:[{system:"https://www.usps.com/",concept:[{code:"NY"}]}]}},
-   params:{}},
-
-  // --- TX Resources ---
-  {name:"Inline CodeSystem expansion",category:"TX Resources",
-   description:"Expand a custom CodeSystem injected via tx-resource. 3 color codes.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://example.org/cs/colors"}]}},
-   txResources:[{resourceType:"CodeSystem",url:"http://example.org/cs/colors",status:"active",content:"complete",concept:[{code:"red",display:"Red",definition:"Warm color"},{code:"blue",display:"Blue",definition:"Cool color"},{code:"green",display:"Green",definition:"Nature color"}]}],
-   params:{}},
-  {name:"Chained VS→CS import",category:"TX Resources",
-   description:"Import a ValueSet that enumerates from an inline CodeSystem. Both supplied via tx-resource. Only warm colors returned.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/warm-colors"]}]}},
+  // --- IR Rewriting & Lowering ---
+  {name:"Import+filter intersection lowering",category:"IR Rewriting & Lowering",description:"Import-only LOINC ValueSet intersected with local LOINC filter.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}],valueSet:["http://example.org/vs/loinc-core"]}]}},
+   txResources:[{resourceType:"ValueSet",url:"http://example.org/vs/loinc-core",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"},{code:"718-7"}]}]}}],
+   params:{count:100}},
+  {name:"Import exclude lowering",category:"IR Rewriting & Lowering",description:"Top-level LOINC include minus imported LOINC subset.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]}],exclude:[{valueSet:["http://example.org/vs/loinc-unlucky"]}]}},
+   txResources:[{resourceType:"ValueSet",url:"http://example.org/vs/loinc-unlucky",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"},{code:"718-7"}]}]}}],
+   params:{count:200}},
+  {name:"Deep import include graph",category:"IR Rewriting & Lowering",description:"Top-level include imports a ValueSet that itself imports two ValueSets; resolved IR should flatten and reconcile all include paths.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-root-include"]}]}},
    txResources:[
-     {resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"orange",display:"Orange"},{code:"blue",display:"Blue"},{code:"yellow",display:"Yellow"}]},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-root-include",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-branch-a"]},{valueSet:["http://example.org/vs/loinc-branch-b"]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-branch-a",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-branch-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"718-7"},{code:"2951-2"}]}]}}
+   ],
+   params:{}},
+  {name:"Deep import include minus exclude graph",category:"IR Rewriting & Lowering",description:"Top-level include and exclude both import nested ValueSets; resolved IR should reconcile deep union/diff boundaries.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-root-include-2"]}],exclude:[{valueSet:["http://example.org/vs/loinc-root-exclude-2"]}]}},
+   txResources:[
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-root-include-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-inc-a"]},{valueSet:["http://example.org/vs/loinc-inc-b"]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-inc-a",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-inc-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"718-7"},{code:"2951-2"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-root-exclude-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-exc-a"]},{valueSet:["http://example.org/vs/loinc-exc-b"]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-exc-a",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"4548-4"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-exc-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2951-2"}]}]}}
+   ],
+   params:{}},
+  {name:"Union merge lowering",category:"IR Rewriting & Lowering",description:"Two same-system concept includes should collapse into one merged selector.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]},{system:"http://loinc.org",concept:[{code:"718-7"},{code:"2951-2"}]}]}},
+   params:{}},
+  {name:"Provider-disjoint exclude pruning",category:"IR Rewriting & Lowering",description:"USPS exclude is disjoint from LOINC include and should not constrain LOINC pushdown.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]}],exclude:[{system:"https://www.usps.com/",concept:[{code:"CA"},{code:"NY"}]}]}},
+   params:{count:200}},
+
+  // --- Hybrid Execution (v0 + legacy/base) ---
+  {name:"LOINC + USPS mixed providers",category:"Hybrid Execution (v0 + legacy/base)",description:"Query-target sqlite slice alongside internal legacy/base provider slice.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]},{system:"https://www.usps.com/"}]}},
+   params:{count:200}},
+  {name:"Cross-provider excludes",category:"Hybrid Execution (v0 + legacy/base)",description:"Global exclude semantics across sqlite and non-sqlite systems.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]},{system:"http://hl7.org/fhir/administrative-gender"}],exclude:[{system:"http://loinc.org",concept:[{code:"4548-4"}]},{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"unknown"}]}]}},
+   params:{}},
+  {name:"UCUM base-only path",category:"Hybrid Execution (v0 + legacy/base)",description:"Grammar-backed UCUM expansion path with text filtering.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://unitsofmeasure.org"}]}},
+   params:{filter:"mg",count:20}},
+  {name:"TX-resource import + sqlite peer",category:"Hybrid Execution (v0 + legacy/base)",description:"Inline imported ValueSet branch plus sqlite LOINC branch in one request.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/warm-colors"]},{system:"http://loinc.org",concept:[{code:"2160-0"}]}]}},
+   txResources:[
+     {resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"orange",display:"Orange"},{code:"blue",display:"Blue"}]},
      {resourceType:"ValueSet",url:"http://example.org/vs/warm-colors",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"red"},{code:"orange"}]}]}}
    ],
-   params:{}},
-  {name:"Import include ∩ import exclude",category:"TX Resources",
-   description:"Both include and exclude reference imported ValueSets. Include={red,blue,green}, exclude={blue}. Result={red,green}.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/palette-include"]}],exclude:[{valueSet:["http://example.org/vs/palette-exclude"]}]}},
-   txResources:[
-     {resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"blue",display:"Blue"},{code:"green",display:"Green"},{code:"yellow",display:"Yellow"}]},
-     {resourceType:"ValueSet",url:"http://example.org/vs/palette-include",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"red"},{code:"blue"},{code:"green"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/palette-exclude",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"blue"}]}]}}
-   ],
-   params:{}},
-  {name:"Multi-VS intersection constraint",category:"TX Resources",
-   description:"Concept list intersected with two imported ValueSets. {A,B,C} ∩ {A,B} ∩ {B,C} = {B}. Shows IR intersect node.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://example.org/cs/letters",concept:[{code:"A"},{code:"B"},{code:"C"}],valueSet:["http://example.org/vs/ab","http://example.org/vs/bc"]}]}},
-   txResources:[
-     {resourceType:"CodeSystem",url:"http://example.org/cs/letters",status:"active",content:"complete",concept:[{code:"A",display:"Alpha"},{code:"B",display:"Bravo"},{code:"C",display:"Charlie"},{code:"D",display:"Delta"}]},
-     {resourceType:"ValueSet",url:"http://example.org/vs/ab",status:"active",compose:{include:[{system:"http://example.org/cs/letters",concept:[{code:"A"},{code:"B"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/bc",status:"active",compose:{include:[{system:"http://example.org/cs/letters",concept:[{code:"B"},{code:"C"}]}]}}
-   ],
-   params:{}},
-  {name:"Mixed import + built-in + exclude",category:"TX Resources",
-   description:"Imported palette CS + built-in gender, minus blue and unknown. Shows cross-provider diff IR.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"red"},{code:"blue"},{code:"green"}]},{system:"http://hl7.org/fhir/administrative-gender"}],exclude:[{system:"http://example.org/cs/palette",concept:[{code:"blue"}]},{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"unknown"}]}]}},
-   txResources:[{resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"blue",display:"Blue"},{code:"green",display:"Green"}]}],
    params:{}},
 ];
 
@@ -393,6 +351,7 @@ function selectTest(tc) {
   document.getElementById('pOffset').value = p.offset !== undefined ? p.offset : '';
   document.getElementById('pFilter').value = p.filter || '';
   document.getElementById('pProperty').value = Array.isArray(p.property) ? p.property.join(', ') : (p.property || '');
+  document.getElementById('pSupplement').value = Array.isArray(p.useSupplement) ? p.useSupplement.join(', ') : (p.useSupplement || '');
   document.getElementById('pDesignations').checked = !!p.includeDesignations;
   document.getElementById('pActiveOnly').checked = !!p.activeOnly;
 
@@ -461,6 +420,8 @@ function gatherParams() {
   if (document.getElementById('pActiveOnly').checked) p.activeOnly = true;
   const prop = document.getElementById('pProperty').value.trim();
   if (prop) p.property = prop.split(/\s*,\s*/).filter(Boolean);
+  const supp = document.getElementById('pSupplement').value.trim();
+  if (supp) p.useSupplement = supp.split(/\s*,\s*/).filter(Boolean);
   return p;
 }
 

@@ -1043,6 +1043,48 @@ class VersionUtilities {
         };
     }
 
+    /**
+     * Normalize common canonical-style version expressions to a comparable token.
+     * Examples:
+     * - "http://loinc.org|2.81" -> "2.81"
+     * - "http://snomed.info/sct/.../version/20250201" -> "20250201"
+     * - "02022026" -> "02022026"
+     */
+    static normalizeVersionToken(version) {
+        const s = String(version ?? '').trim();
+        if (!s) return '';
+
+        if (s.includes('|')) {
+            const tail = s.substring(s.lastIndexOf('|') + 1).trim();
+            if (tail) return tail;
+        }
+
+        const marker = '/version/';
+        const idx = s.lastIndexOf(marker);
+        if (idx >= 0) {
+            const tail = s.substring(idx + marker.length).trim();
+            if (tail) return tail;
+        }
+
+        return s;
+    }
+
+    /**
+     * Version matching tuned for supplement targetVersion checks, where either
+     * side may be canonical-style or plain token form.
+     */
+    static supplementVersionMatches(expected, actual) {
+        const e = this.normalizeVersionToken(expected);
+        const a = this.normalizeVersionToken(actual);
+        if (!e || !a) return true;
+        if (e === a) return true;
+        try {
+            return this.versionMatches(e, a) || this.versionMatches(a, e);
+        } catch (_e) {
+            return false;
+        }
+    }
+
 
     static vurl(url, version) {
         if (version) {

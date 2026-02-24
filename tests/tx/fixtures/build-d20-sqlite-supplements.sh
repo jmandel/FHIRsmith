@@ -15,6 +15,9 @@ SNOMED_OUT="${OUT_DIR}/supplement-snomed-d20.v0.db"
 
 SNOMED_ROOTS="${SNOMED_ROOTS:-73211009,85562004}"
 D20_SYSTEM="http://example.org/fhir/CodeSystem/d20"
+LOINC_TARGET_VERSION_TOKEN="2.81"
+RXNORM_TARGET_VERSION_TOKEN="02022026"
+SNOMED_TARGET_VERSION_TOKEN="20250201"
 
 for f in "${LOINC_SRC}" "${RXNORM_SRC}" "${SNOMED_SRC}"; do
   if [[ ! -f "${f}" ]]; then
@@ -25,12 +28,28 @@ done
 
 mkdir -p "${OUT_DIR}"
 
+normalize_target_version_token() {
+  local version="${1:-}"
+  if [[ -z "${version}" ]]; then
+    printf '%s' ""
+    return
+  fi
+  if [[ "${version}" == *"|"* ]]; then
+    version="${version##*|}"
+  fi
+  if [[ "${version}" == */version/* ]]; then
+    version="${version##*/version/}"
+  fi
+  printf '%s' "${version}"
+}
+
 init_db() {
   local db="$1"
   local supp_uri="$2"
   local supp_version="$3"
   local target_system="$4"
   local target_version="$5"
+  target_version="$(normalize_target_version_token "${target_version}")"
 
   rm -f "${db}"
   sqlite3 "${db}" <<SQL
@@ -135,7 +154,7 @@ make_loinc() {
     "http://example.org/fhir/CodeSystem/supplement-loinc-d20" \
     "2026.02" \
     "http://loinc.org" \
-    "2.81"
+    "${LOINC_TARGET_VERSION_TOKEN}"
 
   sqlite3 "${LOINC_OUT}" <<SQL
 ATTACH DATABASE '${LOINC_SRC}' AS src;
@@ -227,7 +246,7 @@ make_rxnorm() {
     "http://example.org/fhir/CodeSystem/supplement-rxnorm-d20" \
     "2026.02" \
     "http://www.nlm.nih.gov/research/umls/rxnorm" \
-    "02022026"
+    "${RXNORM_TARGET_VERSION_TOKEN}"
 
   sqlite3 "${RXNORM_OUT}" <<SQL
 ATTACH DATABASE '${RXNORM_SRC}' AS src;
@@ -319,7 +338,7 @@ make_snomed() {
     "http://example.org/fhir/CodeSystem/supplement-snomed-d20" \
     "2026.02" \
     "http://snomed.info/sct" \
-    "20250201"
+    "${SNOMED_TARGET_VERSION_TOKEN}"
 
   sqlite3 "${SNOMED_OUT}" <<SQL
 ATTACH DATABASE '${SNOMED_SRC}' AS src;

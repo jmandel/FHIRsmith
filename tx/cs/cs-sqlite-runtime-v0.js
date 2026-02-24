@@ -92,6 +92,7 @@ const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./provider-core');
 const { Issue } = require('../library/operation-outcome');
 const { trace: T } = require('../workers/expand-trace');
+const { VersionUtilities } = require('../../library/version-utilities');
 
 // Specialization registry — populated by subclass modules at require-time.
 const V0_SPECIALIZATION_REGISTRY = [];
@@ -477,14 +478,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   #versionMatchesForSupplements(expected, actual) {
-    if (!expected || !actual) return true;
-    if (expected === actual) return true;
-    try {
-      return VersionUtilities.versionMatches(expected, actual)
-        || VersionUtilities.versionMatches(actual, expected);
-    } catch (_e) {
-      return false;
-    }
+    return VersionUtilities.supplementVersionMatches(expected, actual);
   }
 
   async #buildV3MembershipMatcher(node, closers) {

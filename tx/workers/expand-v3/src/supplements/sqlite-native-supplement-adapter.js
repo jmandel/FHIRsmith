@@ -85,7 +85,7 @@ class SqliteNativeSupplementAdapter {
       if (!e?.targetSystem) return false;
       if (requestedSystem && e.targetSystem !== requestedSystem) return false;
       if (!e.targetVersion || !requestedVersion) return true;
-      return versionMatches(e.targetVersion, requestedVersion);
+      return VersionUtilities.supplementVersionMatches(e.targetVersion, requestedVersion);
     });
   }
 
@@ -273,12 +273,15 @@ function buildResourceSupplementEntries(supplements = []) {
       ? String(supp.vurl)
       : (supp?.version ? `${canonical}|${String(supp.version)}` : null);
     const target = parseSupplementTarget(supp?.jsonObj?.supplements);
+    const normalizedTargetVersion = target.version
+      ? (VersionUtilities.normalizeVersionToken(target.version) || null)
+      : null;
     out.push({
       supplement: supp,
       canonical,
       canonicalVersioned,
       targetSystem: target.system,
-      targetVersion: target.version,
+      targetVersion: normalizedTargetVersion,
       language: supp?.jsonObj?.language ? String(supp.jsonObj.language) : null,
     });
   }
@@ -293,40 +296,6 @@ function parseSupplementTarget(raw) {
   const system = value.substring(0, idx);
   const version = value.substring(idx + 1) || null;
   return { system, version };
-}
-
-function versionMatches(expected, actual) {
-  const e = String(expected || '');
-  const a = String(actual || '');
-  if (!e || !a) return true;
-  if (e === a) return true;
-  const eNorm = normalizeVersionToken(e);
-  const aNorm = normalizeVersionToken(a);
-  if (eNorm && aNorm && eNorm === aNorm) return true;
-  if (a.includes(`|${e}`) || a.includes(`/version/${e}`)) return true;
-  if (e.includes(`|${a}`) || e.includes(`/version/${a}`)) return true;
-  try {
-    return VersionUtilities.versionMatches(e, a)
-      || VersionUtilities.versionMatches(a, e);
-  } catch (_e2) {
-    return false;
-  }
-}
-
-function normalizeVersionToken(v) {
-  const s = String(v || '').trim();
-  if (!s) return '';
-  if (s.includes('|')) {
-    const tail = s.substring(s.lastIndexOf('|') + 1).trim();
-    if (tail) return tail;
-  }
-  const marker = '/version/';
-  const idx = s.lastIndexOf(marker);
-  if (idx >= 0) {
-    const tail = s.substring(idx + marker.length).trim();
-    if (tail) return tail;
-  }
-  return s;
 }
 
 function toSupplementPropertyValue(p) {
