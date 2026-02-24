@@ -20,7 +20,13 @@ const packageJson = require("../package.json");
 // Import workers
 const ReadWorker = require('./workers/read');
 const SearchWorker = require('./workers/search');
-const { ExpandWorker } = require('./workers/expand-v3');
+const { ExpandWorker } = require('./workers/expand-v2');
+const { ValueSetExpanderV3, ValueSetExpanderCompatV3, buildIRFromValueSet, resolveImports, rewrite } = require('./workers/expand-v3');
+const { compileExprToQueryIR } = require('./workers/expand-v3/src/engine/query-ir-compiler');
+const { ExpandTrace, traceStore } = require('./workers/expand-trace');
+const { TxParameters } = require('./params');
+const ValueSet = require('./library/valueset');
+const { SearchFilterText } = require('./library/designations');
 const { ValidateWorker } = require('./workers/validate');
 const TranslateWorker = require('./workers/translate');
 const LookupWorker = require('./workers/lookup');
@@ -605,6 +611,71 @@ class TXModule {
         await worker.handleValueSet(req, res);
       } finally {
         this.countRequest('validate', Date.now() - start);
+      }
+    });
+
+    // Debug expand endpoint — returns result + trace + IR + queryIR + stats
+    router.post('/debug/expand', async (req, res) => {
+      const start = performance.now();
+      try {
+        const { valueSet: vsJson, params: expandParams } = req.body || {};
+        if (!vsJson || !vsJson.resourceType) {
+          return res.status(400).json({ error: 'Must provide valueSet in request body' });
+        }
+
+        const worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+
+        // Build semantic IR
+        let expr = buildIRFromValueSet(vsJson);
+        const irSnapshot = JSON.parse(JSON.stringify(expr));
+
+        // Resolve imports
+        expr = await resolveImports(expr, async (url, version) => {
+          const vs = await worker.findValueSet(url, version);
+          return vs?.jsonObj || vs;
+        }, { maxDepth: 30, preferComposeOverExpansion: true });
+        expr = rewrite.flatten(expr);
+
+        // Compile QueryIR (best-effort)
+        let queryIR = null;
+        try {
+          queryIR = compileExprToQueryIR(expr, {});
+        } catch (_e) { /* not all expressions can be compiled */ }
+
+        // Run expansion with trace capture
+        const txp = new TxParameters(this.languages, this.i18n, false);
+        const fhirParams = { resourceType: 'Parameters', parameter: [] };
+        if (expandParams) {
+          if (expandParams.count !== undefined) fhirParams.parameter.push({ name: 'count', valueInteger: expandParams.count });
+          if (expandParams.offset !== undefined) fhirParams.parameter.push({ name: 'offset', valueInteger: expandParams.offset });
+          if (expandParams.filter) fhirParams.parameter.push({ name: 'filter', valueString: expandParams.filter });
+          if (expandParams.activeOnly) fhirParams.parameter.push({ name: 'activeOnly', valueBoolean: true });
+          if (expandParams.includeDesignations) fhirParams.parameter.push({ name: 'includeDesignations', valueBoolean: true });
+          if (Array.isArray(expandParams.property)) {
+            for (const p of expandParams.property) fhirParams.parameter.push({ name: 'property', valueCode: p });
+          }
+          if (Array.isArray(expandParams.params)) fhirParams.parameter.push(...expandParams.params);
+        }
+        txp.readParams(fhirParams);
+
+        const vs = new ValueSet(vsJson);
+        const searchFilter = new SearchFilterText(expandParams?.filter || null);
+        const expander = new ValueSetExpanderCompatV3(worker, txp, { includeDebugStats: true });
+
+        const trace = new ExpandTrace();
+        const result = await traceStore.run(trace, () => expander.expand(vs, searchFilter, false));
+        const traceJson = trace.toJSON();
+        const ms = Math.round(performance.now() - start);
+
+        res.setHeader('Content-Type', 'application/json');
+        return res.send(JSON.stringify({ result, trace: traceJson, ir: irSnapshot, queryIR, ms }));
+      } catch (error) {
+        const ms = Math.round(performance.now() - start);
+        this.log.error('debug/expand error:', error);
+        return res.status(error.statusCode || 500).json({
+          error: error.message,
+          ms,
+        });
       }
     });
 
