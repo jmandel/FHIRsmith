@@ -65,6 +65,14 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 .param-group{display:flex;flex-direction:column;gap:2px}
 .param-group label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px}
 .param-group input[type=number],.param-group input[type=text]{width:100px}
+.param-group.repeat{min-width:260px}
+.repeat-list{display:flex;flex-direction:column;gap:4px}
+.repeat-item{display:flex;align-items:center;gap:6px}
+.repeat-item input{width:220px}
+.btn-repeat-add,.btn-repeat-del{background:var(--surface);color:var(--fg2);font-size:12px}
+.btn-repeat-add{margin-top:4px;padding:4px 8px;align-self:flex-start}
+.btn-repeat-del{padding:4px 8px;line-height:1}
+.btn-repeat-add:hover,.btn-repeat-del:hover{background:var(--overlay);color:var(--fg)}
 .param-group.check{flex-direction:row;align-items:center;gap:5px}
 .param-group.check label{text-transform:none;font-size:13px;color:var(--fg2)}
 .param-group.check input{width:16px;height:16px;accent-color:var(--blue)}
@@ -89,7 +97,6 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 .section-body{display:block;padding:12px;max-height:none}
 .section-body.hidden{display:none}
 .section.sec-results .section-header{border-left-color:var(--teal)}
-.section.sec-results .section-body{max-height:430px;overflow:auto}
 .section.sec-ir .section-header{border-left-color:var(--purple)}
 .section.sec-resolvedIR .section-header{border-left-color:var(--purple)}
 .section.sec-queryIR .section-header{border-left-color:var(--blue)}
@@ -112,7 +119,18 @@ table.results th{text-align:left;padding:6px 8px;background:var(--bg3);color:var
 table.results td{padding:5px 8px;border-bottom:1px solid var(--bg3);font-family:var(--mono);font-size:11px;max-width:400px;overflow:hidden;text-overflow:ellipsis}
 table.results tr:nth-child(even) td{background:var(--bg2)}
 table.results tr:hover td{background:var(--bg3)}
+.desig-table{border-collapse:collapse;font-size:11px;width:auto;margin:0}
+.desig-table th{text-align:left;padding:2px 6px;background:var(--bg3);color:var(--fg3);font-weight:500;font-size:10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.desig-table td{padding:2px 6px;border-bottom:1px solid var(--bg2);white-space:nowrap}
+.desig-table td:nth-child(2){white-space:normal;min-width:180px}
+table.results td:has(.desig-table){max-width:none;overflow:visible;padding:2px}
 .no-results{color:var(--fg3);font-size:13px;text-align:center;padding:20px}
+.results-pager{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:8px}
+.results-pager .meta{font-size:12px;color:var(--fg3);font-family:var(--mono)}
+.results-pager .controls{display:flex;align-items:center;gap:6px}
+.results-pager .btn-page{padding:4px 10px;background:var(--surface);color:var(--fg);font-size:12px}
+.results-pager .btn-page:hover{background:var(--overlay)}
+.results-pager .btn-page:disabled{opacity:.45;cursor:not-allowed}
 
 /* IR tree */
 .ir-tree{font-family:var(--mono);font-size:12px}
@@ -192,8 +210,21 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
           <div class="param-group"><label>Count</label><input type="number" id="pCount" min="-1" placeholder="(none)"></div>
           <div class="param-group"><label>Offset</label><input type="number" id="pOffset" min="0" placeholder="0"></div>
           <div class="param-group"><label>Filter</label><input type="text" id="pFilter" placeholder="text search"></div>
-          <div class="param-group"><label>Property</label><input type="text" id="pProperty" placeholder="comma-sep"></div>
-          <div class="param-group"><label>useSupplement</label><input type="text" id="pSupplement" placeholder="comma-sep URLs"></div>
+          <div class="param-group repeat">
+            <label>Property</label>
+            <div class="repeat-list" id="pPropertyList"></div>
+            <button type="button" class="btn-repeat-add" id="btnAddProperty">+ property</button>
+          </div>
+          <div class="param-group repeat">
+            <label>designation</label>
+            <div class="repeat-list" id="pDesignationList"></div>
+            <button type="button" class="btn-repeat-add" id="btnAddDesignation">+ designation</button>
+          </div>
+          <div class="param-group repeat">
+            <label>useSupplement</label>
+            <div class="repeat-list" id="pSupplementList"></div>
+            <button type="button" class="btn-repeat-add" id="btnAddSupplement">+ useSupplement</button>
+          </div>
           <div class="param-group check"><input type="checkbox" id="pDesignations"><label for="pDesignations">includeDesignations</label></div>
           <div class="param-group check"><input type="checkbox" id="pActiveOnly"><label for="pActiveOnly">activeOnly</label></div>
           <button class="btn-run" id="btnRun">Run</button>
@@ -325,6 +356,7 @@ const TEST_CASES = [
 let currentResponse = null;
 let pendingAbort = null;
 let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, trace:true, raw:false};
+let resultsPager = { page: 0, pageSize: 15 };
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -364,6 +396,7 @@ function buildSidebar() {
 }
 
 function selectTest(tc) {
+  resultsPager.page = 0;
   document.querySelectorAll('.test-item').forEach(el => el.classList.toggle('active', el.textContent === tc.name));
   document.getElementById('vsEditor').value = JSON.stringify(tc.valueSet, null, 2);
   document.getElementById('testDesc').textContent = tc.description;
@@ -372,8 +405,9 @@ function selectTest(tc) {
   document.getElementById('pCount').value = p.count !== undefined ? p.count : '';
   document.getElementById('pOffset').value = p.offset !== undefined ? p.offset : '';
   document.getElementById('pFilter').value = p.filter || '';
-  document.getElementById('pProperty').value = Array.isArray(p.property) ? p.property.join(', ') : (p.property || '');
-  document.getElementById('pSupplement').value = Array.isArray(p.useSupplement) ? p.useSupplement.join(', ') : (p.useSupplement || '');
+  setRepeatValues('pPropertyList', normalizeListParam(p.property), 'property code');
+  setRepeatValues('pDesignationList', normalizeListParam(p.designation), 'lang (fr) or system|code');
+  setRepeatValues('pSupplementList', normalizeListParam(p.useSupplement), 'canonical URL');
   document.getElementById('pDesignations').checked = !!p.includeDesignations;
   document.getElementById('pActiveOnly').checked = !!p.activeOnly;
 
@@ -446,17 +480,80 @@ function loadFromHash() {
 /* ===== Events ===== */
 function setupEvents() {
   document.getElementById('btnRun').addEventListener('click', doExpand);
+  initRepeatField('pPropertyList', 'btnAddProperty', 'property code');
+  initRepeatField('pDesignationList', 'btnAddDesignation', 'lang (fr) or system|code');
+  initRepeatField('pSupplementList', 'btnAddSupplement', 'canonical URL');
   document.getElementById('btnAddTx').addEventListener('click', () => {
     showTxEditor([]);
     document.getElementById('txEditor').value = '[\n  \n]';
     document.getElementById('txCount').textContent = '0';
   });
   // Enter in params triggers expand
-  for (const id of ['pCount','pOffset','pFilter','pProperty']) {
+  for (const id of ['pCount','pOffset','pFilter']) {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doExpand(); });
+  }
+  for (const id of ['pPropertyList', 'pDesignationList', 'pSupplementList']) {
     document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doExpand(); });
   }
   document.getElementById('vsEditor').addEventListener('input', resizeEditor);
   document.getElementById('txEditor').addEventListener('input', resizeTxEditor);
+}
+
+function normalizeListParam(v) {
+  if (Array.isArray(v)) return v.filter(Boolean).map(x => String(x).trim()).filter(Boolean);
+  if (typeof v === 'string') {
+    const s = v.trim();
+    return s ? [s] : [];
+  }
+  return [];
+}
+
+function initRepeatField(listId, addButtonId, placeholder) {
+  const listEl = document.getElementById(listId);
+  const addBtn = document.getElementById(addButtonId);
+  addBtn.addEventListener('click', () => addRepeatRow(listEl, '', placeholder));
+  if (!listEl.children.length) addRepeatRow(listEl, '', placeholder);
+}
+
+function addRepeatRow(listEl, value, placeholder) {
+  const row = document.createElement('div');
+  row.className = 'repeat-item';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = placeholder;
+  input.value = value || '';
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'btn-repeat-del';
+  del.textContent = '×';
+  del.title = 'Remove';
+  del.addEventListener('click', () => {
+    row.remove();
+    if (!listEl.children.length) addRepeatRow(listEl, '', placeholder);
+  });
+  row.appendChild(input);
+  row.appendChild(del);
+  listEl.appendChild(row);
+}
+
+function setRepeatValues(listId, values, placeholder) {
+  const listEl = document.getElementById(listId);
+  listEl.innerHTML = '';
+  if (!values || values.length === 0) {
+    addRepeatRow(listEl, '', placeholder);
+    return;
+  }
+  for (const value of values) addRepeatRow(listEl, value, placeholder);
+}
+
+function getRepeatValues(listId) {
+  const listEl = document.getElementById(listId);
+  const values = [];
+  for (const input of listEl.querySelectorAll('input')) {
+    const v = input.value.trim();
+    if (v) values.push(v);
+  }
+  return values;
 }
 
 /* ===== Expand ===== */
@@ -470,10 +567,12 @@ function gatherParams() {
   if (f) p.filter = f;
   if (document.getElementById('pDesignations').checked) p.includeDesignations = true;
   if (document.getElementById('pActiveOnly').checked) p.activeOnly = true;
-  const prop = document.getElementById('pProperty').value.trim();
-  if (prop) p.property = prop.split(/\s*,\s*/).filter(Boolean);
-  const supp = document.getElementById('pSupplement').value.trim();
-  if (supp) p.useSupplement = supp.split(/\s*,\s*/).filter(Boolean);
+  const prop = getRepeatValues('pPropertyList');
+  if (prop.length) p.property = prop;
+  const desig = getRepeatValues('pDesignationList');
+  if (desig.length) p.designation = desig;
+  const supp = getRepeatValues('pSupplementList');
+  if (supp.length) p.useSupplement = supp;
   return p;
 }
 
@@ -537,10 +636,12 @@ async function doExpand() {
       errorBox.textContent = data.error || `HTTP ${resp.status}`;
       errorBox.classList.add('show');
       currentResponse = data;
+      resultsPager.page = 0;
       renderSections(data);
       return;
     }
     currentResponse = data;
+    resultsPager.page = 0;
     renderSections(data);
     // Auto-scroll results into view
     const firstSec = document.querySelector('.sec-results');
@@ -636,28 +737,45 @@ function renderResults(data, bodyEl) {
   const exp = vs?.expansion;
   if (!exp) { target.innerHTML = '<div class="placeholder-msg">No expansion in response.</div>'; return; }
 
-  const returned = exp.contains?.length ?? 0;
+  const contains = exp.contains || [];
+  const returned = contains.length;
   if (returned === 0) { target.innerHTML = '<div class="no-results">No concepts in expansion</div>'; return; }
 
-  const hasProps = exp.contains?.some(c => c.property?.length);
-  const hasDesig = exp.contains?.some(c => c.designation?.length);
+  const hasProps = contains.some(c => c.property?.length);
+  const hasDesig = contains.some(c => c.designation?.length);
+  const pageSize = Math.max(1, Number(resultsPager.pageSize || 15));
+  const pageCount = Math.max(1, Math.ceil(returned / pageSize));
+  if (resultsPager.page >= pageCount) resultsPager.page = pageCount - 1;
+  const page = Math.max(0, resultsPager.page);
+  const start = page * pageSize;
+  const end = Math.min(start + pageSize, returned);
+  const windowed = contains.slice(start, end);
 
-  let html = '<table class="results"><thead><tr><th>System</th><th>Code</th><th>Display</th>';
+  let html = `<div class="results-pager"><div class="meta">Rows ${start + 1}-${end} of ${returned} (page ${page + 1}/${pageCount})</div>`;
+  html += `<div class="controls"><button class="btn-page" onclick="setResultsPage(${page - 1})" ${page <= 0 ? 'disabled' : ''}>Prev</button>`;
+  html += `<button class="btn-page" onclick="setResultsPage(${page + 1})" ${page >= pageCount - 1 ? 'disabled' : ''}>Next</button></div></div>`;
+  html += '<table class="results"><thead><tr><th>System</th><th>Code</th><th>Display</th>';
   if (hasProps) html += '<th>Properties</th>';
   if (hasDesig) html += '<th>Designations</th>';
   html += '</tr></thead><tbody>';
 
-  for (const c of (exp.contains || [])) {
+  for (const c of windowed) {
     const sys = shortSystem(c.system);
     const props = (c.property || []).map(p => `${p.code}=${propVal(p)}`).join('; ');
-    const desigs = (c.designation || []).map(d => `${d.language||''}:${d.value||''}`).join('; ');
     html += `<tr><td title="${esc(c.system||'')}">${esc(sys)}</td><td>${esc(c.code||'')}</td><td>${esc(c.display||'')}</td>`;
     if (hasProps) html += `<td>${esc(props)}</td>`;
-    if (hasDesig) html += `<td>${esc(desigs)}</td>`;
+    if (hasDesig) html += '<td>' + renderDesignations(c.designation) + '</td>';
     html += '</tr>';
   }
   html += '</tbody></table>';
   target.innerHTML = html;
+}
+
+function setResultsPage(nextPage) {
+  const n = Number(nextPage);
+  if (!Number.isFinite(n)) return;
+  resultsPager.page = Math.max(0, Math.floor(n));
+  if (currentResponse) renderResults(currentResponse);
 }
 
 function propVal(p) {
@@ -669,6 +787,17 @@ function propVal(p) {
   if (p.valueDecimal !== undefined) return String(p.valueDecimal);
   if (p.valueDateTime !== undefined) return p.valueDateTime;
   return JSON.stringify(p);
+}
+
+function renderDesignations(desigs) {
+  if (!desigs || desigs.length === 0) return '';
+  let h = '<table class="desig-table"><thead><tr><th>Lang</th><th>Value</th><th>Use</th></tr></thead><tbody>';
+  for (const d of desigs) {
+    const use = d.use ? esc((d.use.code || '') + (d.use.system ? ' (' + shortSystem(d.use.system) + ')' : '')) : '';
+    h += `<tr><td>${esc(d.language||'')}</td><td>${esc(d.value||'')}</td><td>${use}</td></tr>`;
+  }
+  h += '</tbody></table>';
+  return h;
 }
 
 function shortSystem(sys) {

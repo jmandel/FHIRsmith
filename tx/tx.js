@@ -662,6 +662,12 @@ class TXModule {
           if (Array.isArray(expandParams.property)) {
             for (const p of expandParams.property) fhirParams.parameter.push({ name: 'property', valueCode: p });
           }
+          if (Array.isArray(expandParams.designation)) {
+            for (const d of expandParams.designation) fhirParams.parameter.push({ name: 'designation', valueString: d });
+          }
+          if (Array.isArray(expandParams.useSupplement)) {
+            for (const s of expandParams.useSupplement) fhirParams.parameter.push({ name: 'useSupplement', valueCanonical: s });
+          }
           if (Array.isArray(expandParams.params)) fhirParams.parameter.push(...expandParams.params);
         }
         txp.readParams(fhirParams);
