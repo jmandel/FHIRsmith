@@ -1,98 +1,117 @@
-# Expand Explorer — Static Demo
+# Expand Explorer — V3 Tutorial, Showcase, and Deep-Link Catalog
 
-A single-page web app for exploring ValueSet `$expand` capabilities with full
-debugging output: semantic IR, resolved IR, query IR, SQL queries with labels,
-and execution traces.
+This guide is for terminology architects and implementers who want to inspect
+how this `$expand` engine behaves under realistic workloads, not just toy
+examples.
 
-## Quick Start
+The explorer shows:
 
-```bash
-# 1. Start the server (default port from config, or override with PORT)
-PORT=9450 node server.js
+- expansion output,
+- semantic IR,
+- resolved IR (after import/rewrites),
+- query IR (when compilable),
+- SQL + trace spans.
 
-# 2. Open in a browser
-open http://localhost:9450/expand-explorer.html
-```
+Use this document as:
 
-The app auto-detects the server URL from `window.location`.
+- a tutorial for how to read the explorer,
+- a curated manifest of advanced demos,
+- a set of deep links you can share directly.
 
-## Running on a Custom Port
+## Hosted Explorer
 
-```bash
-PORT=8080 node server.js
-# → http://localhost:8080/expand-explorer.html
-```
+- `https://valueset-expander.exe.xyz/expand-explorer.html`
 
-## Building for Deployment
+Deep links use the hash fragment with the test name. Example:
 
-When deploying the static HTML separately from the server (e.g. behind a CDN or
-on a different host), use the build script to bake in the server base URL:
+- `https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20%2B%20USPS%20mixed%20providers`
 
-```bash
-# Build with an explicit server URL
-./scripts/build-expand-explorer.sh https://tx.example.org/r4 ./dist
+The explorer resolves deep links by exact name, case-insensitive name, and a
+slug-style fallback so links remain robust across punctuation differences.
 
-# Serve the built file from any static host
-cd dist && python3 -m http.server 8000
-```
+## How to Read a Run
 
-### Build Script Usage
+1. Open a deep link from the catalog below.
+2. Inspect `Semantic IR` to confirm the request-level algebra.
+3. Inspect `Resolved IR` to confirm import expansion and reconciliation.
+4. Inspect `Query IR` to see if the expression lowered to provider-level query form.
+5. Inspect `Trace` for timings and SQL shape to confirm pushdown/partition behavior.
+6. Inspect `Results` to verify membership and returned metadata.
 
-```
-./scripts/build-expand-explorer.sh [BASE_URL] [OUT_DIR]
-```
+## Capability Areas and Why Each Example Exists
 
-| Argument   | Default        | Description                              |
-|------------|----------------|------------------------------------------|
-| `BASE_URL` | *(auto-detect)* | FHIR server base URL (e.g. `http://localhost:9450/r4`) |
-| `OUT_DIR`  | `./dist`       | Output directory for the built HTML file |
+### 1) SQL Pushdown Core
 
-**Examples:**
+Use these to show that large-system work can stay provider-local and fast.
 
-```bash
-# Development — auto-detect from browser location
-./scripts/build-expand-explorer.sh
+- [SNOMED is-a deep page](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20is-a%20deep%20page)
+- [SNOMED complex include/exclude](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20include%2Fexclude)
+- [SNOMED complex count-only](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20count-only)
+- [LOINC STATUS=ACTIVE deep page](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20STATUS%3DACTIVE%20deep%20page)
+- [RxNorm TTY=SBD](https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20TTY%3DSBD)
+- [SNOMED code regex 7.*](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20code%20regex%207.*)
+- [LOINC supplement d20 filter](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%20filter)
+- [LOINC supplement d20+d8 filter](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%2Bd8%20filter)
+- [LOINC supplement decoration-only](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20decoration-only)
+- [RxNorm filter + supplement decoration](https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20filter%20%2B%20supplement%20decoration)
 
-# Local server on custom port
-./scripts/build-expand-explorer.sh http://localhost:8080/r4
+What these demonstrate:
 
-# Production deployment
-./scripts/build-expand-explorer.sh https://tx.fhir.org/r4 /var/www/html
-```
+- deep pagination on large code systems,
+- same-provider include/exclude algebra,
+- `count=0` count retrieval path,
+- property and regex filters in query-target providers,
+- supplement-aware filtering and decoration in the same execution path.
 
-## CORS
+### 2) IR Rewriting and Lowering
 
-When the explorer HTML is served from a different origin than the FHIR server,
-the server must allow CORS. The FHIRsmith server includes CORS headers by
-default.
+Use these to show import reconciliation, set-algebra lowering, and partitioning.
 
-## What It Shows
+- [Import+filter intersection lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%2Bfilter%20intersection%20lowering)
+- [Import exclude lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%20exclude%20lowering)
+- [Deep import include graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20graph)
+- [Deep import include minus exclude graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20minus%20exclude%20graph)
+- [Deep mixed import graph (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20import%20graph%20(SNOMED%2BLOINC))
+- [Deep mixed include-minus-exclude (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20include-minus-exclude%20(SNOMED%2BLOINC))
+- [Union merge lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Union%20merge%20lowering)
+- [Provider-disjoint exclude pruning](https://valueset-expander.exe.xyz/expand-explorer.html#Provider-disjoint%20exclude%20pruning)
 
-The app includes 37 pre-built test cases across 11 categories:
+What these demonstrate:
 
-| Category            | Examples                                      |
-|---------------------|-----------------------------------------------|
-| Whole System        | US States, Currencies, Gender, M49 Area Codes |
-| Enumerated Concepts | SNOMED, LOINC, RxNorm specific codes          |
-| Hierarchy Filters   | SNOMED is-a, descendent-of                    |
-| Property Filters    | M49 class=region, regex, decimals=0           |
-| Text Search         | SNOMED "diabetes", RxNorm "aspirin"           |
-| Excludes            | Concept excludes, subtree excludes            |
-| Pagination          | count, offset, count=0 (total only)           |
-| Multi-System        | Gender + US States, SNOMED + LOINC + RxNorm   |
-| Combined            | is-a + text filter, multi-system + exclude    |
-| ValueSet Imports    | Canonical URL imports, system intersection    |
-| TX Resources        | Inline CodeSystems, chained VS→CS imports     |
+- IR reconciliation across tx-resource ValueSet boundaries,
+- include/exclude lowering from imports into executable set operations,
+- multi-system partitioning (`SNOMED` and `LOINC`) under deep import graphs,
+- provider-disjoint pruning (excludes that cannot affect a given system slice).
 
-### Debug Sections
+### 3) Hybrid Execution (Query-Target + Legacy/Base)
 
-Each expansion displays:
+Use these to show one request can mix execution families safely.
 
-- **Results** — expanded codes in a table
-- **Semantic IR** — the parsed IR tree from the ValueSet compose
-- **Resolved IR** — IR after import resolution and flattening
-- **Query IR** — the provider-facing query plan (when compilable)
-- **Trace** — execution spans with timing bars, SQL cards inline showing
-  the actual SQLite queries with syntax highlighting and semantic labels
-  (`page`, `count`, `stream`, `bounded-count`, `designation`)
-- **Raw Response** — full JSON response
+- [LOINC + USPS mixed providers](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20%2B%20USPS%20mixed%20providers)
+- [Cross-provider excludes](https://valueset-expander.exe.xyz/expand-explorer.html#Cross-provider%20excludes)
+- [UCUM base-only path](https://valueset-expander.exe.xyz/expand-explorer.html#UCUM%20base-only%20path)
+- [TX-resource import + sqlite peer](https://valueset-expander.exe.xyz/expand-explorer.html#TX-resource%20import%20%2B%20sqlite%20peer)
+
+What these demonstrate:
+
+- system-partitioned execution with different provider families,
+- global include/exclude semantics across providers,
+- base-only grammar-backed systems beside query-target systems,
+- tx-resource imports coexisting with sqlite-backed provider slices.
+
+## Suggested Walkthrough Sequence
+
+Use this sequence when demoing to terminology-server engineers:
+
+1. `SNOMED complex include/exclude` for set algebra and SQL pushdown.
+2. `SNOMED complex count-only` for count optimization behavior.
+3. `LOINC supplement d20+d8 filter` for supplement-aware filtering.
+4. `Deep mixed include-minus-exclude (SNOMED+LOINC)` for deep import reconciliation and partitioning.
+5. `LOINC + USPS mixed providers` for hybrid execution across provider families.
+6. `Cross-provider excludes` for global semantics confirmation.
+
+## Notes
+
+- `SNOMED complex count-only` intentionally returns empty `contains` because `count=0` requests total-only behavior.
+- If a link stops matching after a future rename, hash matching still attempts
+  slug fallback; update this document when test names materially change.

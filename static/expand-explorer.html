@@ -405,10 +405,40 @@ function hideTxEditor() {
   document.getElementById('addTxRow').style.display = 'block';
 }
 
+function normalizeHashKey(raw) {
+  if (!raw) return '';
+  return decodeURIComponent(String(raw).replace(/\+/g, ' ')).trim();
+}
+
+function slugifyName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function findTestByHashKey(hashKey) {
+  const key = normalizeHashKey(hashKey);
+  if (!key) return null;
+
+  // 1) Exact (preferred)
+  let tc = TEST_CASES.find(t => t.name === key);
+  if (tc) return tc;
+
+  // 2) Case-insensitive exact
+  const lower = key.toLowerCase();
+  tc = TEST_CASES.find(t => String(t.name || '').toLowerCase() === lower);
+  if (tc) return tc;
+
+  // 3) Slug fallback (permits stable links even if punctuation differs)
+  const slug = slugifyName(key);
+  tc = TEST_CASES.find(t => slugifyName(t.name) === slug);
+  return tc || null;
+}
+
 function loadFromHash() {
   if (!location.hash) return;
-  const name = decodeURIComponent(location.hash.slice(1));
-  const tc = TEST_CASES.find(t => t.name === name);
+  const tc = findTestByHashKey(location.hash.slice(1));
   if (tc) selectTest(tc);
 }
 
