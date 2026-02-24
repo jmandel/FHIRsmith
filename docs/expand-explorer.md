@@ -109,7 +109,7 @@ Start by understanding that the engine models expansion as global set algebra:
 
 Use:
 
-- [SNOMED complex include/exclude](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20include%2Fexclude)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20include%2Fexclude" target="_blank" rel="noopener noreferrer">SNOMED complex include/exclude</a>
 
 What to look at:
 
@@ -122,8 +122,8 @@ Next, inspect how imported ValueSets are expanded into the working expression.
 
 Use:
 
-- [Deep import include graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20graph)
-- [Deep import include minus exclude graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20minus%20exclude%20graph)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20graph" target="_blank" rel="noopener noreferrer">Deep import include graph</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20minus%20exclude%20graph" target="_blank" rel="noopener noreferrer">Deep import include minus exclude graph</a>
 
 What to look at:
 
@@ -139,8 +139,8 @@ lowers eligible slices toward query-target execution.
 
 Use:
 
-- [Deep mixed import graph (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20import%20graph%20(SNOMED%2BLOINC))
-- [Deep mixed include-minus-exclude (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20include-minus-exclude%20(SNOMED%2BLOINC))
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20import%20graph%20(SNOMED%2BLOINC" target="_blank" rel="noopener noreferrer">Deep mixed import graph (SNOMED+LOINC)</a>)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20include-minus-exclude%20(SNOMED%2BLOINC" target="_blank" rel="noopener noreferrer">Deep mixed include-minus-exclude (SNOMED+LOINC)</a>)
 
 What to look at:
 
@@ -154,10 +154,10 @@ For query-target providers, large filters and paging should stay provider-local.
 
 Use:
 
-- [SNOMED is-a deep page](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20is-a%20deep%20page)
-- [LOINC STATUS=ACTIVE deep page](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20STATUS%3DACTIVE%20deep%20page)
-- [RxNorm TTY=SBD](https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20TTY%3DSBD)
-- [SNOMED code regex 7.*](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20code%20regex%207.*)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20is-a%20deep%20page" target="_blank" rel="noopener noreferrer">SNOMED is-a deep page</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20STATUS%3DACTIVE%20deep%20page" target="_blank" rel="noopener noreferrer">LOINC STATUS=ACTIVE deep page</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20TTY%3DSBD" target="_blank" rel="noopener noreferrer">RxNorm TTY=SBD</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20code%20regex%207.*" target="_blank" rel="noopener noreferrer">SNOMED code regex 7.*</a>
 
 What to look at:
 
@@ -170,7 +170,7 @@ Count-only is a useful way to inspect total computation without result payload.
 
 Use:
 
-- [SNOMED complex count-only](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20count-only)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20count-only" target="_blank" rel="noopener noreferrer">SNOMED complex count-only</a>
 
 What to look at:
 
@@ -184,10 +184,10 @@ membership (via filter clauses) and decoration (properties/designations).
 
 Use:
 
-- [LOINC supplement d20 filter](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%20filter)
-- [LOINC supplement d20+d8 filter](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%2Bd8%20filter)
-- [LOINC supplement decoration-only](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20decoration-only)
-- [RxNorm filter + supplement decoration](https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20filter%20%2B%20supplement%20decoration)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%20filter" target="_blank" rel="noopener noreferrer">LOINC supplement d20 filter</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%2Bd8%20filter" target="_blank" rel="noopener noreferrer">LOINC supplement d20+d8 filter</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20decoration-only" target="_blank" rel="noopener noreferrer">LOINC supplement decoration-only</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20filter%20%2B%20supplement%20decoration" target="_blank" rel="noopener noreferrer">RxNorm filter + supplement decoration</a>
 
 What to look at:
 
@@ -202,10 +202,10 @@ providers while preserving global semantics.
 
 Use:
 
-- [LOINC + USPS mixed providers](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20%2B%20USPS%20mixed%20providers)
-- [Cross-provider excludes](https://valueset-expander.exe.xyz/expand-explorer.html#Cross-provider%20excludes)
-- [UCUM base-only path](https://valueset-expander.exe.xyz/expand-explorer.html#UCUM%20base-only%20path)
-- [TX-resource import + sqlite peer](https://valueset-expander.exe.xyz/expand-explorer.html#TX-resource%20import%20%2B%20sqlite%20peer)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20%2B%20USPS%20mixed%20providers" target="_blank" rel="noopener noreferrer">LOINC + USPS mixed providers</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Cross-provider%20excludes" target="_blank" rel="noopener noreferrer">Cross-provider excludes</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#UCUM%20base-only%20path" target="_blank" rel="noopener noreferrer">UCUM base-only path</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#TX-resource%20import%20%2B%20sqlite%20peer" target="_blank" rel="noopener noreferrer">TX-resource import + sqlite peer</a>
 
 What to look at:
 
@@ -218,10 +218,10 @@ These cases are useful for showing optimizer behavior, not only correctness.
 
 Use:
 
-- [Import+filter intersection lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%2Bfilter%20intersection%20lowering)
-- [Import exclude lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%20exclude%20lowering)
-- [Union merge lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Union%20merge%20lowering)
-- [Provider-disjoint exclude pruning](https://valueset-expander.exe.xyz/expand-explorer.html#Provider-disjoint%20exclude%20pruning)
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Import%2Bfilter%20intersection%20lowering" target="_blank" rel="noopener noreferrer">Import+filter intersection lowering</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Import%20exclude%20lowering" target="_blank" rel="noopener noreferrer">Import exclude lowering</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Union%20merge%20lowering" target="_blank" rel="noopener noreferrer">Union merge lowering</a>
+- <a href="https://valueset-expander.exe.xyz/expand-explorer.html#Provider-disjoint%20exclude%20pruning" target="_blank" rel="noopener noreferrer">Provider-disjoint exclude pruning</a>
 
 What to look at:
 
