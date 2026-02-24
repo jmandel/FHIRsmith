@@ -20,7 +20,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:var(--radius
 input,textarea,select{font-family:inherit;background:var(--bg);color:var(--fg);
   border:1px solid var(--surface);border-radius:var(--radius);padding:6px 8px;font-size:13px}
 input:focus,textarea:focus{outline:none;border-color:var(--blue)}
-textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2;max-height:150px;overflow-y:auto}
+textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 
 /* Layout: 2 columns */
 .app{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
@@ -55,10 +55,10 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2;max-h
 .server-row label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
 .server-row input{flex:1}
 .desc-text{font-size:12px;color:var(--fg3);font-style:italic;margin-bottom:8px;min-height:1.2em}
-.vs-editor{width:100%;min-height:80px;max-height:150px}
+.vs-editor{width:100%;min-height:80px}
 .tx-area{margin-top:8px}
 .tx-area label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px}
-.tx-editor{width:100%;min-height:60px;max-height:120px}
+.tx-editor{width:100%;min-height:60px}
 .btn-add-tx{background:none;color:var(--fg3);font-size:12px;padding:4px 0;cursor:pointer;border:none;border-radius:0}
 .btn-add-tx:hover{color:var(--blue)}
 .params-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:10px}
@@ -335,7 +335,7 @@ const TEST_CASES = [
 /* ===== State ===== */
 let currentResponse = null;
 let pendingAbort = null;
-let sectionStates = {results:true, ir:true, resolvedIR:false, queryIR:false, trace:false, raw:false};
+let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, trace:true, raw:false};
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -795,13 +795,17 @@ function copyRaw() {
 
 /* ===== Textarea auto-resize ===== */
 function resizeEditor() {
-  // no-op: CSS max-height handles it
+  const ta = document.getElementById('vsEditor');
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
 }
 
 function resizeTxEditor() {
-  // Update count
+  const ta = document.getElementById('txEditor');
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
   try {
-    const arr = JSON.parse(document.getElementById('txEditor').value);
+    const arr = JSON.parse(ta.value);
     if (Array.isArray(arr)) document.getElementById('txCount').textContent = arr.length;
   } catch {}
 }
