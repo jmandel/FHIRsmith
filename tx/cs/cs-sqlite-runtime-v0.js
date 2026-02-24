@@ -97,6 +97,7 @@ const { trace: T } = require('../workers/expand-trace');
 const V0_SPECIALIZATION_REGISTRY = [];
 let EXPAND_TEMP_TABLE_SEQ = 0;
 const EXPAND_INTERSECT_IN_THRESHOLD = 2000;
+const SQLITE_PROVIDER_SUPPLEMENT_CATALOG_CACHE = new Map();
 
 class SqliteRuntimeV0Context {
   constructor(conceptId, code, display, definition, active) {
@@ -189,6 +190,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     }
     this.effortLimitMs = options.effortLimitMs || 1000;
     this._syncDb = null;
+    this._nativeSupplementSpec = null;
+    this._activeNativeSupplementSpec = null;
+    this._supplementAttachmentByPath = new Map();
+    this._supplementAttachmentAliases = new Set();
     this.defaultIterationRegex = null;
     const regexSource = this.runtime?.iteration?.defaultCodeRegex;
     if (regexSource) {
@@ -203,74 +208,283 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   close() {
     if (!this.db || !this.ownsDb) return;
     this.statusCache = null;
+    this._nativeSupplementSpec = null;
+    this._activeNativeSupplementSpec = null;
+    this._supplementAttachmentByPath.clear();
+    this._supplementAttachmentAliases.clear();
     this.db.close();
     this.db = null;
   }
 
-  capabilitiesV3() {
+  async negotiate({ system = null, version = null, supplements = null } = {}) {
+    const canonicals = (supplements && typeof supplements.canonicals === 'function')
+      ? (supplements.canonicals() || [])
+      : [];
+    let nativeHandle = null;
+    if (supplements && typeof supplements.native === 'function') {
+      try {
+        nativeHandle = await supplements.native({
+          providerId: 'sqlite',
+          system: system || this.system(),
+          version: version || this.version() || null,
+        });
+      } catch (_e) {
+        nativeHandle = null;
+      }
+    }
+
+    const nativeSpec = this.#normalizeNativeSupplementSpec(nativeHandle);
+    this._nativeSupplementSpec = nativeSpec;
+    this._activeNativeSupplementSpec = nativeSpec;
+
+    const hasNativeSupp = !!nativeSpec;
+    const handles = hasNativeSupp ? (nativeSpec.complete ? 'full' : 'partial') : 'none';
+    const nativeFilterProperties = hasNativeSupp ? [...nativeSpec.properties] : [];
+    const nativeFilterOperators = hasNativeSupp ? [...nativeSpec.operators] : [];
+    const supportsNativeSupplementFiltering = hasNativeSupp
+      && nativeFilterProperties.length > 0
+      && nativeFilterOperators.length > 0;
+
     return {
+      mode: 'query-target',
       query: true,
       membership: true,
       decorateMany: true,
-      supportsTextFilter: true,
-      supportsSetOps: true,
-      supportsPagination: true,
+      ordering: { stable: true, kind: 'code' },
+      pagination: !hasNativeSupp,
+      legacyFilter: {
+        filterPipeline: true,
+        supportsSearchFilter: true,
+        supportsFilterPage: true,
+      },
+      supplements: {
+        handles,
+        filtering: supportsNativeSupplementFiltering ? 'native' : 'none',
+        properties: supportsNativeSupplementFiltering ? nativeFilterProperties : [],
+        operators: supportsNativeSupplementFiltering ? nativeFilterOperators : [],
+        unsupported: supportsNativeSupplementFiltering ? [] : (hasNativeSupp ? nativeFilterProperties : canonicals),
+        attachments: hasNativeSupp ? nativeSpec.attachments : null,
+      },
+      system: system || this.system(),
+      version: version || this.version() || null,
     };
   }
 
-  async openStream(queryIR, opts = {}) {
-    const request = this._queryIrToExpandRequest(queryIR, opts);
-    if (!request) {
-      return null;
-    }
-    const result = this._expandQueryImpl(request);
-    if (!result || result.tooCostly) {
-      return null;
-    }
+  /**
+   * Provider-declared supplement discovery for worker-side canonical resolution.
+   *
+   * This lets v3 resolve supplement canonicals from provider-owned sqlite
+   * sidecars (or configured supplement paths) without requiring worker-global
+   * catalog awareness.
+   */
+  async knownSupplementEntries(request = {}) {
+    const required = Array.isArray(request?.requiredCanonicals)
+      ? request.requiredCanonicals.map(v => String(v || '')).filter(Boolean)
+      : [];
+    const system = String(request?.system || this.system() || '');
+    const version = request?.version == null ? null : String(request.version);
+    if (!system || required.length === 0) return [];
 
-    const codes = Array.isArray(result.codes) ? result.codes : [];
-    const stream = (async function *() {
-      for (const row of codes) {
-        if (!row || row.code == null) continue;
-        yield row;
+    const catalog = this.#loadProviderSupplementCatalog();
+    if (catalog.size === 0) return [];
+
+    const selected = [];
+    const seenPath = new Set();
+    for (const rc of required) {
+      const candidates = catalog.get(rc) || [];
+      for (const entry of candidates) {
+        if (!entry || seenPath.has(entry.path)) continue;
+        if (entry.targetSystem !== system) continue;
+        if (entry.targetVersion && version && !this.#versionMatchesForSupplements(entry.targetVersion, version)) continue;
+        seenPath.add(entry.path);
+        selected.push(entry);
       }
-    })();
-    stream.total = typeof result.total === 'number' ? result.total : null;
-    stream.notClosed = !!result.notClosed;
-    return stream;
+    }
+    return selected;
   }
 
-  async prepareMembership(queryIR) {
+  async openStream(request = {}) {
+    const reqNativeSpec = await this.#resolveRequestNativeSupplementSpec(request?.supplements);
+    const prevActive = this._activeNativeSupplementSpec;
+    this._activeNativeSupplementSpec = reqNativeSpec || this._nativeSupplementSpec;
+    const queryIR = request?.queryIR || null;
+    const exec = request?.exec || {};
+    const expandRequest = this._queryIrToExpandRequest(queryIR, exec);
+    try {
+      if (!expandRequest) {
+        return null;
+      }
+      expandRequest.nativeSupplementSpec = this._activeNativeSupplementSpec;
+      const result = this._expandQueryImpl(expandRequest);
+      if (!result || result.tooCostly) {
+        return null;
+      }
+
+      const codes = Array.isArray(result.codes) ? result.codes : [];
+      const stream = (async function *() {
+        for (const row of codes) {
+          if (!row || row.code == null) continue;
+          yield row;
+        }
+      })();
+      stream.total = typeof result.total === 'number' ? result.total : null;
+      stream.notClosed = !!result.notClosed;
+      return stream;
+    } finally {
+      this._activeNativeSupplementSpec = prevActive;
+    }
+  }
+
+  async prepareMembership(request = {}) {
+    const reqNativeSpec = await this.#resolveRequestNativeSupplementSpec(request?.supplements);
+    const activeSpec = reqNativeSpec || this._nativeSupplementSpec;
+    const prevActive = this._activeNativeSupplementSpec;
+    this._activeNativeSupplementSpec = activeSpec;
+    const queryIR = request?.queryIR || null;
     if (!queryIR || !queryIR.select) {
+      this._activeNativeSupplementSpec = prevActive;
       return null;
+    }
+
+    // Fast-path membership: if query IR can be translated to the provider's
+    // native expand request shape, materialize matching codes once and answer
+    // batchHas() with O(1) set lookups. This avoids per-code predicate checks
+    // (filterLocate/filterCheck) for large candidate scans.
+    try {
+      const expandRequest = this._queryIrToExpandRequest(queryIR, { includeTotal: false });
+      if (expandRequest) {
+        expandRequest.nativeSupplementSpec = activeSpec;
+        const result = this._expandQueryImpl(expandRequest);
+        if (result && !result.tooCostly && Array.isArray(result.codes)) {
+          const codeSet = new Set(
+            result.codes
+              .map(r => String(r?.code || ''))
+              .filter(Boolean)
+          );
+          this._activeNativeSupplementSpec = prevActive;
+          return {
+            batchHas: async (codes) => {
+              const out = new Array(codes.length).fill(false);
+              for (let i = 0; i < codes.length; i++) {
+                const code = String(codes[i] || '');
+                if (!code) continue;
+                out[i] = codeSet.has(code);
+              }
+              return out;
+            },
+            close: async () => {},
+          };
+        }
+      }
+    } catch (_e) {
+      // Fallback to matcher-based membership path below.
     }
 
     const closers = [];
     const cache = new Map();
     const rootMatcher = await this.#buildV3MembershipMatcher(queryIR, closers);
+    this._activeNativeSupplementSpec = prevActive;
 
     return {
       batchHas: async (codes) => {
+        const beforeBatch = this._activeNativeSupplementSpec;
+        this._activeNativeSupplementSpec = activeSpec;
         const out = new Array(codes.length).fill(false);
-        for (let i = 0; i < codes.length; i++) {
-          const code = String(codes[i] || '');
-          if (!code) continue;
-          if (cache.has(code)) {
-            out[i] = cache.get(code) === true;
-            continue;
+        try {
+          for (let i = 0; i < codes.length; i++) {
+            const code = String(codes[i] || '');
+            if (!code) continue;
+            if (cache.has(code)) {
+              out[i] = cache.get(code) === true;
+              continue;
+            }
+            const matches = await rootMatcher(code);
+            cache.set(code, !!matches);
+            out[i] = !!matches;
           }
-          const matches = await rootMatcher(code);
-          cache.set(code, !!matches);
-          out[i] = !!matches;
+          return out;
+        } finally {
+          this._activeNativeSupplementSpec = beforeBatch;
         }
-        return out;
       },
       close: async () => {
+        const beforeClose = this._activeNativeSupplementSpec;
+        this._activeNativeSupplementSpec = activeSpec;
         for (const closer of closers) {
           await closer();
         }
+        this._activeNativeSupplementSpec = beforeClose;
       },
     };
+  }
+
+  #loadProviderSupplementCatalog() {
+    const roots = [];
+    const env = process.env.TX_SQLITE_PROVIDER_SUPPLEMENT_PATHS || process.env.TX_SQLITE_SUPPLEMENT_PATHS;
+    if (env) {
+      for (const raw of env.split(require('path').delimiter)) {
+        const p = String(raw || '').trim();
+        if (p) roots.push(p);
+      }
+    } else {
+      if (this.dbPath) {
+        roots.push(require('path').dirname(this.dbPath));
+      }
+      roots.push(require('path').join(process.cwd(), 'tests', 'tx', 'fixtures', 'sqlite-supplements'));
+      roots.push(require('path').join(process.cwd(), 'data', 'terminology-cache'));
+    }
+    if (roots.length === 0) return new Map();
+
+    const cacheKey = roots.join('|');
+    if (SQLITE_PROVIDER_SUPPLEMENT_CATALOG_CACHE.has(cacheKey)) {
+      return SQLITE_PROVIDER_SUPPLEMENT_CATALOG_CACHE.get(cacheKey);
+    }
+
+    const catalog = new Map();
+    const fs = require('fs');
+    for (const root of roots) {
+      let names = [];
+      try {
+        names = fs.readdirSync(root);
+      } catch (_e) {
+        continue;
+      }
+      for (const name of names) {
+        const lower = String(name || '').toLowerCase();
+        if (!lower.endsWith('.db')) continue;
+        if (!lower.includes('supplement')) continue;
+        const dbPath = require('path').join(root, name);
+        const record = readSqliteSupplementManifestRecord(dbPath);
+        if (!record) continue;
+        const entry = {
+          path: dbPath,
+          canonical: record.canonical,
+          canonicalVersioned: record.version ? `${record.canonical}|${record.version}` : record.canonical,
+          targetSystem: record.targetSystem,
+          targetVersion: record.targetVersion || null,
+          availableProperties: record.properties || [],
+          availableOperators: ['=', 'in', 'exists'],
+        };
+        appendCatalogEntry(catalog, entry.canonical, entry);
+        if (entry.canonicalVersioned && entry.canonicalVersioned !== entry.canonical) {
+          appendCatalogEntry(catalog, entry.canonicalVersioned, entry);
+        }
+      }
+    }
+
+    SQLITE_PROVIDER_SUPPLEMENT_CATALOG_CACHE.set(cacheKey, catalog);
+    return catalog;
+  }
+
+  #versionMatchesForSupplements(expected, actual) {
+    if (!expected || !actual) return true;
+    if (expected === actual) return true;
+    try {
+      return VersionUtilities.versionMatches(expected, actual)
+        || VersionUtilities.versionMatches(actual, expected);
+    } catch (_e) {
+      return false;
+    }
   }
 
   async #buildV3MembershipMatcher(node, closers) {
@@ -356,7 +570,9 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return async () => false;
   }
 
-  async decorateMany(codes, opts = {}) {
+  async decorateMany(request = {}) {
+    const codes = Array.isArray(request?.codes) ? request.codes : [];
+    const opts = request?.opts || {};
     if (!Array.isArray(codes) || codes.length === 0) {
       return [];
     }
@@ -365,45 +581,238 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     const requestedProps = new Set((opts.properties || []).map(p => String(p || '')).filter(Boolean));
     const allPropsRequested = requestedProps.has('*');
     const allAltCodes = opts.allAltCodes === true;
-    const located = await this.locateMany(codes, allAltCodes);
+    const contextsByCode = request?.contextsByCode instanceof Map
+      ? request.contextsByCode
+      : null;
+    const located = new Map();
+    if (contextsByCode) {
+      for (const rawCode of codes) {
+        const code = String(rawCode || '');
+        if (!code) continue;
+        const ctxt = contextsByCode.get(code) || null;
+        if (ctxt) {
+          located.set(code, { context: ctxt, message: null });
+        }
+      }
+    }
+    const missing = [];
+    for (const rawCode of codes) {
+      const code = String(rawCode || '');
+      if (!code) continue;
+      if (!located.has(code)) missing.push(code);
+    }
+    if (missing.length > 0) {
+      const locatedMissing = await this.locateMany(missing, allAltCodes);
+      for (const [code, value] of locatedMissing.entries()) {
+        located.set(code, value);
+      }
+    }
+
+    let supplementOverlayByCode = null;
+    if (request?.supplements && typeof request.supplements.decorateMany === 'function') {
+      try {
+        supplementOverlayByCode = await request.supplements.decorateMany({
+          system: this.system(),
+          version: this.version() || null,
+          codes: codes.map(c => String(c || '')).filter(Boolean),
+          opts,
+        });
+      } catch (_e) {
+        supplementOverlayByCode = null;
+      }
+    }
+    const projectedPropsByCode = (!allPropsRequested && requestedProps.size > 0)
+      ? await this.#projectRequestedPropertiesForCodes(codes, located, requestedProps)
+      : null;
 
     const rows = [];
     for (const rawCode of codes) {
       const code = String(rawCode || '');
       if (!code) continue;
 
-      const loc = located.get(code) || await this.locate(code);
+      const supplementOverlay = supplementOverlayByCode instanceof Map
+        ? (supplementOverlayByCode.get(code) || null)
+        : null;
+      const loc = located.get(code);
       const context = loc?.context || null;
       if (!context) {
-        rows.push({ code });
+        const row = { code };
+        if (supplementOverlay?.display) {
+          row.display = String(supplementOverlay.display);
+        }
+        if (supplementOverlay?.definition) {
+          row.definition = String(supplementOverlay.definition);
+        }
+        if (includeDesignations && Array.isArray(supplementOverlay?.designations)) {
+          row.designations = supplementOverlay.designations.slice();
+        }
+        if (Array.isArray(supplementOverlay?.properties)) {
+          if (allPropsRequested) {
+            row.properties = supplementOverlay.properties.slice();
+          } else if (requestedProps.size > 0) {
+            row.properties = supplementOverlay.properties
+              .filter(p => p && requestedProps.has(String(p.code || '')))
+              .map(p => ({ ...p }));
+          }
+        }
+        rows.push(row);
         continue;
       }
 
       const row = {
         code,
-        display: await this.display(context),
-        isInactive: await this.isInactive(context),
-        isAbstract: await this.isAbstract(context),
-        isDeprecated: await this.isDeprecated(context),
-        status: await this.getStatus(context),
+        display: (supplementOverlay?.display && String(supplementOverlay.display))
+          || this._displayFromSupplements(context.code)
+          || context.display
+          || context.code,
       };
+      if (supplementOverlay?.definition) {
+        row.definition = String(supplementOverlay.definition);
+      }
 
       if (includeDesignations) {
         const collector = makeV3DesignationCollector();
         await this.designations(context, collector);
         row.designations = collector.rows;
+        if (Array.isArray(supplementOverlay?.designations) && supplementOverlay.designations.length > 0) {
+          row.designations = row.designations.concat(supplementOverlay.designations.map(d => ({ ...d })));
+        }
       }
 
-      if (allPropsRequested || requestedProps.size > 0) {
+      if (allPropsRequested) {
         const props = await this.properties(context);
-        row.properties = allPropsRequested
-          ? props
-          : props.filter(p => p && requestedProps.has(String(p.code || '')));
+        row.properties = props;
+        if (Array.isArray(supplementOverlay?.properties) && supplementOverlay.properties.length > 0) {
+          row.properties = row.properties.concat(supplementOverlay.properties.map(p => ({ ...p })));
+        }
+      } else if (projectedPropsByCode) {
+        row.properties = projectedPropsByCode.get(code) || [];
+        if (Array.isArray(supplementOverlay?.properties) && supplementOverlay.properties.length > 0) {
+          for (const p of supplementOverlay.properties) {
+            if (!p || !p.code) continue;
+            if (!requestedProps.has(String(p.code))) continue;
+            row.properties.push({ ...p });
+          }
+        }
       }
 
       rows.push(row);
     }
     return rows;
+  }
+
+  async #projectRequestedPropertiesForCodes(codes, located, requestedProps) {
+    const byCode = new Map();
+    if (!Array.isArray(codes) || codes.length === 0 || !(requestedProps instanceof Set) || requestedProps.size === 0) {
+      return byCode;
+    }
+
+    const wantInactive = requestedProps.has('inactive');
+    const wantDefinition = requestedProps.has('definition');
+    const parentPropCode = this.runtime.hierarchy?.parentPropertyCode || 'parent';
+    const wantParent = !!this.meta.hierarchyPropertyId && requestedProps.has(parentPropCode);
+
+    for (const rawCode of codes) {
+      const code = String(rawCode || '');
+      if (!code) continue;
+      const context = located.get(code)?.context || null;
+      if (!context) continue;
+      const props = [];
+
+      if (wantInactive) {
+        props.push({ code: 'inactive', valueBoolean: !context.active });
+      }
+      if (wantDefinition && context.definition != null) {
+        props.push({ code: 'definition', valueString: String(context.definition) });
+      }
+
+      if (this.supplements) {
+        for (const supplement of this.supplements) {
+          const supplementConcept = supplement.getConceptByCode(context.code);
+          if (!supplementConcept) continue;
+          for (const p of supplementConcept.property || []) {
+            if (!p || !p.code) continue;
+            if (!requestedProps.has(String(p.code))) continue;
+            props.push({ ...p });
+          }
+        }
+      }
+
+      if (props.length > 0) {
+        byCode.set(code, props);
+      }
+    }
+
+    if (wantParent) {
+      const byConceptId = await this.#loadParentCodesForConcepts(located, codes);
+      for (const rawCode of codes) {
+        const code = String(rawCode || '');
+        if (!code) continue;
+        const context = located.get(code)?.context || null;
+        if (!context) continue;
+        const parentCodes = byConceptId.get(context.conceptId) || null;
+        if (!parentCodes || parentCodes.length === 0) continue;
+        const props = byCode.get(code) || [];
+        for (const parentCode of parentCodes) {
+          props.push({ code: parentPropCode, valueCode: parentCode });
+        }
+        if (props.length > 0) {
+          byCode.set(code, props);
+        }
+      }
+    }
+
+    return byCode;
+  }
+
+  async #loadParentCodesForConcepts(located, codes) {
+    const out = new Map();
+    if (!this.meta.hierarchyPropertyId || !this.meta.hierarchyEdgeSetId) {
+      return out;
+    }
+
+    const conceptIds = [];
+    const seen = new Set();
+    for (const rawCode of codes || []) {
+      const code = String(rawCode || '');
+      if (!code) continue;
+      const conceptId = located.get(code)?.context?.conceptId;
+      if (!conceptId || seen.has(conceptId)) continue;
+      seen.add(conceptId);
+      conceptIds.push(conceptId);
+    }
+    if (conceptIds.length === 0) {
+      return out;
+    }
+
+    const BATCH = 500;
+    for (let i = 0; i < conceptIds.length; i += BATCH) {
+      const batch = conceptIds.slice(i, i + BATCH);
+      const placeholders = batch.map(() => '?').join(', ');
+      const rows = await all(
+        this.db,
+        `SELECT l.source_concept_id, p.code AS target_code
+         FROM concept_link l
+         JOIN concept p ON p.concept_id = l.target_concept_id
+         WHERE l.source_concept_id IN (${placeholders})
+           AND l.property_id = ?
+           AND l.edge_set_id = ?
+           AND l.active = 1`,
+        [...batch, this.meta.hierarchyPropertyId, this.meta.hierarchyEdgeSetId]
+      );
+      for (const row of rows) {
+        let arr = out.get(row.source_concept_id);
+        if (!arr) {
+          arr = [];
+          out.set(row.source_concept_id, arr);
+        }
+        if (row.target_code != null) {
+          arr.push(String(row.target_code));
+        }
+      }
+    }
+
+    return out;
   }
 
   // ── internal query execution for openStream / prepareMembership ───────────
@@ -422,7 +831,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     const syncDb = this.#getSyncDb();
 
     const { includes, excludes, textFilter, activeOnly, excludeInactive,
-            pagination, limitCount } = request;
+            pagination, includeTotal = true, limitCount } = request;
     if (!includes.length) return null;
 
     const _tExpComp = T.begin('v0.expandQuery', { system: this.meta?.system, includeCount: includes.length, excludeCount: excludes.length });
@@ -438,6 +847,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       const pageOffset = pagination
         ? Math.max(0, Number.isFinite(Number(pagination.offset)) ? Number(pagination.offset) : 0)
         : 0;
+      const countOnlyPage = !!pagination && pageCount === 0;
 
       const inc0 = includes[0];
       const isSimpleWholeSystemPaging =
@@ -475,34 +885,38 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
         let rows = [];
         let tooCostly = false;
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        try {
-          const _t0Main = performance.now();
-          let _mainRowCount = 0;
-          for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
-            _mainRowCount++;
-            rows.push(row);
-          }
-          T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main);
-        } catch (e) {
-          if (e.code === 'SQLITE_INTERRUPT') {
-            tooCostly = true;
-          } else {
-            throw e;
+        if (!countOnlyPage) {
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          try {
+            const _t0Main = performance.now();
+            let _mainRowCount = 0;
+            for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
+              _mainRowCount++;
+              rows.push(row);
+            }
+            T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main, 'page');
+          } catch (e) {
+            if (e.code === 'SQLITE_INTERRUPT') {
+              tooCostly = true;
+            } else {
+              throw e;
+            }
           }
         }
 
         let total = null;
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        try {
-          const countSql = `SELECT COUNT(*) AS cnt FROM concept c WHERE c.cs_id = @_csId${activeClause}`;
-          const _t0Count = performance.now();
-          const countRow = syncDb.prepare(countSql).get(allParams);
-          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
-          total = countRow?.cnt ?? null;
-        } catch (e) {
-          if (e.code !== 'SQLITE_INTERRUPT') throw e;
-          total = null;
+        if (includeTotal) {
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          try {
+            const countSql = `SELECT COUNT(*) AS cnt FROM concept c WHERE c.cs_id = @_csId${activeClause}`;
+            const _t0Count = performance.now();
+            const countRow = syncDb.prepare(countSql).get(allParams);
+            T.sql(countSql, allParams, 1, performance.now() - _t0Count, 'count');
+            total = countRow?.cnt ?? null;
+          } catch (e) {
+            if (e.code !== 'SQLITE_INTERRUPT') throw e;
+            total = null;
+          }
         }
 
         // Batch-fetch designations when requested
@@ -536,7 +950,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
               if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
               arr.push(dRow);
             }
-            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig, 'designation');
           }
         }
 
@@ -562,7 +976,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         return { codes, total, notClosed: false, tooCostly };
       }
 
-      const isSimpleSingleFilterPaging =
+      const isSimpleFilteredPaging =
         !!pagination
         && includes.length === 1
         && excludes.length === 0
@@ -616,36 +1030,40 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
         let rows = [];
         let tooCostly = false;
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        try {
-          const _t0Main = performance.now();
-          let _mainRowCount = 0;
-          for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
-            _mainRowCount++;
-            rows.push(row);
-          }
-          T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main);
-        } catch (e) {
-          if (e.code === 'SQLITE_INTERRUPT') {
-            tooCostly = true;
-          } else {
-            throw e;
+        if (!countOnlyPage) {
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          try {
+            const _t0Main = performance.now();
+            let _mainRowCount = 0;
+            for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
+              _mainRowCount++;
+              rows.push(row);
+            }
+            T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main, 'page');
+          } catch (e) {
+            if (e.code === 'SQLITE_INTERRUPT') {
+              tooCostly = true;
+            } else {
+              throw e;
+            }
           }
         }
 
         let total = null;
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        try {
-          const countSql = `SELECT COUNT(*) AS cnt
-            FROM concept c${joins}
-            WHERE c.cs_id = @_csId${where}${activeClause}`;
-          const _t0Count = performance.now();
-          const countRow = syncDb.prepare(countSql).get(allParams);
-          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
-          total = countRow?.cnt ?? null;
-        } catch (e) {
-          if (e.code !== 'SQLITE_INTERRUPT') throw e;
-          total = null;
+        if (includeTotal) {
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          try {
+            const countSql = `SELECT COUNT(*) AS cnt
+              FROM concept c${joins}
+              WHERE c.cs_id = @_csId${where}${activeClause}`;
+            const _t0Count = performance.now();
+            const countRow = syncDb.prepare(countSql).get(allParams);
+            T.sql(countSql, allParams, 1, performance.now() - _t0Count, 'count');
+            total = countRow?.cnt ?? null;
+          } catch (e) {
+            if (e.code !== 'SQLITE_INTERRUPT') throw e;
+            total = null;
+          }
         }
 
         // Batch-fetch designations when requested
@@ -679,7 +1097,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
               if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
               arr.push(dRow);
             }
-            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig, 'designation');
           }
         }
 
@@ -705,17 +1123,35 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         return { codes, total, notClosed: false, tooCostly };
       }
 
-      // Fast path for "single include filter + pagination":
-      // keep exact total while reducing payload scanned during page extraction.
-      if (isSimpleSingleFilterPaging) {
-        let joins = '';
-        let where = '';
+      // Fast path for "single include component with one-or-more filters + pagination":
+      // compile each filter to a code-set SQL and use one generalized
+      // intersection shape:
+      //   UNION ALL(code, clause_index) -> GROUP BY code HAVING COUNT(*) = nClauses
+      // This keeps one execution pattern for multi-clause filter paging.
+      if (isSimpleFilteredPaging) {
+        const codeSets = [];
         for (let fi = 0; fi < inc0.filter.length; fi++) {
-          const result = this.#buildV0FilterSql(inc0.filter[fi], `_pf${fi}`);
-          if (!result) { _tExpComp.end({ fallback: true, reason: 'unsupported paged filter fast-path' }); return null; }
-          joins += result.joins;
-          where += result.sql;
-          Object.assign(allParams, result.params);
+          const built = this.#buildFilterCodeSetSql(inc0.filter[fi], `_pfc${fi}`);
+          if (!built) { _tExpComp.end({ fallback: true, reason: 'unsupported paged filter fast-path' }); return null; }
+          codeSets.push(built);
+          Object.assign(allParams, built.params || {});
+        }
+        if (codeSets.length === 0) { _tExpComp.end({ fallback: true, reason: 'empty paged filter code-set plan' }); return null; }
+
+        let candidateCodesSql = '';
+        if (codeSets.length === 1) {
+          candidateCodesSql = codeSets[0].sql;
+        } else {
+          const parts = [];
+          for (let i = 0; i < codeSets.length; i++) {
+            parts.push(`SELECT s${i}.code AS code, ${i} AS clause_idx FROM (${codeSets[i].sql}) s${i}`);
+          }
+          candidateCodesSql = `SELECT m.code
+            FROM (
+              ${parts.join('\nUNION ALL\n')}
+            ) m
+            GROUP BY m.code
+            HAVING COUNT(*) = ${codeSets.length}`;
         }
 
         const activeClause = filterInactive ? ' AND c.active = 1' : '';
@@ -726,10 +1162,14 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           pageLimitClause = ` LIMIT -1 OFFSET ${pageOffset}`;
         }
 
-        const pageSql = `WITH page_keys AS (
+        const pageSql = `WITH candidate_codes AS (
+            ${candidateCodesSql}
+          ),
+          page_keys AS (
             SELECT DISTINCT c.concept_id, c.code
-            FROM concept c${joins}
-            WHERE c.cs_id = @_csId${where}${activeClause}
+            FROM concept c
+            JOIN candidate_codes cc ON cc.code = c.code
+            WHERE c.cs_id = @_csId${activeClause}
             ORDER BY c.code, c.concept_id${pageLimitClause}
           )
           SELECT c2.concept_id, c2.code, c2.display, c2.definition, c2.active
@@ -739,39 +1179,47 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
         let rows = [];
         let tooCostly = false;
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        try {
-          const _t0Main = performance.now();
-          let _mainRowCount = 0;
-          for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
-            _mainRowCount++;
-            rows.push(row);
-          }
-          T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main);
-        } catch (e) {
-          if (e.code === 'SQLITE_INTERRUPT') {
-            tooCostly = true;
-          } else {
-            throw e;
+        if (!countOnlyPage) {
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          try {
+            const _t0Main = performance.now();
+            let _mainRowCount = 0;
+            for (const row of syncDb.prepare(pageSql).iterate(allParams)) {
+              _mainRowCount++;
+              rows.push(row);
+            }
+            T.sql(pageSql, allParams, _mainRowCount, performance.now() - _t0Main, 'page');
+          } catch (e) {
+            if (e.code === 'SQLITE_INTERRUPT') {
+              tooCostly = true;
+            } else {
+              throw e;
+            }
           }
         }
 
         let total = null;
-        if (syncDb._resetEffort) syncDb._resetEffort();
-        try {
-          const countSql = `SELECT COUNT(*) AS cnt
-            FROM (
-              SELECT DISTINCT c.concept_id
-              FROM concept c${joins}
-              WHERE c.cs_id = @_csId${where}${activeClause}
-            ) x`;
-          const _t0Count = performance.now();
-          const countRow = syncDb.prepare(countSql).get(allParams);
-          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
-          total = countRow?.cnt ?? null;
-        } catch (e) {
-          if (e.code !== 'SQLITE_INTERRUPT') throw e;
-          total = null;
+        if (includeTotal) {
+          if (syncDb._resetEffort) syncDb._resetEffort();
+          try {
+            const countSql = `WITH candidate_codes AS (
+              ${candidateCodesSql}
+            )
+            SELECT COUNT(*) AS cnt
+              FROM (
+                SELECT DISTINCT c.concept_id
+                FROM concept c
+                JOIN candidate_codes cc ON cc.code = c.code
+                WHERE c.cs_id = @_csId${activeClause}
+              ) x`;
+            const _t0Count = performance.now();
+            const countRow = syncDb.prepare(countSql).get(allParams);
+            T.sql(countSql, allParams, 1, performance.now() - _t0Count, 'count');
+            total = countRow?.cnt ?? null;
+          } catch (e) {
+            if (e.code !== 'SQLITE_INTERRUPT') throw e;
+            total = null;
+          }
         }
 
         // Batch-fetch designations when requested
@@ -805,7 +1253,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
               if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
               arr.push(dRow);
             }
-            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+            T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig, 'designation');
           }
         }
 
@@ -827,7 +1275,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           return entry;
         });
 
-        _tExpComp.end({ codesCount: codes.length, total, tooCostly, fastPath: 'single-filter-paged' });
+        _tExpComp.end({ codesCount: codes.length, total, tooCostly, fastPath: 'filtered-paged', filterCount: inc0.filter.length });
         return { codes, total, notClosed: false, tooCostly };
       }
 
@@ -965,7 +1413,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       const baseKeySql = `SELECT DISTINCT t.concept_id, t.code`
         + ` FROM (${innerSql}) AS t WHERE 1=1${excludeWhere}`;
 
-      const useWindowPaginationTotal = !!pagination && excludes.length > 0;
+      const useWindowPaginationTotal = !!pagination && includeTotal && excludes.length > 0;
 
       let sql;
       if (pagination && useWindowPaginationTotal) {
@@ -1004,22 +1452,24 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
       let rows;
       let tooCostly = false;
-      if (syncDb._resetEffort) syncDb._resetEffort();
-      try {
-        rows = [];
-        const _t0Main = performance.now();
-        let _mainRowCount = 0;
-        for (const row of syncDb.prepare(sql).iterate(allParams)) {
-          _mainRowCount++;
-          rows.push(row);
-        }
-        T.sql(sql, allParams, _mainRowCount, performance.now() - _t0Main);
-      } catch (e) {
-        if (e.code === 'SQLITE_INTERRUPT') {
-          // Effort limit hit — return whatever rows we collected so far
-          tooCostly = true;
-        } else {
-          throw e;
+      rows = [];
+      if (!countOnlyPage) {
+        if (syncDb._resetEffort) syncDb._resetEffort();
+        try {
+          const _t0Main = performance.now();
+          let _mainRowCount = 0;
+          for (const row of syncDb.prepare(sql).iterate(allParams)) {
+            _mainRowCount++;
+            rows.push(row);
+          }
+          T.sql(sql, allParams, _mainRowCount, performance.now() - _t0Main, 'stream');
+        } catch (e) {
+          if (e.code === 'SQLITE_INTERRUPT') {
+            // Effort limit hit — return whatever rows we collected so far
+            tooCostly = true;
+          } else {
+            throw e;
+          }
         }
       }
 
@@ -1030,7 +1480,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
       // Total count (for pagination)
       let total = null;
-      if (pagination) {
+      if (pagination && includeTotal) {
         if (useWindowPaginationTotal && rows.length > 0 && Number.isFinite(Number(rows[0]._total))) {
           total = Number(rows[0]._total);
         } else {
@@ -1041,7 +1491,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
             const _countSql = `SELECT COUNT(*) AS cnt FROM (${countSourceSql})`;
             const _t0Count = performance.now();
             const countRow = syncDb.prepare(_countSql).get(allParams);
-            T.sql(_countSql, allParams, 1, performance.now() - _t0Count);
+            T.sql(_countSql, allParams, 1, performance.now() - _t0Count, 'count');
             total = countRow?.cnt ?? rows.length;
           } catch (e) {
             if (e.code !== 'SQLITE_INTERRUPT') throw e;
@@ -1081,7 +1531,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
             if (!arr) { arr = []; designationMap.set(dRow.concept_id, arr); }
             arr.push(dRow);
           }
-          T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig);
+          T.sql(_dSql, null, _dRowCount, performance.now() - _t0Desig, 'designation');
         }
       }
 
@@ -1195,6 +1645,105 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return this.#getSyncDb();
   }
 
+  async #resolveRequestNativeSupplementSpec(supplements) {
+    if (!supplements || typeof supplements.native !== 'function') {
+      return this._nativeSupplementSpec;
+    }
+    let nativeHandle = null;
+    try {
+      nativeHandle = await supplements.native({
+        providerId: 'sqlite',
+        system: this.system(),
+        version: this.version() || null,
+      });
+    } catch (_e) {
+      nativeHandle = null;
+    }
+    return this.#normalizeNativeSupplementSpec(nativeHandle) || this._nativeSupplementSpec;
+  }
+
+  #normalizeNativeSupplementSpec(nativeHandle) {
+    if (!nativeHandle || nativeHandle.kind !== 'sqlite') return null;
+    const attachments = Array.isArray(nativeHandle.attachments)
+      ? nativeHandle.attachments
+        .map((a, i) => ({
+          alias: this.#sanitizeAttachmentAlias(a?.alias, `supp_${i + 1}`),
+          path: String(a?.path || ''),
+          canonical: a?.canonical ? String(a.canonical) : null,
+          canonicalVersioned: a?.canonicalVersioned ? String(a.canonicalVersioned) : null,
+          targetSystem: a?.targetSystem ? String(a.targetSystem) : null,
+          targetVersion: a?.targetVersion ? String(a.targetVersion) : null,
+        }))
+        .filter(a => a.path)
+      : [];
+    if (attachments.length === 0) return null;
+    const properties = new Set(
+      (Array.isArray(nativeHandle.availableProperties) ? nativeHandle.availableProperties : [])
+        .map(v => String(v || '')).filter(Boolean)
+    );
+    const operators = new Set(
+      (Array.isArray(nativeHandle.availableOperators) ? nativeHandle.availableOperators : ['=', 'in', 'exists'])
+        .map(v => String(v || '')).filter(Boolean)
+    );
+    return {
+      complete: nativeHandle.complete === true,
+      attachments,
+      properties,
+      operators,
+      _attached: false,
+    };
+  }
+
+  #sanitizeAttachmentAlias(input, fallback = 'supp') {
+    const raw = String(input || fallback || 'supp');
+    const cleaned = raw.replace(/[^A-Za-z0-9_]/g, '_');
+    const normalized = /^[A-Za-z_]/.test(cleaned) ? cleaned : `_${cleaned}`;
+    return normalized || 'supp';
+  }
+
+  #currentNativeSupplementSpec() {
+    return this._activeNativeSupplementSpec || this._nativeSupplementSpec || null;
+  }
+
+  #isNativeSupplementFilterSupported(property, op) {
+    const spec = this.#currentNativeSupplementSpec();
+    if (!spec) return false;
+    const p = String(property || '');
+    const o = String(op || '');
+    if (!p || !o) return false;
+    return spec.properties.has(p) && spec.operators.has(o);
+  }
+
+  #ensureSupplementAttachments(spec) {
+    if (!spec || spec._attached === true) return spec;
+    const syncDb = this.#getSyncDb();
+    for (let i = 0; i < (spec.attachments || []).length; i++) {
+      const att = spec.attachments[i];
+      const dbPath = String(att?.path || '');
+      if (!dbPath) continue;
+      let alias = this._supplementAttachmentByPath.get(dbPath);
+      if (!alias) {
+        alias = this.#sanitizeAttachmentAlias(att.alias, `supp_${this._supplementAttachmentByPath.size + 1}`);
+        if (this._supplementAttachmentAliases.has(alias)) {
+          let n = 2;
+          let nextAlias = `${alias}_${n}`;
+          while (this._supplementAttachmentAliases.has(nextAlias)) {
+            n += 1;
+            nextAlias = `${alias}_${n}`;
+          }
+          alias = nextAlias;
+        }
+        const escapedPath = dbPath.replace(/'/g, "''");
+        syncDb.exec(`ATTACH DATABASE '${escapedPath}' AS ${alias}`);
+        this._supplementAttachmentByPath.set(dbPath, alias);
+        this._supplementAttachmentAliases.add(alias);
+      }
+      att.alias = alias;
+    }
+    spec._attached = true;
+    return spec;
+  }
+
   /**
    * Build a SQL condition for a single filter {property, op, value}.
    * Returns { sql, params, joins } or null if unsupported.
@@ -1204,6 +1753,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     const { property, op, value } = filter;
     const csId = this.meta.csId;
     const params = {};
+    const resolvedPropertyCode = this.#resolveFilterPropertyCodeAlias(property);
 
     if (property === 'concept') {
       if (op === '=') {
@@ -1260,8 +1810,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
     const propDef = syncDb.prepare(
       'SELECT property_id, value_kind FROM property_def WHERE cs_id = ? AND property_code = ? LIMIT 1'
-    ).get(csId, property);
-    if (!propDef) return null;
+    ).get(csId, resolvedPropertyCode);
+    if (!propDef) {
+      return this.#buildNativeSupplementFilterSql(filter, paramPrefix, alias);
+    }
 
     if (propDef.value_kind === 'concept') {
       if (op === '=' || op === 'in') {
@@ -1282,6 +1834,26 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
             + ` AND lnk_${paramPrefix}.edge_set_id = @${paramPrefix}_eset`
             + ` AND lnk_${paramPrefix}.active = 1`
             + ` AND lnk_${paramPrefix}.target_concept_id IN (SELECT concept_id FROM concept WHERE code IN (${placeholders}) AND cs_id = @${paramPrefix}_val_cs)`,
+        };
+      }
+      if (op === 'regex') {
+        const linkMatch = this.#resolveFilterLinkMatch(resolvedPropertyCode, property);
+        params[`${paramPrefix}_prop`] = propDef.property_id;
+        params[`${paramPrefix}_eset`] = this.meta.hierarchyEdgeSetId || 1;
+        params[`${paramPrefix}_re`] = value;
+        return {
+          sql: ` AND (`
+            + `tgt_${paramPrefix}.code REGEXP @${paramPrefix}_re`
+            + (linkMatch === 'code-or-display' ? ` OR tgt_${paramPrefix}.display REGEXP @${paramPrefix}_re` : '')
+            + `)`,
+          params,
+          joins: ` JOIN concept_link lnk_${paramPrefix}`
+            + ` ON lnk_${paramPrefix}.source_concept_id = ${alias}.concept_id`
+            + ` AND lnk_${paramPrefix}.property_id = @${paramPrefix}_prop`
+            + ` AND lnk_${paramPrefix}.edge_set_id = @${paramPrefix}_eset`
+            + ` AND lnk_${paramPrefix}.active = 1`
+            + ` JOIN concept tgt_${paramPrefix}`
+            + ` ON tgt_${paramPrefix}.concept_id = lnk_${paramPrefix}.target_concept_id`,
         };
       }
       return null;
@@ -1327,6 +1899,222 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     }
 
     return null; // Unsupported property type
+  }
+
+  #resolveFilterPropertyCodeAlias(propertyCode) {
+    const raw = String(propertyCode || '');
+    if (!raw) return raw;
+    const filtersCfg = this.runtime?.filters?.properties;
+    const aliases = filtersCfg?.aliases || null;
+    if (!aliases || typeof aliases !== 'object') return raw;
+    return aliases[raw] ?? aliases[raw.toLowerCase()] ?? raw;
+  }
+
+  #resolveFilterLinkMatch(resolvedPropertyCode, rawPropertyCode) {
+    const filtersCfg = this.runtime?.filters?.properties;
+    if (!filtersCfg || typeof filtersCfg !== 'object') return 'code-only';
+    const byCode = filtersCfg.byCode || {};
+    const raw = String(rawPropertyCode || '');
+    const resolved = String(resolvedPropertyCode || raw);
+    const specific = byCode[resolved] || byCode[raw] || null;
+    const linkMatch = specific?.linkMatch || filtersCfg.defaultLinkMatch || 'code-only';
+    return linkMatch === 'code-or-display' ? 'code-or-display' : 'code-only';
+  }
+
+  #buildNativeSupplementFilterSql(filter, paramPrefix, alias = 'c') {
+    const property = String(filter?.property || '');
+    const op = String(filter?.op || '');
+    if (!this.#isNativeSupplementFilterSupported(property, op)) return null;
+
+    const spec = this.#ensureSupplementAttachments(this.#currentNativeSupplementSpec());
+    const attachments = (spec?.attachments || []).filter(a => !!a?.alias);
+    if (attachments.length === 0) return null;
+
+    const params = {};
+    params[`${paramPrefix}_sprop`] = property;
+
+    const existsClauses = [];
+    for (let i = 0; i < attachments.length; i++) {
+      const att = attachments[i];
+      const rowAlias = `sp_${paramPrefix}_${i}`;
+      const table = `${att.alias}.supplement_property_by_code`;
+      const base = `${rowAlias}.active = 1 AND ${rowAlias}.code = ${alias}.code AND ${rowAlias}.property = @${paramPrefix}_sprop`;
+
+      if (op === 'exists') {
+        existsClauses.push(`EXISTS (SELECT 1 FROM ${table} ${rowAlias} WHERE ${base})`);
+        continue;
+      }
+
+      const values = op === 'in' ? splitFilterValueList(filter.value) : [filter.value];
+      const normalized = values.map(v => String(v ?? '')).filter(v => v.length > 0);
+      if (normalized.length === 0) return null;
+
+      const rawPlaceholders = normalized.map((v, j) => {
+        params[`${paramPrefix}_sr${j}`] = v;
+        return `@${paramPrefix}_sr${j}`;
+      }).join(',');
+      const lowerPlaceholders = normalized.map((v, j) => {
+        params[`${paramPrefix}_sl${j}`] = v.toLowerCase();
+        return `@${paramPrefix}_sl${j}`;
+      }).join(',');
+      const valueSet = new Set(normalized.map(v => v.toLowerCase()));
+      const wantsTrue = valueSet.has('true') || valueSet.has('1');
+      const wantsFalse = valueSet.has('false') || valueSet.has('0');
+      const boolClause = [
+        wantsTrue ? ` OR (${rowAlias}.value_boolean = 1)` : '',
+        wantsFalse ? ` OR (${rowAlias}.value_boolean = 0)` : '',
+      ].join('');
+
+      const valueSql = `(`
+        + `(${rowAlias}.value_code IS NOT NULL AND LOWER(${rowAlias}.value_code) IN (${lowerPlaceholders}))`
+        + ` OR (${rowAlias}.value_string IS NOT NULL AND LOWER(${rowAlias}.value_string) IN (${lowerPlaceholders}))`
+        + ` OR (${rowAlias}.value_integer IS NOT NULL AND CAST(${rowAlias}.value_integer AS TEXT) IN (${rawPlaceholders}))`
+        + ` OR (${rowAlias}.value_decimal IS NOT NULL AND CAST(${rowAlias}.value_decimal AS TEXT) IN (${rawPlaceholders}))`
+        + boolClause
+        + `)`;
+      existsClauses.push(`EXISTS (SELECT 1 FROM ${table} ${rowAlias} WHERE ${base} AND ${valueSql})`);
+    }
+
+    if (existsClauses.length === 0) return null;
+    if (op === 'exists') {
+      const want = String(filter?.value ?? 'true').toLowerCase() !== 'false';
+      const joined = existsClauses.join(' OR ');
+      return {
+        sql: want ? ` AND (${joined})` : ` AND NOT (${joined})`,
+        params,
+        joins: '',
+      };
+    }
+
+    return {
+      sql: ` AND (${existsClauses.join(' OR ')})`,
+      params,
+      joins: '',
+    };
+  }
+
+  #buildFilterCodeSetSql(filter, paramPrefix) {
+    const nativeSupp = this.#buildNativeSupplementCodeSetSql(filter, `${paramPrefix}_ns`);
+    if (nativeSupp) {
+      return {
+        sql: nativeSupp.sql,
+        params: nativeSupp.params || {},
+      };
+    }
+
+    const result = this.#buildV0FilterSql(filter, paramPrefix, 'c');
+    if (!result) return null;
+    return {
+      sql: `SELECT DISTINCT c.code
+      FROM concept c${result.joins}
+      WHERE c.cs_id = @_csId${result.sql}`,
+      params: result.params || {},
+    };
+  }
+
+  #buildNativeSupplementCountSql(filterOrFilters, paramPrefix, options = {}) {
+    const filters = Array.isArray(filterOrFilters) ? filterOrFilters : [filterOrFilters];
+    if (!filters.length) return null;
+    const activeOnly = !!options?.activeOnly;
+    const allParams = {};
+    const codeSets = [];
+    for (let fi = 0; fi < filters.length; fi++) {
+      const built = this.#buildNativeSupplementCodeSetSql(filters[fi], `${paramPrefix}_f${fi}`);
+      if (!built) return null;
+      Object.assign(allParams, built.params || {});
+      codeSets.push(built.sql);
+    }
+    if (codeSets.length === 0) return null;
+    const activeConceptClause = activeOnly ? ' AND c.active = 1' : '';
+    const joins = codeSets.map((sql, i) => ` JOIN (${sql}) s${i} ON s${i}.code = c.code`).join('');
+    return {
+      sql: `SELECT COUNT(*) AS cnt
+      FROM (
+        SELECT DISTINCT c.concept_id
+        FROM concept c
+        ${joins}
+        WHERE c.cs_id = @_csId${activeConceptClause}
+      ) x`,
+      params: allParams,
+    };
+  }
+
+  #buildNativeSupplementCodeSetSql(filter, paramPrefix) {
+    const property = String(filter?.property || '');
+    const op = String(filter?.op || '');
+    if (!this.#isNativeSupplementFilterSupported(property, op)) return null;
+    if (op === 'exists' && String(filter?.value ?? 'true').toLowerCase() === 'false') return null;
+
+    const syncDb = this.#getSyncDb();
+    const propDef = syncDb.prepare(
+      'SELECT property_id FROM property_def WHERE cs_id = ? AND property_code = ? LIMIT 1'
+    ).get(this.meta.csId, property);
+    if (propDef?.property_id) return null;
+
+    const spec = this.#ensureSupplementAttachments(this.#currentNativeSupplementSpec());
+    const attachments = (spec?.attachments || []).filter(a => !!a?.alias);
+    if (attachments.length === 0) return null;
+
+    const params = {};
+    params[`${paramPrefix}_sprop`] = property;
+    const codeSqlParts = [];
+
+    for (let i = 0; i < attachments.length; i++) {
+      const att = attachments[i];
+      const rowAlias = `sp_${paramPrefix}_${i}`;
+      const pfx = `${paramPrefix}_${i}`;
+      const base = `${rowAlias}.active = 1 AND ${rowAlias}.property = @${paramPrefix}_sprop`;
+      const tableP = `${att.alias}.supplement_property`;
+      const tableC = `${att.alias}.supplement_code`;
+
+      if (op === 'exists') {
+        codeSqlParts.push(
+          `SELECT DISTINCT sc_${pfx}.code`
+          + ` FROM ${tableP} ${rowAlias}`
+          + ` JOIN ${tableC} sc_${pfx} ON sc_${pfx}.code_id = ${rowAlias}.code_id`
+          + ` WHERE ${base}`
+        );
+        continue;
+      }
+
+      const values = op === 'in' ? splitFilterValueList(filter.value) : [filter.value];
+      const normalized = values.map(v => String(v ?? '')).filter(v => v.length > 0);
+      if (normalized.length === 0) return null;
+
+      const rawPlaceholders = normalized.map((v, j) => {
+        params[`${pfx}_sr${j}`] = v;
+        return `@${pfx}_sr${j}`;
+      }).join(',');
+      const lowerPlaceholders = normalized.map((v, j) => {
+        params[`${pfx}_sl${j}`] = v.toLowerCase();
+        return `@${pfx}_sl${j}`;
+      }).join(',');
+      const valueSet = new Set(normalized.map(v => v.toLowerCase()));
+      const wantsTrue = valueSet.has('true') || valueSet.has('1');
+      const wantsFalse = valueSet.has('false') || valueSet.has('0');
+      const boolClause = [
+        wantsTrue ? ` OR (${rowAlias}.value_boolean = 1)` : '',
+        wantsFalse ? ` OR (${rowAlias}.value_boolean = 0)` : '',
+      ].join('');
+
+      const valueSql = `(`
+        + `(${rowAlias}.value_code IS NOT NULL AND LOWER(${rowAlias}.value_code) IN (${lowerPlaceholders}))`
+        + ` OR (${rowAlias}.value_string IS NOT NULL AND LOWER(${rowAlias}.value_string) IN (${lowerPlaceholders}))`
+        + ` OR (${rowAlias}.value_integer IS NOT NULL AND CAST(${rowAlias}.value_integer AS TEXT) IN (${rawPlaceholders}))`
+        + ` OR (${rowAlias}.value_decimal IS NOT NULL AND CAST(${rowAlias}.value_decimal AS TEXT) IN (${rawPlaceholders}))`
+        + boolClause
+        + `)`;
+
+      codeSqlParts.push(
+        `SELECT DISTINCT sc_${pfx}.code`
+        + ` FROM ${tableP} ${rowAlias}`
+        + ` JOIN ${tableC} sc_${pfx} ON sc_${pfx}.code_id = ${rowAlias}.code_id`
+        + ` WHERE ${base} AND ${valueSql}`
+      );
+    }
+
+    if (codeSqlParts.length === 0) return null;
+    return { sql: codeSqlParts.join(' UNION '), params };
   }
 
   /**
@@ -1888,6 +2676,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return propertyCfg.operators.includes(op);
     }
 
+    if (this.#isNativeSupplementFilterSupported(prop, op)) {
+      return true;
+    }
+
     return false;
   }
 
@@ -1977,6 +2769,18 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       }
       const propertyCfg = await this.#resolvePropertyFilterConfig(prop);
       if (!propertyCfg) {
+        if (this.#isNativeSupplementFilterSupported(prop, op)) {
+          if (this.#useMembershipPredicate(filterContext)) {
+            const pred = new SqliteRuntimeV0PredicateFilter(
+              `supplement-${prop}-${op}:${value}`,
+              'supplement-property',
+              { property: String(prop), op: String(op), value: value == null ? '' : String(value) },
+              true
+            );
+            filterContext.filters.push(pred);
+          }
+          return;
+        }
         throw new Error(`Unsupported sqlite runtime filter property '${prop}'`);
       }
       if (!propertyCfg.operators.includes(op)) {
@@ -2153,7 +2957,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           if (syncDb._resetEffort) syncDb._resetEffort();
           const _t0Bounded = performance.now();
           const probe = syncDb.prepare(boundedSql).get(allParams);
-          T.sql(boundedSql, allParams, 1, performance.now() - _t0Bounded);
+          T.sql(boundedSql, allParams, 1, performance.now() - _t0Bounded, 'bounded-count');
           if (probe && probe.cnt > filterContext._v0LimitCheck) {
             const result = new SqliteRuntimeV0FilterSet('v0-exceeds-limit', [], true);
             result._v0ExceedsLimit = true;
@@ -2180,7 +2984,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           for (const row of stmt.iterate(allParams)) {
             rows.push(row);
           }
-          T.sql(sql, allParams, rows.length, performance.now() - _t0Main);
+          T.sql(sql, allParams, rows.length, performance.now() - _t0Main, 'stream');
         } catch (e) {
           if (e.code === 'SQLITE_INTERRUPT') {
             throw new Issue('error', 'too-costly', null, null,
@@ -2237,7 +3041,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
                ORDER BY concept_id, preferred DESC, term`,
               [...batch, ...langParams],
               _dRowCount,
-              performance.now() - _t0Desig
+              performance.now() - _t0Desig,
+              'designation'
             );
           }
         }
@@ -2252,7 +3057,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
           if (syncDb._resetEffort) syncDb._resetEffort();
           const _t0Count = performance.now();
           const countRow = syncDb.prepare(countSql).get(allParams);
-          T.sql(countSql, allParams, 1, performance.now() - _t0Count);
+          T.sql(countSql, allParams, 1, performance.now() - _t0Count, 'count');
           combinedSet._v0Total = countRow ? countRow.cnt : rows.length;
         }
         // Always attach the designation map (even if empty) so designations()
@@ -3429,6 +4234,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return this.#matchesPropertyPredicate(set, ctxt);
     }
 
+    if (set.kind === 'supplement-property') {
+      return this.#matchesSupplementPropertyPredicate(set, ctxt.code);
+    }
+
     throw new Error(`Unknown predicate filter kind '${set.kind}'`);
   }
 
@@ -3448,7 +4257,83 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return `Code '${code}' does not equal '${set.code}'`;
     }
 
+    if (set.kind === 'supplement-property') {
+      return `Code '${code}' does not satisfy supplement filter`;
+    }
+
     return `Code '${code}' not found in filter set`;
+  }
+
+  #matchesSupplementPropertyPredicate(set, code) {
+    if (!code) return false;
+    if (!set._v0Cache) {
+      set._v0Cache = new Map();
+    }
+    const key = String(code);
+    if (set._v0Cache.has(key)) {
+      return set._v0Cache.get(key) === true;
+    }
+
+    const spec = this.#ensureSupplementAttachments(this.#currentNativeSupplementSpec());
+    const attachments = (spec?.attachments || []).filter(a => !!a?.alias);
+    if (attachments.length === 0) {
+      set._v0Cache.set(key, false);
+      return false;
+    }
+
+    const prop = String(set.property || '');
+    const op = String(set.op || '');
+    const raw = String(set.value ?? '');
+    const syncDb = this.#getSyncDb();
+
+    let matched = false;
+    if (op === 'exists') {
+      const want = raw.toLowerCase() !== 'false';
+      let found = false;
+      for (const att of attachments) {
+        const sql = `SELECT 1 AS ok
+          FROM ${att.alias}.supplement_property_by_code sp
+          WHERE sp.active = 1 AND sp.code = ? AND sp.property = ?
+          LIMIT 1`;
+        const row = syncDb.prepare(sql).get(key, prop);
+        if (row?.ok === 1) {
+          found = true;
+          break;
+        }
+      }
+      matched = want ? found : !found;
+      set._v0Cache.set(key, matched);
+      return matched;
+    }
+
+    const wanted = op === 'in'
+      ? new Set(splitFilterValueList(raw).map(v => String(v).toLowerCase()))
+      : new Set([raw.toLowerCase()]);
+    for (const att of attachments) {
+      const sql = `SELECT value_type, value_string, value_code, value_decimal, value_integer, value_boolean
+        FROM ${att.alias}.supplement_property_by_code sp
+        WHERE sp.active = 1 AND sp.code = ? AND sp.property = ?`;
+      const rows = syncDb.prepare(sql).all(key, prop);
+      for (const row of rows) {
+        const candidates = [];
+        if (row.value_code != null) candidates.push(String(row.value_code));
+        if (row.value_string != null) candidates.push(String(row.value_string));
+        if (row.value_integer != null) candidates.push(String(row.value_integer));
+        if (row.value_decimal != null) candidates.push(String(row.value_decimal));
+        if (row.value_boolean != null) candidates.push(Number(row.value_boolean) === 1 ? 'true' : 'false');
+        for (const c of candidates) {
+          if (wanted.has(c.toLowerCase())) {
+            matched = true;
+            break;
+          }
+        }
+        if (matched) break;
+      }
+      if (matched) break;
+    }
+
+    set._v0Cache.set(key, matched);
+    return matched;
   }
 
   async #matchesPropertyPredicate(set, context) {
@@ -4430,6 +5315,45 @@ function makeV3DesignationCollector() {
       return d;
     },
   };
+}
+
+function appendCatalogEntry(catalog, key, entry) {
+  const k = String(key || '');
+  if (!k || !entry) return;
+  if (!catalog.has(k)) catalog.set(k, []);
+  catalog.get(k).push(entry);
+}
+
+function readSqliteSupplementManifestRecord(dbPath) {
+  let db = null;
+  try {
+    db = new BetterSqlite3(dbPath, { readonly: true, fileMustExist: true });
+    const manifest = db.prepare(`
+      SELECT supplement_uri, supplement_version, target_system, target_version
+      FROM supplement_manifest
+      LIMIT 1
+    `).get();
+    if (!manifest || !manifest.supplement_uri || !manifest.target_system) return null;
+    const props = db.prepare(`
+      SELECT DISTINCT property
+      FROM supplement_property
+      WHERE property IS NOT NULL AND property <> ''
+      ORDER BY property
+    `).all().map(r => String(r.property));
+    return {
+      canonical: String(manifest.supplement_uri),
+      version: manifest.supplement_version ? String(manifest.supplement_version) : null,
+      targetSystem: String(manifest.target_system),
+      targetVersion: manifest.target_version ? String(manifest.target_version) : null,
+      properties: props,
+    };
+  } catch (_e) {
+    return null;
+  } finally {
+    if (db) {
+      try { db.close(); } catch (_closeErr) { /* ignore */ }
+    }
+  }
 }
 
 module.exports = {

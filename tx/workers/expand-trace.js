@@ -36,7 +36,7 @@ function currentTrace() {
 
 const trace = {
   begin(name, args) { return currentTrace().begin(name, args); },
-  sql(sql, params, rows, ms) { currentTrace().sql(sql, params, rows, ms); },
+  sql(sql, params, rows, ms, label) { currentTrace().sql(sql, params, rows, ms, label); },
   count(name, delta) { currentTrace().count(name, delta); },
   note(message, data) { currentTrace().note(message, data); },
   get active() { return traceStore.getStore() != null; },
@@ -64,13 +64,14 @@ class ExpandTrace {
     return new Span(this, span);
   }
 
-  sql(sql, params, rows, ms) {
+  sql(sql, params, rows, ms, label) {
     const entry = {
       sql: trunc(sql, 500),
       params: summarize(params),
       rows: typeof rows === 'number' ? rows : undefined,
       ms: typeof ms === 'number' ? rnd(ms) : undefined,
     };
+    if (label) entry.label = label;
     const cur = this.stack[this.stack.length - 1];
     cur.sql = cur.sql || [];
     cur.sql.push(entry);

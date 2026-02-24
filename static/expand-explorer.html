@@ -344,7 +344,7 @@ const TEST_CASES = [
 /* ===== State ===== */
 let currentResponse = null;
 let pendingAbort = null;
-let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, sql:true, trace:true, raw:false};
+let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, trace:true, raw:false};
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -555,9 +555,8 @@ function renderSections(data) {
 
   // Trace stats
   let spanCount = 0, sqlCount = 0;
-  const allSql = [];
   if (data.trace?.spans) countSpans(data.trace.spans);
-  function countSpans(spans) { for (const s of spans) { spanCount++; if (s.sql) { sqlCount += s.sql.length; for (const q of s.sql) allSql.push({...q, span: s.name}); } if (s.children) countSpans(s.children); } }
+  function countSpans(spans) { for (const s of spans) { spanCount++; if (s.sql) sqlCount += s.sql.length; if (s.children) countSpans(s.children); } }
   const traceMs = data.trace?.totalMs ?? ms;
 
   // Results
@@ -574,16 +573,9 @@ function renderSections(data) {
   // Query IR
   addSection(container, 'queryIR', 'Query IR', '', (el) => renderQueryIR(data.queryIR, el));
 
-  // SQL Queries (hoisted from trace)
-  if (allSql.length > 0) {
-    addSection(container, 'sql', 'SQL Queries',
-      `${allSql.length} queries, ${allSql.reduce((a,s) => a + (s.ms||0), 0).toFixed(1)}ms`,
-      (el) => renderSqlSection(allSql, el));
-  }
-
   // Trace
   addSection(container, 'trace', 'Trace',
-    `${spanCount} spans, ${traceMs}ms`,
+    `${spanCount} spans, ${sqlCount} SQL, ${traceMs}ms`,
     (el) => renderTrace(data.trace, el));
 
   // Raw
@@ -789,25 +781,25 @@ function renderSpan(span, totalMs) {
   const ms = span.ms ?? 0;
   const pct = Math.max(1, (ms / totalMs) * 100);
   const barClass = ms > totalMs * 0.5 ? 'very-slow' : ms > totalMs * 0.2 ? 'slow' : '';
-  const uid = 'sq' + Math.random().toString(36).slice(2, 8);
 
   let html = '<div class="trace-span">';
   html += `<div class="trace-span-header">`;
   html += `<span class="trace-name" title="${esc(span.name)}">${esc(span.name)}</span>`;
   html += `<div class="trace-bar-wrap"><div class="trace-bar ${barClass}" style="width:${pct}%"></div></div>`;
   html += `<span class="trace-ms">${ms.toFixed?.(1) ?? ms} ms</span>`;
-  if (span.sql?.length) html += `<span class="trace-toggle" onclick="document.getElementById('${uid}').classList.toggle('show')">SQL(${span.sql.length})</span>`;
   html += '</div>';
 
   if (span.sql?.length) {
-    html += `<div class="trace-sql" id="${uid}">`;
     for (const s of span.sql) {
-      html += `<div style="margin-bottom:6px"><span style="color:var(--yellow)">${esc(s.sql||'')}</span>`;
-      if (s.rows !== undefined) html += ` → ${s.rows} rows`;
-      if (s.ms !== undefined) html += ` (${s.ms} ms)`;
-      html += '</div>';
+      html += '<div class="sql-card" style="margin:4px 0 4px 24px">';
+      const labelHtml = s.label ? `<span style="color:var(--teal);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px">${esc(s.label)}</span>` : '';
+      html += `<div class="sql-card-header">${labelHtml}<span class="sql-meta">${s.rows !== undefined ? s.rows + ' rows' : ''}${s.ms !== undefined ? ' · ' + s.ms + ' ms' : ''}</span></div>`;
+      html += `<div class="sql-card-body"><pre>${highlightSql(s.sql || '')}</pre>`;
+      if (s.params && Object.keys(s.params).length) {
+        html += `<div class="sql-params">Params: ${esc(JSON.stringify(s.params))}</div>`;
+      }
+      html += '</div></div>';
     }
-    html += '</div>';
   }
 
   if (span.children?.length) {
