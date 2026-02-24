@@ -1,12 +1,20 @@
 # Expand Explorer — Pipeline Tutorial and Capability Showcase
 
-This explorer is a practical way to execute full-strength FHIR `$expand`
-requests and inspect not only the expansion results, but the internal pipeline
-used to produce them.
+Expand Explorer is an execution debugger for production-grade FHIR `$expand`.
+It runs full requests (ValueSet, parameters, and optional `txResources`) through
+the same engine used in real expansion, then exposes every major pipeline stage:
+semantic IR, resolved/re-written IR, provider partitioning, query lowering,
+execution traces, SQL, and final assembled output. This is meant for developers
+who understand terminology semantics and want to inspect exactly how the engine
+reaches a result, not just what the result is.
 
-It is intended for readers who already understand FHIR terminology semantics
-and want visibility into execution strategy: IR construction, import
-reconciliation, lowering, provider partitioning, pushdown, and trace-level SQL.
+At a high level, the pipeline compiles compose semantics into IR, resolves
+imports, applies rewrite/lowering passes, partitions work by code system and
+provider capabilities, executes query-target and legacy/base slices under one
+global include-minus-exclude contract, applies supplement-aware filtering and
+decoration, and finally assembles/paginates the expansion response.
+
+![Expand pipeline architecture](./expand-explorer-pipeline.svg)
 
 Hosted explorer:
 

@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="620" viewBox="0 0 1500 620" role="img" aria-labelledby="title desc">
+  <title id="title">Expand Explorer pipeline architecture</title>
+  <desc id="desc">Pipeline from request to expansion response with IR stages, provider partitioning, supplement context, execution, and assembly.</desc>
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .box { fill: #f8fafc; stroke: #334155; stroke-width: 2; rx: 10; ry: 10; }
+      .io { fill: #eef2ff; stroke: #3730a3; stroke-width: 2; rx: 10; ry: 10; }
+      .aux { fill: #ecfeff; stroke: #0f766e; stroke-width: 2; rx: 10; ry: 10; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif; font-size: 22px; font-weight: 700; fill: #0f172a; }
+      .label { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif; font-size: 15px; font-weight: 600; fill: #0f172a; }
+      .small { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif; font-size: 13px; fill: #334155; }
+      .line { fill: none; stroke: #334155; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+      .line-aux { fill: none; stroke: #0f766e; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 5; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrowAux" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1500" height="620"/>
+  <text class="title" x="40" y="48">FHIR $expand pipeline (as shown in Expand Explorer)</text>
+
+  <!-- Main pipeline row -->
+  <rect class="io" x="40" y="120" width="170" height="84"/>
+  <text class="label" x="62" y="153">Request</text>
+  <text class="small" x="62" y="174">ValueSet + params</text>
+  <text class="small" x="62" y="192">+ optional txResources</text>
+
+  <rect class="box" x="250" y="120" width="180" height="84"/>
+  <text class="label" x="272" y="153">Semantic IR</text>
+  <text class="small" x="272" y="174">Union / Intersect / Diff</text>
+  <text class="small" x="272" y="192">Selector / Import</text>
+
+  <rect class="box" x="470" y="120" width="190" height="84"/>
+  <text class="label" x="492" y="153">Resolve + Rewrite</text>
+  <text class="small" x="492" y="174">import expansion</text>
+  <text class="small" x="492" y="192">lowering and simplification</text>
+
+  <rect class="box" x="700" y="120" width="205" height="84"/>
+  <text class="label" x="722" y="153">Partition + Plan</text>
+  <text class="small" x="722" y="174">slice by system/provider</text>
+  <text class="small" x="722" y="192">query-target vs legacy/base</text>
+
+  <rect class="box" x="945" y="120" width="200" height="84"/>
+  <text class="label" x="967" y="153">Execute slices</text>
+  <text class="small" x="967" y="174">pushdown when possible</text>
+  <text class="small" x="967" y="192">fallback streams otherwise</text>
+
+  <rect class="box" x="1185" y="120" width="170" height="84"/>
+  <text class="label" x="1207" y="153">Assemble</text>
+  <text class="small" x="1207" y="174">dedupe + paging + total</text>
+  <text class="small" x="1207" y="192">contains + metadata</text>
+
+  <rect class="io" x="1395" y="120" width="70" height="84"/>
+  <text class="label" x="1408" y="166">Response</text>
+  <text class="small" x="1413" y="186">$expand</text>
+
+  <!-- Auxiliary row -->
+  <rect class="aux" x="360" y="320" width="250" height="96"/>
+  <text class="label" x="382" y="355">Supplement context</text>
+  <text class="small" x="382" y="377">requested + provider-known supplements</text>
+  <text class="small" x="382" y="396">native filters + decoration overlays</text>
+
+  <rect class="aux" x="700" y="320" width="280" height="96"/>
+  <text class="label" x="722" y="355">Provider capability surface</text>
+  <text class="small" x="722" y="377">query-target (sqlite-v0)</text>
+  <text class="small" x="722" y="396">legacy-filter / base-only providers</text>
+
+  <rect class="aux" x="1070" y="320" width="320" height="96"/>
+  <text class="label" x="1092" y="355">Explorer observability output</text>
+  <text class="small" x="1092" y="377">Semantic IR, Resolved IR, Query IR</text>
+  <text class="small" x="1092" y="396">Trace spans, SQL cards, raw JSON</text>
+
+  <!-- Main arrows -->
+  <path class="line" marker-end="url(#arrow)" d="M210 162 H250"/>
+  <path class="line" marker-end="url(#arrow)" d="M430 162 H470"/>
+  <path class="line" marker-end="url(#arrow)" d="M660 162 H700"/>
+  <path class="line" marker-end="url(#arrow)" d="M905 162 H945"/>
+  <path class="line" marker-end="url(#arrow)" d="M1145 162 H1185"/>
+  <path class="line" marker-end="url(#arrow)" d="M1355 162 H1395"/>
+
+  <!-- Orthogonal auxiliary links -->
+  <path class="line-aux" marker-end="url(#arrowAux)" d="M485 320 V250 H565 V204"/>
+  <path class="line-aux" marker-end="url(#arrowAux)" d="M840 320 V250 H802 V204"/>
+  <path class="line-aux" marker-end="url(#arrowAux)" d="M1045 204 V250 H840 V320"/>
+  <path class="line-aux" marker-end="url(#arrowAux)" d="M1270 204 V250 H1230 V320"/>
+
+  <!-- Legend -->
+  <rect x="40" y="500" width="16" height="16" class="io"/>
+  <text class="small" x="66" y="513">request/response objects</text>
+  <rect x="290" y="500" width="16" height="16" class="box"/>
+  <text class="small" x="316" y="513">core expansion pipeline stages</text>
+  <rect x="610" y="500" width="16" height="16" class="aux"/>
+  <text class="small" x="636" y="513">provider/supplement/observability surfaces</text>
+</svg>
