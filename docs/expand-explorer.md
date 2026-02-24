@@ -1,117 +1,194 @@
-# Expand Explorer — V3 Tutorial, Showcase, and Deep-Link Catalog
+# Expand Explorer — Pipeline Tutorial and Capability Showcase
 
-This guide is for terminology architects and implementers who want to inspect
-how this `$expand` engine behaves under realistic workloads, not just toy
-examples.
+This explorer is a practical way to execute full-strength FHIR `$expand`
+requests and inspect not only the expansion results, but the internal pipeline
+used to produce them.
 
-The explorer shows:
+It is intended for readers who already understand FHIR terminology semantics
+and want visibility into execution strategy: IR construction, import
+reconciliation, lowering, provider partitioning, pushdown, and trace-level SQL.
 
-- expansion output,
-- semantic IR,
-- resolved IR (after import/rewrites),
-- query IR (when compilable),
-- SQL + trace spans.
-
-Use this document as:
-
-- a tutorial for how to read the explorer,
-- a curated manifest of advanced demos,
-- a set of deep links you can share directly.
-
-## Hosted Explorer
+Hosted explorer:
 
 - `https://valueset-expander.exe.xyz/expand-explorer.html`
 
-Deep links use the hash fragment with the test name. Example:
+## What this tool lets you do
 
-- `https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20%2B%20USPS%20mixed%20providers`
+You can run complex `ValueSet` definitions with real parameters:
 
-The explorer resolves deep links by exact name, case-insensitive name, and a
-slug-style fallback so links remain robust across punctuation differences.
+- `count`, `offset`, `filter`
+- `property` selection
+- `includeDesignations`, `activeOnly`
+- `useSupplement`
+- `txResources` (inline CodeSystem / ValueSet resources for imports and overlays)
 
-## How to Read a Run
+And you can inspect the resulting pipeline artifacts:
 
-1. Open a deep link from the catalog below.
-2. Inspect `Semantic IR` to confirm the request-level algebra.
-3. Inspect `Resolved IR` to confirm import expansion and reconciliation.
-4. Inspect `Query IR` to see if the expression lowered to provider-level query form.
-5. Inspect `Trace` for timings and SQL shape to confirm pushdown/partition behavior.
-6. Inspect `Results` to verify membership and returned metadata.
+1. `Results`:
+The final expansion output (`contains`, `total`, properties/designations).
 
-## Capability Areas and Why Each Example Exists
+2. `Semantic IR`:
+The direct algebra from compose-level semantics (`Union`, `Intersect`, `Diff`,
+`Selector`, `Import`).
 
-### 1) SQL Pushdown Core
+3. `Resolved IR`:
+IR after resolving imported ValueSets and reconciling nested include/exclude
+graphs.
 
-Use these to show that large-system work can stay provider-local and fast.
+4. `Query IR`:
+Provider-compilable representation when lowering succeeds for a target slice.
+
+5. `Trace`:
+Execution spans and SQL calls, with enough detail to see pushdown vs fallback
+behavior and timing hotspots.
+
+6. `Raw Response`:
+Full debug payload from the expand endpoint.
+
+## Pipeline tutorial: from request to result
+
+### Stage 1: Build semantic set algebra from compose
+
+Start by understanding that the engine models expansion as global set algebra:
+
+- includes as unions/intersections
+- excludes as a global subtraction
+
+Use:
+
+- [SNOMED complex include/exclude](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20include%2Fexclude)
+
+What to look at:
+
+- `Semantic IR` should clearly show a `Diff` whose left/right sides are unions.
+- `Results` should align with the expected final set semantics.
+
+### Stage 2: Resolve imports across resource boundaries
+
+Next, inspect how imported ValueSets are expanded into the working expression.
+
+Use:
+
+- [Deep import include graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20graph)
+- [Deep import include minus exclude graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20minus%20exclude%20graph)
+
+What to look at:
+
+- `Resolved IR` should show flattened/reconciled structure from nested
+  `txResources` imports.
+- You should see how deep include/exclude graphs become executable set
+  operations.
+
+### Stage 3: Partition by system/provider and lower where possible
+
+After resolution, the engine partitions work by system/provider boundaries and
+lowers eligible slices toward query-target execution.
+
+Use:
+
+- [Deep mixed import graph (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20import%20graph%20(SNOMED%2BLOINC))
+- [Deep mixed include-minus-exclude (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20include-minus-exclude%20(SNOMED%2BLOINC))
+
+What to look at:
+
+- `Resolved IR` should still reflect global semantics.
+- `Trace` should reflect separate execution slices for SNOMED and LOINC work.
+- `Query IR` should appear where a slice is compilable for provider pushdown.
+
+### Stage 4: Execute pushdown-capable slices at SQL scale
+
+For query-target providers, large filters and paging should stay provider-local.
+
+Use:
 
 - [SNOMED is-a deep page](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20is-a%20deep%20page)
-- [SNOMED complex include/exclude](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20include%2Fexclude)
-- [SNOMED complex count-only](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20count-only)
 - [LOINC STATUS=ACTIVE deep page](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20STATUS%3DACTIVE%20deep%20page)
 - [RxNorm TTY=SBD](https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20TTY%3DSBD)
 - [SNOMED code regex 7.*](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20code%20regex%207.*)
+
+What to look at:
+
+- `Trace` timing and SQL cards should show bounded/paged database execution.
+- Returned page sizes should match requested `count` where available.
+
+### Stage 5: Evaluate count behavior and total policy
+
+Count-only is a useful way to inspect total computation without result payload.
+
+Use:
+
+- [SNOMED complex count-only](https://valueset-expander.exe.xyz/expand-explorer.html#SNOMED%20complex%20count-only)
+
+What to look at:
+
+- `Results` intentionally has empty `contains` for `count=0`.
+- `total` should be present when the count path can be computed.
+
+### Stage 6: Apply supplements for filtering and decoration
+
+Supplements are first-class in execution and output: they can influence
+membership (via filter clauses) and decoration (properties/designations).
+
+Use:
+
 - [LOINC supplement d20 filter](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%20filter)
 - [LOINC supplement d20+d8 filter](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20d20%2Bd8%20filter)
 - [LOINC supplement decoration-only](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20supplement%20decoration-only)
 - [RxNorm filter + supplement decoration](https://valueset-expander.exe.xyz/expand-explorer.html#RxNorm%20filter%20%2B%20supplement%20decoration)
 
-What these demonstrate:
+What to look at:
 
-- deep pagination on large code systems,
-- same-provider include/exclude algebra,
-- `count=0` count retrieval path,
-- property and regex filters in query-target providers,
-- supplement-aware filtering and decoration in the same execution path.
+- `Results` should include requested supplement properties and designations.
+- `Trace` should show whether supplement predicates were handled natively in the
+  provider execution path.
 
-### 2) IR Rewriting and Lowering
+### Stage 7: Mix execution families safely
 
-Use these to show import reconciliation, set-algebra lowering, and partitioning.
+The same expansion can combine query-target, legacy/internal, and base-only
+providers while preserving global semantics.
 
-- [Import+filter intersection lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%2Bfilter%20intersection%20lowering)
-- [Import exclude lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%20exclude%20lowering)
-- [Deep import include graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20graph)
-- [Deep import include minus exclude graph](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20import%20include%20minus%20exclude%20graph)
-- [Deep mixed import graph (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20import%20graph%20(SNOMED%2BLOINC))
-- [Deep mixed include-minus-exclude (SNOMED+LOINC)](https://valueset-expander.exe.xyz/expand-explorer.html#Deep%20mixed%20include-minus-exclude%20(SNOMED%2BLOINC))
-- [Union merge lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Union%20merge%20lowering)
-- [Provider-disjoint exclude pruning](https://valueset-expander.exe.xyz/expand-explorer.html#Provider-disjoint%20exclude%20pruning)
-
-What these demonstrate:
-
-- IR reconciliation across tx-resource ValueSet boundaries,
-- include/exclude lowering from imports into executable set operations,
-- multi-system partitioning (`SNOMED` and `LOINC`) under deep import graphs,
-- provider-disjoint pruning (excludes that cannot affect a given system slice).
-
-### 3) Hybrid Execution (Query-Target + Legacy/Base)
-
-Use these to show one request can mix execution families safely.
+Use:
 
 - [LOINC + USPS mixed providers](https://valueset-expander.exe.xyz/expand-explorer.html#LOINC%20%2B%20USPS%20mixed%20providers)
 - [Cross-provider excludes](https://valueset-expander.exe.xyz/expand-explorer.html#Cross-provider%20excludes)
 - [UCUM base-only path](https://valueset-expander.exe.xyz/expand-explorer.html#UCUM%20base-only%20path)
 - [TX-resource import + sqlite peer](https://valueset-expander.exe.xyz/expand-explorer.html#TX-resource%20import%20%2B%20sqlite%20peer)
 
-What these demonstrate:
+What to look at:
 
-- system-partitioned execution with different provider families,
-- global include/exclude semantics across providers,
-- base-only grammar-backed systems beside query-target systems,
-- tx-resource imports coexisting with sqlite-backed provider slices.
+- `Results` should still reflect one global include-minus-exclude contract.
+- `Trace` should make partitioned execution visible across provider families.
 
-## Suggested Walkthrough Sequence
+### Stage 8: Observe rewrite-specific optimizations
 
-Use this sequence when demoing to terminology-server engineers:
+These cases are useful for showing optimizer behavior, not only correctness.
 
-1. `SNOMED complex include/exclude` for set algebra and SQL pushdown.
-2. `SNOMED complex count-only` for count optimization behavior.
-3. `LOINC supplement d20+d8 filter` for supplement-aware filtering.
-4. `Deep mixed include-minus-exclude (SNOMED+LOINC)` for deep import reconciliation and partitioning.
-5. `LOINC + USPS mixed providers` for hybrid execution across provider families.
-6. `Cross-provider excludes` for global semantics confirmation.
+Use:
 
-## Notes
+- [Import+filter intersection lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%2Bfilter%20intersection%20lowering)
+- [Import exclude lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Import%20exclude%20lowering)
+- [Union merge lowering](https://valueset-expander.exe.xyz/expand-explorer.html#Union%20merge%20lowering)
+- [Provider-disjoint exclude pruning](https://valueset-expander.exe.xyz/expand-explorer.html#Provider-disjoint%20exclude%20pruning)
 
-- `SNOMED complex count-only` intentionally returns empty `contains` because `count=0` requests total-only behavior.
-- If a link stops matching after a future rename, hash matching still attempts
-  slug fallback; update this document when test names materially change.
+What to look at:
+
+- Compare `Semantic IR` and `Resolved IR`.
+- Confirm pruning/merging/lowering intent in `Query IR` and `Trace`.
+
+## Suggested demo flow (15–20 minutes)
+
+1. `SNOMED complex include/exclude`
+2. `Deep mixed include-minus-exclude (SNOMED+LOINC)`
+3. `LOINC STATUS=ACTIVE deep page`
+4. `LOINC supplement d20+d8 filter`
+5. `LOINC + USPS mixed providers`
+6. `Cross-provider excludes`
+
+This sequence gives a coherent narrative:
+
+- semantics,
+- import reconciliation,
+- lowering and partitioning,
+- high-scale pushdown,
+- supplements,
+- hybrid execution correctness.
