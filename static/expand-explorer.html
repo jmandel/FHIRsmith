@@ -92,8 +92,17 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 .section.sec-ir .section-header{border-left-color:var(--purple)}
 .section.sec-resolvedIR .section-header{border-left-color:var(--purple)}
 .section.sec-queryIR .section-header{border-left-color:var(--blue)}
+.section.sec-sql .section-header{border-left-color:var(--yellow)}
 .section.sec-trace .section-header{border-left-color:var(--orange)}
 .section.sec-raw .section-header{border-left-color:var(--fg3)}
+
+.sql-card{background:var(--bg);border:1px solid var(--surface);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.sql-card-header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg2);font-size:12px}
+.sql-card-header .span-label{color:var(--yellow);font-weight:600;font-family:var(--mono);font-size:11px}
+.sql-card-header .sql-meta{margin-left:auto;color:var(--fg3);font-family:var(--mono);font-size:11px}
+.sql-card-body{padding:8px 10px}
+.sql-card-body pre{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:break-word;color:var(--fg);line-height:1.5;margin:0}
+.sql-card-body .sql-params{margin-top:6px;font-size:11px;color:var(--fg3);font-family:var(--mono)}
 
 /* Results table */
 table.results{width:100%;border-collapse:collapse;font-size:12px}
@@ -335,7 +344,7 @@ const TEST_CASES = [
 /* ===== State ===== */
 let currentResponse = null;
 let pendingAbort = null;
-let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, trace:true, raw:false};
+let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, sql:true, trace:true, raw:false};
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -546,8 +555,9 @@ function renderSections(data) {
 
   // Trace stats
   let spanCount = 0, sqlCount = 0;
+  const allSql = [];
   if (data.trace?.spans) countSpans(data.trace.spans);
-  function countSpans(spans) { for (const s of spans) { spanCount++; if (s.sql) sqlCount += s.sql.length; if (s.children) countSpans(s.children); } }
+  function countSpans(spans) { for (const s of spans) { spanCount++; if (s.sql) { sqlCount += s.sql.length; for (const q of s.sql) allSql.push({...q, span: s.name}); } if (s.children) countSpans(s.children); } }
   const traceMs = data.trace?.totalMs ?? ms;
 
   // Results
@@ -564,9 +574,16 @@ function renderSections(data) {
   // Query IR
   addSection(container, 'queryIR', 'Query IR', '', (el) => renderQueryIR(data.queryIR, el));
 
+  // SQL Queries (hoisted from trace)
+  if (allSql.length > 0) {
+    addSection(container, 'sql', 'SQL Queries',
+      `${allSql.length} queries, ${allSql.reduce((a,s) => a + (s.ms||0), 0).toFixed(1)}ms`,
+      (el) => renderSqlSection(allSql, el));
+  }
+
   // Trace
   addSection(container, 'trace', 'Trace',
-    `${spanCount} spans, ${sqlCount} SQL, ${traceMs}ms`,
+    `${spanCount} spans, ${traceMs}ms`,
     (el) => renderTrace(data.trace, el));
 
   // Raw
@@ -713,6 +730,30 @@ function syntaxHighlight(json) {
     .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
     .replace(/: (null)/g, ': <span class="json-null">$1</span>')
     .replace(/([{}\[\]])/g, '<span class="json-brace">$1</span>');
+}
+
+/* ===== SQL Queries ===== */
+function renderSqlSection(allSql, bodyEl) {
+  let html = '';
+  for (let i = 0; i < allSql.length; i++) {
+    const q = allSql[i];
+    html += '<div class="sql-card">';
+    html += `<div class="sql-card-header"><span class="span-label">${esc(q.span || 'unknown')}</span>`;
+    html += `<span class="sql-meta">${q.rows !== undefined ? q.rows + ' rows' : ''}${q.ms !== undefined ? ' · ' + q.ms + ' ms' : ''}</span></div>`;
+    html += '<div class="sql-card-body">';
+    html += `<pre>${highlightSql(q.sql || '')}</pre>`;
+    if (q.params && Object.keys(q.params).length) {
+      html += `<div class="sql-params">Params: ${esc(JSON.stringify(q.params))}</div>`;
+    }
+    html += '</div></div>';
+  }
+  bodyEl.innerHTML = html || '<div class="placeholder-msg">No SQL queries.</div>';
+}
+
+function highlightSql(sql) {
+  const keywords = /\b(SELECT|DISTINCT|FROM|WHERE|JOIN|ON|AND|OR|NOT|IN|EXISTS|AS|ORDER BY|GROUP BY|HAVING|LIMIT|OFFSET|UNION|EXCEPT|INTERSECT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|INDEX|TEMP|TEMPORARY|IF|CASE|WHEN|THEN|ELSE|END|COUNT|SUM|MAX|MIN|AVG|LIKE|BETWEEN|IS|NULL|LEFT|RIGHT|INNER|OUTER|CROSS|WITH|RECURSIVE|COLLATE|NOCASE|ASC|DESC)\b/gi;
+  return esc(sql).replace(keywords, '<span style="color:var(--blue);font-weight:600">$1</span>')
+    .replace(/@\w+/g, '<span style="color:var(--orange)">$&</span>');
 }
 
 /* ===== Trace ===== */
