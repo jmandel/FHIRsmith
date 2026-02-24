@@ -12,6 +12,49 @@ Hosted explorer:
 
 - `https://valueset-expander.exe.xyz/expand-explorer.html`
 
+## Runtime loadout used by this explorer
+
+This explorer runs against the harness-oriented config in
+`tests/tx/fixtures/expand-test-library.yaml`. In this loadout, full
+functionality is still enabled (`$expand`, import resolution, filters,
+designations/properties, supplements, trace/debug output); the point is to run
+that functionality across both new sqlite query-target providers and pre-existing
+legacy/base providers in the same server.
+
+### New sqlite query-target providers (v0 path)
+
+These are the high-volume providers intended to push filters/set operations into
+SQL whenever possible:
+
+- `http://snomed.info/sct` via `sqlite-v0!:sct_intl_20250201.v0.db`
+- `http://loinc.org` via `sqlite-v0:loinc_281_full.v0.db`
+- `http://www.nlm.nih.gov/research/umls/rxnorm` via `sqlite-v0:rxnorm_02022026.v0.db`
+
+### Pre-existing legacy/base providers
+
+These remain active and are intentionally demonstrated alongside sqlite slices:
+
+- Internal legacy providers:
+- `internal:lang`
+- `internal:country`
+- `internal:currency`
+- `internal:areacode`
+- `internal:mimetypes`
+- `internal:usstates`
+- UCUM grammar/base provider:
+- `ucum:tx/data/ucum-essence.xml` (`http://unitsofmeasure.org`)
+- Package-backed terminology content (legacy/provider-managed):
+- `npm:hl7.terminology`
+- `npm:fhir.tx.support.r4`
+
+### Why this matters for the demos
+
+Several tutorial cases intentionally combine these provider families to show:
+
+- pushdown where query-target providers can fully handle a slice,
+- partitioned execution when a request spans systems/providers,
+- preserved global semantics across mixed execution paths.
+
 ## What this tool lets you do
 
 You can run complex `ValueSet` definitions with real parameters:
