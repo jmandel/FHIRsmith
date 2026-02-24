@@ -59,23 +59,10 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 .tx-area{margin-top:8px}
 .tx-area label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px}
 .tx-editor{width:100%;min-height:60px}
+.params-editor{width:100%;min-height:90px}
 .btn-add-tx{background:none;color:var(--fg3);font-size:12px;padding:4px 0;cursor:pointer;border:none;border-radius:0}
 .btn-add-tx:hover{color:var(--blue)}
-.params-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:10px}
-.param-group{display:flex;flex-direction:column;gap:2px}
-.param-group label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px}
-.param-group input[type=number],.param-group input[type=text]{width:100px}
-.param-group.repeat{min-width:260px}
-.repeat-list{display:flex;flex-direction:column;gap:4px}
-.repeat-item{display:flex;align-items:center;gap:6px}
-.repeat-item input{width:220px}
-.btn-repeat-add,.btn-repeat-del{background:var(--surface);color:var(--fg2);font-size:12px}
-.btn-repeat-add{margin-top:4px;padding:4px 8px;align-self:flex-start}
-.btn-repeat-del{padding:4px 8px;line-height:1}
-.btn-repeat-add:hover,.btn-repeat-del:hover{background:var(--overlay);color:var(--fg)}
-.param-group.check{flex-direction:row;align-items:center;gap:5px}
-.param-group.check label{text-transform:none;font-size:13px;color:var(--fg2)}
-.param-group.check input{width:16px;height:16px;accent-color:var(--blue)}
+.run-row{display:flex;justify-content:flex-end;margin-top:10px}
 .btn-run{padding:8px 20px;background:var(--blue);color:var(--bg);font-weight:700;font-size:13px;
   border-radius:var(--radius);transition:opacity .15s;align-self:flex-end}
 .btn-run:hover{opacity:.85}
@@ -113,17 +100,19 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 .sql-card-body .sql-params{margin-top:6px;font-size:11px;color:var(--fg3);font-family:var(--mono)}
 
 /* Results table */
-table.results{width:100%;border-collapse:collapse;font-size:12px}
+table.results{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
 table.results th{text-align:left;padding:6px 8px;background:var(--bg3);color:var(--fg2);
   font-weight:600;position:sticky;top:0;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
-table.results td{padding:5px 8px;border-bottom:1px solid var(--bg3);font-family:var(--mono);font-size:11px;max-width:400px;overflow:hidden;text-overflow:ellipsis}
+table.results td{padding:5px 8px;border-bottom:1px solid var(--bg3);font-family:var(--mono);font-size:11px;max-width:400px;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
 table.results tr:nth-child(even) td{background:var(--bg2)}
 table.results tr:hover td{background:var(--bg3)}
 .desig-table{border-collapse:collapse;font-size:11px;width:auto;margin:0}
 .desig-table th{text-align:left;padding:2px 6px;background:var(--bg3);color:var(--fg3);font-weight:500;font-size:10px;border-bottom:1px solid var(--border);white-space:nowrap}
 .desig-table td{padding:2px 6px;border-bottom:1px solid var(--bg2);white-space:nowrap}
 .desig-table td:nth-child(2){white-space:normal;min-width:180px}
-table.results td:has(.desig-table){max-width:none;overflow:visible;padding:2px}
+table.results td:has(.desig-wrap){max-width:none;overflow:visible;padding:2px}
+.desig-more{font-size:10px;color:var(--accent);cursor:pointer;padding:3px 6px}
+.desig-more:hover{text-decoration:underline}
 .no-results{color:var(--fg3);font-size:13px;text-align:center;padding:20px}
 .results-pager{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:8px}
 .results-pager .meta{font-size:12px;color:var(--fg3);font-family:var(--mono)}
@@ -206,27 +195,11 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
           <textarea class="tx-editor" id="txEditor" spellcheck="false"></textarea>
         </div>
         <div id="addTxRow" style="margin-top:4px"><button class="btn-add-tx" id="btnAddTx">+ Add TX Resources</button></div>
-        <div class="params-row">
-          <div class="param-group"><label>Count</label><input type="number" id="pCount" min="-1" placeholder="(none)"></div>
-          <div class="param-group"><label>Offset</label><input type="number" id="pOffset" min="0" placeholder="0"></div>
-          <div class="param-group"><label>Filter</label><input type="text" id="pFilter" placeholder="text search"></div>
-          <div class="param-group repeat">
-            <label>Property</label>
-            <div class="repeat-list" id="pPropertyList"></div>
-            <button type="button" class="btn-repeat-add" id="btnAddProperty">+ property</button>
-          </div>
-          <div class="param-group repeat">
-            <label>designation</label>
-            <div class="repeat-list" id="pDesignationList"></div>
-            <button type="button" class="btn-repeat-add" id="btnAddDesignation">+ designation</button>
-          </div>
-          <div class="param-group repeat">
-            <label>useSupplement</label>
-            <div class="repeat-list" id="pSupplementList"></div>
-            <button type="button" class="btn-repeat-add" id="btnAddSupplement">+ useSupplement</button>
-          </div>
-          <div class="param-group check"><input type="checkbox" id="pDesignations"><label for="pDesignations">includeDesignations</label></div>
-          <div class="param-group check"><input type="checkbox" id="pActiveOnly"><label for="pActiveOnly">activeOnly</label></div>
+        <div class="tx-area" id="paramsArea">
+          <label>Expand Params (JSON object)</label>
+          <textarea class="tx-editor params-editor" id="paramsEditor" spellcheck="false">{}</textarea>
+        </div>
+        <div class="run-row">
           <button class="btn-run" id="btnRun">Run</button>
         </div>
       </div>
@@ -402,14 +375,7 @@ function selectTest(tc) {
   document.getElementById('testDesc').textContent = tc.description;
 
   const p = tc.params || {};
-  document.getElementById('pCount').value = p.count !== undefined ? p.count : '';
-  document.getElementById('pOffset').value = p.offset !== undefined ? p.offset : '';
-  document.getElementById('pFilter').value = p.filter || '';
-  setRepeatValues('pPropertyList', normalizeListParam(p.property), 'property code');
-  setRepeatValues('pDesignationList', normalizeListParam(p.designation), 'lang (fr) or system|code');
-  setRepeatValues('pSupplementList', normalizeListParam(p.useSupplement), 'canonical URL');
-  document.getElementById('pDesignations').checked = !!p.includeDesignations;
-  document.getElementById('pActiveOnly').checked = !!p.activeOnly;
+  document.getElementById('paramsEditor').value = JSON.stringify(p, null, 2);
 
   // txResources
   if (tc.txResources && tc.txResources.length) {
@@ -420,6 +386,7 @@ function selectTest(tc) {
 
   location.hash = encodeURIComponent(tc.name);
   resizeEditor();
+  resizeParamsEditor();
   doExpand(); // auto-expand
 }
 
@@ -480,100 +447,25 @@ function loadFromHash() {
 /* ===== Events ===== */
 function setupEvents() {
   document.getElementById('btnRun').addEventListener('click', doExpand);
-  initRepeatField('pPropertyList', 'btnAddProperty', 'property code');
-  initRepeatField('pDesignationList', 'btnAddDesignation', 'lang (fr) or system|code');
-  initRepeatField('pSupplementList', 'btnAddSupplement', 'canonical URL');
   document.getElementById('btnAddTx').addEventListener('click', () => {
     showTxEditor([]);
     document.getElementById('txEditor').value = '[\n  \n]';
     document.getElementById('txCount').textContent = '0';
   });
-  // Enter in params triggers expand
-  for (const id of ['pCount','pOffset','pFilter']) {
-    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doExpand(); });
-  }
-  for (const id of ['pPropertyList', 'pDesignationList', 'pSupplementList']) {
-    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doExpand(); });
-  }
   document.getElementById('vsEditor').addEventListener('input', resizeEditor);
   document.getElementById('txEditor').addEventListener('input', resizeTxEditor);
-}
-
-function normalizeListParam(v) {
-  if (Array.isArray(v)) return v.filter(Boolean).map(x => String(x).trim()).filter(Boolean);
-  if (typeof v === 'string') {
-    const s = v.trim();
-    return s ? [s] : [];
-  }
-  return [];
-}
-
-function initRepeatField(listId, addButtonId, placeholder) {
-  const listEl = document.getElementById(listId);
-  const addBtn = document.getElementById(addButtonId);
-  addBtn.addEventListener('click', () => addRepeatRow(listEl, '', placeholder));
-  if (!listEl.children.length) addRepeatRow(listEl, '', placeholder);
-}
-
-function addRepeatRow(listEl, value, placeholder) {
-  const row = document.createElement('div');
-  row.className = 'repeat-item';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.placeholder = placeholder;
-  input.value = value || '';
-  const del = document.createElement('button');
-  del.type = 'button';
-  del.className = 'btn-repeat-del';
-  del.textContent = '×';
-  del.title = 'Remove';
-  del.addEventListener('click', () => {
-    row.remove();
-    if (!listEl.children.length) addRepeatRow(listEl, '', placeholder);
-  });
-  row.appendChild(input);
-  row.appendChild(del);
-  listEl.appendChild(row);
-}
-
-function setRepeatValues(listId, values, placeholder) {
-  const listEl = document.getElementById(listId);
-  listEl.innerHTML = '';
-  if (!values || values.length === 0) {
-    addRepeatRow(listEl, '', placeholder);
-    return;
-  }
-  for (const value of values) addRepeatRow(listEl, value, placeholder);
-}
-
-function getRepeatValues(listId) {
-  const listEl = document.getElementById(listId);
-  const values = [];
-  for (const input of listEl.querySelectorAll('input')) {
-    const v = input.value.trim();
-    if (v) values.push(v);
-  }
-  return values;
+  document.getElementById('paramsEditor').addEventListener('input', resizeParamsEditor);
 }
 
 /* ===== Expand ===== */
 function gatherParams() {
-  const p = {};
-  const c = document.getElementById('pCount').value;
-  if (c !== '') p.count = parseInt(c, 10);
-  const o = document.getElementById('pOffset').value;
-  if (o !== '') p.offset = parseInt(o, 10);
-  const f = document.getElementById('pFilter').value.trim();
-  if (f) p.filter = f;
-  if (document.getElementById('pDesignations').checked) p.includeDesignations = true;
-  if (document.getElementById('pActiveOnly').checked) p.activeOnly = true;
-  const prop = getRepeatValues('pPropertyList');
-  if (prop.length) p.property = prop;
-  const desig = getRepeatValues('pDesignationList');
-  if (desig.length) p.designation = desig;
-  const supp = getRepeatValues('pSupplementList');
-  if (supp.length) p.useSupplement = supp;
-  return p;
+  const raw = (document.getElementById('paramsEditor').value || '').trim();
+  if (!raw) return {};
+  const parsed = JSON.parse(raw);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+    throw new Error('Params JSON must be an object');
+  }
+  return parsed;
 }
 
 async function doExpand() {
@@ -610,7 +502,14 @@ async function doExpand() {
     }
   }
 
-  const params = gatherParams();
+  let params;
+  try {
+    params = gatherParams();
+  } catch (e) {
+    errorBox.textContent = 'Invalid Params JSON: ' + e.message;
+    errorBox.classList.add('show');
+    return;
+  }
   const url = document.getElementById('serverUrl').value.replace(/\/+$/, '') + '/debug/expand';
 
   btn.disabled = true;
@@ -791,12 +690,18 @@ function propVal(p) {
 
 function renderDesignations(desigs) {
   if (!desigs || desigs.length === 0) return '';
-  let h = '<table class="desig-table"><thead><tr><th>Lang</th><th>Value</th><th>Use</th></tr></thead><tbody>';
-  for (const d of desigs) {
+  const limit = 5;
+  const show = desigs.slice(0, limit);
+  const overflow = desigs.length > limit;
+  let h = '<div class="desig-wrap' + (overflow ? ' desig-overflow' : '') + '">';
+  h += '<table class="desig-table"><thead><tr><th>Lang</th><th>Value</th><th>Use</th></tr></thead><tbody>';
+  for (const d of show) {
     const use = d.use ? esc((d.use.code || '') + (d.use.system ? ' (' + shortSystem(d.use.system) + ')' : '')) : '';
     h += `<tr><td>${esc(d.language||'')}</td><td>${esc(d.value||'')}</td><td>${use}</td></tr>`;
   }
   h += '</tbody></table>';
+  if (overflow) h += `<div class="desig-more">+ ${desigs.length - limit} more</div>`;
+  h += '</div>';
   return h;
 }
 
@@ -983,6 +888,13 @@ function resizeTxEditor() {
     const arr = JSON.parse(ta.value);
     if (Array.isArray(arr)) document.getElementById('txCount').textContent = arr.length;
   } catch {}
+}
+
+function resizeParamsEditor() {
+  const ta = document.getElementById('paramsEditor');
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(Math.max(ta.scrollHeight, 90), 360) + 'px';
 }
 
 /* ===== Helpers ===== */
