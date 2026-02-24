@@ -14,8 +14,10 @@ Hosted explorer:
 
 ## Runtime loadout used by this explorer
 
-This explorer runs against the harness-oriented config in
-`tests/tx/fixtures/expand-test-library.yaml`. In this loadout, full
+This explorer runs against the configured TX library source in
+`data/config.json`, which currently points to
+`tests/tx/fixtures/expand-v2-test-library.yaml`
+(`tests/tx/fixtures/expand-test-library.yaml` is identical). In this loadout, full
 functionality is still enabled (`$expand`, import resolution, filters,
 designations/properties, supplements, trace/debug output); the point is to run
 that functionality across both new sqlite query-target providers and pre-existing
