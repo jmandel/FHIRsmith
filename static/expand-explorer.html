@@ -273,6 +273,27 @@ const TEST_CASES = [
      {resourceType:"ValueSet",url:"http://example.org/vs/loinc-exc-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2951-2"}]}]}}
    ],
    params:{}},
+  {name:"Deep mixed import graph (SNOMED+LOINC)",category:"IR Rewriting & Lowering",description:"Nested import tree brings both SNOMED and LOINC branches; engine should partition execution by system/provider.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-root-include"]}]}},
+   txResources:[
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-root-include",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-branch-a"]},{valueSet:["http://example.org/vs/mixed-branch-b"]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-branch-a",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-snomed-leaf"]},{valueSet:["http://example.org/vs/mixed-loinc-leaf"]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-branch-b",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"46635009"}]},{system:"http://loinc.org",concept:[{code:"2951-2"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-snomed-leaf",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"},{code:"44054006"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-loinc-leaf",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}}
+   ],
+   params:{}},
+  {name:"Deep mixed include-minus-exclude (SNOMED+LOINC)",category:"IR Rewriting & Lowering",description:"Nested include and exclude import trees each span SNOMED+LOINC; resolved IR should reconcile deep cross-system diff safely.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-root-include-2"]}],exclude:[{valueSet:["http://example.org/vs/mixed-root-exclude-2"]}]}},
+   txResources:[
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-root-include-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-inc-a"]},{valueSet:["http://example.org/vs/mixed-inc-b"]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-inc-a",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"},{code:"44054006"}]},{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-inc-b",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"46635009"}]},{system:"http://loinc.org",concept:[{code:"718-7"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-root-exclude-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-exc-a"]},{valueSet:["http://example.org/vs/mixed-exc-b"]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-exc-a",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"44054006"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-exc-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"4548-4"}]}]}}
+   ],
+   params:{}},
   {name:"Union merge lowering",category:"IR Rewriting & Lowering",description:"Two same-system concept includes should collapse into one merged selector.",
    valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]},{system:"http://loinc.org",concept:[{code:"718-7"},{code:"2951-2"}]}]}},
    params:{}},
