@@ -20,11 +20,11 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:var(--radius
 input,textarea,select{font-family:inherit;background:var(--bg);color:var(--fg);
   border:1px solid var(--surface);border-radius:var(--radius);padding:6px 8px;font-size:13px}
 input:focus,textarea:focus{outline:none;border-color:var(--blue)}
-textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
+textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2;max-height:150px;overflow-y:auto}
 
-/* Layout */
-.app{display:grid;grid-template-columns:250px 1fr 1.2fr;height:100vh;overflow:hidden}
-@media(max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:auto 1fr 1fr}}
+/* Layout: 2 columns */
+.app{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
+@media(max-width:800px){.app{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
 
 /* Sidebar */
 .sidebar{background:var(--bg2);border-right:1px solid var(--surface);overflow-y:auto;padding:8px 0}
@@ -41,54 +41,68 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 .test-item:hover{background:var(--bg3);color:var(--fg)}
 .test-item.active{background:var(--bg4);color:var(--blue);font-weight:600}
 
-/* Center */
-.center{display:flex;flex-direction:column;border-right:1px solid var(--surface);overflow:hidden}
-.center-header{padding:12px;background:var(--bg2);border-bottom:1px solid var(--surface)}
-.center-header label{display:block;font-size:11px;color:var(--fg3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
-.center-header input[type=text]{width:100%}
-.center-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
-.vs-editor{flex:1;min-height:200px;width:100%}
-.params-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.param-group{display:flex;flex-direction:column;gap:3px}
+/* Main content */
+.main{display:flex;flex-direction:column;overflow:hidden;position:relative}
+.progress-bar{position:absolute;top:0;left:0;right:0;height:3px;background:transparent;z-index:10}
+.progress-bar.loading{background:linear-gradient(90deg,transparent,var(--blue),transparent);
+  background-size:200% 100%;animation:progressAnim 1.2s linear infinite}
+@keyframes progressAnim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.main-scroll{flex:1;overflow-y:auto;padding:16px 20px 40px}
+
+/* Request editor area */
+.request-area{margin-bottom:16px}
+.server-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.server-row label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+.server-row input{flex:1}
+.desc-text{font-size:12px;color:var(--fg3);font-style:italic;margin-bottom:8px;min-height:1.2em}
+.vs-editor{width:100%;min-height:80px;max-height:150px}
+.tx-area{margin-top:8px}
+.tx-area label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px}
+.tx-editor{width:100%;min-height:60px;max-height:120px}
+.btn-add-tx{background:none;color:var(--fg3);font-size:12px;padding:4px 0;cursor:pointer;border:none;border-radius:0}
+.btn-add-tx:hover{color:var(--blue)}
+.params-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:10px}
+.param-group{display:flex;flex-direction:column;gap:2px}
 .param-group label{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.3px}
-.param-group.check{flex-direction:row;align-items:center;gap:6px}
+.param-group input[type=number],.param-group input[type=text]{width:100px}
+.param-group.check{flex-direction:row;align-items:center;gap:5px}
 .param-group.check label{text-transform:none;font-size:13px;color:var(--fg2)}
 .param-group.check input{width:16px;height:16px;accent-color:var(--blue)}
-.btn-expand{padding:10px 24px;background:var(--blue);color:var(--bg);font-weight:700;font-size:14px;
-  border-radius:var(--radius);transition:opacity .15s}
-.btn-expand:hover{opacity:.85}
-.btn-expand:disabled{opacity:.5;cursor:wait}
-.btn-row{display:flex;gap:8px;align-items:center}
-.spinner{display:none;width:18px;height:18px;border:3px solid var(--surface);border-top-color:var(--blue);
-  border-radius:50%;animation:spin .6s linear infinite}
-.spinner.show{display:inline-block}
-@keyframes spin{to{transform:rotate(360deg)}}
-.error-box{background:rgba(243,139,168,.15);border:1px solid var(--red);border-radius:var(--radius);
-  padding:10px 12px;color:var(--red);font-size:13px;white-space:pre-wrap;display:none}
-.error-box.show{display:block}
-.desc-text{font-size:12px;color:var(--fg3);font-style:italic;min-height:1.5em}
+.btn-run{padding:8px 20px;background:var(--blue);color:var(--bg);font-weight:700;font-size:13px;
+  border-radius:var(--radius);transition:opacity .15s;align-self:flex-end}
+.btn-run:hover{opacity:.85}
+.btn-run:disabled{opacity:.5;cursor:wait}
 
-/* Right */
-.right{display:flex;flex-direction:column;overflow:hidden}
-.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--surface);flex-shrink:0}
-.tab{padding:8px 16px;cursor:pointer;font-size:13px;color:var(--fg3);border-bottom:2px solid transparent;
-  transition:color .15s,border-color .15s}
-.tab:hover{color:var(--fg)}
-.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
-.tab-content{flex:1;overflow:auto;padding:12px}
-.tab-panel{display:none}
-.tab-panel.active{display:block}
+.error-box{background:rgba(243,139,168,.15);border:1px solid var(--red);border-radius:var(--radius);
+  padding:10px 12px;color:var(--red);font-size:13px;white-space:pre-wrap;display:none;margin-top:12px}
+.error-box.show{display:block}
+
+/* Collapsible sections */
+.section{margin-top:12px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--surface)}
+.section-header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);cursor:pointer;
+  user-select:none;border-left:3px solid var(--surface)}
+.section-header:hover{background:var(--bg3)}
+.section-header .chevron{font-size:10px;transition:transform .15s;flex-shrink:0;color:var(--fg3)}
+.section-header.collapsed .chevron{transform:rotate(-90deg)}
+.section-header .title{font-weight:600;font-size:13px;color:var(--fg)}
+.section-header .stats{margin-left:auto;font-size:12px;color:var(--fg3);font-family:var(--mono)}
+.section-body{display:block;padding:12px;max-height:none}
+.section-body.hidden{display:none}
+.section.sec-results .section-header{border-left-color:var(--teal)}
+.section.sec-ir .section-header{border-left-color:var(--purple)}
+.section.sec-resolvedIR .section-header{border-left-color:var(--purple)}
+.section.sec-queryIR .section-header{border-left-color:var(--blue)}
+.section.sec-trace .section-header{border-left-color:var(--orange)}
+.section.sec-raw .section-header{border-left-color:var(--fg3)}
 
 /* Results table */
-.summary-bar{display:flex;gap:16px;padding:8px 12px;background:var(--bg2);border-radius:var(--radius);
-  margin-bottom:12px;font-size:13px;color:var(--fg2);flex-wrap:wrap}
-.summary-bar span{font-weight:600;color:var(--fg)}
 table.results{width:100%;border-collapse:collapse;font-size:12px}
 table.results th{text-align:left;padding:6px 8px;background:var(--bg3);color:var(--fg2);
   font-weight:600;position:sticky;top:0;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
 table.results td{padding:5px 8px;border-bottom:1px solid var(--bg3);font-family:var(--mono);font-size:11px;max-width:400px;overflow:hidden;text-overflow:ellipsis}
 table.results tr:nth-child(even) td{background:var(--bg2)}
 table.results tr:hover td{background:var(--bg3)}
+.no-results{color:var(--fg3);font-size:13px;text-align:center;padding:20px}
 
 /* IR tree */
 .ir-tree{font-family:var(--mono);font-size:12px}
@@ -98,9 +112,10 @@ table.results tr:hover td{background:var(--bg3)}
 .ir-badge.union{background:var(--blue)}.ir-badge.intersect{background:var(--green)}
 .ir-badge.diff{background:var(--red)}.ir-badge.selector{background:var(--purple)}
 .ir-badge.import{background:var(--orange)}.ir-badge.empty{background:var(--fg3)}
+
 .ir-detail{color:var(--fg2);font-size:11px;margin-top:2px}
 
-/* QueryIR */
+/* JSON syntax highlighting */
 .json-view{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word;line-height:1.6}
 .json-key{color:var(--blue)}.json-string{color:var(--green)}.json-number{color:var(--orange)}
 .json-bool{color:var(--purple)}.json-null{color:var(--fg3)}
@@ -127,20 +142,14 @@ table.results tr:hover td{background:var(--bg3)}
 .counter-chip{padding:4px 10px;background:var(--bg3);border-radius:12px;font-size:12px}
 .counter-chip .val{font-weight:700;color:var(--teal);margin-left:4px}
 
-/* Stats cards */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
-.stat-card{background:var(--bg2);border-radius:var(--radius);padding:16px;text-align:center}
-.stat-card .val{font-size:28px;font-weight:700;color:var(--teal)}
-.stat-card .label{font-size:11px;color:var(--fg3);text-transform:uppercase;margin-top:4px;letter-spacing:.3px}
-
 /* Raw */
 .raw-wrap{position:relative}
 .btn-copy{position:absolute;top:8px;right:8px;padding:4px 10px;background:var(--surface);color:var(--fg2);font-size:11px;border-radius:3px}
 .btn-copy:hover{background:var(--overlay)}
 pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:break-word;
-  background:var(--bg2);padding:12px;border-radius:var(--radius);max-height:calc(100vh - 100px);overflow:auto}
+  background:var(--bg);padding:12px;border-radius:var(--radius);max-height:600px;overflow:auto}
 
-.placeholder-msg{color:var(--fg3);font-size:13px;text-align:center;padding:40px 20px}
+.placeholder-msg{color:var(--fg3);font-size:13px;text-align:center;padding:20px}
 </style>
 </head>
 <body>
@@ -151,48 +160,41 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
     <h2>Test Cases</h2>
   </div>
 
-  <!-- Center -->
-  <div class="center">
-    <div class="center-header">
-      <label for="serverUrl">Server URL</label>
-      <input type="text" id="serverUrl">
-    </div>
-    <div class="center-body">
-      <div class="desc-text" id="testDesc">Select a test case or edit the ValueSet below.</div>
-      <textarea class="vs-editor" id="vsEditor" spellcheck="false"></textarea>
-      <div class="params-grid">
-        <div class="param-group"><label>Count</label><input type="number" id="pCount" min="-1" placeholder="(none)"></div>
-        <div class="param-group"><label>Offset</label><input type="number" id="pOffset" min="0" placeholder="0"></div>
-        <div class="param-group"><label>Filter</label><input type="text" id="pFilter" placeholder="text search"></div>
-        <div class="param-group"><label>Property</label><input type="text" id="pProperty" placeholder="comma-separated"></div>
-        <div class="param-group check"><input type="checkbox" id="pDesignations"><label for="pDesignations">includeDesignations</label></div>
-        <div class="param-group check"><input type="checkbox" id="pActiveOnly"><label for="pActiveOnly">activeOnly</label></div>
-      </div>
-      <div class="error-box" id="errorBox"></div>
-      <div class="btn-row">
-        <button class="btn-expand" id="btnExpand">Expand</button>
-        <div class="spinner" id="spinner"></div>
-      </div>
-    </div>
-  </div>
+  <!-- Main Content -->
+  <div class="main">
+    <div class="progress-bar" id="progressBar"></div>
+    <div class="main-scroll" id="mainScroll">
 
-  <!-- Right -->
-  <div class="right">
-    <div class="tabs" id="tabs">
-      <div class="tab active" data-tab="results">Results</div>
-      <div class="tab" data-tab="ir">IR</div>
-      <div class="tab" data-tab="queryir">Query IR</div>
-      <div class="tab" data-tab="trace">Trace</div>
-      <div class="tab" data-tab="stats">Stats</div>
-      <div class="tab" data-tab="raw">Raw</div>
-    </div>
-    <div class="tab-content">
-      <div class="tab-panel active" id="panel-results"><div class="placeholder-msg">Run an expansion to see results.</div></div>
-      <div class="tab-panel" id="panel-ir"><div class="placeholder-msg">Run an expansion to see the semantic IR.</div></div>
-      <div class="tab-panel" id="panel-queryir"><div class="placeholder-msg">Run an expansion to see the Query IR.</div></div>
-      <div class="tab-panel" id="panel-trace"><div class="placeholder-msg">Run an expansion to see the trace.</div></div>
-      <div class="tab-panel" id="panel-stats"><div class="placeholder-msg">Run an expansion to see stats.</div></div>
-      <div class="tab-panel" id="panel-raw"><div class="placeholder-msg">Run an expansion to see raw output.</div></div>
+      <!-- Request Editor -->
+      <div class="request-area">
+        <div class="server-row">
+          <label>Server</label>
+          <input type="text" id="serverUrl">
+        </div>
+        <div class="desc-text" id="testDesc">Select a test case or edit the ValueSet below.</div>
+        <textarea class="vs-editor" id="vsEditor" spellcheck="false"></textarea>
+        <div id="txArea" class="tx-area" style="display:none">
+          <label>TX Resources (<span id="txCount">0</span>)</label>
+          <textarea class="tx-editor" id="txEditor" spellcheck="false"></textarea>
+        </div>
+        <div id="addTxRow" style="margin-top:4px"><button class="btn-add-tx" id="btnAddTx">+ Add TX Resources</button></div>
+        <div class="params-row">
+          <div class="param-group"><label>Count</label><input type="number" id="pCount" min="-1" placeholder="(none)"></div>
+          <div class="param-group"><label>Offset</label><input type="number" id="pOffset" min="0" placeholder="0"></div>
+          <div class="param-group"><label>Filter</label><input type="text" id="pFilter" placeholder="text search"></div>
+          <div class="param-group"><label>Property</label><input type="text" id="pProperty" placeholder="comma-sep"></div>
+          <div class="param-group check"><input type="checkbox" id="pDesignations"><label for="pDesignations">includeDesignations</label></div>
+          <div class="param-group check"><input type="checkbox" id="pActiveOnly"><label for="pActiveOnly">activeOnly</label></div>
+          <button class="btn-run" id="btnRun">Run</button>
+        </div>
+      </div>
+
+      <div class="error-box" id="errorBox"></div>
+
+      <!-- Collapsible sections -->
+      <div id="sectionsContainer">
+        <div class="placeholder-msg" id="placeholderMsg">Select a test case to begin.</div>
+      </div>
     </div>
   </div>
 
@@ -203,95 +205,145 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
 const TEST_CASES = [
   // --- Whole System ---
   {name:"US States (whole system)",category:"Whole System",description:"All 62 US postal codes from USPS",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"https://www.usps.com/"}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"https://www.usps.com/"}]}},params:{}},
   {name:"Currencies (whole system)",category:"Whole System",description:"All ISO 4217 currencies (150+ codes)",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{}},
   {name:"Gender (whole system)",category:"Whole System",description:"All 4 administrative-gender codes",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}]}},params:{}},
   {name:"Area Codes (whole system)",category:"Whole System",description:"UN M49 area codes (260+ codes)",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://unstats.un.org/unsd/methods/m49/m49.htm"}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://unstats.un.org/unsd/methods/m49/m49.htm"}]}},params:{}},
 
   // --- Enumerated Concepts ---
   {name:"SNOMED enumerated",category:"Enumerated Concepts",description:"Three specific SNOMED CT codes",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"},{code:"44054006"},{code:"46635009"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"},{code:"44054006"},{code:"46635009"}]}]}},params:{}},
   {name:"LOINC enumerated",category:"Enumerated Concepts",description:"Two specific LOINC codes",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"2345-7"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"2345-7"}]}]}},params:{}},
   {name:"RxNorm enumerated",category:"Enumerated Concepts",description:"Three specific RxNorm codes",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm",concept:[{code:"161"},{code:"5640"},{code:"1191"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm",concept:[{code:"161"},{code:"5640"},{code:"1191"}]}]}},params:{}},
   {name:"Gender subset",category:"Enumerated Concepts",description:"Only male and female from administrative-gender",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"male"},{code:"female"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"male"},{code:"female"}]}]}},params:{}},
 
   // --- Hierarchy Filters ---
   {name:"SNOMED is-a diabetes",category:"Hierarchy Filters",description:"All descendants (inclusive) of diabetes mellitus (73211009)",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{count:50}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{count:50}},
   {name:"SNOMED descendent-of diabetes",category:"Hierarchy Filters",description:"Strict descendants of diabetes mellitus (73211009)",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"descendent-of",value:"73211009"}]}]}},params:{count:50}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"descendent-of",value:"73211009"}]}]}},params:{count:50}},
   {name:"Condition-ver-status is-a",category:"Hierarchy Filters",description:"Condition verification status descendants of 'unconfirmed'",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://terminology.hl7.org/CodeSystem/condition-ver-status",filter:[{property:"concept",op:"is-a",value:"unconfirmed"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://terminology.hl7.org/CodeSystem/condition-ver-status",filter:[{property:"concept",op:"is-a",value:"unconfirmed"}]}]}},params:{}},
 
   // --- Property Filters ---
   {name:"M49 class=region",category:"Property Filters",description:"M49 codes where class property equals 'region'",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://unstats.un.org/unsd/methods/m49/m49.htm",filter:[{property:"class",op:"=",value:"region"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://unstats.un.org/unsd/methods/m49/m49.htm",filter:[{property:"class",op:"=",value:"region"}]}]}},params:{}},
   {name:"Currency decimals=0",category:"Property Filters",description:"Currencies with zero decimal places",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"urn:iso:std:iso:4217",filter:[{property:"decimals",op:"=",value:"0"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217",filter:[{property:"decimals",op:"=",value:"0"}]}]}},params:{}},
   {name:"Country regex ^A",category:"Property Filters",description:"ISO 3166 countries whose display starts with A",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"urn:iso:std:iso:3166",filter:[{property:"display",op:"regex",value:"^A.*"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:3166",filter:[{property:"display",op:"regex",value:"^A.*"}]}]}},params:{}},
   {name:"Gender regex [mf]",category:"Property Filters",description:"Gender codes with display matching [mf].*",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",filter:[{property:"display",op:"regex",value:"[mf].*"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",filter:[{property:"display",op:"regex",value:"[mf].*"}]}]}},params:{}},
 
   // --- Text Search ---
   {name:'SNOMED "diabetes"',category:"Text Search",description:"Text search for 'diabetes' across all SNOMED CT",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct"}]}},params:{filter:"diabetes",count:20}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct"}]}},params:{filter:"diabetes",count:20}},
   {name:'RxNorm "aspirin"',category:"Text Search",description:"Text search for 'aspirin' across RxNorm",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm"}]}},params:{filter:"aspirin",count:20}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm"}]}},params:{filter:"aspirin",count:20}},
   {name:'LOINC "creatinine"',category:"Text Search",description:"Text search for 'creatinine' across LOINC",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://loinc.org"}]}},params:{filter:"creatinine",count:20}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org"}]}},params:{filter:"creatinine",count:20}},
   {name:'Gender "male"',category:"Text Search",description:"Filter gender codes by text 'male'",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}]}},params:{filter:"male"}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}]}},params:{filter:"male"}},
 
   // --- Excludes ---
   {name:"Gender minus other+unknown",category:"Excludes",description:"All gender codes except 'other' and 'unknown'",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}],exclude:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"other"},{code:"unknown"}]}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"}],exclude:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"other"},{code:"unknown"}]}]}},params:{}},
   {name:"SNOMED is-a minus subtree",category:"Excludes",description:"Diabetes is-a tree minus type-1 subtree (46635009)",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}],exclude:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"46635009"}]}]}},params:{count:50}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}],exclude:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"46635009"}]}]}},params:{count:50}},
 
   // --- Pagination ---
   {name:"Currency page 1",category:"Pagination",description:"First 10 currencies (offset 0)",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{count:10,offset:0}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{count:10,offset:0}},
   {name:"Currency page 2",category:"Pagination",description:"Currencies 11–20 (offset 10)",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{count:10,offset:10}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"urn:iso:std:iso:4217"}]}},params:{count:10,offset:10}},
   {name:"US States count=0 (total only)",category:"Pagination",description:"Request only the total count, no concepts returned",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"https://www.usps.com/"}]}},params:{count:0}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"https://www.usps.com/"}]}},params:{count:0}},
   {name:"SNOMED is-a paginated",category:"Pagination",description:"First page of diabetes is-a expansion",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{count:10,offset:0}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{count:10,offset:0}},
 
   // --- Multi-System ---
   {name:"Gender + US States",category:"Multi-System",description:"Two whole systems in a single ValueSet",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"},{system:"https://www.usps.com/"}]}},params:{}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"},{system:"https://www.usps.com/"}]}},params:{}},
   {name:"SNOMED + LOINC + RxNorm",category:"Multi-System",description:"One concept from each of three large code systems",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"}]},{system:"http://loinc.org",concept:[{code:"2160-0"}]},{system:"http://www.nlm.nih.gov/research/umls/rxnorm",concept:[{code:"161"}]}]}},params:{count:20}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"}]},{system:"http://loinc.org",concept:[{code:"2160-0"}]},{system:"http://www.nlm.nih.gov/research/umls/rxnorm",concept:[{code:"161"}]}]}},params:{count:20}},
 
   // --- Combined ---
   {name:"SNOMED is-a + text filter",category:"Combined",description:"Diabetes is-a hierarchy filtered by text 'type'",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{filter:"type",count:50}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]}]}},params:{filter:"type",count:50}},
   {name:"Multi-system + exclude + pagination",category:"Combined",description:"Gender + publication status with excludes and pagination",
-   valueSet:{resourceType:"ValueSet",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"},{system:"http://hl7.org/fhir/publication-status"}],exclude:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"unknown"}]}]}},params:{count:5,offset:0}},
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender"},{system:"http://hl7.org/fhir/publication-status"}],exclude:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"unknown"}]}]}},params:{count:5,offset:0}},
+
+  // --- ValueSet Imports ---
+  {name:"Pure VS import (gender)",category:"ValueSet Imports",
+   description:"Import built-in administrative-gender ValueSet by canonical URL",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://hl7.org/fhir/ValueSet/administrative-gender"]}]}},
+   params:{}},
+  {name:"Import with system intersection",category:"ValueSet Imports",
+   description:"System+concept+valueSet on same include = intersection. 3 enumerated ∩ full VS = 3",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"male"},{code:"female"},{code:"other"}],valueSet:["http://hl7.org/fhir/ValueSet/administrative-gender"]}]}},
+   params:{}},
+  {name:"Import + peer + exclude",category:"ValueSet Imports",
+   description:"VS import (gender) + USPS peer include − USPS exclude. Shows cross-system composition.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://hl7.org/fhir/ValueSet/administrative-gender"]},{system:"https://www.usps.com/",concept:[{code:"CA"},{code:"NY"}]}],exclude:[{system:"https://www.usps.com/",concept:[{code:"NY"}]}]}},
+   params:{}},
+
+  // --- TX Resources ---
+  {name:"Inline CodeSystem expansion",category:"TX Resources",
+   description:"Expand a custom CodeSystem injected via tx-resource. 3 color codes.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://example.org/cs/colors"}]}},
+   txResources:[{resourceType:"CodeSystem",url:"http://example.org/cs/colors",status:"active",content:"complete",concept:[{code:"red",display:"Red",definition:"Warm color"},{code:"blue",display:"Blue",definition:"Cool color"},{code:"green",display:"Green",definition:"Nature color"}]}],
+   params:{}},
+  {name:"Chained VS→CS import",category:"TX Resources",
+   description:"Import a ValueSet that enumerates from an inline CodeSystem. Both supplied via tx-resource. Only warm colors returned.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/warm-colors"]}]}},
+   txResources:[
+     {resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"orange",display:"Orange"},{code:"blue",display:"Blue"},{code:"yellow",display:"Yellow"}]},
+     {resourceType:"ValueSet",url:"http://example.org/vs/warm-colors",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"red"},{code:"orange"}]}]}}
+   ],
+   params:{}},
+  {name:"Import include ∩ import exclude",category:"TX Resources",
+   description:"Both include and exclude reference imported ValueSets. Include={red,blue,green}, exclude={blue}. Result={red,green}.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/palette-include"]}],exclude:[{valueSet:["http://example.org/vs/palette-exclude"]}]}},
+   txResources:[
+     {resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"blue",display:"Blue"},{code:"green",display:"Green"},{code:"yellow",display:"Yellow"}]},
+     {resourceType:"ValueSet",url:"http://example.org/vs/palette-include",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"red"},{code:"blue"},{code:"green"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/palette-exclude",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"blue"}]}]}}
+   ],
+   params:{}},
+  {name:"Multi-VS intersection constraint",category:"TX Resources",
+   description:"Concept list intersected with two imported ValueSets. {A,B,C} ∩ {A,B} ∩ {B,C} = {B}. Shows IR intersect node.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://example.org/cs/letters",concept:[{code:"A"},{code:"B"},{code:"C"}],valueSet:["http://example.org/vs/ab","http://example.org/vs/bc"]}]}},
+   txResources:[
+     {resourceType:"CodeSystem",url:"http://example.org/cs/letters",status:"active",content:"complete",concept:[{code:"A",display:"Alpha"},{code:"B",display:"Bravo"},{code:"C",display:"Charlie"},{code:"D",display:"Delta"}]},
+     {resourceType:"ValueSet",url:"http://example.org/vs/ab",status:"active",compose:{include:[{system:"http://example.org/cs/letters",concept:[{code:"A"},{code:"B"}]}]}},
+     {resourceType:"ValueSet",url:"http://example.org/vs/bc",status:"active",compose:{include:[{system:"http://example.org/cs/letters",concept:[{code:"B"},{code:"C"}]}]}}
+   ],
+   params:{}},
+  {name:"Mixed import + built-in + exclude",category:"TX Resources",
+   description:"Imported palette CS + built-in gender, minus blue and unknown. Shows cross-provider diff IR.",
+   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"red"},{code:"blue"},{code:"green"}]},{system:"http://hl7.org/fhir/administrative-gender"}],exclude:[{system:"http://example.org/cs/palette",concept:[{code:"blue"}]},{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"unknown"}]}]}},
+   txResources:[{resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"blue",display:"Blue"},{code:"green",display:"Green"}]}],
+   params:{}},
 ];
 
 /* ===== State ===== */
 let currentResponse = null;
+let pendingAbort = null;
+let sectionStates = {results:true, ir:true, resolvedIR:false, queryIR:false, trace:false, raw:false};
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', () => {
-  const serverUrl = document.getElementById('serverUrl');
-  serverUrl.value = location.origin + '/r4';
-
+  document.getElementById('serverUrl').value = location.origin + '/r4';
   buildSidebar();
-  setupTabs();
-  setupExpand();
+  setupEvents();
   loadFromHash();
   window.addEventListener('hashchange', loadFromHash);
-  autoResizeTextarea();
 });
 
 /* ===== Sidebar ===== */
@@ -335,8 +387,33 @@ function selectTest(tc) {
   document.getElementById('pDesignations').checked = !!p.includeDesignations;
   document.getElementById('pActiveOnly').checked = !!p.activeOnly;
 
+  // txResources
+  if (tc.txResources && tc.txResources.length) {
+    showTxEditor(tc.txResources);
+  } else {
+    hideTxEditor();
+  }
+
   location.hash = encodeURIComponent(tc.name);
   resizeEditor();
+  doExpand(); // auto-expand
+}
+
+function showTxEditor(txResources) {
+  const area = document.getElementById('txArea');
+  const editor = document.getElementById('txEditor');
+  const countEl = document.getElementById('txCount');
+  area.style.display = 'block';
+  document.getElementById('addTxRow').style.display = 'none';
+  editor.value = JSON.stringify(txResources, null, 2);
+  countEl.textContent = txResources.length;
+  resizeTxEditor();
+}
+
+function hideTxEditor() {
+  document.getElementById('txArea').style.display = 'none';
+  document.getElementById('txEditor').value = '';
+  document.getElementById('addTxRow').style.display = 'block';
 }
 
 function loadFromHash() {
@@ -346,23 +423,23 @@ function loadFromHash() {
   if (tc) selectTest(tc);
 }
 
-/* ===== Tabs ===== */
-function setupTabs() {
-  document.getElementById('tabs').addEventListener('click', e => {
-    const tab = e.target.closest('.tab');
-    if (!tab) return;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+/* ===== Events ===== */
+function setupEvents() {
+  document.getElementById('btnRun').addEventListener('click', doExpand);
+  document.getElementById('btnAddTx').addEventListener('click', () => {
+    showTxEditor([]);
+    document.getElementById('txEditor').value = '[\n  \n]';
+    document.getElementById('txCount').textContent = '0';
   });
+  // Enter in params triggers expand
+  for (const id of ['pCount','pOffset','pFilter','pProperty']) {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doExpand(); });
+  }
+  document.getElementById('vsEditor').addEventListener('input', resizeEditor);
+  document.getElementById('txEditor').addEventListener('input', resizeTxEditor);
 }
 
 /* ===== Expand ===== */
-function setupExpand() {
-  document.getElementById('btnExpand').addEventListener('click', doExpand);
-}
-
 function gatherParams() {
   const p = {};
   const c = document.getElementById('pCount').value;
@@ -379,10 +456,13 @@ function gatherParams() {
 }
 
 async function doExpand() {
-  const btn = document.getElementById('btnExpand');
-  const spinner = document.getElementById('spinner');
+  const btn = document.getElementById('btnRun');
   const errorBox = document.getElementById('errorBox');
+  const progressBar = document.getElementById('progressBar');
   errorBox.classList.remove('show');
+
+  // Cancel previous pending request
+  if (pendingAbort) { pendingAbort.abort(); pendingAbort = null; }
 
   let vsJson;
   try {
@@ -393,64 +473,154 @@ async function doExpand() {
     return;
   }
 
+  let txResources = null;
+  const txArea = document.getElementById('txArea');
+  if (txArea.style.display !== 'none') {
+    const txVal = document.getElementById('txEditor').value.trim();
+    if (txVal) {
+      try {
+        txResources = JSON.parse(txVal);
+        if (!Array.isArray(txResources)) throw new Error('txResources must be an array');
+      } catch (e) {
+        errorBox.textContent = 'Invalid TX Resources JSON: ' + e.message;
+        errorBox.classList.add('show');
+        return;
+      }
+    }
+  }
+
   const params = gatherParams();
   const url = document.getElementById('serverUrl').value.replace(/\/+$/, '') + '/debug/expand';
 
   btn.disabled = true;
-  spinner.classList.add('show');
+  progressBar.classList.add('loading');
+  document.getElementById('placeholderMsg')?.remove();
+
+  const abortController = new AbortController();
+  pendingAbort = abortController;
 
   try {
+    const body = { valueSet: vsJson, params };
+    if (txResources && txResources.length) body.txResources = txResources;
+
     const resp = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ valueSet: vsJson, params })
+      body: JSON.stringify(body),
+      signal: abortController.signal
     });
     const data = await resp.json();
+    if (abortController.signal.aborted) return;
     if (!resp.ok) {
       errorBox.textContent = data.error || `HTTP ${resp.status}`;
       errorBox.classList.add('show');
       currentResponse = data;
-      renderRaw(data);
+      renderSections(data);
       return;
     }
     currentResponse = data;
-    renderAll(data);
+    renderSections(data);
+    // Auto-scroll results into view
+    const firstSec = document.querySelector('.sec-results');
+    if (firstSec) firstSec.scrollIntoView({behavior:'smooth', block:'start'});
   } catch (e) {
+    if (e.name === 'AbortError') return;
     errorBox.textContent = 'Network error: ' + e.message;
     errorBox.classList.add('show');
   } finally {
+    if (pendingAbort === abortController) pendingAbort = null;
     btn.disabled = false;
-    spinner.classList.remove('show');
+    progressBar.classList.remove('loading');
   }
 }
 
-/* ===== Render All ===== */
-function renderAll(data) {
-  renderResults(data);
-  renderIR(data.ir);
-  renderQueryIR(data.queryIR);
-  renderTrace(data.trace);
-  renderStats(data);
-  renderRaw(data);
-}
+/* ===== Render Sections ===== */
+function renderSections(data) {
+  const container = document.getElementById('sectionsContainer');
+  container.innerHTML = '';
 
-/* ===== Results Tab ===== */
-function renderResults(data) {
-  const panel = document.getElementById('panel-results');
-  const vs = data.result;
-  const exp = vs?.expansion;
-  if (!exp) { panel.innerHTML = '<div class="placeholder-msg">No expansion in response.</div>'; return; }
-
-  const total = exp.total ?? '?';
-  const returned = exp.contains?.length ?? 0;
+  const exp = data.result?.expansion;
+  const returned = exp?.contains?.length ?? 0;
+  const total = exp?.total ?? '?';
   const ms = data.ms ?? '?';
 
-  // Detect extra columns
+  // Trace stats
+  let spanCount = 0, sqlCount = 0;
+  if (data.trace?.spans) countSpans(data.trace.spans);
+  function countSpans(spans) { for (const s of spans) { spanCount++; if (s.sql) sqlCount += s.sql.length; if (s.children) countSpans(s.children); } }
+  const traceMs = data.trace?.totalMs ?? ms;
+
+  // Results
+  addSection(container, 'results', 'Results',
+    `${returned} codes${total !== '?' ? ' / '+total+' total' : ''}, ${ms}ms`,
+    (el) => renderResults(data, el));
+
+  // Semantic IR
+  addSection(container, 'ir', 'Semantic IR', '', (el) => renderIR(data.ir, el));
+
+  // Resolved IR
+  addSection(container, 'resolvedIR', 'Resolved IR', '', (el) => renderResolvedIR(data.resolvedIR, el));
+
+  // Query IR
+  addSection(container, 'queryIR', 'Query IR', '', (el) => renderQueryIR(data.queryIR, el));
+
+  // Trace
+  addSection(container, 'trace', 'Trace',
+    `${spanCount} spans, ${sqlCount} SQL, ${traceMs}ms`,
+    (el) => renderTrace(data.trace, el));
+
+  // Raw
+  addSection(container, 'raw', 'Raw Response', '', (el) => renderRaw(data, el));
+}
+
+function addSection(container, key, title, stats, renderFn) {
+  const sec = document.createElement('div');
+  sec.className = `section sec-${key}`;
+
+  const isOpen = sectionStates[key];
+  const hdr = document.createElement('div');
+  hdr.className = 'section-header' + (isOpen ? '' : ' collapsed');
+  hdr.innerHTML = `<span class="chevron">${isOpen ? '▾' : '▸'}</span><span class="title">${esc(title)}</span><span class="stats">${esc(stats)}</span>`;
+
+  const body = document.createElement('div');
+  body.className = 'section-body' + (isOpen ? '' : ' hidden');
+
+  hdr.addEventListener('click', () => {
+    const nowOpen = hdr.classList.toggle('collapsed');
+    body.classList.toggle('hidden');
+    sectionStates[key] = !nowOpen;
+    hdr.querySelector('.chevron').textContent = nowOpen ? '▸' : '▾';
+    // Lazy render on first open
+    if (!nowOpen && !body.dataset.rendered) {
+      renderFn(body);
+      body.dataset.rendered = '1';
+    }
+  });
+
+  if (isOpen) {
+    renderFn(body);
+    body.dataset.rendered = '1';
+  }
+
+  sec.appendChild(hdr);
+  sec.appendChild(body);
+  container.appendChild(sec);
+}
+
+/* ===== Results ===== */
+function renderResults(data, bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-results .section-body');
+  const vs = data.result;
+  const exp = vs?.expansion;
+  if (!exp) { target.innerHTML = '<div class="placeholder-msg">No expansion in response.</div>'; return; }
+
+  const returned = exp.contains?.length ?? 0;
+  if (returned === 0) { target.innerHTML = '<div class="no-results">No concepts in expansion</div>'; return; }
+
   const hasProps = exp.contains?.some(c => c.property?.length);
   const hasDesig = exp.contains?.some(c => c.designation?.length);
 
-  let html = `<div class="summary-bar">Total: <span>${total}</span> Returned: <span>${returned}</span> Time: <span>${ms} ms</span></div>`;
-  html += '<table class="results"><thead><tr><th>System</th><th>Code</th><th>Display</th>';
+  let html = '<table class="results"><thead><tr><th>System</th><th>Code</th><th>Display</th>';
   if (hasProps) html += '<th>Properties</th>';
   if (hasDesig) html += '<th>Designations</th>';
   html += '</tr></thead><tbody>';
@@ -465,7 +635,7 @@ function renderResults(data) {
     html += '</tr>';
   }
   html += '</tbody></table>';
-  panel.innerHTML = html;
+  target.innerHTML = html;
 }
 
 function propVal(p) {
@@ -485,14 +655,16 @@ function shortSystem(sys) {
     .replace('http://www.nlm.nih.gov/research/umls/rxnorm', 'RxNorm').replace('https://www.usps.com/', 'USPS')
     .replace('urn:iso:std:iso:4217', 'ISO4217').replace('urn:iso:std:iso:3166', 'ISO3166')
     .replace('http://unstats.un.org/unsd/methods/m49/m49.htm', 'M49')
-    .replace('http://terminology.hl7.org/CodeSystem/', 'THO/');
+    .replace('http://terminology.hl7.org/CodeSystem/', 'THO/')
+    .replace('http://example.org/cs/', 'ex/')
+    .replace('http://example.org/vs/', 'ex/vs/');
 }
 
-/* ===== IR Tab ===== */
-function renderIR(ir) {
-  const panel = document.getElementById('panel-ir');
-  if (!ir) { panel.innerHTML = '<div class="placeholder-msg">No IR data.</div>'; return; }
-  panel.innerHTML = '<div class="ir-tree">' + renderIRNode(ir) + '</div>';
+/* ===== Semantic IR ===== */
+function renderIR(ir, bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-ir .section-body');
+  if (!ir) { target.innerHTML = '<div class="placeholder-msg">No IR data.</div>'; return; }
+  target.innerHTML = '<div class="ir-tree">' + renderIRNode(ir) + '</div>';
 }
 
 function renderIRNode(node) {
@@ -520,11 +692,18 @@ function renderIRNode(node) {
   return badge + detail + children;
 }
 
-/* ===== QueryIR Tab ===== */
-function renderQueryIR(qir) {
-  const panel = document.getElementById('panel-queryir');
-  if (!qir) { panel.innerHTML = '<div class="placeholder-msg">No Query IR (expression may not be compilable).</div>'; return; }
-  panel.innerHTML = '<div class="json-view">' + syntaxHighlight(JSON.stringify(qir, null, 2)) + '</div>';
+/* ===== Resolved IR ===== */
+function renderResolvedIR(ir, bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-resolvedIR .section-body');
+  if (!ir) { target.innerHTML = '<div class="placeholder-msg">No resolved IR data.</div>'; return; }
+  target.innerHTML = '<div class="ir-tree">' + renderIRNode(ir) + '</div>';
+}
+
+/* ===== Query IR ===== */
+function renderQueryIR(qir, bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-queryIR .section-body');
+  if (qir === null || qir === undefined) { target.innerHTML = '<div class="placeholder-msg">Expression not compilable to single-provider query</div>'; return; }
+  target.innerHTML = '<div class="json-view">' + syntaxHighlight(JSON.stringify(qir, null, 2)) + '</div>';
 }
 
 function syntaxHighlight(json) {
@@ -536,10 +715,10 @@ function syntaxHighlight(json) {
     .replace(/([{}\[\]])/g, '<span class="json-brace">$1</span>');
 }
 
-/* ===== Trace Tab ===== */
-function renderTrace(trace) {
-  const panel = document.getElementById('panel-trace');
-  if (!trace) { panel.innerHTML = '<div class="placeholder-msg">No trace data.</div>'; return; }
+/* ===== Trace ===== */
+function renderTrace(trace, bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-trace .section-body');
+  if (!trace) { target.innerHTML = '<div class="placeholder-msg">No trace data.</div>'; return; }
 
   const totalMs = trace.totalMs || 1;
   let html = '<div class="trace-spans">';
@@ -555,7 +734,7 @@ function renderTrace(trace) {
     }
     html += '</div></div>';
   }
-  panel.innerHTML = html;
+  target.innerHTML = html;
 }
 
 function renderSpan(span, totalMs) {
@@ -599,57 +778,32 @@ function renderSpan(span, totalMs) {
   return html;
 }
 
-/* ===== Stats Tab ===== */
-function renderStats(data) {
-  const panel = document.getElementById('panel-stats');
-  const vs = data.result;
-  const exp = vs?.expansion;
-  const trace = data.trace;
-  const stats = data.result?.expansion?.parameter?.reduce((o, p) => { if (p.name) o[p.name] = p.valueInteger ?? p.valueString ?? p.valueBoolean; return o; }, {}) || {};
-
-  const cards = [];
-  if (exp?.total !== undefined) cards.push({val: exp.total, label: 'Total'});
-  cards.push({val: exp?.contains?.length ?? 0, label: 'Returned'});
-  if (data.ms !== undefined) cards.push({val: data.ms, label: 'Total ms'});
-  if (trace?.sqlCount !== undefined) cards.push({val: trace.sqlCount, label: 'SQL Count'});
-  if (trace?.sqlMs !== undefined) cards.push({val: Math.round(trace.sqlMs), label: 'SQL ms'});
-
-  if (trace?.counters) {
-    for (const [k, v] of Object.entries(trace.counters)) cards.push({val: v, label: k});
-  }
-
-  let html = '<div class="stats-grid">';
-  for (const c of cards) html += `<div class="stat-card"><div class="val">${c.val}</div><div class="label">${esc(c.label)}</div></div>`;
-  html += '</div>';
-  panel.innerHTML = html;
-}
-
-/* ===== Raw Tab ===== */
-function renderRaw(data) {
-  const panel = document.getElementById('panel-raw');
+/* ===== Raw ===== */
+function renderRaw(data, bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-raw .section-body');
   const json = JSON.stringify(data, null, 2);
-  panel.innerHTML = `<div class="raw-wrap"><button class="btn-copy" onclick="copyRaw()">Copy</button><pre class="raw">${esc(json)}</pre></div>`;
+  target.innerHTML = `<div class="raw-wrap"><button class="btn-copy" onclick="copyRaw()">Copy</button><pre class="raw">${esc(json)}</pre></div>`;
 }
 
 function copyRaw() {
   if (!currentResponse) return;
   navigator.clipboard.writeText(JSON.stringify(currentResponse, null, 2)).then(() => {
     const btn = document.querySelector('.btn-copy');
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy', 1500);
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1500); }
   });
 }
 
 /* ===== Textarea auto-resize ===== */
-function autoResizeTextarea() {
-  const ta = document.getElementById('vsEditor');
-  ta.addEventListener('input', resizeEditor);
+function resizeEditor() {
+  // no-op: CSS max-height handles it
 }
 
-function resizeEditor() {
-  const ta = document.getElementById('vsEditor');
-  ta.style.height = 'auto';
-  ta.style.height = Math.max(200, ta.scrollHeight) + 'px';
+function resizeTxEditor() {
+  // Update count
+  try {
+    const arr = JSON.parse(document.getElementById('txEditor').value);
+    if (Array.isArray(arr)) document.getElementById('txCount').textContent = arr.length;
+  } catch {}
 }
 
 /* ===== Helpers ===== */

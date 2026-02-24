@@ -618,12 +618,19 @@ class TXModule {
     router.post('/debug/expand', async (req, res) => {
       const start = performance.now();
       try {
-        const { valueSet: vsJson, params: expandParams } = req.body || {};
+        const { valueSet: vsJson, params: expandParams, txResources } = req.body || {};
         if (!vsJson || !vsJson.resourceType) {
           return res.status(400).json({ error: 'Must provide valueSet in request body' });
         }
 
         const worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+
+        // Inject tx-resources if provided
+        if (Array.isArray(txResources) && txResources.length > 0) {
+          worker.additionalResources = txResources
+            .map(r => worker.wrapRawResource ? worker.wrapRawResource(r) : null)
+            .filter(Boolean);
+        }
 
         // Build semantic IR
         let expr = buildIRFromValueSet(vsJson);
@@ -634,6 +641,7 @@ class TXModule {
           const vs = await worker.findValueSet(url, version);
           return vs?.jsonObj || vs;
         }, { maxDepth: 30, preferComposeOverExpansion: true });
+        const resolvedIR = JSON.parse(JSON.stringify(expr));
         expr = rewrite.flatten(expr);
 
         // Compile QueryIR (best-effort)
@@ -668,7 +676,7 @@ class TXModule {
         const ms = Math.round(performance.now() - start);
 
         res.setHeader('Content-Type', 'application/json');
-        return res.send(JSON.stringify({ result, trace: traceJson, ir: irSnapshot, queryIR, ms }));
+        return res.send(JSON.stringify({ result, trace: traceJson, ir: irSnapshot, resolvedIR, queryIR, ms }));
       } catch (error) {
         const ms = Math.round(performance.now() - start);
         this.log.error('debug/expand error:', error);
