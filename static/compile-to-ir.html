@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ValueSet Compile-to-IR Playground</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0f1117;color:#e6e9ef}
+.app{max-width:1400px;margin:0 auto;padding:16px;display:grid;grid-template-columns:360px 1fr;gap:16px}
+@media (max-width:1100px){.app{grid-template-columns:1fr}}
+.panel{background:#171b24;border:1px solid #2a3140;border-radius:8px;padding:12px}
+h1{font-size:18px;margin:0 0 10px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#93a1bd;margin:0 0 8px}
+label{display:block;font-size:12px;color:#93a1bd;margin:8px 0 4px}
+textarea,select,input{width:100%;background:#0f1117;border:1px solid #2a3140;color:#e6e9ef;border-radius:6px;padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+textarea{min-height:110px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button{border:none;border-radius:6px;padding:8px 12px;cursor:pointer;font-weight:600}
+.btn-primary{background:#7aa2f7;color:#0f1117}
+.btn-secondary{background:#2a3140;color:#e6e9ef}
+.btn-danger{background:#f7768e;color:#0f1117}
+.hint{font-size:12px;color:#93a1bd;margin-top:6px}
+.error{margin-top:8px;padding:10px;background:#3a1f28;border:1px solid #f7768e;border-radius:6px;color:#ffc0cb;display:none;white-space:pre-wrap}
+.ok{margin-top:8px;padding:10px;background:#1f3a2a;border:1px solid #9ece6a;border-radius:6px;color:#c6f3cf;display:none}
+.out{display:grid;grid-template-columns:1fr;gap:12px}
+.block{background:#11151d;border:1px solid #2a3140;border-radius:6px;padding:10px}
+.block h3{margin:0 0 8px;font-size:13px;color:#c0caf5}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border-bottom:1px solid #2a3140;padding:6px 8px;text-align:left;vertical-align:top}
+th{color:#93a1bd;font-weight:700}
+.pass{color:#9ece6a;font-weight:700}
+.fail{color:#f7768e;font-weight:700}
+.small{font-size:11px;color:#93a1bd}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel">
+    <h1>Compile ValueSet to IR</h1>
+    <div class="small">Pure client-side compile using <code>/js/standalone-vs-ir-compiler.js</code>.</div>
+
+    <label>Example</label>
+    <select id="exampleSelect"></select>
+
+    <label>ValueSet JSON</label>
+    <textarea id="vsEditor" spellcheck="false"></textarea>
+
+    <label>Parameters JSON (FHIR Parameters or plain object)</label>
+    <textarea id="paramsEditor" spellcheck="false">{}</textarea>
+
+    <label>TX Resources JSON (array)</label>
+    <textarea id="txEditor" spellcheck="false">[]</textarea>
+
+    <div class="row" style="margin-top:10px">
+      <button class="btn-primary" id="btnCompile">Compile</button>
+      <button class="btn-secondary" id="btnRunAll">Compile All Examples</button>
+      <button class="btn-danger" id="btnReset">Reset</button>
+    </div>
+
+    <div class="hint">Tip: Parameters can be plain object (like explorer params) or full FHIR <code>Parameters</code>.</div>
+    <div class="error" id="errorBox"></div>
+    <div class="ok" id="okBox"></div>
+  </div>
+
+  <div class="out">
+    <div class="block">
+      <h3>Diagnostics</h3>
+      <pre id="diagOut">Run compile to view diagnostics.</pre>
+    </div>
+    <div class="block">
+      <h3>Basic IR</h3>
+      <pre id="basicOut">-</pre>
+    </div>
+    <div class="block">
+      <h3>Resolved IR</h3>
+      <pre id="resolvedOut">-</pre>
+    </div>
+    <div class="block">
+      <h3>Lowered IR</h3>
+      <pre id="loweredOut">-</pre>
+    </div>
+    <div class="block">
+      <h3>Batch Results (Examples)</h3>
+      <div id="batchOut" class="small">Not run.</div>
+    </div>
+  </div>
+</div>
+
+<script src="js/expand-explorer-test-cases.js"></script>
+<script src="js/standalone-vs-ir-compiler.js"></script>
+<script>
+const EXAMPLES = (() => {
+  const shared = Array.isArray(globalThis.EXPAND_EXPLORER_TEST_CASES) ? globalThis.EXPAND_EXPLORER_TEST_CASES : [];
+  if (shared.length > 0) {
+    return shared.map((tc) => ({
+      name: tc.name,
+      valueSet: tc.valueSet,
+      params: tc.params || {},
+      txResources: tc.txResources || [],
+    }));
+  }
+  return [
+    {
+      name: 'Fallback example',
+      valueSet: { resourceType: 'ValueSet', status: 'active', compose: { include: [{ system: 'http://loinc.org' }] } },
+      params: { count: 10 },
+      txResources: [],
+    },
+  ];
+})();
+
+const $ = (id) => document.getElementById(id);
+
+function showError(msg) {
+  $('okBox').style.display = 'none';
+  $('errorBox').style.display = 'block';
+  $('errorBox').textContent = msg;
+}
+function showOk(msg) {
+  $('errorBox').style.display = 'none';
+  $('okBox').style.display = 'block';
+  $('okBox').textContent = msg;
+}
+
+function asPretty(x) {
+  return JSON.stringify(x, null, 2);
+}
+
+function parseMaybeParameters(json) {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return {};
+  if (json.resourceType === 'Parameters') return json;
+  return json;
+}
+
+function toFhirParameters(obj, txResources) {
+  if (obj && obj.resourceType === 'Parameters') return obj;
+  const parameter = [];
+  for (const [name, value] of Object.entries(obj || {})) {
+    if (Array.isArray(value)) {
+      for (const v of value) parameter.push(...toNamedParam(name, v));
+    } else {
+      parameter.push(...toNamedParam(name, value));
+    }
+  }
+  for (const r of (txResources || [])) {
+    if (r && r.resourceType) parameter.push({ name: 'tx-resource', resource: r });
+  }
+  return { resourceType: 'Parameters', parameter };
+}
+
+function toNamedParam(name, value) {
+  if (value === null || value === undefined) return [];
+  if (typeof value === 'boolean') return [{ name, valueBoolean: value }];
+  if (typeof value === 'number') return [Number.isInteger(value) ? { name, valueInteger: value } : { name, valueDecimal: value }];
+  if (typeof value === 'string') {
+    if (name === 'useSupplement' || name === 'url') return [{ name, valueCanonical: value }];
+    return [{ name, valueString: value }];
+  }
+  if (typeof value === 'object' && value.resourceType) return [{ name, resource: value }];
+  return [{ name, valueString: JSON.stringify(value) }];
+}
+
+function loadExample(i) {
+  const ex = EXAMPLES[i] || EXAMPLES[0];
+  $('exampleSelect').value = String(i);
+  $('vsEditor').value = asPretty(ex.valueSet);
+  $('paramsEditor').value = asPretty(ex.params || {});
+  $('txEditor').value = asPretty(ex.txResources || []);
+}
+
+async function compileOne() {
+  try {
+    const api = globalThis.ValueSetIRCompiler;
+    if (!api || typeof api.compileValueSetIR !== 'function') {
+      showError('Standalone compiler not loaded. Expected /js/standalone-vs-ir-compiler.js');
+      return;
+    }
+    const valueSet = JSON.parse($('vsEditor').value);
+    const rawParams = parseMaybeParameters(JSON.parse($('paramsEditor').value || '{}'));
+    const txResources = JSON.parse($('txEditor').value || '[]');
+    if (!Array.isArray(txResources)) throw new Error('TX Resources must be an array');
+
+    const parameters = toFhirParameters(rawParams, txResources);
+    const t0 = performance.now();
+    const out = await api.compileValueSetIR({ valueSet, parameters, additionalResources: txResources });
+    const ms = (performance.now() - t0).toFixed(1);
+
+    $('diagOut').textContent = asPretty({ ...out.diagnostics, ms });
+    $('basicOut').textContent = asPretty(out.basicIR);
+    $('resolvedOut').textContent = asPretty(out.resolvedIR);
+    $('loweredOut').textContent = asPretty(out.loweredIR);
+    showOk(`Compile OK (${ms}ms)`);
+  } catch (e) {
+    showError(e && e.message ? e.message : String(e));
+  }
+}
+
+async function compileAll() {
+  try {
+    const api = globalThis.ValueSetIRCompiler;
+    if (!api || typeof api.compileValueSetIR !== 'function') {
+      showError('Standalone compiler not loaded. Expected /js/standalone-vs-ir-compiler.js');
+      return;
+    }
+    const t0 = performance.now();
+    const rows = [];
+    for (const ex of EXAMPLES) {
+      const st = performance.now();
+      try {
+        const parameters = toFhirParameters(ex.params || {}, ex.txResources || []);
+        const out = await api.compileValueSetIR({
+          valueSet: ex.valueSet,
+          parameters,
+          additionalResources: ex.txResources || []
+        });
+        rows.push({ name: ex.name, ok: true, ms: (performance.now() - st).toFixed(1), diag: out.diagnostics || {} });
+      } catch (e) {
+        rows.push({ name: ex.name, ok: false, ms: (performance.now() - st).toFixed(1), error: e && e.message ? e.message : String(e) });
+      }
+    }
+
+    const passed = rows.filter(r => r.ok).length;
+    let html = `<div class="small">${passed}/${rows.length} passed in ${(performance.now() - t0).toFixed(1)}ms</div>`;
+    html += '<table><thead><tr><th>Example</th><th>Status</th><th>ms</th><th>Detail</th></tr></thead><tbody>';
+    for (const r of rows) {
+      const st = r.ok ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+      const detail = r.ok ? JSON.stringify(r.diag) : r.error;
+      html += `<tr><td>${escapeHtml(r.name)}</td><td>${st}</td><td>${r.ms}</td><td>${escapeHtml(detail)}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    $('batchOut').innerHTML = html;
+    showOk('Batch compile finished');
+  } catch (e) {
+    showError(e && e.message ? e.message : String(e));
+  }
+}
+
+function resetCurrent() {
+  loadExample(0);
+  $('diagOut').textContent = 'Run compile to view diagnostics.';
+  $('basicOut').textContent = '-';
+  $('resolvedOut').textContent = '-';
+  $('loweredOut').textContent = '-';
+  $('batchOut').textContent = 'Not run.';
+  $('errorBox').style.display = 'none';
+  $('okBox').style.display = 'none';
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function init() {
+  const sel = $('exampleSelect');
+  EXAMPLES.forEach((ex, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = ex.name;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => loadExample(Number(sel.value)));
+  $('btnCompile').addEventListener('click', compileOne);
+  $('btnRunAll').addEventListener('click', compileAll);
+  $('btnReset').addEventListener('click', resetCurrent);
+  resetCurrent();
+}
+
+init();
+</script>
+</body>
+</html>

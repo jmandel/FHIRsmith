@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expand IR Documentation</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0f1117;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+.wrap{max-width:980px;margin:0 auto;padding:20px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.top h1{font-size:20px;margin:0}
+.top a{color:#7aa2f7;text-decoration:none}
+.top a:hover{text-decoration:underline}
+.card{background:#171b24;border:1px solid #2a3140;border-radius:8px;padding:16px}
+.muted{color:#93a1bd;font-size:13px}
+.error{background:#3a1f28;border:1px solid #f7768e;color:#ffc0cb;padding:10px 12px;border-radius:6px;display:none;white-space:pre-wrap}
+.ok{background:#1f3a2a;border:1px solid #9ece6a;color:#c6f3cf;padding:10px 12px;border-radius:6px;display:none;white-space:pre-wrap}
+.doc h1,.doc h2,.doc h3{line-height:1.25;margin:22px 0 10px}
+.doc h1{font-size:26px}
+.doc h2{font-size:20px}
+.doc h3{font-size:16px}
+.doc p{margin:10px 0;line-height:1.6}
+.doc ul{margin:8px 0 8px 22px;line-height:1.6}
+.doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f1117;border:1px solid #2a3140;padding:1px 5px;border-radius:4px;font-size:.94em}
+.doc pre{background:#0f1117;border:1px solid #2a3140;border-radius:6px;padding:10px;overflow:auto}
+.doc pre code{border:none;padding:0;background:transparent}
+.grid{display:grid;grid-template-columns:1fr;gap:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+label{display:block;font-size:12px;color:#93a1bd;margin:8px 0 4px}
+textarea,select{width:100%;background:#0f1117;border:1px solid #2a3140;color:#e6e9ef;border-radius:6px;padding:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+textarea{min-height:96px;resize:vertical}
+button{border:none;border-radius:6px;padding:8px 12px;cursor:pointer;font-weight:600}
+.btn-primary{background:#7aa2f7;color:#0f1117}
+.btn-secondary{background:#2a3140;color:#e6e9ef}
+.block{background:#11151d;border:1px solid #2a3140;border-radius:6px;padding:10px}
+.block h3{margin:0 0 8px;font-size:13px;color:#c0caf5}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45}
+.ir-tabs{display:flex;gap:0;margin-bottom:8px;border-bottom:1px solid #2a3140}
+.ir-tab{padding:7px 12px;border-radius:0;background:transparent;color:#93a1bd;border:none;border-bottom:2px solid transparent;
+  font-size:11px;font-weight:700;letter-spacing:.35px;text-transform:uppercase}
+.ir-tab:hover{background:#1a2230;color:#e6e9ef}
+.ir-tab.active{background:transparent;color:#e6e9ef;border-bottom-color:#7aa2f7}
+.ir-pane.hidden{display:none}
+.ir-tree{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.35}
+.ir-root{margin-left:0}
+.ir-node{margin-left:12px;border-left:1px solid #2a3140;padding:2px 0 2px 8px}
+.ir-node:first-child{margin-left:0;border-left:none;padding-left:0}
+.ir-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ir-badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:800;color:#0f1117}
+.ir-badge.union{background:#7aa2f7}
+.ir-badge.intersect{background:#9ece6a}
+.ir-badge.diff{background:#f7768e}
+.ir-badge.selector{background:#bb9af7}
+.ir-badge.import{background:#e0af68}
+.ir-badge.empty{background:#93a1bd}
+.ir-badge.codeset{background:#7dcfff}
+.ir-badge.filterpill{background:#9ece6a}
+.ir-meta{color:#93a1bd;font-size:10px}
+.ir-key{color:#73daca}
+.ir-value{color:#e6e9ef}
+.ir-subtle{color:#7f8aa3}
+.ir-subblock{margin-top:4px}
+.ir-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.ir-pill{display:inline-block;padding:1px 6px;border-radius:999px;border:1px solid #394459;background:#1a2230;color:#e6e9ef;font-size:10px;line-height:1.3}
+.ir-filter-list{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.ir-filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ir-op{color:#f7768e}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1>Expand IR Documentation</h1>
+      <div>
+        <a href="expand-explorer.html">Expand Explorer</a>
+        <span class="muted">|</span>
+        <a href="compile-to-ir.html">Compile-to-IR Playground</a>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="muted" style="margin-bottom:10px">IR evaluator (same standalone engine used by the playground).</div>
+      <label>Prefill from test case</label>
+      <div class="row">
+        <select id="caseSelect"></select>
+        <button class="btn-secondary" id="btnLoadCase">Load Case</button>
+      </div>
+      <label>ValueSet JSON</label>
+      <textarea id="vsEditor" spellcheck="false"></textarea>
+      <details style="margin-top:8px">
+        <summary class="muted" style="cursor:pointer">Advanced: Parameters JSON (optional)</summary>
+        <textarea id="paramsEditor" spellcheck="false" style="margin-top:8px">{}</textarea>
+      </details>
+      <label>TX Resources JSON (array)</label>
+      <textarea id="txEditor" spellcheck="false">[]</textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn-secondary" id="btnCompileAll">Compile All Test Cases</button>
+      </div>
+      <div id="evalError" class="error" style="margin-top:10px"></div>
+      <div id="evalOk" class="ok" style="margin-top:10px"></div>
+
+      <div class="grid" style="margin-top:12px">
+        <div class="block">
+          <h3>Diagnostics</h3>
+          <pre id="diagOut">Not run.</pre>
+        </div>
+        <div class="block">
+          <h3>Lowered IR</h3>
+          <div class="ir-tabs">
+            <button class="ir-tab active" id="tabTree" type="button">Tree</button>
+            <button class="ir-tab" id="tabJson" type="button">JSON</button>
+          </div>
+          <div class="ir-pane" id="paneTree">
+            <div id="loweredTree" class="ir-tree">-</div>
+          </div>
+          <div class="ir-pane hidden" id="paneJson">
+            <pre id="loweredJson">-</pre>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Batch Summary</h3>
+          <pre id="batchOut">Not run.</pre>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="muted" style="margin-bottom:10px">Source: <code>/ir.md</code></div>
+      <div id="error" class="error"></div>
+      <article id="doc" class="doc"></article>
+    </div>
+  </div>
+
+<script src="js/expand-explorer-test-cases.js"></script>
+<script src="js/standalone-vs-ir-compiler.js"></script>
+<script>
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function inlineMd(text) {
+  return esc(text).replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+function renderSimpleMarkdown(md) {
+  const lines = String(md || '').replace(/\r/g, '').split('\n');
+  const out = [];
+  let inCode = false;
+  let codeLang = '';
+  let para = [];
+  let inList = false;
+
+  function flushPara() {
+    if (!para.length) return;
+    out.push('<p>' + inlineMd(para.join(' ')) + '</p>');
+    para = [];
+  }
+  function closeList() {
+    if (!inList) return;
+    out.push('</ul>');
+    inList = false;
+  }
+
+  for (const raw of lines) {
+    const line = raw;
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      flushPara();
+      closeList();
+      if (!inCode) {
+        inCode = true;
+        codeLang = trimmed.slice(3).trim();
+        out.push('<pre><code' + (codeLang ? ' class="lang-' + esc(codeLang) + '"' : '') + '>');
+      } else {
+        out.push('</code></pre>');
+        inCode = false;
+        codeLang = '';
+      }
+      continue;
+    }
+
+    if (inCode) {
+      out.push(esc(line) + '\n');
+      continue;
+    }
+
+    if (!trimmed) {
+      flushPara();
+      closeList();
+      continue;
+    }
+
+    const h = trimmed.match(/^(#{1,3})\s+(.*)$/);
+    if (h) {
+      flushPara();
+      closeList();
+      const level = h[1].length;
+      out.push('<h' + level + '>' + inlineMd(h[2]) + '</h' + level + '>');
+      continue;
+    }
+
+    const li = trimmed.match(/^- (.*)$/);
+    if (li) {
+      flushPara();
+      if (!inList) {
+        out.push('<ul>');
+        inList = true;
+      }
+      out.push('<li>' + inlineMd(li[1]) + '</li>');
+      continue;
+    }
+
+    closeList();
+    para.push(trimmed);
+  }
+
+  flushPara();
+  closeList();
+  if (inCode) out.push('</code></pre>');
+  return out.join('\n');
+}
+
+async function loadDoc() {
+  const errorEl = document.getElementById('error');
+  const docEl = document.getElementById('doc');
+  try {
+    const res = await fetch('ir.md', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch ir.md: HTTP ' + res.status);
+    const text = await res.text();
+    docEl.innerHTML = renderSimpleMarkdown(text);
+  } catch (e) {
+    errorEl.style.display = 'block';
+    errorEl.textContent = e && e.message ? e.message : String(e);
+  }
+}
+
+const $ = (id) => document.getElementById(id);
+const CASES = Array.isArray(globalThis.EXPAND_EXPLORER_TEST_CASES) ? globalThis.EXPAND_EXPLORER_TEST_CASES : [];
+let autoCompileTimer = null;
+let loweredView = 'tree';
+const DEFAULT_CASE_NAME = 'Deep mixed filters+codes include/exclude (SNOMED+LOINC)';
+
+function pretty(v) { return JSON.stringify(v, null, 2); }
+
+function showEvalError(msg) {
+  $('evalOk').style.display = 'none';
+  $('evalError').style.display = 'block';
+  $('evalError').textContent = msg;
+}
+
+function showEvalOk(msg) {
+  $('evalError').style.display = 'none';
+  $('evalOk').style.display = 'block';
+  $('evalOk').textContent = msg;
+}
+
+function toNamedParam(name, value) {
+  if (value === null || value === undefined) return [];
+  if (Array.isArray(value)) return value.flatMap(v => toNamedParam(name, v));
+  if (typeof value === 'boolean') return [{ name, valueBoolean: value }];
+  if (typeof value === 'number') return [Number.isInteger(value) ? { name, valueInteger: value } : { name, valueDecimal: value }];
+  if (typeof value === 'string') {
+    if (name === 'url' || name === 'useSupplement' || name === 'system-version' || name === 'check-system-version' || name === 'force-system-version') {
+      return [{ name, valueCanonical: value }];
+    }
+    return [{ name, valueString: value }];
+  }
+  if (typeof value === 'object' && value.resourceType) return [{ name, resource: value }];
+  return [{ name, valueString: JSON.stringify(value) }];
+}
+
+function toFhirParameters(raw, txResources) {
+  if (raw && raw.resourceType === 'Parameters') return raw;
+  const parameter = [];
+  for (const [k, v] of Object.entries(raw || {})) {
+    parameter.push(...toNamedParam(k, v));
+  }
+  for (const r of txResources || []) {
+    if (r && r.resourceType) parameter.push({ name: 'tx-resource', resource: r });
+  }
+  return { resourceType: 'Parameters', parameter };
+}
+
+function loadCase(index) {
+  const tc = CASES[index] || CASES[0];
+  if (!tc) return;
+  $('caseSelect').value = String(index);
+  $('vsEditor').value = pretty(tc.valueSet || {});
+  $('paramsEditor').value = '{}';
+  $('txEditor').value = pretty(tc.txResources || []);
+}
+
+function setCompileOutputs(result, ms) {
+  $('diagOut').textContent = pretty({ ...(result.diagnostics || {}), ms });
+  renderLoweredIR(result.loweredIR);
+}
+
+function applyLoweredView() {
+  const isTree = loweredView === 'tree';
+  $('tabTree').classList.toggle('active', isTree);
+  $('tabJson').classList.toggle('active', !isTree);
+  $('paneTree').classList.toggle('hidden', !isTree);
+  $('paneJson').classList.toggle('hidden', isTree);
+}
+
+function renderLoweredIR(ir) {
+  $('loweredJson').textContent = pretty(ir);
+  $('loweredTree').innerHTML = '<div class="ir-root">' + renderIRNodeDense(ir) + '</div>';
+  applyLoweredView();
+}
+
+function renderIRNodeDense(node) {
+  if (!node || typeof node !== 'object') return '<span class="ir-subtle">(null)</span>';
+  const kind = String(node.kind || 'unknown');
+  const parts = [];
+  let subblocks = '';
+  parts.push('<span class="ir-badge ' + esc(kind) + '">' + esc(kind) + '</span>');
+
+  if (kind === 'selector') {
+    parts.push('<span class="ir-meta"><span class="ir-key">system</span>=<span class="ir-value">' + esc(node.system || '') + '</span></span>');
+    if (node.version) parts.push('<span class="ir-meta"><span class="ir-key">version</span>=<span class="ir-value">' + esc(node.version) + '</span></span>');
+    if (node.shape) parts.push('<span class="ir-meta"><span class="ir-key">shape</span>=<span class="ir-value">' + esc(node.shape) + '</span></span>');
+    if (Array.isArray(node.conceptCodes) && node.conceptCodes.length) {
+      const codes = node.conceptCodes.map(c => String(c.code || c || '')).filter(Boolean);
+      const pillHtml = codes.slice(0, 24).map(c => '<span class="ir-pill">' + esc(c) + '</span>').join('');
+      const more = codes.length > 24 ? '<span class="ir-pill ir-subtle">+' + (codes.length - 24) + ' more</span>' : '';
+      subblocks += '<div class="ir-node ir-subblock"><div class="ir-line"><span class="ir-badge codeset">codes</span><span class="ir-meta">' + codes.length + '</span></div><div class="ir-pills">' + pillHtml + more + '</div></div>';
+    }
+    if (Array.isArray(node.filterClauses) && node.filterClauses.length) {
+      const rows = node.filterClauses.map(fc =>
+        '<div class="ir-filter-row"><span class="ir-badge filterpill">filter</span>' +
+        '<span class="ir-meta"><span class="ir-key">property</span>=<span class="ir-value">' + esc(fc.property || '') + '</span></span>' +
+        '<span class="ir-meta"><span class="ir-key">op</span>=<span class="ir-value ir-op">' + esc(fc.op || '') + '</span></span>' +
+        '<span class="ir-meta"><span class="ir-key">value</span>=<span class="ir-value">' + esc(fc.value || '') + '</span></span>' +
+        '</div>'
+      ).join('');
+      subblocks += '<div class="ir-node ir-subblock"><div class="ir-filter-list">' + rows + '</div></div>';
+    }
+    if (Array.isArray(node.intersectCodes) && node.intersectCodes.length) {
+      const pills = node.intersectCodes.slice(0, 24).map(c => '<span class="ir-pill">' + esc(c) + '</span>').join('');
+      const more = node.intersectCodes.length > 24 ? '<span class="ir-pill ir-subtle">+' + (node.intersectCodes.length - 24) + ' more</span>' : '';
+      subblocks += '<div class="ir-node ir-subblock"><div class="ir-line"><span class="ir-badge codeset">intersectCodes</span><span class="ir-meta">' + node.intersectCodes.length + '</span></div><div class="ir-pills">' + pills + more + '</div></div>';
+    }
+  } else if (kind === 'import') {
+    parts.push('<span class="ir-meta"><span class="ir-key">url</span>=<span class="ir-value">' + esc(node.url || '') + '</span></span>');
+    if (node.version) parts.push('<span class="ir-meta"><span class="ir-key">version</span>=<span class="ir-value">' + esc(node.version) + '</span></span>');
+  }
+
+  let children = '';
+  if (kind === 'diff') {
+    children += '<div class="ir-node"><div class="ir-line"><span class="ir-subtle">left</span></div>' + renderIRNodeDense(node.left) + '</div>';
+    children += '<div class="ir-node"><div class="ir-line"><span class="ir-subtle">right</span></div>' + renderIRNodeDense(node.right) + '</div>';
+  } else if (Array.isArray(node.items) && node.items.length) {
+    children += node.items.map(it => '<div class="ir-node">' + renderIRNodeDense(it) + '</div>').join('');
+  }
+  if (node.resolved) {
+    children += '<div class="ir-node"><div class="ir-line"><span class="ir-subtle">resolved</span></div>' + renderIRNodeDense(node.resolved) + '</div>';
+  }
+
+  return '<div class="ir-line">' + parts.join(' ') + '</div>' + subblocks + children;
+}
+
+async function compileCurrent() {
+  try {
+    const api = globalThis.ValueSetIRCompiler;
+    if (!api || typeof api.compileValueSetIR !== 'function') {
+      showEvalError('Standalone compiler is not loaded. Expected /js/standalone-vs-ir-compiler.js');
+      return;
+    }
+
+    const valueSet = JSON.parse($('vsEditor').value || '{}');
+    const paramsJson = JSON.parse($('paramsEditor').value || '{}');
+    const txResources = JSON.parse($('txEditor').value || '[]');
+    if (!Array.isArray(txResources)) throw new Error('TX Resources must be an array');
+
+    const parameters = toFhirParameters(paramsJson, txResources);
+    const t0 = performance.now();
+    const out = await api.compileValueSetIR({ valueSet, parameters, additionalResources: txResources });
+    const ms = Number(performance.now() - t0).toFixed(1);
+    setCompileOutputs(out, ms);
+    showEvalOk('Compile OK (' + ms + 'ms)');
+  } catch (e) {
+    showEvalError(e && e.message ? e.message : String(e));
+  }
+}
+
+function scheduleCompile(delay = 250) {
+  if (autoCompileTimer) clearTimeout(autoCompileTimer);
+  autoCompileTimer = setTimeout(() => {
+    autoCompileTimer = null;
+    compileCurrent();
+  }, delay);
+}
+
+async function compileAllCases() {
+  try {
+    const api = globalThis.ValueSetIRCompiler;
+    if (!api || typeof api.compileValueSetIR !== 'function') {
+      showEvalError('Standalone compiler is not loaded. Expected /js/standalone-vs-ir-compiler.js');
+      return;
+    }
+    const t0 = performance.now();
+    const rows = [];
+    for (const tc of CASES) {
+      const st = performance.now();
+      try {
+        const params = tc.params || {};
+        const txResources = tc.txResources || [];
+        const out = await api.compileValueSetIR({
+          valueSet: tc.valueSet,
+          parameters: toFhirParameters(params, txResources),
+          additionalResources: txResources,
+        });
+        rows.push({ name: tc.name, ok: true, ms: Number(performance.now() - st).toFixed(1), diag: out.diagnostics || {} });
+      } catch (e) {
+        rows.push({ name: tc.name, ok: false, ms: Number(performance.now() - st).toFixed(1), error: (e && e.message) ? e.message : String(e) });
+      }
+    }
+    const passed = rows.filter(r => r.ok).length;
+    const lines = [];
+    lines.push(passed + '/' + rows.length + ' passed in ' + Number(performance.now() - t0).toFixed(1) + 'ms');
+    for (const r of rows) {
+      lines.push((r.ok ? '[PASS] ' : '[FAIL] ') + r.name + ' (' + r.ms + 'ms)' + (r.ok ? '' : ' :: ' + r.error));
+    }
+    $('batchOut').textContent = lines.join('\n');
+    showEvalOk('Batch compile finished');
+  } catch (e) {
+    showEvalError(e && e.message ? e.message : String(e));
+  }
+}
+
+function initEvaluator() {
+  const sel = $('caseSelect');
+  let defaultIndex = 0;
+  for (let i = 0; i < CASES.length; i++) {
+    const tc = CASES[i];
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = tc.name;
+    sel.appendChild(opt);
+    if (tc && tc.name === DEFAULT_CASE_NAME) defaultIndex = i;
+  }
+  if (CASES.length) loadCase(defaultIndex);
+  $('btnLoadCase').addEventListener('click', () => {
+    loadCase(Number(sel.value || '0'));
+    scheduleCompile(0);
+  });
+  sel.addEventListener('change', () => {
+    loadCase(Number(sel.value || '0'));
+    scheduleCompile(0);
+  });
+  $('vsEditor').addEventListener('input', () => scheduleCompile(300));
+  $('paramsEditor').addEventListener('input', () => scheduleCompile(300));
+  $('txEditor').addEventListener('input', () => scheduleCompile(300));
+  $('btnCompileAll').addEventListener('click', compileAllCases);
+  $('tabTree').addEventListener('click', () => { loweredView = 'tree'; applyLoweredView(); });
+  $('tabJson').addEventListener('click', () => { loweredView = 'json'; applyLoweredView(); });
+  applyLoweredView();
+  scheduleCompile(0);
+}
+
+initEvaluator();
+loadDoc();
+</script>
+</body>
+</html>

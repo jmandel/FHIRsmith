@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build the Expand Explorer static HTML for a specific server base URL.
+# Build the Expand Explorer static site bundle for a specific server base URL.
 #
 # Usage:
 #   ./scripts/build-expand-explorer.sh [BASE_URL] [OUT_DIR]
@@ -19,17 +19,26 @@ set -euo pipefail
 
 BASE_URL="${1:-}"
 OUT_DIR="${2:-./dist}"
-SRC="$(dirname "$0")/../static/expand-explorer.html"
+STATIC_DIR="$(dirname "$0")/../static"
+SRC="$STATIC_DIR/expand-explorer.html"
 
 mkdir -p "$OUT_DIR"
+mkdir -p "$OUT_DIR/js"
+
+# Shared static assets/pages used by the explorer + IR docs/tools.
+cp "$STATIC_DIR/compile-to-ir.html" "$OUT_DIR/compile-to-ir.html"
+cp "$STATIC_DIR/ir.html" "$OUT_DIR/ir.html"
+cp "$STATIC_DIR/ir.md" "$OUT_DIR/ir.md"
+cp "$STATIC_DIR/js/standalone-vs-ir-compiler.js" "$OUT_DIR/js/standalone-vs-ir-compiler.js"
+cp "$STATIC_DIR/js/expand-explorer-test-cases.js" "$OUT_DIR/js/expand-explorer-test-cases.js"
 
 if [ -z "$BASE_URL" ]; then
   # No base URL — keep the default auto-detect behavior
   cp "$SRC" "$OUT_DIR/expand-explorer.html"
-  echo "Built expand-explorer.html → $OUT_DIR/ (auto-detect server URL)"
+  echo "Built explorer site → $OUT_DIR/ (auto-detect server URL)"
 else
   # Inject the base URL as a global variable before the closing </head>
   sed "s|</head>|<script>window.__EXPAND_EXPLORER_BASE_URL__ = '${BASE_URL}';</script></head>|" \
     "$SRC" > "$OUT_DIR/expand-explorer.html"
-  echo "Built expand-explorer.html → $OUT_DIR/ (server: $BASE_URL)"
+  echo "Built explorer site → $OUT_DIR/ (server: $BASE_URL)"
 fi

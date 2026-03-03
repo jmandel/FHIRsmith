@@ -67,6 +67,11 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
   border-radius:var(--radius);transition:opacity .15s;align-self:flex-end}
 .btn-run:hover{opacity:.85}
 .btn-run:disabled{opacity:.5;cursor:wait}
+.run-row{gap:8px}
+.btn-compile{padding:8px 14px;background:var(--surface);color:var(--fg);font-weight:600;font-size:12px;
+  border-radius:var(--radius);transition:opacity .15s;align-self:flex-end}
+.btn-compile:hover{opacity:.9}
+.btn-compile:disabled{opacity:.5;cursor:wait}
 
 .error-box{background:rgba(243,139,168,.15);border:1px solid var(--red);border-radius:var(--radius);
   padding:10px 12px;color:var(--red);font-size:13px;white-space:pre-wrap;display:none;margin-top:12px}
@@ -87,6 +92,8 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;tab-size:2}
 .section.sec-ir .section-header{border-left-color:var(--purple)}
 .section.sec-resolvedIR .section-header{border-left-color:var(--purple)}
 .section.sec-queryIR .section-header{border-left-color:var(--blue)}
+.section.sec-standaloneIR .section-header{border-left-color:var(--green)}
+.section.sec-standaloneBatch .section-header{border-left-color:var(--yellow)}
 .section.sec-sql .section-header{border-left-color:var(--yellow)}
 .section.sec-trace .section-header{border-left-color:var(--orange)}
 .section.sec-raw .section-header{border-left-color:var(--fg3)}
@@ -167,6 +174,12 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
   background:var(--bg);padding:12px;border-radius:var(--radius);max-height:600px;overflow:auto}
 
 .placeholder-msg{color:var(--fg3);font-size:13px;text-align:center;padding:20px}
+.inline-error{background:rgba(243,139,168,.12);border:1px solid var(--red);padding:10px 12px;border-radius:var(--radius);color:var(--red);font-size:12px}
+.batch-table{width:100%;border-collapse:collapse;font-size:12px}
+.batch-table th,.batch-table td{padding:6px 8px;border-bottom:1px solid var(--bg3);text-align:left;vertical-align:top}
+.batch-table th{background:var(--bg3);font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--fg2)}
+.batch-ok{color:var(--green);font-weight:700}
+.batch-fail{color:var(--red);font-weight:700}
 </style>
 </head>
 <body>
@@ -200,6 +213,8 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
           <textarea class="tx-editor params-editor" id="paramsEditor" spellcheck="false">{}</textarea>
         </div>
         <div class="run-row">
+          <button class="btn-compile" id="btnCompile">Compile IR</button>
+          <button class="btn-compile" id="btnCompileAll">Compile All Cases</button>
           <button class="btn-run" id="btnRun">Run</button>
         </div>
       </div>
@@ -215,121 +230,19 @@ pre.raw{font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:b
 
 </div>
 
+<script src="js/expand-explorer-test-cases.js"></script>
+<script src="js/standalone-vs-ir-compiler.js"></script>
 <script>
 /* ===== Test Cases ===== */
-const TEST_CASES = [
-  // --- SQL Pushdown Core ---
-  {name:"SNOMED is-a deep page",category:"SQL Pushdown Core",description:"Large hierarchy expansion with deep paging (pushdown windowing).",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"123037004"}]}]}},
-   params:{count:1000,offset:40000}},
-  {name:"SNOMED complex include/exclude",category:"SQL Pushdown Core",description:"Same-provider union minus union over SNOMED hierarchies.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"64572001"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"123037004"}]}],exclude:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"442083009"}]}]}},
-   params:{count:500}},
-  {name:"SNOMED complex count-only",category:"SQL Pushdown Core",description:"Count-only fast path for same complex SNOMED expression (returns total with empty contains by design).",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"64572001"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"123037004"}]}],exclude:[{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"73211009"}]},{system:"http://snomed.info/sct",filter:[{property:"concept",op:"is-a",value:"442083009"}]}]}},
-   params:{count:0}},
-  {name:"LOINC STATUS=ACTIVE deep page",category:"SQL Pushdown Core",description:"Large non-hierarchy property filter in LOINC with deep offset.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]}]}},
-   params:{count:1000,offset:20000}},
-  {name:"RxNorm TTY=SBD",category:"SQL Pushdown Core",description:"RxNorm property filter using TTY semantic class.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm",filter:[{property:"TTY",op:"=",value:"SBD"}]}]}},
-   params:{count:1000}},
-  {name:"SNOMED code regex 7.*",category:"SQL Pushdown Core",description:"Regex filter over code domain.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://snomed.info/sct",filter:[{property:"code",op:"regex",value:"7.*"}]}]}},
-   params:{count:20}},
-  {name:"LOINC supplement d20 filter",category:"SQL Pushdown Core",description:"Supplement-aware native property filter (d20=1).",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"d20",op:"=",value:"1"}]}]}},
-   params:{count:1000,useSupplement:["http://example.org/fhir/CodeSystem/supplement-loinc-d20"],property:["d20"]}},
-  {name:"LOINC supplement d20+d8 filter",category:"SQL Pushdown Core",description:"Two supplement predicates in one include clause.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"d20",op:"=",value:"20"},{property:"d8",op:"=",value:"8"}]}]}},
-   params:{count:500,useSupplement:["http://example.org/fhir/CodeSystem/supplement-loinc-d20","http://example.org/fhir/CodeSystem/supplement-loinc-d8"],property:["d20","d8"]}},
-  {name:"LOINC supplement decoration-only",category:"SQL Pushdown Core",description:"Attach supplement properties/designations without supplement filtering.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"},{code:"718-7"}]}]}},
-   params:{useSupplement:["http://example.org/fhir/CodeSystem/supplement-loinc-d20","http://example.org/fhir/CodeSystem/supplement-loinc-d8"],property:["d20","d8"],includeDesignations:true}},
-  {name:"RxNorm filter + supplement decoration",category:"SQL Pushdown Core",description:"Base-system filter plus supplement overlays in one request.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://www.nlm.nih.gov/research/umls/rxnorm",filter:[{property:"TTY",op:"=",value:"SBD"}]}]}},
-   params:{count:200,useSupplement:["http://example.org/fhir/CodeSystem/supplement-rxnorm-d20"],property:["d20"],includeDesignations:true}},
-
-  // --- IR Rewriting & Lowering ---
-  {name:"Import+filter intersection lowering",category:"IR Rewriting & Lowering",description:"Import-only LOINC ValueSet intersected with local LOINC filter.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}],valueSet:["http://example.org/vs/loinc-core"]}]}},
-   txResources:[{resourceType:"ValueSet",url:"http://example.org/vs/loinc-core",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"},{code:"718-7"}]}]}}],
-   params:{count:100}},
-  {name:"Import exclude lowering",category:"IR Rewriting & Lowering",description:"Top-level LOINC include minus imported LOINC subset.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]}],exclude:[{valueSet:["http://example.org/vs/loinc-unlucky"]}]}},
-   txResources:[{resourceType:"ValueSet",url:"http://example.org/vs/loinc-unlucky",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"},{code:"718-7"}]}]}}],
-   params:{count:200}},
-  {name:"Deep import include graph",category:"IR Rewriting & Lowering",description:"Top-level include imports a ValueSet that itself imports two ValueSets; resolved IR should flatten and reconcile all include paths.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-root-include"]}]}},
-   txResources:[
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-root-include",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-branch-a"]},{valueSet:["http://example.org/vs/loinc-branch-b"]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-branch-a",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-branch-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"718-7"},{code:"2951-2"}]}]}}
-   ],
-   params:{}},
-  {name:"Deep import include minus exclude graph",category:"IR Rewriting & Lowering",description:"Top-level include and exclude both import nested ValueSets; resolved IR should reconcile deep union/diff boundaries.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-root-include-2"]}],exclude:[{valueSet:["http://example.org/vs/loinc-root-exclude-2"]}]}},
-   txResources:[
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-root-include-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-inc-a"]},{valueSet:["http://example.org/vs/loinc-inc-b"]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-inc-a",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-inc-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"718-7"},{code:"2951-2"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-root-exclude-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/loinc-exc-a"]},{valueSet:["http://example.org/vs/loinc-exc-b"]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-exc-a",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"4548-4"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/loinc-exc-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2951-2"}]}]}}
-   ],
-   params:{}},
-  {name:"Deep mixed import graph (SNOMED+LOINC)",category:"IR Rewriting & Lowering",description:"Nested import tree brings both SNOMED and LOINC branches; engine should partition execution by system/provider.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-root-include"]}]}},
-   txResources:[
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-root-include",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-branch-a"]},{valueSet:["http://example.org/vs/mixed-branch-b"]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-branch-a",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-snomed-leaf"]},{valueSet:["http://example.org/vs/mixed-loinc-leaf"]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-branch-b",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"46635009"}]},{system:"http://loinc.org",concept:[{code:"2951-2"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-snomed-leaf",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"},{code:"44054006"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-loinc-leaf",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}}
-   ],
-   params:{}},
-  {name:"Deep mixed include-minus-exclude (SNOMED+LOINC)",category:"IR Rewriting & Lowering",description:"Nested include and exclude import trees each span SNOMED+LOINC; resolved IR should reconcile deep cross-system diff safely.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-root-include-2"]}],exclude:[{valueSet:["http://example.org/vs/mixed-root-exclude-2"]}]}},
-   txResources:[
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-root-include-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-inc-a"]},{valueSet:["http://example.org/vs/mixed-inc-b"]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-inc-a",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"73211009"},{code:"44054006"}]},{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-inc-b",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"46635009"}]},{system:"http://loinc.org",concept:[{code:"718-7"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-root-exclude-2",status:"active",compose:{include:[{valueSet:["http://example.org/vs/mixed-exc-a"]},{valueSet:["http://example.org/vs/mixed-exc-b"]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-exc-a",status:"active",compose:{include:[{system:"http://snomed.info/sct",concept:[{code:"44054006"}]}]}},
-     {resourceType:"ValueSet",url:"http://example.org/vs/mixed-exc-b",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"4548-4"}]}]}}
-   ],
-   params:{}},
-  {name:"Union merge lowering",category:"IR Rewriting & Lowering",description:"Two same-system concept includes should collapse into one merged selector.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]},{system:"http://loinc.org",concept:[{code:"718-7"},{code:"2951-2"}]}]}},
-   params:{}},
-  {name:"Provider-disjoint exclude pruning",category:"IR Rewriting & Lowering",description:"USPS exclude is disjoint from LOINC include and should not constrain LOINC pushdown.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]}],exclude:[{system:"https://www.usps.com/",concept:[{code:"CA"},{code:"NY"}]}]}},
-   params:{count:200}},
-
-  // --- Hybrid Execution (v0 + legacy/base) ---
-  {name:"LOINC + USPS mixed providers",category:"Hybrid Execution (v0 + legacy/base)",description:"Query-target sqlite slice alongside internal legacy/base provider slice.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",filter:[{property:"STATUS",op:"=",value:"ACTIVE"}]},{system:"https://www.usps.com/"}]}},
-   params:{count:200}},
-  {name:"Cross-provider excludes",category:"Hybrid Execution (v0 + legacy/base)",description:"Global exclude semantics across sqlite and non-sqlite systems.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://loinc.org",concept:[{code:"2160-0"},{code:"4548-4"}]},{system:"http://hl7.org/fhir/administrative-gender"}],exclude:[{system:"http://loinc.org",concept:[{code:"4548-4"}]},{system:"http://hl7.org/fhir/administrative-gender",concept:[{code:"unknown"}]}]}},
-   params:{}},
-  {name:"UCUM base-only path",category:"Hybrid Execution (v0 + legacy/base)",description:"Grammar-backed UCUM expansion path (non-query-target provider).",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{system:"http://unitsofmeasure.org"}]}},
-   params:{count:20}},
-  {name:"TX-resource import + sqlite peer",category:"Hybrid Execution (v0 + legacy/base)",description:"Inline imported ValueSet branch plus sqlite LOINC branch in one request.",
-   valueSet:{resourceType:"ValueSet",status:"active",compose:{include:[{valueSet:["http://example.org/vs/warm-colors"]},{system:"http://loinc.org",concept:[{code:"2160-0"}]}]}},
-   txResources:[
-     {resourceType:"CodeSystem",url:"http://example.org/cs/palette",status:"active",content:"complete",concept:[{code:"red",display:"Red"},{code:"orange",display:"Orange"},{code:"blue",display:"Blue"}]},
-     {resourceType:"ValueSet",url:"http://example.org/vs/warm-colors",status:"active",compose:{include:[{system:"http://example.org/cs/palette",concept:[{code:"red"},{code:"orange"}]}]}}
-   ],
-   params:{}},
-];
+const TEST_CASES = globalThis.EXPAND_EXPLORER_TEST_CASES || [];
 
 /* ===== State ===== */
 let currentResponse = null;
 let pendingAbort = null;
-let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, trace:true, raw:false};
+let sectionStates = {results:true, ir:true, resolvedIR:true, queryIR:true, standaloneIR:true, standaloneBatch:true, trace:true, raw:false};
 let resultsPager = { page: 0, pageSize: 15 };
+let currentStandaloneCompile = null;
+let standaloneBatchReport = null;
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -447,6 +360,8 @@ function loadFromHash() {
 /* ===== Events ===== */
 function setupEvents() {
   document.getElementById('btnRun').addEventListener('click', doExpand);
+  document.getElementById('btnCompile').addEventListener('click', compileCurrentOnly);
+  document.getElementById('btnCompileAll').addEventListener('click', compileAllCases);
   document.getElementById('btnAddTx').addEventListener('click', () => {
     showTxEditor([]);
     document.getElementById('txEditor').value = '[\n  \n]';
@@ -477,39 +392,17 @@ async function doExpand() {
   // Cancel previous pending request
   if (pendingAbort) { pendingAbort.abort(); pendingAbort = null; }
 
-  let vsJson;
+  let parsed;
   try {
-    vsJson = JSON.parse(document.getElementById('vsEditor').value);
-  } catch (e) {
-    errorBox.textContent = 'Invalid JSON: ' + e.message;
-    errorBox.classList.add('show');
-    return;
-  }
-
-  let txResources = null;
-  const txArea = document.getElementById('txArea');
-  if (txArea.style.display !== 'none') {
-    const txVal = document.getElementById('txEditor').value.trim();
-    if (txVal) {
-      try {
-        txResources = JSON.parse(txVal);
-        if (!Array.isArray(txResources)) throw new Error('txResources must be an array');
-      } catch (e) {
-        errorBox.textContent = 'Invalid TX Resources JSON: ' + e.message;
-        errorBox.classList.add('show');
-        return;
-      }
-    }
-  }
-
-  let params;
-  try {
-    params = gatherParams();
+    parsed = parseCurrentRequestEditors();
   } catch (e) {
     errorBox.textContent = 'Invalid Params JSON: ' + e.message;
     errorBox.classList.add('show');
     return;
   }
+  const vsJson = parsed.valueSet;
+  const txResources = parsed.txResources;
+  const params = parsed.params;
   const url = document.getElementById('serverUrl').value.replace(/\/+$/, '') + '/debug/expand';
 
   btn.disabled = true;
@@ -520,6 +413,7 @@ async function doExpand() {
   pendingAbort = abortController;
 
   try {
+    await compileStandaloneInput(parsed, { suppressThrow: true });
     const body = { valueSet: vsJson, params };
     if (txResources && txResources.length) body.txResources = txResources;
 
@@ -556,6 +450,167 @@ async function doExpand() {
   }
 }
 
+function parseCurrentRequestEditors() {
+  let valueSet;
+  try {
+    valueSet = JSON.parse(document.getElementById('vsEditor').value);
+  } catch (e) {
+    throw new Error('ValueSet JSON: ' + e.message);
+  }
+
+  let txResources = [];
+  const txArea = document.getElementById('txArea');
+  if (txArea.style.display !== 'none') {
+    const txVal = document.getElementById('txEditor').value.trim();
+    if (txVal) {
+      try {
+        txResources = JSON.parse(txVal);
+        if (!Array.isArray(txResources)) throw new Error('txResources must be an array');
+      } catch (e) {
+        throw new Error('TX Resources JSON: ' + e.message);
+      }
+    }
+  }
+
+  let params;
+  try {
+    params = gatherParams();
+  } catch (e) {
+    throw new Error('Params JSON: ' + e.message);
+  }
+
+  return { valueSet, txResources, params };
+}
+
+function makeFhirParamEntries(name, value) {
+  if (Array.isArray(value)) {
+    return value.flatMap(v => makeFhirParamEntries(name, v));
+  }
+  if (value === null || value === undefined) return [];
+  if (typeof value === 'boolean') return [{ name, valueBoolean: value }];
+  if (typeof value === 'number') {
+    if (Number.isInteger(value)) return [{ name, valueInteger: value }];
+    return [{ name, valueDecimal: value }];
+  }
+  if (typeof value === 'string') {
+    if (name === 'url' || name === 'system-version' || name === 'check-system-version' || name === 'force-system-version') {
+      return [{ name, valueCanonical: value }];
+    }
+    if (name === 'useSupplement') return [{ name, valueCanonical: value }];
+    return [{ name, valueString: value }];
+  }
+  if (typeof value === 'object' && value.resourceType) return [{ name, resource: value }];
+  return [{ name, valueString: JSON.stringify(value) }];
+}
+
+function makeFhirParametersFromObject(paramsObj, txResources) {
+  const parameter = [];
+  for (const [name, value] of Object.entries(paramsObj || {})) {
+    parameter.push(...makeFhirParamEntries(name, value));
+  }
+  for (const r of txResources || []) {
+    if (r && typeof r === 'object' && r.resourceType) parameter.push({ name: 'tx-resource', resource: r });
+  }
+  return { resourceType: 'Parameters', parameter };
+}
+
+async function compileStandaloneInput(parsed, { suppressThrow = false } = {}) {
+  const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  try {
+    const api = globalThis.ValueSetIRCompiler;
+    if (!api || typeof api.compileValueSetIR !== 'function') {
+      throw new Error('Standalone compiler is not loaded (/js/standalone-vs-ir-compiler.js)');
+    }
+
+    const parameters = makeFhirParametersFromObject(parsed.params || {}, parsed.txResources || []);
+    const result = await api.compileValueSetIR({
+      valueSet: parsed.valueSet,
+      parameters,
+      additionalResources: parsed.txResources || [],
+    });
+    const dt = (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0);
+    currentStandaloneCompile = { ok: true, ms: dt, result };
+    return currentStandaloneCompile;
+  } catch (e) {
+    currentStandaloneCompile = { ok: false, error: e && e.message ? e.message : String(e) };
+    if (!suppressThrow) throw e;
+    return currentStandaloneCompile;
+  }
+}
+
+async function compileCurrentOnly() {
+  const errorBox = document.getElementById('errorBox');
+  errorBox.classList.remove('show');
+  try {
+    const parsed = parseCurrentRequestEditors();
+    await compileStandaloneInput(parsed, { suppressThrow: false });
+  } catch (e) {
+    errorBox.textContent = e.message || String(e);
+    errorBox.classList.add('show');
+  }
+  if (currentResponse) renderSections(currentResponse);
+  else renderStandaloneSectionsOnly();
+}
+
+async function compileAllCases() {
+  const btn = document.getElementById('btnCompileAll');
+  btn.disabled = true;
+  const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  const rows = [];
+  try {
+    const api = globalThis.ValueSetIRCompiler;
+    if (!api || typeof api.compileValueSetIR !== 'function') {
+      throw new Error('Standalone compiler is not loaded (/js/standalone-vs-ir-compiler.js)');
+    }
+
+    for (const tc of TEST_CASES) {
+      const st = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      try {
+        const parameters = makeFhirParametersFromObject(tc.params || {}, tc.txResources || []);
+        const out = await api.compileValueSetIR({
+          valueSet: tc.valueSet,
+          parameters,
+          additionalResources: tc.txResources || [],
+        });
+        const et = (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - st);
+        rows.push({
+          name: tc.name,
+          ok: true,
+          ms: et,
+          diag: out?.diagnostics || {},
+        });
+      } catch (e) {
+        const et = (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - st);
+        rows.push({
+          name: tc.name,
+          ok: false,
+          ms: et,
+          error: e && e.message ? e.message : String(e),
+        });
+      }
+    }
+  } catch (e) {
+    rows.push({ name: '(batch setup)', ok: false, ms: 0, error: e.message || String(e) });
+  } finally {
+    btn.disabled = false;
+  }
+
+  const totalMs = (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0);
+  const passed = rows.filter(r => r.ok).length;
+  standaloneBatchReport = { rows, passed, failed: rows.length - passed, total: rows.length, ms: totalMs };
+  if (currentResponse) renderSections(currentResponse);
+  else renderStandaloneSectionsOnly();
+}
+
+function renderStandaloneSectionsOnly() {
+  const container = document.getElementById('sectionsContainer');
+  container.innerHTML = '';
+  addSection(container, 'standaloneIR', 'Standalone Compiler IR', standaloneCompileStats(), (el) => renderStandaloneIR(el));
+  if (standaloneBatchReport) {
+    addSection(container, 'standaloneBatch', 'Standalone Compiler Batch', standaloneBatchStats(), (el) => renderStandaloneBatch(el));
+  }
+}
+
 /* ===== Render Sections ===== */
 function renderSections(data) {
   const container = document.getElementById('sectionsContainer');
@@ -585,6 +640,14 @@ function renderSections(data) {
 
   // Query IR
   addSection(container, 'queryIR', 'Query IR', '', (el) => renderQueryIR(data.queryIR, el));
+
+  // Standalone compiler IR
+  addSection(container, 'standaloneIR', 'Standalone Compiler IR', standaloneCompileStats(), (el) => renderStandaloneIR(el));
+
+  // Standalone compiler batch
+  if (standaloneBatchReport) {
+    addSection(container, 'standaloneBatch', 'Standalone Compiler Batch', standaloneBatchStats(), (el) => renderStandaloneBatch(el));
+  }
 
   // Trace
   addSection(container, 'trace', 'Trace',
@@ -760,6 +823,58 @@ function renderQueryIR(qir, bodyEl) {
   const target = bodyEl || document.querySelector('.sec-queryIR .section-body');
   if (qir === null || qir === undefined) { target.innerHTML = '<div class="placeholder-msg">Expression not compilable to single-provider query</div>'; return; }
   target.innerHTML = '<div class="json-view">' + syntaxHighlight(JSON.stringify(qir, null, 2)) + '</div>';
+}
+
+function standaloneCompileStats() {
+  if (!currentStandaloneCompile) return 'not run';
+  if (!currentStandaloneCompile.ok) return 'error';
+  const ms = Number(currentStandaloneCompile.ms || 0).toFixed(1);
+  return `${ms}ms`;
+}
+
+function standaloneBatchStats() {
+  if (!standaloneBatchReport) return 'not run';
+  const ms = Number(standaloneBatchReport.ms || 0).toFixed(1);
+  return `${standaloneBatchReport.passed}/${standaloneBatchReport.total} pass, ${ms}ms`;
+}
+
+function renderStandaloneIR(bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-standaloneIR .section-body');
+  if (!currentStandaloneCompile) {
+    target.innerHTML = '<div class="placeholder-msg">Run a case or click Compile IR.</div>';
+    return;
+  }
+  if (!currentStandaloneCompile.ok) {
+    target.innerHTML = `<div class="inline-error">${esc(currentStandaloneCompile.error || 'Compile failed')}</div>`;
+    return;
+  }
+
+  const out = currentStandaloneCompile.result || {};
+  let html = `<div class="json-view" style="margin-bottom:10px">${syntaxHighlight(JSON.stringify(out.diagnostics || {}, null, 2))}</div>`;
+  html += '<div style="font-size:12px;color:var(--fg3);margin-bottom:4px">Basic IR</div>';
+  html += '<div class="ir-tree" style="margin-bottom:10px">' + renderIRNode(out.basicIR) + '</div>';
+  html += '<div style="font-size:12px;color:var(--fg3);margin-bottom:4px">Resolved IR</div>';
+  html += '<div class="ir-tree" style="margin-bottom:10px">' + renderIRNode(out.resolvedIR) + '</div>';
+  html += '<div style="font-size:12px;color:var(--fg3);margin-bottom:4px">Lowered IR</div>';
+  html += '<div class="ir-tree">' + renderIRNode(out.loweredIR) + '</div>';
+  target.innerHTML = html;
+}
+
+function renderStandaloneBatch(bodyEl) {
+  const target = bodyEl || document.querySelector('.sec-standaloneBatch .section-body');
+  if (!standaloneBatchReport) {
+    target.innerHTML = '<div class="placeholder-msg">Click Compile All Cases to run all explorer test cases through standalone compiler.</div>';
+    return;
+  }
+
+  let html = '<table class="batch-table"><thead><tr><th>Case</th><th>Status</th><th>ms</th><th>Detail</th></tr></thead><tbody>';
+  for (const row of standaloneBatchReport.rows || []) {
+    const status = row.ok ? '<span class="batch-ok">PASS</span>' : '<span class="batch-fail">FAIL</span>';
+    const detail = row.ok ? esc(JSON.stringify(row.diag || {})) : esc(row.error || '');
+    html += `<tr><td>${esc(row.name || '')}</td><td>${status}</td><td>${Number(row.ms || 0).toFixed(1)}</td><td>${detail}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  target.innerHTML = html;
 }
 
 function syntaxHighlight(json) {
