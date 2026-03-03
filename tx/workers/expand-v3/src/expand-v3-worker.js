@@ -102,9 +102,9 @@ class ValueSetExpanderV3 {
     }, { cache: importCache, maxDepth: 30, preferComposeOverExpansion: true });
     if (spanResolve) spanResolve.end({ resolvedCount: importCache.size });
 
-    // 3) Rewrite (flatten)
-    expr = rewrite.flatten(expr);
-    if (T.active) T.note('v3.flatten', { kind: expr.kind });
+    // 3) Rewrite (flatten + selector coalescing)
+    expr = rewrite.optimize(expr);
+    if (T.active) T.note('v3.rewrite', { kind: expr.kind });
 
     // 4) Engine registry (providers)
     const requiredSupplements = new Set(params?.supplements || []);

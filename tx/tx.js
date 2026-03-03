@@ -642,7 +642,7 @@ class TXModule {
           return vs?.jsonObj || vs;
         }, { maxDepth: 30, preferComposeOverExpansion: true });
         const resolvedIR = JSON.parse(JSON.stringify(expr));
-        expr = rewrite.flatten(expr);
+        expr = rewrite.optimize(expr);
 
         // Compile QueryIR (best-effort)
         let queryIR = null;

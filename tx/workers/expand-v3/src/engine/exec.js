@@ -61,7 +61,7 @@ async function executeExpandV3(expr, registry, execCtx) {
     _indexCache: new Map(),
   };
 
-  const flat = rewrite.flatten(expr);
+  const flat = rewrite.optimize(expr);
 
   // Count-only fast-path: if the full expression compiles to a single-provider
   // query IR, ask the provider for total directly instead of streaming includes
@@ -77,7 +77,7 @@ async function executeExpandV3(expr, registry, execCtx) {
   // This allows same-system include/exclude pushdown while naturally dropping
   // disjoint excludes from other systems.
   const partitioned = buildPartitionedDiffExpr(flat);
-  const working = partitioned ? rewrite.flatten(partitioned) : flat;
+  const working = partitioned ? rewrite.optimize(partitioned) : flat;
 
   // Full-root pushdown fast path:
   // if the entire expression compiles to one provider queryIR, keep it intact
