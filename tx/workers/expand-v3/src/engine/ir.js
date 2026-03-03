@@ -16,8 +16,17 @@
 
 function empty() { return { kind: 'empty' }; }
 
-function selector({ system, version = null, shape, conceptCodes = null, filterClauses = null, text = null, meta = null }) {
-  return { kind: 'selector', system, version, shape, conceptCodes, filterClauses, text, meta };
+function selector({
+  system,
+  version = null,
+  shape,
+  conceptCodes = null,
+  filterClauses = null,
+  intersectCodes = null,
+  text = null,
+  meta = null,
+}) {
+  return { kind: 'selector', system, version, shape, conceptCodes, filterClauses, intersectCodes, text, meta };
 }
 
 function importRef({ url, version = null, meta = null }) {

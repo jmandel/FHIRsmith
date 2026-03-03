@@ -36,6 +36,11 @@ const { ExpandTrace, traceStore, formatTraceSummary } = require('../../tx/worker
 const { ExpandWorker: TxExpandWorker } = require('../../tx/workers/expand-worker');
 const { ValueSetExpander: ValueSetExpanderV3Compat } = require('../../tx/workers/expand-v3');
 const { decideTotalOutcome } = require('../../tx/workers/expand-v3/src/engine/total-policy');
+const rewrite = require('../../tx/workers/expand-v3/src/engine/rewrite');
+const IR = require('../../tx/workers/expand-v3/src/engine/ir');
+const { buildIRFromValueSet } = require('../../tx/workers/expand-v3/src/engine/build-ir');
+const { resolveImports } = require('../../tx/workers/expand-v3/src/engine/resolve-imports');
+const { compileExprToQueryIR } = require('../../tx/workers/expand-v3/src/engine/query-ir-compiler');
 
 const EXPAND_IMPL = (process.env.EXPAND_IMPL || 'v3').toLowerCase();
 if (EXPAND_IMPL !== 'v3') {
@@ -4755,6 +4760,172 @@ test('v3-lowering: include minus imported diff lowers to single provider query',
     spans: { lowered: loweredPushSpans, unlowered: unloweredPushSpans },
     ms: { lowered: lowered.ms, unlowered: unlowered.ms },
   };
+});
+
+test('v3-lowering-gap: intersect same-system filters coalesce in rewrite', async () => {
+  const importVsUrl = `http://example.org/vs/v3-gap-int-filters-${Date.now()}`;
+  const rootVs = vs({
+    system: SYS.LOINC,
+    filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }],
+    valueSet: [importVsUrl],
+  });
+  const imported = {
+    resourceType: 'ValueSet',
+    url: importVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.LOINC, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] }],
+    },
+  };
+
+  let expr = buildIRFromValueSet(rootVs);
+  expr = await resolveImports(expr, async (url) => (url === importVsUrl ? imported : null), { maxDepth: 10 });
+  expr = rewrite.optimize(expr);
+  const include = rewrite.splitDiffRoot(expr).include;
+
+  assert(include.kind === 'selector', `expected coalesced selector include, got ${include.kind}`);
+  assert(include.shape === 'filter', `expected filter selector after coalesce, got ${include.shape}`);
+  const clauseKeys = new Set((include.filterClauses || []).map(fc => `${fc.property}|${fc.op}|${fc.value}`));
+  assert(clauseKeys.has('STATUS|=|ACTIVE'), 'missing STATUS=ACTIVE clause');
+  assert(clauseKeys.has('CLASS|=|CHEM'), 'missing CLASS=CHEM clause');
+});
+
+test('v3-lowering-gap: nested diff partitioning rewrites multi-system left branches', async () => {
+  const loincA = IR.selector({ system: SYS.LOINC, shape: 'filter', filterClauses: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] });
+  const sctA = IR.selector({ system: SYS.SCT, shape: 'concept', conceptCodes: [{ code: '64572001' }] });
+  const loincB = IR.selector({ system: SYS.LOINC, shape: 'filter', filterClauses: [{ property: 'CLASS', op: '=', value: 'CHEM' }] });
+  const sctB = IR.selector({ system: SYS.SCT, shape: 'concept', conceptCodes: [{ code: '73211009' }] });
+  const usps = IR.selector({ system: SYS.USPS, shape: 'concept', conceptCodes: [{ code: 'CA' }] });
+
+  const expr = IR.union([
+    IR.diff(IR.union([loincA, sctA]), IR.union([loincB, sctB])),
+    usps,
+  ]);
+  const opt = rewrite.optimize(expr);
+
+  const diffs = [];
+  (function walk(node) {
+    if (!node || typeof node !== 'object') return;
+    if (node.kind === 'diff') diffs.push(node);
+    if (Array.isArray(node.items)) node.items.forEach(walk);
+    if (node.left) walk(node.left);
+    if (node.right) walk(node.right);
+    if (node.resolved) walk(node.resolved);
+  })(opt);
+
+  assert(diffs.length >= 1, 'expected diff nodes after optimization');
+  for (const d of diffs) {
+    const systems = [...rewrite.collectSystems(d.left).values()];
+    assert(systems.length <= 1, `expected per-system diff left side, got ${systems.length}`);
+  }
+});
+
+test('v3-lowering-gap: duplicate filter branches are deduped after import inline', async () => {
+  const vsAUrl = `http://example.org/vs/v3-gap-filter-dedupe-a-${Date.now()}`;
+  const vsBUrl = `http://example.org/vs/v3-gap-filter-dedupe-b-${Date.now()}`;
+  const root = vs({ valueSet: [vsAUrl, vsBUrl] });
+  const vsA = {
+    resourceType: 'ValueSet',
+    url: vsAUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.LOINC, filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+      ] }],
+    },
+  };
+  const vsB = {
+    resourceType: 'ValueSet',
+    url: vsBUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.LOINC, filter: [
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+      ] }],
+    },
+  };
+
+  let expr = buildIRFromValueSet(root);
+  expr = await resolveImports(expr, async (url) => {
+    if (url === vsAUrl) return vsA;
+    if (url === vsBUrl) return vsB;
+    return null;
+  }, { maxDepth: 10 });
+  expr = rewrite.optimize(expr);
+  const include = rewrite.splitDiffRoot(expr).include;
+  const items = rewrite.flattenUnionToList(include);
+  assert(items.length === 1, `expected duplicate branches deduped to one selector, got ${items.length}`);
+  assert(items[0].kind === 'selector' && items[0].shape === 'filter', 'expected deduped filter selector');
+});
+
+test('v3-lowering-gap: intersect filter+concept lowers to selector with intersectCodes', async () => {
+  const importVsUrl = `http://example.org/vs/v3-gap-int-codes-${Date.now()}`;
+  const rootVs = vs({
+    system: SYS.LOINC,
+    filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }],
+    valueSet: [importVsUrl],
+  });
+  const imported = {
+    resourceType: 'ValueSet',
+    url: importVsUrl,
+    status: 'active',
+    compose: {
+      include: [{ system: SYS.LOINC, concept: [{ code: '2160-0' }, { code: '4548-4' }] }],
+    },
+  };
+
+  let expr = buildIRFromValueSet(rootVs);
+  expr = await resolveImports(expr, async (url) => (url === importVsUrl ? imported : null), { maxDepth: 10 });
+  expr = rewrite.optimize(expr);
+  const include = rewrite.splitDiffRoot(expr).include;
+  assert(include.kind === 'selector' && include.shape === 'filter', `expected filter selector, got ${include.kind}/${include.shape}`);
+  const isect = include.intersectCodes || [];
+  assert(Array.isArray(isect) && isect.length === 2, `expected intersectCodes length 2, got ${JSON.stringify(isect)}`);
+  assert(isect.includes('2160-0') && isect.includes('4548-4'), 'expected intersectCodes to include imported concept codes');
+});
+
+test('v3-lowering-gap: projection eliminates empty intersect branches', async () => {
+  const expr = IR.intersect([
+    IR.selector({ system: SYS.LOINC, shape: 'concept', conceptCodes: [{ code: '2160-0' }] }),
+    IR.selector({ system: SYS.SCT, shape: 'concept', conceptCodes: [{ code: '73211009' }] }),
+  ]);
+  const projected = rewrite.projectToSystem(expr, SYS.LOINC, null);
+  assert(projected.kind === 'empty', `expected projected intersect to be empty, got ${projected.kind}`);
+});
+
+test('v3-lowering-gap: queryIR union folding merges concept unions and dedupes identical filters', async () => {
+  const conceptExpr = IR.union([
+    IR.selector({ system: SYS.LOINC, shape: 'concept', conceptCodes: [{ code: '2160-0' }, { code: '4548-4' }] }),
+    IR.selector({ system: SYS.LOINC, shape: 'concept', conceptCodes: [{ code: '718-7' }, { code: '2951-2' }] }),
+  ]);
+  const conceptQ = compileExprToQueryIR(conceptExpr, {});
+  assert(conceptQ && conceptQ.select?.kind === 'concept', 'expected concept queryIR');
+  assert((conceptQ.ops || []).length === 0, `expected folded concept union with no ops, got ${(conceptQ.ops || []).length}`);
+  assert((conceptQ.select.codes || []).length === 4, `expected 4 merged codes, got ${(conceptQ.select.codes || []).length}`);
+
+  const filterExpr = IR.union([
+    IR.selector({
+      system: SYS.LOINC,
+      shape: 'filter',
+      filterClauses: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+      ],
+    }),
+    IR.selector({
+      system: SYS.LOINC,
+      shape: 'filter',
+      filterClauses: [
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+      ],
+    }),
+  ]);
+  const filterQ = compileExprToQueryIR(filterExpr, {});
+  assert(filterQ && filterQ.select?.kind === 'filter', 'expected filter queryIR');
+  assert((filterQ.ops || []).length === 0, `expected deduped filter union with no ops, got ${(filterQ.ops || []).length}`);
 });
 
 test('v3-gap: mixed-system import pressure prevents single-provider root pushdown', async () => {

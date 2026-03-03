@@ -233,7 +233,13 @@ class CsEngineAdapter {
         if (typeof cs.filtersNotClosed === 'function') {
           try { execCtx.notClosed = execCtx.notClosed || await cs.filtersNotClosed(prep); } catch (e) { /* ignore */ }
         }
-        yield* this._iterateFilterSets(prep, sets, execCtx, localTextFilter);
+        yield* this._iterateFilterSets(
+          prep,
+          sets,
+          execCtx,
+          localTextFilter,
+          Array.isArray(pushdownSelector.intersectCodes) ? pushdownSelector.intersectCodes : null
+        );
       } finally {
         if (typeof cs.filterFinish === 'function') {
           try { await cs.filterFinish(prep); } catch (_e) { /* ignore */ }
@@ -340,12 +346,15 @@ class CsEngineAdapter {
     }
   }
 
-  async *_iterateFilterSets(prep, sets, execCtx, textFilter = null) {
+  async *_iterateFilterSets(prep, sets, execCtx, textFilter = null, intersectCodes = null) {
     const cs = this.cs;
     const system = await cs.system();
     const version = await cs.version();
     const primary = Array.isArray(sets) ? sets[0] : sets;
     if (!primary) return;
+    const intersectSet = Array.isArray(intersectCodes) && intersectCodes.length > 0
+      ? new Set(intersectCodes.map(c => String(c || '')).filter(Boolean))
+      : null;
 
     // Prefer filterPage when available (paged iteration)
     if (typeof cs.filterPage === 'function') {
@@ -355,6 +364,7 @@ class CsEngineAdapter {
         for (const context of page) {
           const code = await cs.code(context);
           if (!code) continue;
+          if (intersectSet && !intersectSet.has(String(code))) continue;
           if (textFilter && !(await this._passesTextFilter(cs, textFilter, code, context))) continue;
 
           const isInactive = execCtx.activeOnly && typeof cs.isInactive === 'function'
@@ -386,6 +396,7 @@ class CsEngineAdapter {
       const context = await cs.filterConcept(prep, primary);
       const code = await cs.code(context);
       if (!code) continue;
+      if (intersectSet && !intersectSet.has(String(code))) continue;
       if (textFilter && !(await this._passesTextFilter(cs, textFilter, code, context))) continue;
 
       const isInactive = execCtx.activeOnly && typeof cs.isInactive === 'function'

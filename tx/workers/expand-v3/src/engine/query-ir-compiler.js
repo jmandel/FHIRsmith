@@ -34,6 +34,9 @@ function compileSelectorToQueryIR(selectorNode, opts = {}) {
         op: fc.op,
         value: fc.value,
       })),
+      ...(Array.isArray(selectorNode.intersectCodes) && selectorNode.intersectCodes.length > 0
+        ? { intersectCodes: selectorNode.intersectCodes.map(c => String(c || '')).filter(Boolean) }
+        : {}),
     };
     break;
   default:
@@ -125,6 +128,13 @@ function compileExprToQueryIR(expr, opts = {}) {
           continue;
         }
         const merged = mergeIntersectQueryIR(out, rhs);
+        if (merged) {
+          out = merged;
+          continue;
+        }
+      }
+      if (opName === 'union' && loweringEnabled()) {
+        const merged = mergeUnionQueryIR(out, rhs);
         if (merged) {
           out = merged;
           continue;
@@ -283,6 +293,23 @@ function mergeIntersectQueryIR(left, right) {
   };
 }
 
+function mergeUnionQueryIR(left, right) {
+  if (!left || !right) return null;
+  if ((left.system || '') !== (right.system || '')) return null;
+  if ((left.version || null) !== (right.version || null)) return null;
+  if ((left.ops || []).length > 0 || (right.ops || []).length > 0) return null;
+
+  const mergedSelect = mergeSelectForUnion(left.select, right.select);
+  if (!mergedSelect) return null;
+
+  return {
+    system: left.system,
+    version: left.version || null,
+    select: mergedSelect,
+    ops: [],
+  };
+}
+
 function mergeSelectForIntersect(a, b) {
   if (!a || !b) return null;
   if (a.kind === 'all') return mergeAllWithSelect(a, b);
@@ -324,6 +351,51 @@ function mergeSelectForIntersect(a, b) {
   return null;
 }
 
+function mergeSelectForUnion(a, b) {
+  if (!a || !b) return null;
+  if (a.kind === 'all' || b.kind === 'all') {
+    const text = combineText(a.text, b.text);
+    if (text === null && a.text && b.text) return null;
+    const out = { kind: 'all' };
+    if (text) out.text = text;
+    return out;
+  }
+
+  if (a.kind === 'concept' && b.kind === 'concept') {
+    const text = combineText(a.text, b.text);
+    if (text === null && a.text && b.text) return null;
+    const merged = [...new Set([...(a.codes || []).map(String), ...(b.codes || []).map(String)])];
+    return {
+      kind: 'concept',
+      codes: merged,
+      ...(text ? { text } : {}),
+    };
+  }
+
+  if (a.kind === 'filter' && b.kind === 'filter') {
+    const text = combineText(a.text, b.text);
+    if (text === null && a.text && b.text) return null;
+    const aSig = canonicalFilterClauses(a.clauses || []);
+    const bSig = canonicalFilterClauses(b.clauses || []);
+    if (JSON.stringify(aSig) !== JSON.stringify(bSig)) return null;
+
+    const aIs = canonicalCodeList(a.intersectCodes || []);
+    const bIs = canonicalCodeList(b.intersectCodes || []);
+    if (aIs.length > 0 || bIs.length > 0) {
+      if (JSON.stringify(aIs) !== JSON.stringify(bIs)) return null;
+    }
+
+    return {
+      kind: 'filter',
+      clauses: cloneFilterClauses(aSig),
+      ...(aIs.length > 0 ? { intersectCodes: aIs } : {}),
+      ...(text ? { text } : {}),
+    };
+  }
+
+  return null;
+}
+
 function mergeAllWithSelect(allSel, otherSel) {
   const text = combineText(allSel.text, otherSel.text);
   if (text === null && allSel.text && otherSel.text) return null;
@@ -351,6 +423,46 @@ function combineText(a, b) {
   if (ta && !tb) return ta;
   if (!ta && tb) return tb;
   return ta === tb ? ta : null;
+}
+
+function canonicalFilterClauses(clauses) {
+  const out = [];
+  const seen = new Set();
+  for (const c of clauses || []) {
+    if (!c) continue;
+    const norm = {
+      property: c.property ?? null,
+      op: c.op ?? null,
+      value: c.value ?? null,
+    };
+    const sig = JSON.stringify([norm.property, norm.op, norm.value]);
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push(norm);
+  }
+  out.sort((a, b) => {
+    const ak = `${a.property || ''}\u0000${a.op || ''}\u0000${a.value || ''}`;
+    const bk = `${b.property || ''}\u0000${b.op || ''}\u0000${b.value || ''}`;
+    return ak < bk ? -1 : ak > bk ? 1 : 0;
+  });
+  return out;
+}
+
+function cloneFilterClauses(clauses) {
+  return (clauses || []).map(c => ({ ...c }));
+}
+
+function canonicalCodeList(codes) {
+  const seen = new Set();
+  const out = [];
+  for (const c of codes || []) {
+    const s = String(c || '');
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  out.sort();
+  return out;
 }
 
 function cloneSelect(sel) {
