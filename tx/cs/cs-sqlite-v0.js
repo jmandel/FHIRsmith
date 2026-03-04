@@ -374,7 +374,8 @@ class SqliteV0Provider extends BaseCSServices {
   }
 
   async searchFilter(filterContext, text, sort) {
-    filterContext._v0.search = text;
+    // text is a SearchFilterText object; extract the raw string for FTS
+    filterContext._v0.search = text?.filter || (typeof text === 'string' ? text : null);
   }
 
   async executeFilters(filterContext) {

@@ -551,6 +551,13 @@ class TxParameters {
     for (let t of this.FValueSetVersionRules || []) {
       s = s + t.asString() + '|';
     }
+    // Include text filter and engine override in cache key (upstream bug fix)
+    if (this.filter) {
+      s = s + 'filter:' + this.filter + '|';
+    }
+    if (this._engine) {
+      s = s + 'engine:' + this._engine + '|';
+    }
 
     return s;
   }
