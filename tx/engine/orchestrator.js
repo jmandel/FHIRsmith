@@ -171,15 +171,11 @@ async function expandViaIR(vsJson, opts = {}) {
     // Get per-system count for stride pagination.
     // Fast path: concept enumerations have a known count from the IR itself
     // (no SQL needed). Only call countForIR for filters/whole-system shapes.
-    let sysCount = 0;
+    let sysCount = null; // null = deferred (will be resolved later if needed)
     const staticCount = countFromIR(subtree, text);
     if (staticCount != null) {
       sysCount = staticCount;
       trace.note('count:static', { system, count: sysCount });
-    } else if (typeof irProvider.countForIR === 'function') {
-      const cntSpan = trace.begin('countForIR', { system });
-      sysCount = await irProvider.countForIR(subtree, { activeOnly, text });
-      cntSpan.end({ count: sysCount });
     }
 
     resolved.push({ system, version, provVersion, subtree, irProvider, provider, count: sysCount });
@@ -190,13 +186,32 @@ async function expandViaIR(vsJson, opts = {}) {
     if (unsupportedSystems.length === systems.size) return null;
   }
 
-  const total = resolved.reduce((s, r) => s + r.count, 0);
+  // Determine which systems need SQL counts.
+  // - count=0 (total-only): every system needs a count, no data fetch.
+  // - multi-system: every system needs a count for stride pagination.
+  // - single system, count>0: defer count — infer from data query result.
+  const needsCounts = totalOnly || resolved.length > 1;
+  if (needsCounts) {
+    for (const r of resolved) {
+      if (r.count != null) continue; // already have static count
+      if (typeof r.irProvider.countForIR === 'function') {
+        const cntSpan = trace.begin('countForIR', { system: r.system });
+        r.count = await r.irProvider.countForIR(r.subtree, { activeOnly, text });
+        cntSpan.end({ count: r.count });
+      } else {
+        r.count = 0;
+      }
+    }
+  }
+
+  const knownTotal = resolved.every(r => r.count != null)
+    ? resolved.reduce((s, r) => s + r.count, 0) : null;
 
   // count=0 means total-only — return no codes
   if (totalOnly) {
     return {
       expansion: {
-        total,
+        total: knownTotal ?? 0,
         offset: offset > 0 ? offset : undefined,
         contains: [],
         usedSystems: [...usedSystems],
@@ -212,47 +227,74 @@ async function expandViaIR(vsJson, opts = {}) {
   let cursor = 0;           // running position across all systems
   let remaining = count;    // how many codes we still need
 
-  const pagSpan = trace.begin('pagination', { total, offset, count, systems: resolved.length });
-  for (const r of resolved) {
-    if (remaining <= 0) break;
+  // Single-system deferred-count: skip the COUNT query, execute data
+  // directly, then resolve total from the result or a lazy COUNT.
+  let deferredTotal = null;
 
-    const sysEnd = cursor + r.count;
-    if (sysEnd <= offset) {
-      // Entire system is before the page window — skip
-      cursor = sysEnd;
-      continue;
-    }
+  const pagSpan = trace.begin('pagination', { total: knownTotal, offset, count, systems: resolved.length });
 
-    // How many to skip within this system, and how many to take
-    const sysOffset = Math.max(offset - cursor, 0);
-    const sysCount = Math.min(remaining, r.count - sysOffset);
-
-    // Skip systems that contribute zero codes to this page
-    if (sysCount <= 0) { cursor = sysEnd; continue; }
-
-    const sysSpan = trace.begin(`system:${r.system}`, { sysOffset, sysCount });
+  if (!needsCounts && resolved.length === 1) {
+    // Single system, count deferred — execute directly with user’s offset/count.
+    const r = resolved[0];
+    const sysSpan = trace.begin(`system:${r.system}`, { sysOffset: offset, sysCount: count });
     const result = await r.irProvider.executeIR(r.subtree, {
-      activeOnly, text,
-      count: sysCount,
-      offset: sysOffset,
+      activeOnly, text, count, offset,
     });
     sysSpan.end({ candidates: result.candidates.length });
 
     for (const c of result.candidates) {
       allCandidates.push({
-        system: r.system,
-        version: r.provVersion,
-        code: c.code,
-        display: c.display,
-        definition: c.definition,
-        active: c.active,
-        conceptId: c.conceptId,
-        _provider: r.provider,
+        system: r.system, version: r.provVersion,
+        code: c.code, display: c.display, definition: c.definition,
+        active: c.active, conceptId: c.conceptId, _provider: r.provider,
       });
     }
 
-    remaining -= result.candidates.length;
-    cursor = sysEnd;
+    // Infer total: if we got fewer rows than requested AND we got at
+    // least one row, we’re on the last page → total = offset + rows.
+    // If we got 0 rows (offset past end) or a full page (more data
+    // exists), fall through to the lazy COUNT.
+    if (result.candidates.length > 0 && result.candidates.length < count) {
+      deferredTotal = offset + result.candidates.length;
+      trace.note('total:inferred', { offset, returned: result.candidates.length, total: deferredTotal });
+    } else if (typeof r.irProvider.countForIR === 'function') {
+      // Full page or empty page past end — need exact count.
+      const cntSpan = trace.begin('countForIR:lazy', { system: r.system });
+      deferredTotal = await r.irProvider.countForIR(r.subtree, { activeOnly, text });
+      cntSpan.end({ count: deferredTotal });
+    }
+  } else {
+    // Multi-system stride pagination (counts already resolved above).
+    for (const r of resolved) {
+      if (remaining <= 0) break;
+
+      const sysEnd = cursor + r.count;
+      if (sysEnd <= offset) {
+        cursor = sysEnd;
+        continue;
+      }
+
+      const sysOffset = Math.max(offset - cursor, 0);
+      const sysCount = Math.min(remaining, r.count - sysOffset);
+      if (sysCount <= 0) { cursor = sysEnd; continue; }
+
+      const sysSpan = trace.begin(`system:${r.system}`, { sysOffset, sysCount });
+      const result = await r.irProvider.executeIR(r.subtree, {
+        activeOnly, text, count: sysCount, offset: sysOffset,
+      });
+      sysSpan.end({ candidates: result.candidates.length });
+
+      for (const c of result.candidates) {
+        allCandidates.push({
+          system: r.system, version: r.provVersion,
+          code: c.code, display: c.display, definition: c.definition,
+          active: c.active, conceptId: c.conceptId, _provider: r.provider,
+        });
+      }
+
+      remaining -= result.candidates.length;
+      cursor = sysEnd;
+    }
   }
   pagSpan.end({ paged: allCandidates.length });
 
@@ -300,6 +342,7 @@ async function expandViaIR(vsJson, opts = {}) {
     return entry;
   });
 
+  const total = knownTotal ?? deferredTotal;
   const finalResult = {
     expansion: {
       total,
