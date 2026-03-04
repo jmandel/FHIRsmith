@@ -45,24 +45,29 @@ So it plugs straight into the original expander with no changes to
 format all use the same generic provider — terminology-specific behavior
 is driven entirely by a `cs_config` JSON blob in the database.
 
-**It also provides three additional methods** that the IR engine can use
-for direct SQL execution:
+**It also implements the IR execution interface** — an optional set of
+methods any provider can implement to let the IR engine call it directly
+instead of going through the filter-protocol adapter:
 
-- `executeIR(subtree, opts)` — compile an expansion plan subtree to a
-  single SQL query and return matching codes
-- `countForIR(subtree, opts)` — count-only query (no code
-  materialization)
+- `executeIR(subtree, opts)` — execute an expansion plan subtree and
+  return matching codes
+- `countForIR(subtree, opts)` — count-only (no code materialization)
 - `membershipForIR(subtree)` — "does code X belong to this set?" tester
 
-When the IR engine is active and the v0 provider is handling a system,
-the IR engine calls these methods directly. The entire expansion plan
-subtree — unions, intersects, diffs, hierarchy traversal, property
-filters, text search — becomes one SQL query. This is where the big
-performance wins come from.
+The orchestrator checks for `executeIR` on the provider. If present,
+it calls these methods directly. If absent, it wraps the provider in a
+filter-protocol adapter that tree-walks the expansion plan and calls the
+standard filter protocol methods instead.
 
-When the original expander is active, those three methods are never
-called. The original expander uses the standard filter protocol methods
-listed above.
+The v0 provider is currently the only native implementation — it
+compiles the entire subtree to a single SQL query, so unions, intersects,
+diffs, hierarchy traversal, property filters, and text search all happen
+in one database round-trip. This is where the big performance wins come
+from. But any provider could implement the same three methods to get
+the same direct-execution benefit.
+
+When the original expander is active, none of this applies — it uses
+the standard filter protocol methods listed above.
 
 ### Database schema
 
