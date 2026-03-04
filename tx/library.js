@@ -445,7 +445,13 @@ class Library {
   }
 
   async loadSqliteV0(details, isDefault, mode) {
-    const dbPath = await this.getOrDownloadFile(details);
+    let dbPath;
+    if (path.isAbsolute(details)) {
+      // Absolute path — use directly
+      dbPath = details;
+    } else {
+      dbPath = await this.getOrDownloadFile(details);
+    }
     if (mode === "fetch" || mode === "npm") {
       return;
     }
