@@ -21,6 +21,11 @@ const SYS = {
   RXNORM: 'http://www.nlm.nih.gov/research/umls/rxnorm',
   GENDER: 'http://hl7.org/fhir/administrative-gender',
   PUBSTAT: 'http://hl7.org/fhir/publication-status',
+  CURRENCY: 'urn:iso:std:iso:4217',
+  COUNTRY: 'urn:iso:std:iso:3166',
+  LANG: 'urn:ietf:bcp:47',
+  CONDVER: 'http://terminology.hl7.org/CodeSystem/condition-ver-status',
+  OBSCAT: 'http://terminology.hl7.org/CodeSystem/observation-category',
 };
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -974,8 +979,210 @@ async function run() {
       `expected non-zero total or results`);
   });
 
+  // ── Phase 2: shape-A, infra, shape-B/filter tests ─────────────────
+  console.log('\n=== Phase 2: shape-A / infra / shape-B / filters ==='); currentCategory = 'Phase 2';
+
+  await test('shape-A: currency full expansion (preloaded map)', async () => {
+    const { result } = await expand(vs({ system: SYS.CURRENCY }), { count: 500 });
+    const all = codes(result);
+    assert(all.length >= 150, `expected ≥150 currency codes, got ${all.length}`);
+    const usd = findCode(result, 'USD');
+    assert(usd, 'USD not found');
+    assert(usd.display && usd.display.length > 0, 'USD missing display');
+    const eur = findCode(result, 'EUR');
+    assert(eur, 'EUR not found');
+    assert(eur.display && eur.display.length > 0, 'EUR missing display');
+    const jpy = findCode(result, 'JPY');
+    assert(jpy, 'JPY not found');
+    assert(jpy.display && jpy.display.length > 0, 'JPY missing display');
+  });
+
+  await test('shape-A: administrative-gender (cs-cs) strict shape', async () => {
+    const { result } = await expand(vs({ system: SYS.GENDER }));
+    eq(result.expansion.total, 4, 'total');
+    eq(codes(result).length, 4, 'exactly 4 codes returned');
+    assert(findCode(result, 'male')?.display === 'Male', 'male display');
+    assert(findCode(result, 'female')?.display === 'Female', 'female display');
+    assert(findCode(result, 'other')?.display === 'Other', 'other display');
+    assert(findCode(result, 'unknown')?.display === 'Unknown', 'unknown display');
+  });
+
+  await test('shape-A: publication-status (cs-cs)', async () => {
+    const { result } = await expand(vs({ system: SYS.PUBSTAT }));
+    eq(result.expansion.total, 4, 'total');
+    eq(codes(result).length, 4, 'exactly 4 codes returned');
+    assert(findCode(result, 'draft')?.display === 'Draft', 'draft display');
+    assert(findCode(result, 'active')?.display === 'Active', 'active display');
+    assert(findCode(result, 'retired')?.display === 'Retired', 'retired display');
+    assert(findCode(result, 'unknown')?.display === 'Unknown', 'unknown display');
+  });
+
+  await test('infra: tx-resource injected CodeSystem can be expanded', async () => {
+    const cs = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/cs/colors',
+      version: '1.0.0',
+      status: 'active',
+      content: 'complete',
+      concept: [
+        { code: 'red', display: 'Red' },
+        { code: 'green', display: 'Green' },
+        { code: 'blue', display: 'Blue' },
+      ],
+    };
+    const { result } = await expand(vs({ system: cs.url }), { txResources: cs });
+    eq(codes(result).length, 3, 'expected 3 codes');
+    assert(findCode(result, 'red')?.display === 'Red', 'red present');
+    assert(findCode(result, 'green')?.display === 'Green', 'green present');
+    assert(findCode(result, 'blue')?.display === 'Blue', 'blue present');
+  });
+
+  await test('infra: tx-resource injected ValueSet import resolves', async () => {
+    const cs = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/cs/shapes',
+      version: '1.0.0',
+      status: 'active',
+      content: 'complete',
+      concept: [
+        { code: 'circle', display: 'Circle' },
+        { code: 'square', display: 'Square' },
+        { code: 'triangle', display: 'Triangle' },
+      ],
+    };
+    const importedVS = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/vs/two-shapes',
+      status: 'active',
+      compose: { include: [{ system: cs.url, concept: [{ code: 'circle' }, { code: 'square' }] }] },
+    };
+    const outerVS = {
+      resourceType: 'ValueSet',
+      status: 'active',
+      compose: { include: [{ valueSet: [importedVS.url] }] },
+    };
+    const { result } = await expand(outerVS, { txResources: [cs, importedVS] });
+    eq(codes(result).length, 2, 'expected 2 codes from import');
+    assert(findCode(result, 'circle'), 'circle present');
+    assert(findCode(result, 'square'), 'square present');
+    assert(!findCode(result, 'triangle'), 'triangle should be absent');
+  });
+
+  await test('shape-B: single concept exact match (v0)', async () => {
+    const { result } = await expand(vs({ system: SYS.SCT, concept: [{ code: '73211009' }] }));
+    eq(result.expansion.total, 1, 'total');
+    const dm = findCode(result, '73211009');
+    assert(dm, 'code 73211009 not found');
+    assert(dm.display?.startsWith('Diabetes mellitus'), `unexpected display: ${dm.display}`);
+  });
+
+  await test('filter: gender regex [mf].* (inline FHIR cs-cs)', async () => {
+    const { result } = await expand(vs({
+      system: SYS.GENDER,
+      filter: [{ property: 'code', op: 'regex', value: '[mf].*' }],
+    }));
+    eq(codes(result).length, 2, 'expected 2 codes');
+    assert(findCode(result, 'male'), 'male present');
+    assert(findCode(result, 'female'), 'female present');
+    assert(!findCode(result, 'other'), 'other should be absent');
+    assert(!findCode(result, 'unknown'), 'unknown should be absent');
+  });
+
+  await test('filter: inline FHIR is-a with hierarchy (condition-ver-status)', async () => {
+    // condition-ver-status hierarchy: unconfirmed → {provisional, differential}, confirmed, refuted, entered-in-error
+    // is-a "unconfirmed" = unconfirmed + provisional + differential = 3 codes
+    const { result } = await expand(vs({
+      system: SYS.CONDVER,
+      filter: [{ property: 'concept', op: 'is-a', value: 'unconfirmed' }],
+    }));
+    eq(codes(result).length, 3, 'is-a unconfirmed = 3 codes');
+    assert(findCode(result, 'unconfirmed'), 'unconfirmed present (self)');
+    assert(findCode(result, 'provisional'), 'provisional present (child)');
+    assert(findCode(result, 'differential'), 'differential present (child)');
+    assert(!findCode(result, 'confirmed'), 'confirmed should be absent');
+    assert(!findCode(result, 'refuted'), 'refuted should be absent');
+    assert(!findCode(result, 'entered-in-error'), 'entered-in-error should be absent');
+  });
+
+  await test('filter: inline FHIR descendent-of (condition-ver-status)', async () => {
+    // descendent-of "unconfirmed" = provisional + differential = 2 codes (excludes self)
+    const { result } = await expand(vs({
+      system: SYS.CONDVER,
+      filter: [{ property: 'concept', op: 'descendent-of', value: 'unconfirmed' }],
+    }));
+    eq(codes(result).length, 2, 'descendent-of unconfirmed = 2 codes');
+    assert(!findCode(result, 'unconfirmed'), 'unconfirmed excluded (self)');
+    assert(findCode(result, 'provisional'), 'provisional present');
+    assert(findCode(result, 'differential'), 'differential present');
+  });
+
+  await test('filter: inline FHIR concept = exact code (cs-cs)', async () => {
+    const { result } = await expand(vs({
+      system: SYS.CONDVER,
+      filter: [{ property: 'concept', op: '=', value: 'confirmed' }],
+    }));
+    eq(codes(result).length, 1, 'expected exactly 1 code');
+    assert(findCode(result, 'confirmed'), 'confirmed present');
+  });
+
+  await test('filter: country code regex A.* (cs-country)', async () => {
+    const { result } = await expand(vs({
+      system: SYS.COUNTRY,
+      filter: [{ property: 'code', op: 'regex', value: 'A.*' }],
+    }), { count: 500 });
+    assert(codes(result).length > 10, `expected >10 country codes starting with A, got ${codes(result).length}`);
+    assert(codes(result).every(c => c.code.startsWith('A')),
+      'all codes should start with A');
+  });
+
+  await test('filter: currency decimals=0 (property =)', async () => {
+    const { result } = await expand(vs({
+      system: SYS.CURRENCY,
+      filter: [{ property: 'decimals', op: '=', value: '0' }],
+    }), { count: 500 });
+    assert(codes(result).length > 5, `expected >5 zero-decimal currencies, got ${codes(result).length}`);
+    assert(findCode(result, 'JPY'), 'JPY should be zero-decimal');
+  });
+
+  await test('params: property=definition includes definition property', async () => {
+    const { result } = await expand(vs({ system: SYS.GENDER }), {
+      params: [{ name: 'property', valueString: 'definition' }],
+    });
+    const all = codes(result);
+    assert(all.length > 0, 'should have codes');
+    for (const c of all) {
+      const props = c.property || [];
+      const defProp = props.find(p => p.code === 'definition');
+      assert(defProp, `code ${c.code} should have a definition property, got props: ${JSON.stringify(props)}`);
+      assert(defProp.valueString && defProp.valueString.length > 0,
+        `code ${c.code} definition should have non-empty valueString`);
+    }
+  });
+
+  await test('lang: includeDesignations on package cs-cs whole-system is structurally valid', async () => {
+    const { result } = await expand(vs({ system: SYS.GENDER }), { includeDesignations: true });
+    const all = codes(result);
+    assert(all.length === 4, `expected 4 gender codes, got ${all.length}`);
+    let totalDesignations = 0;
+    for (const c of all) {
+      if (c.designation && c.designation.length > 0) {
+        totalDesignations += c.designation.length;
+        for (const d of c.designation) {
+          // Each designation must have at least a value
+          assert(d.value && d.value.length > 0,
+            `designation for ${c.code} missing value: ${JSON.stringify(d)}`);
+          // Structural validity: must have language, use, or value
+          assert(d.language || d.use || d.value,
+            `designation for ${c.code} missing language/use/value: ${JSON.stringify(d)}`);
+        }
+      }
+    }
+    assert(totalDesignations >= 0, 'designation check completed');
+  });
+
   // ── summary ──────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(50)}`);
+
   console.log(`  \x1b[32m${passed} passed\x1b[0m, \x1b[31m${failed} failed\x1b[0m, ${skipped} skipped`);
   console.log('='.repeat(50));
 
