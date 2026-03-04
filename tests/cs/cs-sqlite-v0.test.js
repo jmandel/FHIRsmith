@@ -6,6 +6,7 @@ const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
 const { OperationContext } = require('../../tx/operation-context');
 const { Designations } = require('../../tx/library/designations');
 const { TestUtilities } = require('../test-utilities');
+const IR = require('../../tx/engine/ir');
 
 const DB_DIR = '/home/exedev/tx-data';
 const SNOMED_DB = path.join(DB_DIR, 'sct_intl_20250201.v0.db');
@@ -252,6 +253,163 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       const { context } = await provider.locate('161');
       const props = await provider.properties(context);
       expect(props.length).toBeGreaterThan(0);
+      provider.close();
+    });
+  });
+
+  describe('IR execution', () => {
+    let sctFactory, loincFactory;
+
+    beforeAll(async () => {
+      sctFactory = new SqliteV0FactoryProvider(i18n, SNOMED_DB);
+      await sctFactory.load();
+      loincFactory = new SqliteV0FactoryProvider(i18n, LOINC_DB);
+      await loincFactory.load();
+    });
+
+    test('executeIR with is-a filter selector', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'filter',
+        filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+      });
+      const result = provider.executeIR(subtree, { activeOnly: true });
+      expect(result.candidates.length).toBeGreaterThan(10);
+      // All should be active
+      for (const c of result.candidates) {
+        expect(c.active).toBe(true);
+      }
+      // Should include Diabetes mellitus itself
+      expect(result.candidates.some(c => c.code === '73211009')).toBe(true);
+      provider.close();
+    });
+
+    test('executeIR with diff (exclude subtypes)', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      // All diabetes minus Type 2 diabetes (44054006)
+      const subtree = IR.diff(
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }),
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '44054006' }],
+        })
+      );
+      const result = provider.executeIR(subtree, { activeOnly: true });
+      expect(result.candidates.length).toBeGreaterThan(0);
+      // Should NOT include Type 2 diabetes mellitus
+      expect(result.candidates.some(c => c.code === '44054006')).toBe(false);
+      provider.close();
+    });
+
+    test('executeIR with union', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.union([
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'concept',
+          conceptCodes: [{ code: '73211009' }, { code: '44054006' }],
+        }),
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'concept',
+          conceptCodes: [{ code: '46635009' }],
+        }),
+      ]);
+      const result = provider.executeIR(subtree);
+      expect(result.candidates.length).toBe(3);
+      const codes = new Set(result.candidates.map(c => c.code));
+      expect(codes.has('73211009')).toBe(true);
+      expect(codes.has('44054006')).toBe(true);
+      expect(codes.has('46635009')).toBe(true);
+      provider.close();
+    });
+
+    test('executeIR with whole system (limited)', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'whole',
+      });
+      const result = provider.executeIR(subtree, { count: 10 });
+      expect(result.candidates.length).toBe(10);
+      provider.close();
+    });
+
+    test('executeIR with empty subtree', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const result = provider.executeIR(IR.empty());
+      expect(result.candidates).toEqual([]);
+      expect(result.total).toBe(0);
+      provider.close();
+    });
+
+    test('membershipForIR', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'filter',
+        filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+      });
+      const membership = provider.membershipForIR(subtree);
+      expect(membership.has('73211009')).toBe(true);   // DM itself
+      expect(membership.has('44054006')).toBe(true);   // Type 2 DM (subtype)
+      expect(membership.has('404684003')).toBe(false);  // Clinical finding (ancestor)
+      provider.close();
+    });
+
+    test('countForIR', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'filter',
+        filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+      });
+      const total = provider.countForIR(subtree, { activeOnly: true });
+      expect(total).toBeGreaterThan(10);
+
+      // Count should match executeIR result length
+      const result = provider.executeIR(subtree, { activeOnly: true });
+      expect(total).toBe(result.candidates.length);
+      provider.close();
+    });
+
+    test('executeIR LOINC with property filter', async () => {
+      const provider = await loincFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://loinc.org',
+        shape: 'filter',
+        filterClauses: [{ property: 'CLASSTYPE', op: '=', value: '1' }],
+      });
+      const result = provider.executeIR(subtree, { count: 20 });
+      expect(result.candidates.length).toBe(20);
+      for (const c of result.candidates) {
+        expect(c.code).toBeTruthy();
+        expect(c.display).toBeTruthy();
+      }
+      provider.close();
+    });
+
+    test('executeIR with text search', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'filter',
+        filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+      });
+      const result = provider.executeIR(subtree, { activeOnly: true, text: 'type 2', count: 50 });
+      expect(result.candidates.length).toBeGreaterThan(0);
+      // Should find type 2 diabetes concepts
+      const hasType2 = result.candidates.some(c =>
+        c.display?.toLowerCase().includes('type 2') ||
+        c.display?.toLowerCase().includes('type ii')
+      );
+      expect(hasType2).toBe(true);
       provider.close();
     });
   });

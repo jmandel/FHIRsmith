@@ -20,6 +20,7 @@ const { CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api'
 const { BaseCSServices } = require('./cs-base');
 const { DesignationUse } = require('../library/designations');
 const { VersionUtilities } = require('../../library/version-utilities');
+const { buildExpandSql, buildMembershipSql, buildCountSql } = require('../engine/sqlite-v0-sql');
 
 // ── Context wrappers ────────────────────────────────────────────────
 
@@ -532,6 +533,93 @@ class SqliteV0Provider extends BaseCSServices {
     // Default: value is already a URL or we construct one
     return value;
   }
+
+  // ── IR engine integration (Phase 1) ────────────────────────────────
+
+  /**
+   * Execute an IR subtree scoped to this code system.
+   * Compiles the IR to a single SQL query via sqlite-v0-sql.js and
+   * returns results as an array of candidates.
+   *
+   * @param {Object} subtree - optimized IR node from rewrite.js
+   * @param {Object} opts - { activeOnly, text, count, offset }
+   * @returns {Object} { candidates: [{code, display, definition, active, conceptId}], total?: number }
+   */
+  executeIR(subtree, opts = {}) {
+    if (!subtree || subtree.kind === 'empty') {
+      return { candidates: [], total: 0 };
+    }
+
+    const { sql, params } = buildExpandSql(
+      subtree, this.#meta.csId, opts, this.#propDefs, this.#runtime
+    );
+
+    if (sql.includes('WHERE 0')) {
+      return { candidates: [], total: 0 };
+    }
+
+    const rows = this.#db.prepare(sql).all(params);
+    const candidates = rows
+      .filter(r => r.code != null)
+      .map(r => ({
+        code: r.code,
+        display: r.display,
+        definition: r.definition,
+        active: !!r.active,
+        conceptId: r.concept_id,
+      }));
+
+    return { candidates };
+  }
+
+  /**
+   * Build a membership checker for an IR subtree.
+   * Returns an object with a .has(code) method for point-checking.
+   *
+   * @param {Object} subtree - optimized IR node
+   * @returns {{ has: (code: string) => boolean }}
+   */
+  membershipForIR(subtree) {
+    if (!subtree || subtree.kind === 'empty') {
+      return { has: () => false };
+    }
+
+    const { sql, params } = buildMembershipSql(
+      subtree, this.#meta.csId, '_mbr', this.#propDefs, this.#runtime
+    );
+
+    if (sql.includes('WHERE 0')) {
+      return { has: () => false };
+    }
+
+    const stmt = this.#db.prepare(sql);
+    return {
+      has(code) {
+        const result = stmt.get({ ...params, _checkCode: code });
+        return !!result;
+      }
+    };
+  }
+
+  /**
+   * Count results for an IR subtree without fetching them.
+   * @param {Object} subtree - optimized IR node
+   * @param {Object} opts - { activeOnly }
+   * @returns {number}
+   */
+  countForIR(subtree, opts = {}) {
+    if (!subtree || subtree.kind === 'empty') return 0;
+
+    const { sql, params } = buildCountSql(
+      subtree, this.#meta.csId, '_cnt', this.#propDefs, this.#runtime, opts
+    );
+
+    const row = this.#db.prepare(sql).get(params);
+    return row?.cnt ?? 0;
+  }
+
+  /** Whether this provider supports native IR execution. */
+  hasExecuteIR() { return true; }
 
   close() {
     if (this.#db) {
