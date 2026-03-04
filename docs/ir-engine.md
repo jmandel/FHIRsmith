@@ -145,26 +145,34 @@ Pure optimization passes:
 - **splitDiffRoot** — if the root is `diff(A, B)`, split into include/
   exclude subtrees for providers that handle exclusion natively
 
-### Step 4: orchestrate (`tx/engine/orchestrator.js`, 391 lines)
+### Step 4: orchestrate (`tx/engine/orchestrator.js`)
 
 Async. The main entry point `expandViaIR()` does:
 
 1. Build IR from ValueSet
 2. Resolve imports
 3. Optimize
-4. Collect systems → for each system, find provider
-5. Per-system: project IR, dispatch to provider's `executeIR()`
-6. Aggregate candidates across systems (union, respecting diff)
-7. Apply text filter, activeOnly, offset/count pagination
-8. Decorate with designations and properties (bulk)
-9. Build FHIR response with `buildExpandedValueSet()`
+4. Collect systems, sort canonically by `system|version`
+5. **Phase 1 — count**: `countForIR()` each system (cheap, ~0.1–5ms)
+6. **Phase 2 — stride pagination**: walk systems in canonical order,
+   compute which systems fall within the `[offset, offset+count)` window,
+   fetch only the codes needed from each (with per-system offset/count)
+7. Decorate with designations and properties (bulk)
+8. Build FHIR response with `buildExpandedValueSet()`
+
+**Stride pagination** means no system ever materializes more than `count`
+rows. For a ValueSet spanning SNOMED (124 codes) + LOINC (66K codes) with
+`offset=120, count=10`: SNOMED gets `offset=120, count=4` (last 4 codes),
+LOINC gets `offset=0, count=6` (first 6). Systems entirely before the
+window are skipped without fetching any rows.
 
 Also handles:
-- `count=0` — uses `countForIR()` for efficient total-only
+- `count=0` — sums per-system counts, returns total only (no SQL rows)
 - `used-codesystem` — collected at dispatch time as `system|version`
-- Multi-system ValueSets — each system dispatched independently
 - Fallback — if any system lacks a provider, returns null (caller
   falls back to legacy)
+- Text filter — passed through to both `countForIR()` and `executeIR()`
+  so counts and pages are consistent
 
 ---
 
@@ -205,7 +213,21 @@ Property alias resolution uses the `cs_config` table's
 `filters.properties.aliases` to map FHIR property names to database
 column names (e.g., SNOMED's `concept` → `Is a` hierarchy property).
 
-### Mode 2: LegacyIRAdapter (any provider)
+### Mode 2: LegacyIRAdapter (`tx/engine/legacy-ir-adapter.js`)
+
+Wraps any CodeSystemProvider to participate in IR expansion. Tree-walks
+the IR at runtime, calling the provider's existing methods (locate, filter
+protocol, iteratorAll). Internal nodes (union, intersect, diff) compose
+via membership indexes.
+
+The adapter handles:
+- **Text filtering**: `display.includes(text)` after materialization
+  (legacy providers have no FTS)
+- **Pagination**: sorts by code, applies `offset`/`count` slice after
+  materialization (legacy providers are small — gender=4, currencies=180)
+- **Counting**: materializes + counts (cheap for small providers)
+
+### Mode 2 (original):
 
 `tx/engine/legacy-ir-adapter.js` (281 lines) wraps any `CodeSystemProvider`
 to give it IR support without modification. It tree-walks the IR at runtime:
@@ -718,6 +740,153 @@ automatically if the server is unavailable.
 | `tx/params.js` | +4 lines: `_engine` parameter parsing |
 | `tx/library.js` | +21 lines: `loadSqliteV0()` database loader |
 | `package.json` | Added `better-sqlite3` dependency |
+
+---
+
+## Tracing (`tx/engine/expand-trace.js`)
+
+Ambient structured tracing using `AsyncLocalStorage`. Any code in the
+expand call chain can log trace events without explicit argument threading.
+Zero-cost when inactive (all calls hit frozen `NOOP_TRACE`/`NOOP_SPAN`).
+
+Activated by `_trace=true` query parameter. The trace JSON is attached
+to the expansion response as a FHIR extension:
+
+```
+expansion.extension[].url = "http://fhirsmith.org/StructureDefinition/expand-trace"
+expansion.extension[].valueString = <JSON>
+```
+
+### Trace structure
+
+```json
+{
+  "totalMs": 183.72,
+  "sqlCount": 2,
+  "sqlMs": 154.77,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "children": [
+        { "name": "countForIR", "ms": 154, "sql": [...] },
+        { "name": "system:http://snomed.info/sct", "children": [
+          { "name": "executeIR", "ms": 0.4, "sql": [...] }
+        ]},
+        { "name": "pagination", "ms": 0.01, "args": { "pushDown": true } },
+        { "name": "bulkDesignations", "ms": 0.01 }
+      ]
+    }
+  ]
+}
+```
+
+### Instrumented points
+
+| Location | Span/Event | Data |
+|----------|-----------|------|
+| orchestrator | `orchestrate` | top-level with args |
+| orchestrator | `countForIR` | per-system count |
+| orchestrator | `system:{url}` | per-system execution |
+| orchestrator | `pagination` | total, offset, count, systems |
+| orchestrator | `bulkDesignations` | candidate count |
+| cs-sqlite-v0 | `executeIR:sql` | SQL text, params, rows, ms |
+| cs-sqlite-v0 | `countForIR:sql` | SQL text, params, count, ms |
+| sqlite-v0-sql | note: EXISTS rewrite | closureCount, conceptCount, ratio |
+
+### API
+
+```js
+const { trace } = require('./expand-trace');
+trace.begin('myMethod', { arg: 'x' }).end({ result: 42 });
+trace.sql(sql, params, rowCount, elapsedMs, label);
+trace.note('message', { detail: 'y' });
+trace.count('counterName', 1);
+```
+
+---
+
+## Performance Results
+
+Median of 5 runs, cache disabled (`_nocache=true`), Node 24, single-threaded.
+
+### IR wins: large sets, property filters, text search (2–27×)
+
+| Query | IR | Legacy | Winner |
+|-------|---:|-------:|--------|
+| LOINC CLASSTYPE=1 (c=50, 66K total) | 86ms | 818ms | **IR ×9.6** |
+| LOINC STATUS=ACTIVE (c=20, 96K total) | 117ms | 739ms | **IR ×6.3** |
+| LOINC text=creatinine (c=20) | 70ms | 618ms | **IR ×8.8** |
+| RxNorm TTY=IN (c=50, 14K total) | 38ms | 436ms | **IR ×11.4** |
+| RxNorm text=aspirin TTY=IN | 21ms | 361ms | **IR ×17.5** |
+| SNOMED text=diabetes (c=50) | 41ms | 1095ms | **IR ×26.6** |
+| SNOMED Clinical finding 124K (c=50) | 184ms | 353ms | **IR ×1.9** |
+
+### IR only: legacy errors on these
+
+| Query | IR | Legacy |
+|-------|---:|--------|
+| SNOMED Clinical finding count=0 (124K) | 176ms | ❌ too-costly (>1000) |
+| LOINC CLASSTYPE=1 count=0 (66K) | 53ms | ❌ too-costly (>1000) |
+| LOINC STATUS=ACTIVE off=1000 (96K) | 119ms | ❌ too-costly (>1000) |
+
+### Legacy wins: small sets (≤200 codes, 1.3–7×)
+
+| Query | IR | Legacy | Winner |
+|-------|---:|-------:|--------|
+| SNOMED is-a Diabetes (124 codes) | 21ms | 16ms | Legacy ×1.3 |
+| SNOMED is-a Diabetes count=0 | 21ms | 15ms | Legacy ×1.4 |
+| SNOMED diff: Diabetes−Type2 (108) | 21ms | 17ms | Legacy ×1.3 |
+| SNOMED 3-code enum + designations | 21ms | 5ms | Legacy ×4.1 |
+| SNOMED Diabetes + text gestational | 63ms | 33ms | Legacy ×1.9 |
+| SNOMED is-a + text insulin | 35ms | 15ms | Legacy ×2.3 |
+| Multi: SCT+LOINC+RxNorm enum (3) | 39ms | 8ms | Legacy ×4.6 |
+| Mixed: gender + SCT enum (5) | 21ms | 3ms | Legacy ×7.0 |
+
+### Analysis
+
+IR has a fixed ~18ms floor (orchestrator setup, IR compile, SQL build,
+provider resolution). For small sets where the actual query takes <1ms,
+this overhead dominates. Legacy's row-by-row iteration is faster for
+sets under ~200 codes because it avoids the orchestrator entirely.
+
+For large sets, IR's SQL pushdown (LIMIT/OFFSET, EXISTS rewrite, FTS5)
+avoids materializing the full result. Legacy must iterate all matching
+codes, build hierarchy, then paginate — or error at the 1000-code limit.
+
+The crossover point is roughly **200–500 result codes**: below that legacy
+is faster; above that IR pulls ahead rapidly.
+
+---
+
+## Test Harness (`scripts/ir-harness.mjs`)
+
+Standalone Node.js script that hits the running server and asserts concrete
+expectations. 32 tests covering all provider types and query patterns.
+
+```bash
+node scripts/ir-harness.mjs              # run all 32
+node scripts/ir-harness.mjs "refset"     # filter by name
+node scripts/ir-harness.mjs --trace      # attach trace to each request
+```
+
+### Coverage matrix
+
+| Category | Tests | Provider(s) |
+|----------|-------|-------------|
+| SNOMED is-a / descendent-of / count=0 | 4 | sqlite-v0 |
+| Pagination (reconstruct, high offset) | 2 | sqlite-v0 |
+| Excludes (subtree, multi, enum) | 3 | sqlite-v0 |
+| Text search (FTS) | 4 | sqlite-v0 |
+| Property filters (CLASSTYPE, STATUS, TTY) | 3 | sqlite-v0 |
+| Concept enumeration + designations | 2 | sqlite-v0 |
+| Whole-system cs-cs / legacy adapter | 4 | cs-cs (legacy) |
+| Cross-provider enum (LOINC, RxNorm) | 2 | sqlite-v0 |
+| Refset concept-in | 1 | sqlite-v0 |
+| Same-system dedup | 1 | cs-cs (legacy) |
+| Cross-system exclude | 1 | cs-cs × 2 |
+| Text filter cross cs-cs | 1 | cs-cs × 2 |
+| Mixed v0 + cs-cs | 4 | sqlite-v0 + legacy |
 
 ---
 
