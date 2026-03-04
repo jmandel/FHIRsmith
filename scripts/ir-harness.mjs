@@ -50,6 +50,10 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
       params.push({ name: 'tx-resource', resource: res });
     }
   }
+  // Generic extra parameters (e.g. designation, useSupplement, displayLanguage)
+  if (opts.params) {
+    for (const p of opts.params) params.push(p);
+  }
 
   const t0 = performance.now();
   const resp = await fetch(EXPAND, {
@@ -893,6 +897,34 @@ async function run() {
     const negative = countParams.filter(p => p.valueInteger < 0);
     assert(negative.length === 0,
       `should not emit negative count, got: ${JSON.stringify(countParams)}`);
+  });
+
+  // ── Phase 1.5: designation parameter filter ────────────────────────
+
+  await test('lang: designation parameter filters SNOMED designations by FSN use code', async () => {
+    // SNOMED 73211009 has 3 designations: 2 synonyms + 1 FSN
+    // designation=http://snomed.info/sct|900000000000003001 should keep only FSN
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      concept: [{ code: '73211009' }],
+    }), {
+      includeDesignations: true,
+      params: [
+        { name: 'designation', valueString: 'http://snomed.info/sct|900000000000003001' },
+      ],
+    });
+    const entry = findCode(result, '73211009');
+    assert(entry, 'missing code 73211009');
+    const desigs = entry.designation || [];
+    assert(desigs.length > 0, 'expected at least one designation after filter');
+    // All returned designations should have FSN use code
+    for (const d of desigs) {
+      assert(d.use?.code === '900000000000003001',
+        `expected only FSN designations, got use.code=${d.use?.code} value=${d.value}`);
+    }
+    // Should have exactly 1 FSN
+    assert(desigs.length === 1,
+      `expected 1 FSN designation, got ${desigs.length}: ${JSON.stringify(desigs)}`);
   });
 
   // ── summary ──────────────────────────────────────────────────────────

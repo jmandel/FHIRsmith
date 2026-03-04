@@ -103,6 +103,7 @@ async function expandViaIR(vsJson, opts = {}) {
     count = 1000,
     includeDesignations = false,
     properties = [],
+    designations = [],
   } = opts;
 
   const warnings = [];
@@ -339,11 +340,15 @@ async function expandViaIR(vsJson, opts = {}) {
     if (c.display) entry.display = c.display;
     if (c.active === false) entry.inactive = true;
 
-    // Designations: merge provider designations with compose-level overrides
+    // Designations: merge provider designations with compose-level overrides,
+    // then apply designation parameter filter if specified
     if (includeDesignations) {
-      const allDesigs = [];
+      let allDesigs = [];
       if (c._designations?.length > 0) allDesigs.push(...c._designations);
       if (c._composeDesignations?.length > 0) allDesigs.push(...c._composeDesignations);
+      if (designations.length > 0) {
+        allDesigs = filterDesignations(allDesigs, designations);
+      }
       if (allDesigs.length > 0) entry.designation = allDesigs;
     }
 
@@ -434,8 +439,24 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
   if (params.activeOnly) {
     exp.parameter.push({ name: 'activeOnly', valueBoolean: true });
   }
+  if (params.includeDesignations) {
+    exp.parameter.push({ name: 'includeDesignations', valueBoolean: true });
+  }
   if (params.filter) {
     exp.parameter.push({ name: 'filter', valueString: params.filter });
+  }
+  if (params.displayLanguage) {
+    exp.parameter.push({ name: 'displayLanguage', valueCode: params.displayLanguage });
+  }
+  if (params.designations?.length > 0) {
+    for (const d of params.designations) {
+      exp.parameter.push({ name: 'designation', valueString: d });
+    }
+  }
+  if (params.properties?.length > 0) {
+    for (const p of params.properties) {
+      exp.parameter.push({ name: 'property', valueString: p });
+    }
   }
 
   // Report used code systems
@@ -634,6 +655,24 @@ function applyComposeOverrides(candidates, overrides, includeDesignations) {
 /**
  * Add a URI parameter to expansion if not already present (dedup by name+value).
  */
+/**
+ * Filter designations by the designation parameter specs.
+ * Each spec is "system|code" (filter by use) or "urn:ietf:bcp:47|lang" (filter by language).
+ */
+function filterDesignations(desigs, designationSpecs) {
+  if (!designationSpecs || designationSpecs.length === 0) return desigs;
+  return desigs.filter(d => {
+    for (const spec of designationSpecs) {
+      const [sys, code] = spec.split('|');
+      // Match by use system+code
+      if (d.use && d.use.system === sys && d.use.code === code) return true;
+      // Match by language
+      if (sys === 'urn:ietf:bcp:47' && d.language && d.language === code) return true;
+    }
+    return false;
+  });
+}
+
 function addParamIfAbsent(exp, name, valueUri) {
   if (!exp.parameter) exp.parameter = [];
   if (exp.parameter.some(p => p.name === name && p.valueUri === valueUri)) return;

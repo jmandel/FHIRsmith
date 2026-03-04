@@ -2023,6 +2023,7 @@ class ExpandWorker extends TerminologyWorker {
         count: params.count >= 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
         includeDesignations: !!params.includeDesignations,
         properties: params.properties || [],
+        designations: params.designations || [],
       });
 
       if (!result) return null;
@@ -2038,6 +2039,10 @@ class ExpandWorker extends TerminologyWorker {
         activeOnly: params.activeOnly,
         filter: params.filter,
         includeDefinition: params.includeDefinition,
+        includeDesignations: params.includeDesignations,
+        designations: params.designations || [],
+        displayLanguage: params.DisplayLanguages?.asString?.(true) || null,
+        properties: params.properties || [],
         sourceVS: vsJson,
       });
 
