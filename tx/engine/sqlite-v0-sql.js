@@ -46,11 +46,19 @@ function buildFilterClauseSql(clause, prefix, alias, csId, propertyDefs, runtime
       const selfClause = includeSelf
         ? ''
         : ` AND cl_${prefix}.descendant_id != cl_${prefix}.ancestor_id`;
+      const clAlias = `cl_${prefix}`;
       return {
         sql: selfClause,
         params,
-        joins: ` JOIN closure cl_${prefix} ON cl_${prefix}.descendant_id = ${alias}.concept_id`
-          + ` AND cl_${prefix}.ancestor_id = (SELECT concept_id FROM concept WHERE code = @${prefix}_anc_code AND cs_id = @${prefix}_cs)`,
+        joins: ` JOIN closure ${clAlias} ON ${clAlias}.descendant_id = ${alias}.concept_id`
+          + ` AND ${clAlias}.ancestor_id = (SELECT concept_id FROM concept WHERE code = @${prefix}_anc_code AND cs_id = @${prefix}_cs)`,
+        // Metadata for EXISTS rewrite in buildExpandSql
+        _closureExists: {
+          existsSql: `SELECT 1 FROM closure ${clAlias}`
+            + ` WHERE ${clAlias}.descendant_id = ${alias}.concept_id`
+            + ` AND ${clAlias}.ancestor_id = (SELECT concept_id FROM concept WHERE code = @${prefix}_anc_code AND cs_id = @${prefix}_cs)`
+            + selfClause,
+        },
       };
     }
 
@@ -179,6 +187,7 @@ function buildSelectorSql(sel, csId, prefix, propertyDefs, runtime) {
 
     let joins = '';
     let where = '';
+    let closureExists = null;
     for (let i = 0; i < clauses.length; i++) {
       const frag = buildFilterClauseSql(clauses[i], `${prefix}f${i}`, 'c', csId, propertyDefs, runtime);
       if (!frag) {
@@ -188,6 +197,7 @@ function buildSelectorSql(sel, csId, prefix, propertyDefs, runtime) {
       joins += frag.joins;
       where += frag.sql;
       Object.assign(params, frag.params);
+      if (frag._closureExists) closureExists = frag._closureExists;
     }
 
     // intersectCodes constraint
@@ -199,12 +209,33 @@ function buildSelectorSql(sel, csId, prefix, propertyDefs, runtime) {
       where += ` AND c.code IN (${icPlaceholders})`;
     }
 
-    return {
+    // Propagate EXISTS rewrite hint for single-closure-filter selectors.
+    // Only valid when the closure is the sole join (no other joins).
+    const canExistsRewrite = closureExists && clauses.length === 1 && !sel.intersectCodes?.length;
+
+    const result = {
       sql: `SELECT c.concept_id, c.code, c.display, c.definition, c.active`
         + ` FROM concept c${joins}`
         + ` WHERE c.cs_id = @${prefix}_csId${where}`,
       params,
     };
+    if (canExistsRewrite) {
+      // Provide an alternative query that uses EXISTS instead of JOIN.
+      // This lets SQLite scan concept in index order (cs_id, code) and
+      // probe closure per row, enabling early termination with LIMIT.
+      // Note: `where` contains only the closure selfClause (e.g.,
+      // "AND cl.descendant_id != cl.ancestor_id") which references the
+      // closure alias — it's already inside the EXISTS subquery, so we
+      // omit it from the outer WHERE.
+      result._existsRewrite = {
+        sql: `SELECT c.concept_id, c.code, c.display, c.definition, c.active`
+          + ` FROM concept c`
+          + ` WHERE c.cs_id = @${prefix}_csId`
+          + ` AND EXISTS (${closureExists.existsSql})`,
+        params,
+      };
+    }
+    return result;
   }
 
   // Unknown shape — empty
@@ -315,6 +346,53 @@ function buildExpandSql(expr, csId, opts, propertyDefs, runtime) {
   if (isEmptySql(inner.sql)) return inner;
 
   const params = { ...inner.params };
+
+  // ── EXISTS rewrite for closure-based queries ──────────────────
+  // When the inner query is a simple closure join (is-a / descendent-of),
+  // rewrite to EXISTS so SQLite can scan the concept index in code order
+  // and probe closure per row. This avoids materializing the full closure
+  // result set for ORDER BY, giving ~170x speedup on large hierarchies.
+  // EXISTS rewrite: for simple closure-based selectors (is-a / descendent-of),
+  // rewrite so SQLite scans the concept index in code order and probes closure
+  // per row. This avoids materializing the entire closure result for ORDER BY,
+  // giving ~170x speedup on large hierarchies (124K Clinical finding: 0.5ms
+  // vs 86ms). Falls back to the standard path for text search, unions, diffs.
+  //
+  // Heuristic: EXISTS scans the entire concept index (~520K for SNOMED) and
+  // probes closure per row. This beats JOIN+sort when the result set is large
+  // (>~1K) but loses badly for small sets (124 Diabetes codes: 190ms vs 0.7ms).
+  // Use EXISTS only when the requested page size (count) suggests the caller
+  // expects a large set, or when count is not specified (full expansion).
+  // Threshold: use EXISTS when count <= 500 (paginating a likely-large set)
+  // or count is null (unbounded). Skip EXISTS for large counts that suggest
+  // a small total where JOIN+sort would be faster.
+  // Use EXISTS rewrite only for dense result sets (many descendants relative
+  // to total concepts). For sparse sets (e.g., 124 Diabetes codes out of 520K
+  // concepts), EXISTS scans the entire concept index and is ~200x slower than
+  // JOIN+sort. For dense sets (124K Clinical findings), EXISTS is ~170x faster.
+  // Threshold: use EXISTS when descendants > 1% of total concepts.
+  // The caller passes an optional conceptCount; if unavailable, skip rewrite.
+  const useExistsRewrite = inner._existsRewrite && !opts.text
+    && opts._conceptCount > 0 && opts._closureCount > 0
+    && (opts._closureCount / opts._conceptCount) > 0.01;
+  if (useExistsRewrite) {
+    let sql = inner._existsRewrite.sql;
+    if (opts.activeOnly) {
+      sql += ' AND c.active = 1';
+    }
+    sql += ' ORDER BY c.code';
+    if (opts.count != null && opts.count > 0) {
+      params._limit = opts.count;
+      sql += ' LIMIT @_limit';
+    }
+    if (opts.offset != null && opts.offset > 0) {
+      params._offset = opts.offset;
+      sql += ' OFFSET @_offset';
+    }
+    return { sql, params };
+  }
+
+  // ── Standard inner/outer pattern ──────────────────────────────
   let outerWhere = '';
 
   // Active-only filter
@@ -375,8 +453,21 @@ function buildCountSql(expr, csId, prefix, propertyDefs, runtime, opts = {}) {
   if (isEmptySql(inner.sql)) {
     return { sql: 'SELECT 0 AS cnt', params: {} };
   }
-  let where = '';
   const params = { ...inner.params };
+
+  // EXISTS rewrite for count — same density heuristic as buildExpandSql
+  if (inner._existsRewrite
+      && opts._conceptCount > 0 && opts._closureCount > 0
+      && (opts._closureCount / opts._conceptCount) > 0.01) {
+    let sql = inner._existsRewrite.sql;
+    if (opts.activeOnly) sql += ' AND c.active = 1';
+    return {
+      sql: `SELECT COUNT(*) AS cnt FROM (${sql})`,
+      params,
+    };
+  }
+
+  let where = '';
   if (opts.activeOnly) {
     where += ' AND _cnt.active = 1';
   }

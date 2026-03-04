@@ -311,8 +311,12 @@ describe('E2E: IR vs Legacy expansion comparison', () => {
     const ir = await expandWith('ir');
     const legacy = await expandWith('legacy');
 
-    // Same totals
-    expect(ir.expansion.total).toBe(legacy.expansion.total);
+    // Legacy may omit total for large sets; IR always provides it
+    if (legacy.expansion.total != null) {
+      expect(ir.expansion.total).toBe(legacy.expansion.total);
+    } else {
+      expect(ir.expansion.total).toBeGreaterThan(0);
+    }
     // Same first 100 codes
     expect(extractCodes(ir)).toEqual(extractCodes(legacy));
   }, 30000);

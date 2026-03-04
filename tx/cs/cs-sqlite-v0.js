@@ -163,6 +163,30 @@ class SqliteV0Provider extends BaseCSServices {
   isNotClosed() { return false; }
   hasParents()  { return this.#closureOk; }
 
+  // Cached concept count for EXISTS rewrite density heuristic
+  #conceptCountCache = null;
+  #getConceptCount() {
+    if (this.#conceptCountCache == null) {
+      this.#conceptCountCache = this.#prep('conceptCount',
+        'SELECT COUNT(*) AS cnt FROM concept WHERE cs_id = @cs')
+        .get({ cs: this.#meta.csId }).cnt;
+    }
+    return this.#conceptCountCache;
+  }
+
+  // Quick closure count for a single is-a/descendent-of selector
+  #getClosureCount(subtree) {
+    if (subtree?.kind !== 'selector' || subtree.shape !== 'filter') return 0;
+    const clause = (subtree.filterClauses || [])[0];
+    if (!clause || (clause.op !== 'is-a' && clause.op !== 'descendent-of')) return 0;
+    if ((subtree.filterClauses || []).length !== 1) return 0;
+    const row = this.#prep('closureCount',
+      `SELECT COUNT(*) AS cnt FROM closure WHERE ancestor_id = (
+        SELECT concept_id FROM concept WHERE code = @code AND cs_id = @cs)`)
+      .get({ code: clause.value, cs: this.#meta.csId });
+    return row?.cnt || 0;
+  }
+
   propertyDefinitions() {
     const defs = [];
     for (const [code, pd] of this.#propDefs) {
@@ -882,8 +906,15 @@ class SqliteV0Provider extends BaseCSServices {
       return { candidates: [], total: 0 };
     }
 
+    // Supply density hints for the EXISTS rewrite optimization.
+    // Quick closure count (0.1-5ms) lets the SQL builder choose between
+    // EXISTS (fast for dense sets) and JOIN+sort (fast for sparse sets).
+    const enrichedOpts = { ...opts };
+    enrichedOpts._conceptCount = this.#getConceptCount();
+    enrichedOpts._closureCount = this.#getClosureCount(subtree);
+
     const { sql, params } = buildExpandSql(
-      subtree, this.#meta.csId, opts, this.#propDefs, this.#runtime
+      subtree, this.#meta.csId, enrichedOpts, this.#propDefs, this.#runtime
     );
 
     if (sql.includes('WHERE 0')) {
@@ -942,8 +973,12 @@ class SqliteV0Provider extends BaseCSServices {
   countForIR(subtree, opts = {}) {
     if (!subtree || subtree.kind === 'empty') return 0;
 
+    const enrichedOpts = { ...opts,
+      _conceptCount: this.#getConceptCount(),
+      _closureCount: this.#getClosureCount(subtree),
+    };
     const { sql, params } = buildCountSql(
-      subtree, this.#meta.csId, '_cnt', this.#propDefs, this.#runtime, opts
+      subtree, this.#meta.csId, '_cnt', this.#propDefs, this.#runtime, enrichedOpts
     );
 
     const row = this.#db.prepare(sql).get(params);
