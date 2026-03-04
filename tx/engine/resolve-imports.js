@@ -19,6 +19,7 @@ async function resolveImports(expr, resolveValueSet, opts = {}) {
   const maxDepth = Number.isInteger(opts.maxDepth) ? opts.maxDepth : 20;
   const cache = opts.cache instanceof Map ? opts.cache : new Map();
   const preferComposeOverExpansion = opts.preferComposeOverExpansion !== false;
+  const usedValueSets = new Set(); // Tracks resolved import URLs for metadata
 
   const stack = [];
 
@@ -84,6 +85,9 @@ async function resolveImports(expr, resolveValueSet, opts = {}) {
       }
 
       const vsJson = vs.jsonObj || vs;
+      // Track the resolved URL (with version if available) for used-valueset metadata
+      const resolvedVersion = vsJson.version || version;
+      usedValueSets.add(resolvedVersion ? `${url}|${resolvedVersion}` : url);
       let importedExpr;
 
       // Prefer compose-based IR when available. This preserves set semantics and enables
@@ -105,7 +109,9 @@ async function resolveImports(expr, resolveValueSet, opts = {}) {
     }
   }
 
-  return resolveNode(expr, 0);
+  const resolved = await resolveNode(expr, 0);
+  resolved._usedValueSets = usedValueSets;
+  return resolved;
 }
 
 /**

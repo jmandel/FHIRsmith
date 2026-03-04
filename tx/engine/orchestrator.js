@@ -118,9 +118,14 @@ async function expandViaIR(vsJson, opts = {}) {
 
   // 2. Resolve imports (if any)
   let resolvedIR = rawIR;
+  const usedValueSets = new Set();
   if (resolveValueSet) {
     try {
       resolvedIR = await resolveImports(rawIR, resolveValueSet, { maxDepth: 10 });
+      // Collect used-valueset URLs from import resolution
+      if (resolvedIR._usedValueSets) {
+        for (const vs of resolvedIR._usedValueSets) usedValueSets.add(vs);
+      }
     } catch (e) {
       warnings.push(`Import resolution failed: ${e.message}`);
       // Fall through with unresolved IR — some imports might still work
@@ -228,6 +233,7 @@ async function expandViaIR(vsJson, opts = {}) {
         offset: offset > 0 ? offset : undefined,
         contains: [],
         usedSystems: [...usedSystems],
+        usedValueSets: [...usedValueSets],
         providerMeta,
       },
       warnings,
@@ -314,6 +320,10 @@ async function expandViaIR(vsJson, opts = {}) {
 
   const paged = allCandidates;
 
+  // 8.5. Apply compose-level display/designation overrides from IR
+  const composeOverrides = collectComposeOverrides(resolved);
+  applyComposeOverrides(paged, composeOverrides, includeDesignations);
+
   // 9. Decorate candidates (designations + properties)
   const decoSpan = trace.begin('bulkDesignations', { count: paged.length, includeDesignations });
   await decorateCandidates(paged, { includeDesignations, properties });
@@ -329,9 +339,12 @@ async function expandViaIR(vsJson, opts = {}) {
     if (c.display) entry.display = c.display;
     if (c.active === false) entry.inactive = true;
 
-    // Designations
-    if (includeDesignations && c._designations?.length > 0) {
-      entry.designation = c._designations;
+    // Designations: merge provider designations with compose-level overrides
+    if (includeDesignations) {
+      const allDesigs = [];
+      if (c._designations?.length > 0) allDesigs.push(...c._designations);
+      if (c._composeDesignations?.length > 0) allDesigs.push(...c._composeDesignations);
+      if (allDesigs.length > 0) entry.designation = allDesigs;
     }
 
     // Properties
@@ -363,6 +376,7 @@ async function expandViaIR(vsJson, opts = {}) {
       offset: offset > 0 ? offset : undefined,
       contains,
       usedSystems: [...usedSystems],
+      usedValueSets: [...usedValueSets],
       providerMeta,
     },
     warnings,
@@ -414,7 +428,7 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
   if (params.offset != null && params.offset > 0) {
     exp.parameter.push({ name: 'offset', valueInteger: params.offset });
   }
-  if (params.count != null) {
+  if (params.count != null && params.count >= 0) {
     exp.parameter.push({ name: 'count', valueInteger: params.count });
   }
   if (params.activeOnly) {
@@ -428,6 +442,13 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
   if (expansion.usedSystems) {
     for (const sys of expansion.usedSystems) {
       exp.parameter.push({ name: 'used-codesystem', valueUri: sys });
+    }
+  }
+
+  // Report used value sets (from import resolution)
+  if (expansion.usedValueSets) {
+    for (const vs of expansion.usedValueSets) {
+      addParamIfAbsent(exp, 'used-valueset', vs);
     }
   }
 
@@ -552,6 +573,60 @@ async function decorateCandidates(candidates, opts = {}) {
           c._properties.push({ code: 'definition', value: c.definition });
         }
       }
+    }
+  }
+}
+
+/**
+ * Collect compose-level display/designation overrides from the IR tree.
+ * Returns a Map keyed by `system|code` → { display?, designation? }.
+ */
+function collectComposeOverrides(resolvedList) {
+  const overrides = new Map(); // 'system|code' → { display, designation }
+  for (const r of resolvedList) {
+    walkIR(r.subtree, r.system, r.version, overrides);
+  }
+  return overrides;
+}
+
+function walkIR(node, system, version, overrides) {
+  if (!node) return;
+  if (node.kind === 'selector' && node.shape === 'concept' && node.conceptCodes) {
+    const sys = node.system || system;
+    for (const cc of node.conceptCodes) {
+      if (!cc.code) continue;
+      const key = `${sys}|${cc.code}`;
+      if (cc.display || (cc.designation && cc.designation.length > 0)) {
+        overrides.set(key, {
+          display: cc.display || null,
+          designation: cc.designation || [],
+        });
+      }
+    }
+  }
+  if (node.items) for (const item of node.items) walkIR(item, system, version, overrides);
+  if (node.left) walkIR(node.left, system, version, overrides);
+  if (node.right) walkIR(node.right, system, version, overrides);
+  if (node.resolved) walkIR(node.resolved, system, version, overrides);
+}
+
+/**
+ * Apply compose-level display/designation overrides to candidates.
+ */
+function applyComposeOverrides(candidates, overrides, includeDesignations) {
+  if (!overrides || overrides.size === 0) return;
+  for (const c of candidates) {
+    const key = `${c.system}|${c.code}`;
+    const ov = overrides.get(key);
+    if (!ov) continue;
+    // Compose display overrides provider display
+    if (ov.display) {
+      c.display = ov.display;
+    }
+    // Compose designations are appended to provider designations
+    if (includeDesignations && ov.designation && ov.designation.length > 0) {
+      if (!c._composeDesignations) c._composeDesignations = [];
+      c._composeDesignations.push(...ov.designation);
     }
   }
 }
