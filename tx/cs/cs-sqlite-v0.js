@@ -621,6 +621,89 @@ class SqliteV0Provider extends BaseCSServices {
   /** Whether this provider supports native IR execution. */
   hasExecuteIR() { return true; }
 
+  /**
+   * Bulk-fetch designations for a set of concept IDs.
+   * Returns Map<conceptId, Array<{language, use, value, active}>>.
+   */
+  bulkDesignations(conceptIds) {
+    if (!conceptIds || conceptIds.length === 0) return new Map();
+    const result = new Map();
+    const useMapping = this.#runtime.designations?.useMapping || {};
+
+    // SQLite has a limit on compound SELECT terms; batch if needed
+    const batchSize = 500;
+    for (let i = 0; i < conceptIds.length; i += batchSize) {
+      const batch = conceptIds.slice(i, i + batchSize);
+      const placeholders = batch.map((_, j) => `@id${i + j}`).join(',');
+      const params = {};
+      batch.forEach((id, j) => { params[`id${i + j}`] = id; });
+
+      const sql = `SELECT concept_id, language_code, use_code, term, active, preferred
+        FROM designation WHERE concept_id IN (${placeholders})`;
+      const rows = this.#db.prepare(sql).all(params);
+
+      for (const row of rows) {
+        if (!result.has(row.concept_id)) result.set(row.concept_id, []);
+        const use = useMapping[row.use_code]
+          ? { system: useMapping[row.use_code].system, code: useMapping[row.use_code].code, display: useMapping[row.use_code].display }
+          : row.use_code ? { system: this.system(), code: row.use_code } : null;
+        result.get(row.concept_id).push({
+          language: row.language_code,
+          use,
+          value: row.term,
+          active: !!row.active,
+          preferred: !!row.preferred,
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Bulk-fetch concept-valued properties for a set of concept IDs.
+   * Returns Map<conceptId, Array<{code, value}>>.
+   */
+  bulkProperties(conceptIds) {
+    if (!conceptIds || conceptIds.length === 0) return new Map();
+    const result = new Map();
+    const batchSize = 500;
+
+    for (let i = 0; i < conceptIds.length; i += batchSize) {
+      const batch = conceptIds.slice(i, i + batchSize);
+      const placeholders = batch.map((_, j) => `@id${i + j}`).join(',');
+      const params = {};
+      batch.forEach((id, j) => { params[`id${i + j}`] = id; });
+
+      // Concept-valued properties
+      const linkSql = `SELECT cl.source_concept_id, pd.property_code, c2.code AS target_code, c2.display AS target_display
+        FROM concept_link cl
+        JOIN property_def pd ON pd.property_id = cl.property_id
+        JOIN concept c2 ON c2.concept_id = cl.target_concept_id
+        WHERE cl.source_concept_id IN (${placeholders}) AND cl.active = 1`;
+      for (const row of this.#db.prepare(linkSql).all(params)) {
+        if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
+        result.get(row.source_concept_id).push({
+          code: row.property_code,
+          value: { system: this.system(), code: row.target_code, display: row.target_display },
+        });
+      }
+
+      // Literal-valued properties
+      const litSql = `SELECT cl.source_concept_id, pd.property_code, cl.value_raw, cl.value_text, cl.value_num
+        FROM concept_literal cl
+        JOIN property_def pd ON pd.property_id = cl.property_id
+        WHERE cl.source_concept_id IN (${placeholders}) AND cl.active = 1`;
+      for (const row of this.#db.prepare(litSql).all(params)) {
+        const value = row.value_text ?? row.value_raw ?? (row.value_num != null ? String(row.value_num) : null);
+        if (value != null) {
+          if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
+          result.get(row.source_concept_id).push({ code: row.property_code, value });
+        }
+      }
+    }
+    return result;
+  }
+
   close() {
     if (this.#db) {
       this.#db.close();

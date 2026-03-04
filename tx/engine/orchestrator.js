@@ -173,7 +173,10 @@ async function expandViaIR(vsJson, opts = {}) {
   const total = filtered.length;
   const paged = filtered.slice(offset, offset + count);
 
-  // 9. Build contains entries
+  // 9. Decorate candidates (designations + properties)
+  await decorateCandidates(paged, { includeDesignations, properties });
+
+  // 10. Build contains entries
   const contains = paged.map(c => {
     const entry = {
       system: c.system,
@@ -182,9 +185,31 @@ async function expandViaIR(vsJson, opts = {}) {
     if (c.version) entry.version = c.version;
     if (c.display) entry.display = c.display;
     if (c.active === false) entry.inactive = true;
-    if (c.definition && properties.includes('definition')) {
-      entry.definition = c.definition;
+
+    // Designations
+    if (includeDesignations && c._designations?.length > 0) {
+      entry.designation = c._designations;
     }
+
+    // Properties
+    if (c._properties?.length > 0) {
+      for (const prop of c._properties) {
+        if (!entry.property) entry.property = [];
+        if (typeof prop.value === 'object' && prop.value.system) {
+          // Concept-valued property
+          entry.property.push({
+            code: prop.code,
+            valueCoding: prop.value,
+          });
+        } else {
+          entry.property.push({
+            code: prop.code,
+            valueString: String(prop.value),
+          });
+        }
+      }
+    }
+
     return entry;
   });
 
@@ -248,6 +273,70 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
 
   result.expansion = exp;
   return result;
+}
+
+/**
+ * Decorate candidates with designations and properties from their providers.
+ * Groups candidates by provider for bulk fetching.
+ */
+async function decorateCandidates(candidates, opts = {}) {
+  const { includeDesignations = false, properties = [] } = opts;
+  if (!includeDesignations && properties.length === 0) return;
+
+  // Group candidates by provider
+  const byProvider = new Map();
+  for (const c of candidates) {
+    if (!c._provider) continue;
+    if (!byProvider.has(c._provider)) byProvider.set(c._provider, []);
+    byProvider.get(c._provider).push(c);
+  }
+
+  for (const [provider, provCandidates] of byProvider) {
+    // Use bulk methods if available (v0 SQLite provider)
+    if (typeof provider.bulkDesignations === 'function' && includeDesignations) {
+      const conceptIds = provCandidates.filter(c => c.conceptId).map(c => c.conceptId);
+      const designMap = provider.bulkDesignations(conceptIds);
+
+      for (const c of provCandidates) {
+        const desigs = designMap.get(c.conceptId) || [];
+        c._designations = desigs
+          .filter(d => d.active && d.value)
+          .map(d => {
+            const obj = {};
+            if (d.language) obj.language = d.language;
+            if (d.use) obj.use = d.use;
+            if (d.value) obj.value = d.value;
+            return obj;
+          });
+      }
+    }
+
+    if (typeof provider.bulkProperties === 'function' && properties.length > 0) {
+      const conceptIds = provCandidates.filter(c => c.conceptId).map(c => c.conceptId);
+      const propMap = provider.bulkProperties(conceptIds);
+
+      for (const c of provCandidates) {
+        const allProps = propMap.get(c.conceptId) || [];
+        // Filter to requested properties
+        c._properties = allProps.filter(p =>
+          properties.includes(p.code) || properties.includes('*')
+        );
+
+        // Handle 'definition' as a special property
+        if (properties.includes('definition') && c.definition) {
+          c._properties.push({ code: 'definition', value: c.definition });
+        }
+      }
+    } else if (properties.includes('definition')) {
+      // Even without bulk properties, handle definition
+      for (const c of provCandidates) {
+        if (c.definition) {
+          if (!c._properties) c._properties = [];
+          c._properties.push({ code: 'definition', value: c.definition });
+        }
+      }
+    }
+  }
 }
 
 module.exports = {

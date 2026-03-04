@@ -269,6 +269,123 @@ describeIfDBs('expandViaIR', () => {
     expect(expanded.expansion.total).toBe(1);
   });
 
+  test('includeDesignations returns designation entries', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:dm-desig',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      includeDesignations: true,
+      count: 10,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBe(1);
+    const entry = result.expansion.contains[0];
+    expect(entry.code).toBe('73211009');
+    expect(entry.display).toBeTruthy();
+
+    // Should have designations
+    expect(entry.designation).toBeDefined();
+    expect(entry.designation.length).toBeGreaterThan(0);
+
+    // Each designation should have value and language
+    for (const d of entry.designation) {
+      expect(d.value).toBeTruthy();
+      expect(d.language).toBeTruthy();
+    }
+
+    // Should include the FSN (fully specified name)
+    const fsn = entry.designation.find(d => d.value?.includes('(disorder)'));
+    expect(fsn).toBeTruthy();
+  });
+
+  test('properties param returns requested properties', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:dm-props',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      properties: ['116680003'], // is-a property
+      count: 10,
+    });
+
+    expect(result).toBeTruthy();
+    const entry = result.expansion.contains[0];
+    expect(entry.property).toBeDefined();
+    expect(entry.property.length).toBeGreaterThan(0);
+
+    // Should have concept-valued properties (valueCoding)
+    const isaProps = entry.property.filter(p => p.code === '116680003');
+    expect(isaProps.length).toBeGreaterThan(0);
+    for (const p of isaProps) {
+      expect(p.valueCoding).toBeTruthy();
+      expect(p.valueCoding.code).toBeTruthy();
+    }
+  });
+
+  test('wildcard properties returns all properties', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:dm-all-props',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      properties: ['*'],
+      count: 10,
+    });
+
+    const entry = result.expansion.contains[0];
+    expect(entry.property).toBeDefined();
+    expect(entry.property.length).toBeGreaterThan(0);
+  });
+
+  test('LOINC designations include multiple language terms', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:creatinine-desig',
+      compose: {
+        include: [{
+          system: 'http://loinc.org',
+          concept: [{ code: '2160-0' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      includeDesignations: true,
+      count: 10,
+    });
+
+    const entry = result.expansion.contains[0];
+    expect(entry.designation).toBeDefined();
+    expect(entry.designation.length).toBeGreaterThan(3); // LOINC has many designations
+  });
+
   test('returns null for unsupported systems', async () => {
     const vs = {
       resourceType: 'ValueSet',
