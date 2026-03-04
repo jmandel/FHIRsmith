@@ -833,6 +833,68 @@ async function run() {
       `SNOMED expansion should have used-codesystem, got: ${JSON.stringify(usedParams)}`);
   });
 
+  // ── Phase 1.1–1.4: compose overrides, used-valueset, count guard ─────
+
+  await test('compose: display override from compose replaces provider display', async () => {
+    // Gender 'male' has provider display 'Male' — compose overrides to 'Masculin'
+    const { result } = await expand(vs({
+      system: SYS.GENDER,
+      concept: [{ code: 'male', display: 'Masculin' }, { code: 'female' }],
+    }));
+    const male = findCode(result, 'male');
+    assert(male, 'missing code male');
+    assert(male.display === 'Masculin',
+      `expected display 'Masculin', got '${male.display}'`);
+    // female should retain provider display
+    const female = findCode(result, 'female');
+    assert(female, 'missing code female');
+    assert(female.display === 'Female',
+      `expected display 'Female', got '${female.display}'`);
+  });
+
+  await test('compose: inline designation from compose appears with includeDesignations', async () => {
+    const { result } = await expand(vs({
+      system: SYS.GENDER,
+      concept: [{
+        code: 'male',
+        designation: [
+          { language: 'de', value: 'Männlich' },
+          { language: 'fr', value: 'Masculin' },
+        ],
+      }],
+    }), { includeDesignations: true });
+    const male = findCode(result, 'male');
+    assert(male, 'missing code male');
+    const desigs = male.designation || [];
+    assert(desigs.some(d => d.language === 'de' && d.value === 'Männlich'),
+      `expected German designation, got: ${JSON.stringify(desigs)}`);
+    assert(desigs.some(d => d.language === 'fr' && d.value === 'Masculin'),
+      `expected French designation, got: ${JSON.stringify(desigs)}`);
+  });
+
+  await test('meta: ValueSet import emits used-valueset parameter', async () => {
+    // Pure import of administrative-gender VS — should emit used-valueset
+    const { result } = await expand(vs({
+      valueSet: ['http://hl7.org/fhir/ValueSet/administrative-gender'],
+    }));
+    const usedVS = expansionParams(result, 'used-valueset');
+    assert(usedVS.length > 0,
+      `expected used-valueset parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
+    assert(usedVS.some(p => (p.valueUri || '').includes('administrative-gender')),
+      `expected used-valueset for administrative-gender, got: ${JSON.stringify(usedVS)}`);
+  });
+
+  await test('meta: count parameter is omitted when not requested (no count=-1)', async () => {
+    // Expand without specifying count — should NOT emit count=-1
+    const { result } = await expand(vs({
+      system: SYS.GENDER,
+    }));
+    const countParams = expansionParams(result, 'count');
+    const negative = countParams.filter(p => p.valueInteger < 0);
+    assert(negative.length === 0,
+      `should not emit negative count, got: ${JSON.stringify(countParams)}`);
+  });
+
   // ── summary ──────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(50)}`);
   console.log(`  \x1b[32m${passed} passed\x1b[0m, \x1b[31m${failed} failed\x1b[0m, ${skipped} skipped`);
