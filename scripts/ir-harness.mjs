@@ -561,6 +561,29 @@ async function run() {
     eq(codes(result).length, 0, 'no codes past end');
   });
 
+  await test('pagination-safety: deep offset 110K into 124K set returns 10K codes', async () => {
+    const { result, ms } = await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    }), { count: 10000, offset: 110000, activeOnly: true });
+    eq(result.expansion.total, 124412, 'total');
+    eq(codes(result).length, 10000, 'page size');
+    assert(codes(result).every(c => c.code && c.display), 'all have code+display');
+    // Verify codes are sorted (pagination determinism)
+    const sorted = codes(result).map(c => c.code);
+    const expected = [...sorted].sort();
+    assert(JSON.stringify(sorted) === JSON.stringify(expected), 'codes are sorted');
+  });
+
+  await test('pagination-safety: last page of 124K set is partial', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    }), { count: 10000, offset: 120000, activeOnly: true });
+    eq(result.expansion.total, 124412, 'total');
+    eq(codes(result).length, 4412, 'partial last page');
+  });
+
   // ── combined ─────────────────────────────────────────────────────────
   console.log('\n=== Combined ==='); currentCategory = 'Combined';
 
