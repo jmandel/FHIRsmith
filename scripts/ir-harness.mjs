@@ -26,6 +26,10 @@ const SYS = {
   LANG: 'urn:ietf:bcp:47',
   CONDVER: 'http://terminology.hl7.org/CodeSystem/condition-ver-status',
   OBSCAT: 'http://terminology.hl7.org/CodeSystem/observation-category',
+  USPS: 'https://www.usps.com/',
+  AREACODE: 'http://unstats.un.org/unsd/methods/m49/m49.htm',
+  MIME: 'urn:ietf:bcp:13',
+  UCUM: 'http://unitsofmeasure.org',
 };
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -1550,15 +1554,191 @@ async function run() {
   // ── Phase 2 batch 4: remaining green tests ──
 
   await test('coverage: UCUM whole-system with gender peer include', async () => {
-    // Adapted from codex-2 UCUM+lang test. UCUM whole-system returns 0 in IR
-    // (specialEnumeration not handled — Phase 6), but the peer code should appear.
+    // UCUM whole-system uses specialEnumeration (ucum-common) — returns common units + unclosed
     const { result } = await expand(vs([
-      {system:'http://unitsofmeasure.org'},
+      {system:SYS.UCUM},
       {system:SYS.GENDER, concept:[{code:'male'}]},
     ]));
     const c = codes(result);
     assert(findCode(result,'male'), 'gender peer code should be present');
-    assert(c.length >= 1, 'expected at least peer concept');
+    assert(c.length > 100, `expected many UCUM common units + peer, got ${c.length}`);
+  });
+
+  // ── Phase 4: fixture expansion (US states, area codes, MIME, language) ──
+
+  // ── Phase 4.1: US states (preloaded map, 62 codes) ──
+
+  await test('shape-A: US states full expansion', async () => {
+    const { result } = await expand(vs({system:SYS.USPS}));
+    assert(result.expansion.total === 62, `expected 62 US states, got ${result.expansion.total}`);
+    assert(findCode(result,'CA'), 'California should be present');
+    assert(findCode(result,'TX'), 'Texas should be present');
+    const ca = findCode(result,'CA');
+    assert(ca.display === 'California', `expected California, got ${ca.display}`);
+  });
+
+  await test('shape-B: US states enumerated', async () => {
+    const { result } = await expand(vs({system:SYS.USPS,
+      concept:[{code:'CA'},{code:'NY'},{code:'TX'}]}));
+    assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
+    assert(findCode(result,'CA')?.display === 'California');
+    assert(findCode(result,'NY')?.display === 'New York');
+    assert(findCode(result,'TX')?.display === 'Texas');
+  });
+
+  await test('exclude: US states subtract 2 from 4 enumerated', async () => {
+    const { result } = await expand(vs(
+      {system:SYS.USPS, concept:[{code:'CA'},{code:'NY'},{code:'TX'},{code:'FL'}]},
+      {system:SYS.USPS, concept:[{code:'CA'},{code:'FL'}]}
+    ));
+    assert(result.expansion.total === 2, `expected 2 after exclude, got ${result.expansion.total}`);
+    assert(findCode(result,'NY'), 'NY should remain');
+    assert(findCode(result,'TX'), 'TX should remain');
+    assert(!findCode(result,'CA'), 'CA should be excluded');
+    assert(!findCode(result,'FL'), 'FL should be excluded');
+  });
+
+  await test('exclude: exclude from whole system (preloaded map)', async () => {
+    const { result } = await expand(vs(
+      {system:SYS.USPS},
+      {system:SYS.USPS, concept:[{code:'CA'},{code:'NY'}]}
+    ));
+    assert(result.expansion.total === 60, `expected 60, got ${result.expansion.total}`);
+    assert(!findCode(result,'CA'), 'CA should be excluded');
+    assert(!findCode(result,'NY'), 'NY should be excluded');
+    assert(findCode(result,'TX'), 'TX should remain');
+  });
+
+  await test('pagination: US states disjoint pages', async () => {
+    const { result: p1 } = await expand(vs({system:SYS.USPS}), {count:30, offset:0});
+    const { result: p2 } = await expand(vs({system:SYS.USPS}), {count:30, offset:30});
+    const { result: p3 } = await expand(vs({system:SYS.USPS}), {count:30, offset:60});
+    const c1 = codes(p1), c2 = codes(p2), c3 = codes(p3);
+    assert(c1.length === 30, `page 1 should have 30, got ${c1.length}`);
+    assert(c2.length === 30, `page 2 should have 30, got ${c2.length}`);
+    assert(c3.length === 2, `page 3 should have 2, got ${c3.length}`);
+    const all = [...c1, ...c2, ...c3];
+    assert(new Set(all).size === 62, `pages should be disjoint (got ${new Set(all).size} unique)`);
+  });
+
+  await test('pagination: US states last page partial', async () => {
+    const { result } = await expand(vs({system:SYS.USPS}), {count:20, offset:50});
+    const c = codes(result);
+    assert(c.length === 12, `expected 12 on last page, got ${c.length}`);
+    assert(result.expansion.total === 62, `total should be 62, got ${result.expansion.total}`);
+  });
+
+  await test('pagination: US states offset beyond end', async () => {
+    const { result } = await expand(vs({system:SYS.USPS}), {count:10, offset:100});
+    const c = codes(result);
+    assert(c.length === 0, `expected 0, got ${c.length}`);
+    assert(result.expansion.total === 62, `total should be 62, got ${result.expansion.total}`);
+  });
+
+  await test('multi-system: gender + US states union', async () => {
+    const { result } = await expand(vs([
+      {system:SYS.GENDER},
+      {system:SYS.USPS},
+    ]));
+    assert(result.expansion.total === 66, `expected 4+62=66, got ${result.expansion.total}`);
+    assert(findCode(result,'male'), 'gender male should be present');
+    assert(findCode(result,'CA'), 'CA should be present');
+  });
+
+  // ── Phase 4.2: area codes (M49, 270 codes) ──
+
+  await test('shape-A: area codes full expansion', async () => {
+    const { result } = await expand(vs({system:SYS.AREACODE}));
+    assert(result.expansion.total === 270, `expected 270, got ${result.expansion.total}`);
+  });
+
+  await test('filter: area codes class=region', async () => {
+    const { result } = await expand(vs({system:SYS.AREACODE,
+      filter:[{property:'class', op:'=', value:'region'}]}));
+    assert(result.expansion.total === 29, `expected 29 regions, got ${result.expansion.total}`);
+    // Spot check: World (001) should be present
+    assert(findCode(result,'001'), 'World (001) should be present');
+  });
+
+  await test('filter: area codes class=country', async () => {
+    const { result } = await expand(vs({system:SYS.AREACODE,
+      filter:[{property:'class', op:'=', value:'country'}]}));
+    assert(result.expansion.total === 241, `expected 241 countries, got ${result.expansion.total}`);
+  });
+
+  await test('coverage: areacode class filter with cs-cs peer', async () => {
+    const { result } = await expand(vs([
+      {system:SYS.AREACODE, filter:[{property:'class', op:'=', value:'region'}]},
+      {system:SYS.GENDER, concept:[{code:'male'}]},
+    ]));
+    assert(result.expansion.total === 30, `expected 29+1=30, got ${result.expansion.total}`);
+    assert(findCode(result,'male'), 'gender should be present');
+    assert(findCode(result,'001'), 'World should be present');
+  });
+
+  // ── Phase 4.3: MIME types (grammar-based, concept-include only) ──
+
+  await test('shape-B: MIME types enumerated', async () => {
+    const { result } = await expand(vs({system:SYS.MIME,
+      concept:[{code:'text/html'},{code:'application/json'},{code:'image/png'}]}));
+    assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
+    assert(findCode(result,'text/html'), 'text/html should be present');
+    assert(findCode(result,'application/json'), 'application/json should be present');
+    assert(findCode(result,'image/png'), 'image/png should be present');
+  });
+
+  // ── Phase 4.4: Language codes (grammar-based, concept-include) ──
+
+  await test('shape-B: language codes enumerated', async () => {
+    const { result } = await expand(vs({system:SYS.LANG,
+      concept:[{code:'en'},{code:'fr'},{code:'de'}]}));
+    assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
+    assert(findCode(result,'en')?.display === 'English', `expected English, got ${findCode(result,'en')?.display}`);
+    assert(findCode(result,'fr')?.display === 'French', `expected French, got ${findCode(result,'fr')?.display}`);
+    assert(findCode(result,'de')?.display === 'German', `expected German, got ${findCode(result,'de')?.display}`);
+  });
+
+  await test('params: language code includeDesignations', async () => {
+    const { result } = await expand(vs({system:SYS.LANG,
+      concept:[{code:'en'}]}), {includeDesignations:true});
+    assert(findCode(result,'en'), 'en should be present');
+    // Language provider may or may not have extra designations.
+    // Verify structure is valid (no crash, display present).
+    assert(findCode(result,'en').display === 'English');
+  });
+
+  // ── Phase 6: grammar-based provider handling ──
+
+  await test('notClosed: UCUM expansion reports valueset-unclosed', async () => {
+    const { result } = await expand(vs({system:SYS.UCUM}), {count:5});
+    const c = codes(result);
+    assert(c.length === 5, `expected 5, got ${c.length}`);
+    assert(result.expansion.total > 100, `expected many UCUM codes, got ${result.expansion.total}`);
+    // Must have valueset-unclosed extension
+    const ext = (result.expansion.extension || []).find(
+      e => e.url === 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+    assert(ext, 'valueset-unclosed extension should be present');
+    assert(ext.valueString?.includes('grammar'), `unclosed message should mention grammar, got: ${ext.valueString}`);
+  });
+
+  await test('notClosed: MIME whole-system not enumerable', async () => {
+    // Should return an OperationOutcome with too-costly (expand() throws on OO)
+    try {
+      await expand(vs({system:SYS.MIME}));
+      assert(false, 'expected too-costly error');
+    } catch (e) {
+      assert(e.message.includes('grammar'), `error should mention grammar, got: ${e.message}`);
+    }
+  });
+
+  await test('coverage: MIME concept + language peer', async () => {
+    const { result } = await expand(vs([
+      {system:SYS.MIME, concept:[{code:'text/html'},{code:'application/json'}]},
+      {system:SYS.LANG, concept:[{code:'en'}]},
+    ]));
+    assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
+    assert(findCode(result,'text/html'), 'MIME text/html should be present');
+    assert(findCode(result,'en'), 'language en should be present');
   });
 
   // ── summary ──────────────────────────────────────────────────────────

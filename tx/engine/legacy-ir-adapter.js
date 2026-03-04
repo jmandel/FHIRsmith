@@ -40,6 +40,8 @@ function wrapWithLegacyIR(provider) {
      */
     async executeIR(subtree, opts = {}) {
       let candidates = await executeNode(provider, subtree, opts);
+      // Capture unclosed signal from grammar-based providers
+      const unclosed = candidates._unclosed || null;
       // Apply text filter (legacy providers don't handle FTS natively)
       if (opts.text) {
         const lower = opts.text.toLowerCase();
@@ -56,7 +58,9 @@ function wrapWithLegacyIR(provider) {
         const lim = opts.count != null ? opts.count : candidates.length;
         candidates = candidates.slice(off, off + lim);
       }
-      return { candidates };
+      const result = { candidates };
+      if (unclosed) result.unclosed = unclosed;
+      return result;
     },
 
     /**
@@ -83,6 +87,16 @@ function wrapWithLegacyIR(provider) {
   };
 }
 
+/** Propagate _unclosed from child results onto a new array. */
+function propagateUnclosed(target, ...sources) {
+  for (const s of sources) {
+    if (s._unclosed && !target._unclosed) {
+      target._unclosed = s._unclosed;
+    }
+  }
+  return target;
+}
+
 /**
  * Recursively execute an IR node against a legacy provider.
  * Returns an array of candidate objects.
@@ -101,7 +115,9 @@ async function executeNode(provider, node, opts) {
       const results = [];
       const seen = new Set();
       for (const child of node.items || []) {
-        for (const c of await executeNode(provider, child, opts)) {
+        const childResult = await executeNode(provider, child, opts);
+        propagateUnclosed(results, childResult);
+        for (const c of childResult) {
           if (!seen.has(c.code)) {
             seen.add(c.code);
             results.push(c);
@@ -119,16 +135,18 @@ async function executeNode(provider, node, opts) {
       // Enumerate first child, check membership against rest
       const first = await executeNode(provider, children[0], opts);
       const memberships = await Promise.all(children.slice(1).map(c => buildMembership(provider, c)));
-      return first.filter(c =>
+      const result = first.filter(c =>
         memberships.every(m => m.has(c.code))
       );
+      return propagateUnclosed(result, first);
     }
 
     case 'diff': {
       const left = await executeNode(provider, node.left, opts);
       if (!node.right || node.right.kind === 'empty') return left;
       const rightMembership = await buildMembership(provider, node.right);
-      return left.filter(c => !rightMembership.has(c.code));
+      const result = left.filter(c => !rightMembership.has(c.code));
+      return propagateUnclosed(result, left);
     }
 
     case 'import':
@@ -209,7 +227,43 @@ async function executeSelector(provider, sel, opts) {
   if (sel.shape === 'whole' || sel.shape === 'all') {
     // Iterate all concepts
     const iter = await provider.iteratorAll();
-    if (!iter) return [];
+    if (!iter) {
+      // Grammar-based provider — cannot enumerate directly.
+      // Check for specialEnumeration (e.g. UCUM common units).
+      const specUrl = typeof provider.specialEnumeration === 'function'
+        ? provider.specialEnumeration() : null;
+      if (specUrl && provider.commonUnits?.units?.length > 0) {
+        // Expand the common-units list and signal unclosed.
+        const results = [];
+        for (const cu of provider.commonUnits.units) {
+          const ctx = await provider.locate(cu.code);
+          if (!ctx?.context) continue;
+          const inactive = await provider.isInactive(ctx.context);
+          if (activeOnly && inactive) continue;
+          results.push({
+            code: cu.code,
+            display: cu.display || cu.code,
+            active: !inactive,
+            definition: await provider.definition(ctx.context),
+            _context: ctx.context,
+          });
+        }
+        // Tag results so orchestrator can emit valueset-unclosed
+        results._unclosed = `The code System "${provider.system()}" has a grammar`
+          + ` and so has infinite members. This extension is based on ${specUrl}`;
+        return results;
+      }
+      // No special enumeration — grammar-based, not enumerable
+      const tc = typeof provider.totalCount === 'function' ? provider.totalCount() : null;
+      if (tc === -1) {
+        const err = new Error(
+          `The code System "${provider.system()}" has a grammar, and cannot be enumerated directly`
+        );
+        err.isTooCostly = true;
+        throw err;
+      }
+      return [];
+    }
 
     const results = [];
     let ctx = await provider.nextContext(iter);

@@ -251,6 +251,7 @@ async function expandViaIR(vsJson, opts = {}) {
   // Single-system deferred-count: skip the COUNT query, execute data
   // directly, then resolve total from the result or a lazy COUNT.
   let deferredTotal = null;
+  const unclosedMessages = [];  // grammar-based providers signal unclosed expansion
 
   const pagSpan = trace.begin('pagination', { total: knownTotal, offset, count, systems: resolved.length });
 
@@ -262,6 +263,7 @@ async function expandViaIR(vsJson, opts = {}) {
       activeOnly, text, count, offset,
     });
     sysSpan.end({ candidates: result.candidates.length });
+    if (result.unclosed) unclosedMessages.push(result.unclosed);
 
     for (const c of result.candidates) {
       allCandidates.push({
@@ -304,6 +306,7 @@ async function expandViaIR(vsJson, opts = {}) {
         activeOnly, text, count: sysCount, offset: sysOffset,
       });
       sysSpan.end({ candidates: result.candidates.length });
+      if (result.unclosed) unclosedMessages.push(result.unclosed);
 
       for (const c of result.candidates) {
         allCandidates.push({
@@ -383,6 +386,7 @@ async function expandViaIR(vsJson, opts = {}) {
       usedSystems: [...usedSystems],
       usedValueSets: [...usedValueSets],
       providerMeta,
+      unclosedMessages,
     },
     warnings,
   };
@@ -528,6 +532,17 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
     }
     // Note: experimental/draft on the VS itself is checked against itself
     // in legacy, which is a no-op (source == resource). Skip here.
+  }
+
+  // Grammar-based providers signal unclosed expansion (e.g. UCUM common units)
+  if (expansion.unclosedMessages?.length > 0) {
+    if (!exp.extension) exp.extension = [];
+    const unclosedUrl = 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed';
+    for (const msg of expansion.unclosedMessages) {
+      if (!exp.extension.some(e => e.url === unclosedUrl && e.valueString === msg)) {
+        exp.extension.push({ url: unclosedUrl, valueString: msg });
+      }
+    }
   }
 
   result.expansion = exp;

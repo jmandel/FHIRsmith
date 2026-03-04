@@ -1975,6 +1975,11 @@ class ExpandWorker extends TerminologyWorker {
         const irResult = await this._tryIRExpansion(valueSet, params);
         if (irResult) return irResult;
       } catch (e) {
+        // Grammar-based too-costly errors should propagate, not fall back
+        if (e.isTooCostly) {
+          throw new Issue('error', 'too-costly', null, null, e.message, null, 422)
+            .withDiagnostics(this.opContext?.diagnostics?.());
+        }
         this.opContext?.log?.(`IR engine failed, falling back to legacy: ${e.message}`);
       }
     }
