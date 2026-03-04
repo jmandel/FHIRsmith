@@ -132,6 +132,19 @@ function buildFilterClauseSql(clause, prefix, alias, csId, propertyDefs, runtime
           + ` AND lit_${prefix}.value_text COLLATE NOCASE IN (${placeholders})`,
       };
     }
+    if (op === 'regex') {
+      params[`${prefix}_prop`] = propDef.property_id;
+      params[`${prefix}_re`] = value;
+      return {
+        sql: '',
+        params,
+        joins: ` JOIN concept_literal lit_${prefix}`
+          + ` ON lit_${prefix}.source_concept_id = ${alias}.concept_id`
+          + ` AND lit_${prefix}.property_id = @${prefix}_prop`
+          + ` AND lit_${prefix}.active = 1`
+          + ` AND lit_${prefix}.value_text REGEXP @${prefix}_re`,
+      };
+    }
     return null;
   }
 

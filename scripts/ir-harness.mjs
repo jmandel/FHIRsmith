@@ -899,6 +899,7 @@ async function run() {
       `should not emit negative count, got: ${JSON.stringify(countParams)}`);
   });
 
+
   // ── Phase 1.5: designation parameter filter ────────────────────────
 
   await test('lang: designation parameter filters SNOMED designations by FSN use code', async () => {
@@ -925,6 +926,52 @@ async function run() {
     // Should have exactly 1 FSN
     assert(desigs.length === 1,
       `expected 1 FSN designation, got ${desigs.length}: ${JSON.stringify(desigs)}`);
+  });
+
+  await test('lang: displayLanguage=en echoed and matches default display for SNOMED', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      concept: [{ code: '73211009' }],
+    }), {
+      params: [{ name: 'displayLanguage', valueCode: 'en' }],
+    });
+    const entry = findCode(result, '73211009');
+    assert(entry, 'missing code 73211009');
+    assert(entry.display === 'Diabetes mellitus',
+      `expected English display, got '${entry.display}'`);
+    // displayLanguage should be echoed in expansion parameters
+    assert(hasExpansionParam(result, 'displayLanguage', 'en'),
+      `expected displayLanguage=en in params, got: ${JSON.stringify(expansionParams(result, 'displayLanguage'))}`);
+  });
+
+  await test('lang: redundant designation equal to primary display is suppressed', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      concept: [{ code: '73211009' }],
+    }), { includeDesignations: true });
+    const dm = findCode(result, '73211009');
+    assert(dm, 'missing 73211009');
+    for (const d of dm.designation || []) {
+      const redundant = d.value === dm.display
+        && (!d.use || d.use?.code === 'display')
+        && (!d.language || d.language.startsWith('en'));
+      assert(!redundant,
+        `redundant designation should be suppressed for display '${dm.display}'`);
+    }
+  });
+
+  // ── Phase 1.8: property-value regex in SQL ─────────────────────────
+
+  await test('logic: property regex on literal-valued property (LOINC STATUS regex ^ACT)', async () => {
+    // LOINC STATUS is a literal property. regex should work like = but with pattern matching.
+    const { result } = await expand(vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'STATUS', op: 'regex', value: '^ACT' }],
+    }), { count: 5 });
+    assert(codes(result).length > 0,
+      `expected results for STATUS regex ^ACT, got ${codes(result).length}`);
+    assert(result.expansion.total > 0 || codes(result).length > 0,
+      `expected non-zero total or results`);
   });
 
   // ── summary ──────────────────────────────────────────────────────────
