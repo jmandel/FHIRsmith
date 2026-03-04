@@ -1354,6 +1354,199 @@ async function run() {
     assert(findCode(result,'entered-in-error'), 'missing entered-in-error');
   });
 
+  // ── Phase 2 batch 3: pagination, multi-system, coverage, pagination-safety ──
+
+  await test('pagination: currency count=10 offset=0', async () => {
+    const { result } = await expand(vs({system:SYS.CURRENCY}), {count:10, offset:0});
+    assert(codes(result).length === 10, `expected 10 codes, got ${codes(result).length}`);
+    assert(result.expansion.total >= 150, `expected total>=150, got ${result.expansion.total}`);
+  });
+
+  await test('pagination-bug: preloaded map total matches full expansion when paged', async () => {
+    // Full expansion
+    const { result: full } = await expand(vs({system:SYS.CURRENCY}));
+    const fullCount = codes(full).length;
+    // Paged — total should match
+    const { result: page } = await expand(vs({system:SYS.CURRENCY}), {count:10, offset:0});
+    assert(page.expansion.total === fullCount,
+      `paged total ${page.expansion.total} != full count ${fullCount}`);
+  });
+
+  await test('multi-system: v0 filter + preloaded whole + cs-cs enumerated', async () => {
+    const { result } = await expand(vs([
+      {system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'73211009'}]},
+      {system:SYS.CURRENCY},
+      {system:SYS.GENDER, concept:[{code:'male'}]},
+    ]), {count:5, offset:0});
+    const c = codes(result);
+    assert(c.length === 5, `expected 5 codes, got ${c.length}`);
+    // total should be diabetes codes + all currencies + 1 gender
+    assert(result.expansion.total > 200, `expected large total, got ${result.expansion.total}`);
+  });
+
+  await test('provider: v0 SNOMED large is-a pagination consistency', async () => {
+    const q = vs({system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'73211009'}]});
+    const { result: p1 } = await expand(q, {count:50, offset:0});
+    const { result: p2 } = await expand(q, {count:50, offset:50});
+    const set1 = new Set(codes(p1).map(c=>c.code));
+    const set2 = new Set(codes(p2).map(c=>c.code));
+    assert(set1.size === 50, `page1 expected 50, got ${set1.size}`);
+    assert(set2.size === 50, `page2 expected 50, got ${set2.size}`);
+    // No overlap
+    for (const code of set2) {
+      assert(!set1.has(code), `code ${code} in both pages`);
+    }
+  });
+
+  await test('provider: v0 RxNorm text search + property filter combined', async () => {
+    const { result } = await expand(vs({
+      system:SYS.RXNORM, filter:[{property:'TTY',op:'=',value:'IN'}],
+    }), {filter:'aspirin', count:20});
+    const c = codes(result);
+    assert(c.length > 0, 'expected aspirin results');
+    assert(c.some(x => x.code === '1191'), 'expected aspirin code 1191');
+  });
+
+  await test('coverage: tx-resource whole include with cs-cs peer', async () => {
+    const csUrl = `http://example.org/cs/cov-whole-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[{code:'a',display:'A'},{code:'b',display:'B'}]};
+    const { result } = await expand(vs([
+      {system:csUrl},
+      {system:SYS.GENDER, concept:[{code:'male'}]},
+    ]),{txResources:[cs]});
+    const c = codes(result);
+    assert(c.length === 3, `expected 3, got ${c.length}`);
+    assert(findCode(result,'a'), 'missing a');
+    assert(findCode(result,'male'), 'missing male');
+  });
+
+  await test('coverage: tx-resource concept include + exclude with cs-cs peer', async () => {
+    const csUrl = `http://example.org/cs/cov-exc-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[{code:'x',display:'X'},{code:'y',display:'Y'},{code:'z',display:'Z'}]};
+    const { result } = await expand(vs(
+      [{system:csUrl,concept:[{code:'x'},{code:'y'},{code:'z'}]},{system:SYS.GENDER,concept:[{code:'male'},{code:'female'}]}],
+      [{system:csUrl,concept:[{code:'y'}]},{system:SYS.GENDER,concept:[{code:'female'}]}]
+    ),{txResources:[cs]});
+    const c = codes(result);
+    assert(c.length === 3, `expected 3 (x,z,male), got ${c.length}`);
+    assert(findCode(result,'x'), 'missing x');
+    assert(findCode(result,'z'), 'missing z');
+    assert(findCode(result,'male'), 'missing male');
+    assert(!findCode(result,'y'), 'y should be excluded');
+    assert(!findCode(result,'female'), 'female should be excluded');
+  });
+
+  await test('coverage: valueset-import include with gender peer', async () => {
+    // Adapted from codex-2 USPS test — use gender import instead
+    const { result } = await expand(vs([
+      {valueSet:['http://hl7.org/fhir/ValueSet/administrative-gender']},
+      {system:SYS.PUBSTAT, concept:[{code:'active'}]},
+    ]));
+    const c = codes(result);
+    assert(c.length === 5, `expected 5 (4 gender + 1 pubstat), got ${c.length}`);
+    assert(findCode(result,'male'), 'missing male');
+    assert(findCode(result,'active'), 'missing active');
+  });
+
+  await test('coverage: valueset-import include with gender peer and exclude', async () => {
+    const { result } = await expand(vs(
+      [{valueSet:['http://hl7.org/fhir/ValueSet/administrative-gender']},{system:SYS.PUBSTAT,concept:[{code:'active'}]}],
+      [{system:SYS.GENDER,concept:[{code:'other'},{code:'unknown'}]}]
+    ));
+    const c = codes(result);
+    assert(c.length === 3, `expected 3 (male,female,active), got ${c.length}`);
+    assert(!findCode(result,'other'), 'other excluded');
+    assert(!findCode(result,'unknown'), 'unknown excluded');
+  });
+
+  await test('coverage: country regex filter with cs-cs peer include', async () => {
+    const { result } = await expand(vs([
+      {system:SYS.COUNTRY, filter:[{property:'code',op:'regex',value:'A.*'}]},
+      {system:SYS.GENDER, concept:[{code:'male'}]},
+    ]));
+    const c = codes(result);
+    assert(c.length > 10, `expected >10, got ${c.length}`);
+    assert(findCode(result,'male'), 'missing gender peer code');
+  });
+
+  await test('pagination-safety: mixed v0 + preloaded reconstruct full set', async () => {
+    const q = vs([
+      {system:SYS.SCT, concept:[{code:'73211009'},{code:'44054006'},{code:'46635009'}]},
+      {system:SYS.CURRENCY},
+    ]);
+    const { result: full } = await expand(q, {count:500});
+    const fullSet = new Set(codes(full).map(c=>`${c.system}|${c.code}`));
+    // Page through
+    const pagedKeys = [];
+    for (let off = 0; off < fullSet.size + 10; off += 50) {
+      const { result: p } = await expand(q, {count:50, offset:off});
+      const pc = codes(p).map(c=>`${c.system}|${c.code}`);
+      if (pc.length === 0) break;
+      pagedKeys.push(...pc);
+    }
+    const pagedSet = new Set(pagedKeys);
+    assert(pagedSet.size === fullSet.size,
+      `paged ${pagedSet.size} != full ${fullSet.size}`);
+  });
+
+  await test('pagination-safety: valueset-import peer with excludes reconstruct', async () => {
+    const csUrl = `http://example.org/cs/pgsafe-${Date.now()}`;
+    const vsUrl = `http://example.org/vs/pgsafe-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[{code:'a',display:'A'},{code:'b',display:'B'},{code:'c',display:'C'},{code:'d',display:'D'}]};
+    const impVs = {resourceType:'ValueSet',url:vsUrl,status:'active',
+      compose:{include:[{system:csUrl}]}};
+    const q = vs([{valueSet:[vsUrl]},{system:SYS.GENDER}],
+      [{system:csUrl,concept:[{code:'b'}]},{system:SYS.GENDER,concept:[{code:'unknown'}]}]);
+    const { result: full } = await expand(q, {txResources:[cs,impVs], count:100});
+    const fullSet = new Set(codes(full).map(c=>`${c.system}|${c.code}`));
+    const pagedKeys = [];
+    for (let off = 0; off < 20; off++) {
+      const { result: p } = await expand(q, {txResources:[cs,impVs], count:1, offset:off});
+      const pc = codes(p).map(c=>`${c.system}|${c.code}`);
+      if (pc.length === 0) break;
+      pagedKeys.push(...pc);
+    }
+    const pagedSet = new Set(pagedKeys);
+    assert(pagedKeys.length === pagedSet.size, 'no duplicates in paged');
+    assert(pagedSet.size === fullSet.size,
+      `paged ${pagedSet.size} != full ${fullSet.size}`);
+  });
+
+  await test('pagination-safety: mixed import+system high-count page not capped', async () => {
+    // Expand gender import + currency peer — high count should return all
+    const { result } = await expand(vs([
+      {valueSet:['http://hl7.org/fhir/ValueSet/administrative-gender']},
+      {system:SYS.CURRENCY},
+    ]), {count:500});
+    const c = codes(result);
+    assert(c.length >= 160, `expected >=160 (4 gender + ~178 currency), got ${c.length}`);
+  });
+
+  await test('logic: same-system valueSet intersections constrain membership', async () => {
+    // System + valueSet[] intersection: only codes in both the system filter AND the imported VS
+    const { result } = await expand(vs({
+      system: SYS.GENDER,
+      valueSet: ['http://hl7.org/fhir/ValueSet/administrative-gender'],
+      concept: [{code:'male'},{code:'female'}],
+    }));
+    const c = codes(result);
+    assert(c.length === 2, `expected 2 (male+female intersection), got ${c.length}`);
+  });
+
+  await test('logic: code regex handled in sqlite-v0', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT, filter:[{property:'code',op:'regex',value:'^7[0-9]{4,}'}],
+    }), {count:20});
+    const c = codes(result);
+    assert(c.length > 0, 'expected code regex results');
+    for (const x of c) {
+      assert(x.code.startsWith('7'), `expected code starting with 7, got ${x.code}`);
+    }
+  });
+
   // ── summary ──────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(50)}`);
 
