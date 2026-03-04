@@ -316,24 +316,230 @@ async performExpansion(valueSet, params) {
 }
 ```
 
-### Activation
+### Activation and mode control
 
-| Mechanism | Scope | Effect |
-|-----------|-------|--------|
-| `EXPAND_IR_ENGINE=1` env var | Server-wide default | IR first, legacy fallback |
-| `_engine=ir` query param | Per-request | Force IR, fail if unsupported |
-| `_engine=legacy` query param | Per-request | Force legacy, skip IR |
-| Neither env var nor param | Per-request | Legacy only (current default) |
+The decision between IR and legacy happens in `performExpansion()` at
+line ~1961 of `expand.js`:
 
-The systemd service at `/etc/systemd/system/fhirsmith.service` sets
-`EXPAND_IR_ENGINE=1` so the running server uses IR by default.
+```js
+const engineOverride = params._engine;
+const useIR = engineOverride === 'ir'
+  || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
+```
 
-### Fallback
+Three inputs feed this decision:
 
-If `_tryIRExpansion()` returns null (unsupported ValueSet shape, missing
-provider, etc.), `performExpansion()` silently falls through to the legacy
-path. The `_engine=ir` override bypasses this fallback — it returns null
-which becomes an error.
+#### 1. Server-wide default: `EXPAND_IR_ENGINE` env var
+
+Set in the process environment. When `=1`, the IR engine is tried first
+for every `$expand` request, with automatic fallback to legacy if the IR
+engine can't handle the ValueSet.
+
+The systemd service sets this:
+
+```ini
+# /etc/systemd/system/fhirsmith.service
+[Service]
+Environment=EXPAND_IR_ENGINE=1
+ExecStart=/.../node server.js
+```
+
+To disable IR server-wide, remove the env var or set it to any value
+other than `1`, then `sudo systemctl restart fhirsmith`.
+
+#### 2. Per-request override: `_engine` query parameter
+
+Clients can override the server default on any `$expand` request:
+
+```
+# Force IR engine (no legacy fallback)
+GET /r4/ValueSet/$expand?url=...&_engine=ir
+
+# Force legacy expander (skip IR entirely)
+GET /r4/ValueSet/$expand?url=...&_engine=legacy
+
+# Use server default
+GET /r4/ValueSet/$expand?url=...
+```
+
+Also works in POST bodies as a Parameters resource:
+```json
+{ "name": "_engine", "valueString": "ir" }
+```
+
+The `_engine` parameter is parsed in `tx/params.js` (the underscore
+prefix marks it as a non-standard extension parameter).
+
+#### 3. Decision matrix
+
+| `EXPAND_IR_ENGINE` env | `_engine` param | Behavior |
+|------------------------|-----------------|----------|
+| unset or `!=1` | (none) | Legacy only |
+| unset or `!=1` | `ir` | IR, error if unsupported |
+| unset or `!=1` | `legacy` | Legacy only |
+| `1` | (none) | IR first, legacy fallback |
+| `1` | `ir` | IR, error if unsupported |
+| `1` | `legacy` | Legacy only (overrides env) |
+
+#### Fallback behavior
+
+When the IR engine is active (either via env var or `_engine=ir`), it
+goes through a series of checks before executing:
+
+1. **`canHandleValueSet(vsJson)`** — does the ValueSet have a `compose`
+   with at least one include that has a system or valueSet import?
+   Returns false for empty/malformed ValueSets.
+
+2. **Provider lookup** — can we find a CodeSystemProvider for every system
+   in the IR? If any system has no provider, `expandViaIR()` returns null.
+
+3. **Execution** — if `executeIR()` throws, the error is caught and logged,
+   and the legacy path runs instead.
+
+When `_engine=ir` is explicit and IR returns null or throws, the request
+still falls through to legacy (the error is logged but not surfaced).
+This is arguably a bug — explicit `_engine=ir` should probably error
+instead of silently falling back.
+
+#### Using both engines for comparison
+
+The `_engine` parameter makes it easy to compare outputs:
+
+```bash
+# Side-by-side comparison
+curl 'http://localhost:8000/r4/ValueSet/$expand?url=...&_engine=ir'   > /tmp/ir.json
+curl 'http://localhost:8000/r4/ValueSet/$expand?url=...&_engine=legacy' > /tmp/legacy.json
+
+# The e2e comparison test suite does exactly this
+npx jest tests/engine/e2e-comparison.test.js
+```
+
+This is how the 9 end-to-end comparison tests work — they hit the running
+server with both `_engine=ir` and `_engine=legacy` and compare the FHIR
+responses structurally.
+
+---
+
+## Legacy Path with v0 Provider
+
+When `_engine=legacy` is used (or the IR engine is not enabled), the
+existing `ValueSetExpander` in `expand.js` drives expansion. The v0
+provider participates through the upstream **filter protocol** — the same
+API that `cs-snomed.js`, `cs-loinc.js`, and all other providers implement.
+
+### How the legacy expander calls the provider
+
+The `ValueSetExpander.includeCodes()` method (line ~800 in `expand.js`)
+processes each `compose.include` component. For filter-based includes it
+follows this sequence:
+
+```
+1. cs.getPrepContext(iterate)       → FilterExecutionContext
+2. cs.filter(ctx, prop, op, value)  → accumulate filter clauses  (×N filters)
+3. cs.executeFilters(ctx)           → [V0FilterSet]  (SQL runs HERE)
+4. loop:
+     cs.filterMore(ctx, set)        → bool (cursor < rows.length?)
+     cs.filterConcept(ctx, set)     → V0ConceptContext (advance cursor)
+     cs.isInactive(concept)         → bool
+     cs.code(concept)               → string
+     cs.display(concept)            → string
+     cs.parent(concept)             → string | null  (for hierarchy)
+     cs.designations(concept, ...)  → populate display names
+     cs.properties(concept)         → FHIR property array
+     expander.includeCode(...)      → add to fullList + rootList
+```
+
+For concept-enumeration includes (explicit `concept: [{code: ...}]`), the
+expander calls `cs.locate(code)` per code instead of the filter protocol.
+
+### What happens inside the v0 provider
+
+**`getPrepContext()`** creates a `FilterExecutionContext` with an empty
+`_v0` object to accumulate filters.
+
+**`filter(ctx, prop, op, value)`** appends `{property, op, value}` to
+`ctx._v0.filters[]`. No SQL runs yet.
+
+**`executeFilters(ctx)`** is where the real work happens. It:
+
+1. Iterates accumulated filters, calling `#buildFilterFragment()` per filter
+2. Each fragment produces SQL joins/wheres against the v0 schema:
+   - `is-a` / `descendent-of` → `JOIN closure` on ancestor concept
+   - `=` → `JOIN concept_literal` on property value
+   - `in` → splits comma-separated values, `JOIN concept_literal ... IN (...)`
+   - `regex` → full concept scan + JS `RegExp` post-filter
+   - Text search → multi-source FTS across display/designation/literal tables
+3. Assembles a single SQL query: `SELECT ... FROM concept c {joins} WHERE {wheres}`
+4. Runs it synchronously via better-sqlite3
+5. Applies post-filters (code regex, code-set intersection)
+6. Wraps results in a `V0FilterSet` (array of rows + cursor)
+
+So the SQL executes **once**, eagerly materializing all matching concepts.
+The subsequent `filterMore()`/`filterConcept()` loop is just cursor
+advancement over the in-memory result array — no further SQL.
+
+**`#buildFilterFragment()`** uses `#resolvePropertyFilterConfig()` to map
+FHIR property names through the cs_config alias chain. For example,
+SNOMED's `concept` property alias resolves to the `Is a` hierarchy
+property, which triggers a closure-table join:
+
+```sql
+-- is-a filter on SNOMED concept 73211009
+JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id
+WHERE cl_f0.ancestor_id = (
+  SELECT concept_id FROM concept WHERE code = '73211009' AND cs_id = 1
+)
+```
+
+For `=` and `in` operators on literal properties:
+
+```sql
+-- LOINC CLASSTYPE = 1
+JOIN concept_literal lit_f0
+  ON lit_f0.source_concept_id = c.concept_id AND lit_f0.property_id = 42
+WHERE lit_f0.value = '1'
+```
+
+### Hierarchy building
+
+After `filterConcept()` returns each concept, the legacy expander checks
+`cs.hasParents()`. The v0 provider returns `true` when the closure table
+is populated. The expander then calls `cs.parent(concept)` which runs:
+
+```sql
+SELECT c2.code FROM concept_link cl
+JOIN concept c2 ON c2.concept_id = cl.target_concept_id
+WHERE cl.source_concept_id = ? AND cl.property_id = ? AND cl.active = 1
+LIMIT 1
+```
+
+This returns the first parent via the hierarchy property (e.g., SNOMED's
+`Is a` edge). The expander uses this to nest child codes inside their
+parent's `.contains` array. At finalization, if `canBeHierarchy` is true
+and the full list fits in `count`, the response uses `rootList` (top-level
+codes with nested children) instead of `fullList` (flat).
+
+This is why legacy+v0 produces hierarchical output with 90 top-level
+entries for Diabetes mellitus, while the IR engine (and tx.fhir.org where
+`cs-snomed.js` doesn't implement `parent()`) returns a flat 124. See
+`docs/legacy-expansion-gap.md`.
+
+### Performance characteristics
+
+Both paths use the same v0 SQLite database. The key difference:
+
+| Aspect | Legacy + v0 | IR engine + v0 |
+|--------|-------------|----------------|
+| SQL queries | 1 for filters + 1 per code for `parent()` | 1 total (or 1 COUNT) |
+| Concept iteration | Row-by-row via filterMore/filterConcept | Bulk SQL result |
+| Designation loading | Per-concept during iteration | Bulk batch after selection |
+| Hierarchy | Built during iteration (N parent queries) | Not built (flat output) |
+| count=0 | Full expansion, then count | `SELECT COUNT(*)` only |
+| Pagination | Materializes all, then slices | `LIMIT/OFFSET` in SQL |
+
+For a 124-code SNOMED is-a expansion, legacy makes ~125 SQL calls (1
+filter query + 124 parent lookups). The IR engine makes 1. For count=0,
+legacy still materializes all codes; IR runs a single `COUNT(*)` query.
 
 ---
 
