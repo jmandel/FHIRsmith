@@ -1,478 +1,494 @@
-# IR-Based ValueSet Expansion Engine
+# Two new things: v0 SQLite provider + IR expansion engine
 
-## Overview
+This branch introduces two independent pieces of work. They complement
+each other, but each stands on its own:
 
-The IR expansion engine provides an alternative implementation of FHIR ValueSet `$expand` operations. It sits alongside the existing legacy `ValueSetExpander` in `tx/workers/expand.js` — both paths are available at runtime, selectable per-request via the `_engine` parameter.
+1. **v0 SQLite code system provider** (`tx/cs/cs-sqlite-v0.js`) — a new
+   CodeSystemProvider for SQLite-based terminologies. Works with both
+   the original `ValueSetExpander` and the new IR engine, but is
+   significantly faster and more complete when paired with the IR engine.
 
-The IR engine compiles a ValueSet's `compose` into a tree of semantic nodes, optimizes it, partitions by code system, and dispatches each subtree to the appropriate provider. Providers can implement native IR execution (e.g., compiling to SQL) or be automatically wrapped in an adapter that bridges to their existing filter protocol methods.
+2. **IR expansion engine** (`tx/engine/`) — an alternative `$expand`
+   implementation that works with all providers (v0, cs-cs, UCUM,
+   country, currency, etc.).
+
+---
+
+## Part 1: The v0 SQLite provider
+
+### Background
+
+Grahame wrote an initial draft SQLite provider (`cs-db.js`) and then
+removed it (`e748985`: "remove db draft - Josh will replace"). This is
+the replacement. It uses `better-sqlite3` (synchronous, zero-copy reads)
+against a normalized schema produced by FHIRsmith's importers. One `.db`
+file per code system.
+
+### What it provides
+
+The v0 provider implements the full CodeSystemProvider interface — every
+method the original `ValueSetExpander` calls:
+
+- `locate(code)` — find a concept by code
+- `code()`, `display()`, `definition()`, `status()`, `isAbstract()` —
+  concept properties
+- `designations()`, `properties()` — per-concept decoration
+- `parent()`, `children()` — hierarchy traversal
+- `getPrepContext()`, `filter()`, `executeFilters()`, `filterMore()`,
+  `filterConcept()` — the filter protocol
+- `iteratorAll()` — enumerate all concepts
+- `totalCount()` — total concept count
+- `buildKnownValueSet()` — implicit value sets from URL patterns
+
+So it plugs straight into the original expander with no changes to
+`expand.js`. SNOMED, LOINC, RxNorm, and any other terminology in v0
+format all use the same generic provider — terminology-specific behavior
+is driven entirely by a `cs_config` JSON blob in the database.
+
+**It also provides three additional methods** that the IR engine can use
+for direct SQL execution:
+
+- `executeIR(subtree, opts)` — compile an expansion plan subtree to a
+  single SQL query and return matching codes
+- `countForIR(subtree, opts)` — count-only query (no code
+  materialization)
+- `membershipForIR(subtree)` — "does code X belong to this set?" tester
+
+When the IR engine is active and the v0 provider is handling a system,
+the IR engine calls these methods directly. The entire expansion plan
+subtree — unions, intersects, diffs, hierarchy traversal, property
+filters, text search — becomes one SQL query. This is where the big
+performance wins come from.
+
+When the original expander is active, those three methods are never
+called. The original expander uses the standard filter protocol methods
+listed above.
+
+### Database schema
+
+| Table | Contents |
+|-------|----------|
+| `code_system` | Base URI, version, name, content mode |
+| `concept` | Code, display, active, abstract, definition |
+| `concept_link` | Parent→child hierarchy edges |
+| `closure` | Precomputed transitive closure (ancestor→descendant) |
+| `concept_literal` | Property values (strings) keyed by property ID |
+| `designation` | Designations: language, use code, term, active, preferred |
+| `property_def` | Property definitions: code, URI, type |
+| `cs_config` | JSON configuration blob (see below) |
+| `value_set` | Implicit value set definitions |
+| `search_fts_*` | FTS5 full-text search indexes |
+
+### cs_config
+
+All terminology-specific behavior comes from this JSON blob:
+
+- **hierarchy** — which property defines parent/child (e.g. SNOMED's
+  `Is a`)
+- **filters.properties** — maps FHIR filter property names to DB
+  property names, with aliases (e.g. SNOMED `concept` → `Is a`), value
+  kind (literal vs concept-link), and match rules
+- **search** — configures which columns participate in full-text search
+  (display, designations, literal properties)
+- **languages** — default display language
+- **status** — which property holds concept active/inactive status
+- **iteration.defaultCodeRegex** — regex filter for `iteratorAll()`
+  (excludes metadata-only concepts)
+
+### How it maps FHIR filter operations to SQL
+
+| FHIR filter | What the v0 provider does |
+|-------------|---------------------------|
+| `is-a` | `JOIN closure` on precomputed transitive closure table |
+| `descendent-of` | Same join, minus the root concept |
+| Property `=` | `JOIN concept_literal WHERE value = ?` (or `JOIN concept_link` for concept-valued properties) |
+| Property `in` | `JOIN concept_literal WHERE value IN (...)` |
+| Property `regex` | `REGEXP` on code or on `concept_literal.value_text` |
+| `concept-in` (refsets) | `JOIN concept_link` to refset members |
+| Text search (`filter` param) | FTS5 full-text search across display, designations, properties |
+
+With the original expander, these run as individual filter protocol
+calls. With the IR engine, they're composed into a single SQL query per
+system that can also handle unions, intersects, and excludes at the SQL
+level.
+
+### Specialization system
+
+Some terminologies need behavior beyond the generic provider (e.g.
+SNOMED post-coordinated expressions, LOINC implicit value set generation
+from URL patterns). A specialization registry lets modules declare
+interest in specific terminologies. At startup, the library checks the
+registry and returns a specialized factory subclass when one matches.
+With no specializations registered (the current state), you get the
+generic provider.
+
+### Loading
+
+Configured in `library.js` via the `sqlite-v0:` source type. The YAML
+config points to a `.db` file path:
+
+```yaml
+sources:
+  - sqlite-v0:/path/to/snomed.db
+  - sqlite-v0:/path/to/loinc.db
+```
+
+---
+
+## Part 2: The IR expansion engine
+
+### What it is
+
+An alternative `$expand` implementation that runs alongside the existing
+`ValueSetExpander`. Both are available at runtime — you pick which one
+handles a request via the `_engine` query parameter, or via an
+environment variable for the whole server.
 
 ### Why
 
-The legacy `ValueSetExpander` interleaves parsing, filtering, hierarchy building, pagination, and output formatting in a single ~1,300-line execution path. The IR approach separates concerns into a clear pipeline:
+The original `ValueSetExpander` does everything in one ~1,300-line pass:
+parsing the compose, calling filters, building hierarchy, paginating,
+formatting output. The IR engine breaks this into a pipeline of small,
+independent steps:
 
-1. **Parse** — ValueSet JSON → IR tree (pure, no I/O)
-2. **Optimize** — flatten, deduplicate, simplify (pure)
-3. **Execute** — dispatch to providers (I/O, per-system)
-4. **Decorate** — add designations, properties, extensions (I/O, bulk)
-5. **Format** — build FHIR response (pure)
+1. **Read the compose** — turn `include[]`/`exclude[]` into an expansion
+   plan (a tree that says "get these codes from SNOMED, union with those
+   codes from LOINC, minus these exclusions")
+2. **Resolve imports** — if any include references another ValueSet,
+   fetch it and inline its compose (with cycle detection)
+3. **Simplify** — merge redundant branches, deduplicate, split
+   multi-system operations so each code system can be handled
+   independently
+4. **Execute** — hand each code system's piece to its provider; get back
+   codes
+5. **Decorate** — bulk-load designations and properties for the selected
+   codes
+6. **Build response** — assemble the FHIR `ValueSet.expansion`
 
-Each phase can be tested, optimized, and reasoned about independently.
+Each step is independent, testable, and debuggable in isolation.
 
-### Integration Approach
+### How it integrates
 
-The IR engine adds minimal changes to upstream code:
-- `tx/workers/expand.js` — `_tryIRExpansion()` entry point with fallback
-- `tx/params.js` — `_engine` parameter parsing
-- `tx/library.js` — v0 SQLite database loader
-- `package.json` — `better-sqlite3` dependency
+Minimal changes to existing code:
 
-All new functionality lives in `tx/engine/` modules and `tx/cs/cs-sqlite-v0.js`. Existing providers require no changes.
+- **`tx/workers/expand.js`** — new `_tryIRExpansion()` method, called
+  before the original path. If the IR engine can't handle the ValueSet,
+  it returns null and the original expander takes over.
+- **`tx/params.js`** — parses the `_engine` parameter.
 
----
+All the new pipeline logic lives in `tx/engine/`. Existing providers
+(cs-cs, UCUM, country, currency, etc.) don't need any changes.
 
-## Architecture
+### Turning it on
 
-```
-ValueSet JSON
-     │
-     ▼
-┌─────────────┐
-│  build-ir   │  ValueSet.compose → IR tree
-└──────┬──────┘
-       ▼
-┌────────────────┐
-│resolve-imports │  Inline imported ValueSets (cycle-safe)
-└──────┬─────────┘
-       ▼
-┌─────────────┐
-│   rewrite   │  Flatten, coalesce, partition-by-system
-└──────┬──────┘
-       ▼
-┌────────────────┐
-│  orchestrator  │  Count → limit-check → paginate → execute → decorate
-└──────┬─────────┘
-       │
-       ├──▶ v0 SQLite: executeIR() → compiled SQL
-       ├──▶ cs-cs providers: LegacyIRAdapter → filter protocol
-       └──▶ grammar providers: LegacyIRAdapter → specialEnumeration / too-costly
-       │
-       ▼
-  FHIR ValueSet expansion response
-```
+| `EXPAND_IR_ENGINE` env | `_engine` param | What happens |
+|------------------------|-----------------|--------------|
+| not set | _(none)_ | Original expander only (status quo) |
+| not set | `ir` | IR engine; error if it can't handle the VS |
+| `1` | _(none)_ | Try IR first, fall back to original |
+| `1` | `ir` | IR engine; error if it can't handle the VS |
+| `1` | `legacy` | Original expander only |
 
----
+The systemd service on tx-dev.fhir.org sets `EXPAND_IR_ENGINE=1`.
+Per-request `_engine=ir` or `_engine=legacy` overrides. (The parameter
+value `legacy` refers to the original expander.)
 
-## IR Node Types
+### Fallback rules
 
-Six node kinds form a small algebraic type system over code sets:
+1. Does the ValueSet have a usable `compose`? If not → original
+   expander.
+2. Can we find a provider for every code system in the compose? If not
+   → original expander.
+3. If execution throws a `too-costly` error, that propagates to the
+   caller (same as the original expander). Any other error is logged,
+   and we fall back to the original expander.
 
-| Kind | Meaning |
-|------|---------|
-| `empty` | No codes (identity for union) |
-| `selector` | Leaf: one code system component (whole / concept / filter) |
-| `import` | Reference to another ValueSet |
-| `union` | Set union (multiple includes) |
-| `intersect` | Set intersection (include with multiple valueSets) |
-| `diff` | Set difference (include minus exclude) |
-
-All nodes carry optional `meta` for compose-level overrides (display, designations). The `selector` node is the workhorse:
-
-- **`shape`**: `'whole'` | `'concept'` | `'filter'`
-- **`filterClauses`**: `[{ property, op, value }]` matching FHIR filter syntax
-- **`intersectCodes`**: codes from resolved valueSet intersection (enables SQL `IN` pushdown)
-- **`text`**: free-text search term (from `filter` parameter)
+So with `EXPAND_IR_ENGINE=1`, the IR engine handles what it can and the
+original expander handles the rest.
 
 ---
 
-## Compilation Pipeline
+## The expansion plan
 
-### Build IR
-`buildIRFromValueSet()` — pure. Walks `compose.include[]`/`.exclude[]`, producing union/diff trees of selectors and imports.
+The IR engine turns a ValueSet compose into a small tree before executing
+anything. The tree has six kinds of node, each mapping directly to FHIR
+compose concepts:
 
-```js
-buildIRFromValueSet({ compose: {
-  include: [
-    { system: 'http://snomed.info/sct', filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+| Node | What it represents |
+|------|--------------------|
+| **selector** | A single `compose.include` component — one code system, with its concepts or filters |
+| **import** | A `valueSet` reference (resolved before execution) |
+| **union** | Multiple includes combined (logical OR) |
+| **diff** | Include minus exclude |
+| **intersect** | `include.valueSet[]` intersection (logical AND) |
+| **empty** | No codes (used during simplification) |
+
+A **selector** is the leaf node — one code system component in three
+shapes:
+
+- **whole** — the entire code system (no filter, no concept list)
+- **concept** — an explicit list of codes (`include.concept[]`)
+- **filter** — one or more filter clauses (`include.filter[]`)
+
+### Example
+
+```json
+{
+  "include": [
+    { "system": "http://snomed.info/sct",
+      "filter": [{ "property": "concept", "op": "is-a", "value": "73211009" }] }
   ],
-  exclude: [
-    { system: 'http://snomed.info/sct', filter: [{ property: 'concept', op: 'is-a', value: '44054006' }] },
+  "exclude": [
+    { "system": "http://snomed.info/sct",
+      "filter": [{ "property": "concept", "op": "is-a", "value": "44054006" }] }
   ]
-}})
-// → diff(
-//     selector(snomed, shape='filter', filterClauses=[{concept, is-a, 73211009}]),
-//     selector(snomed, shape='filter', filterClauses=[{concept, is-a, 44054006}])
-//   )
-```
-
-### Resolve Imports
-`resolveImports()` — async. Recursively inlines `import` nodes via a resolver callback. Cycle detection via URL set.
-
-### Optimize
-`optimize()` — pure rewrite passes:
-
-- **flatten** — nested unions/intersects → single level
-- **coalesce** — merge selectors with same system/version/shape (e.g., two concept enumerations for the same system become one with combined code lists; filter selectors with identical signatures are deduplicated)
-- **eliminateEmpty** — prune empty branches
-- **partitionDiff** — split multi-system diff operations into per-system diffs for better dispatch
-
-Utility functions for dispatch: `collectSystems()`, `projectToSystem()`, `splitDiffRoot()`, `countFromIR()`.
-
-### Orchestrate
-
-`expandViaIR()` drives the pipeline:
-
-1. **Resolve providers** — find provider per system, wrap in `LegacyIRAdapter` if no native `executeIR()`. Collect provider metadata.
-2. **Count** — `countForIR()` per system (or static count for concept enumerations). Enables `count=0` without materializing codes.
-3. **Limit check** — if `limit > 0` and total exceeds it, throw `isTooCostly`. Only applied when client isn't paginating.
-4. **Stride pagination** — systems sorted canonically; orchestrator computes which codes from each system fall within `[offset, offset+count)` and pushes per-system offset/count to providers.
-5. **Execute** — `executeIR()` per system within its window.
-6. **Decorate** — bulk-load designations and properties, apply compose-level overrides, filter by language/use, suppress redundant designations.
-7. **Build response** — `buildExpandedValueSet()` emits `used-codesystem`, `used-valueset`, `used-supplement`, `valueset-unclosed`, parameter echo, total.
-
-#### Stride Pagination
-
-Systems are processed in canonical sort order. For a multi-system ValueSet with `offset` and `count`, the orchestrator computes which codes from each system fall within the requested window. No single system ever materializes more than `count` rows.
-
-Example: ValueSet spans SNOMED (124 codes) + LOINC (66K codes), request `offset=120, count=10`:
-- SNOMED contributes codes 120–123 (4 codes)
-- LOINC contributes codes 0–5 (6 codes)
-- Systems entirely before the offset are skipped
-
-#### Unclosed Propagation
-
-Grammar-based providers (UCUM, MIME, language) signal when they can't enumerate all codes. The signal propagates through set operations — if any branch of a union is unclosed, the whole result is marked unclosed with a `valueset-unclosed` extension.
-
----
-
-## Provider Interface
-
-The orchestrator checks `typeof provider.executeIR === 'function'`. If present, IR methods are called directly. If absent, the provider is wrapped in a `LegacyIRAdapter`.
-
-### Core IR Methods
-
-**`executeIR(subtree, opts)`**
-Executes an IR subtree and returns matching codes.
-- Input: IR subtree (selector/union/intersect/diff), options (activeOnly, text, offset, count)
-- Returns: `{ candidates, unclosed? }`
-  - `candidates`: array of `{ code, display, ... }`
-  - `unclosed`: optional message when expansion can't enumerate all codes
-
-**`countForIR(subtree, opts)`**
-Counts codes without materialization (optimization for `count=0`).
-- Input: same as `executeIR`
-- Returns: integer count or `null` if not supported
-
-**`membershipForIR(subtree)`**
-Returns a membership tester for code-level `∈` operations.
-- Input: IR subtree
-- Returns: `Membership` object with `.contains(code)` method
-
-### Optional Decoration Methods
-
-| Method | Purpose | Fallback |
-|--------|---------|----------|
-| `bulkDesignations(ids)` | Batch designation load | Per-code `designations(ctx, collector)` |
-| `bulkProperties(ids, props)` | Batch property load | Per-code `properties(ctx, collector)` |
-| `extensions(ctx)` | Per-code FHIR extensions | None |
-| `listSupplements()` | URLs of active supplements | Empty array |
-
----
-
-## Execution Modes
-
-### Mode 1: Native IR (v0 SQLite)
-
-The v0 provider compiles IR subtrees to SQL against the v0 schema. Key mappings:
-
-| IR construct | SQL |
-|-------------|-----|
-| selector(shape=whole) | `SELECT * FROM concept WHERE cs_id=? AND active=1` |
-| selector(shape=concept) | `... WHERE code IN (?,?,?)` |
-| selector(filter is-a) | `JOIN closure` on transitive closure table |
-| selector(filter =) | `JOIN concept_literal` on property value |
-| selector(filter in) | `... WHERE value IN (?,?,?)` |
-| selector(filter regex on code) | `REGEXP` against `concept.code` |
-| selector(filter regex on property) | `JOIN concept_literal` + `REGEXP` against `value_text` |
-| union | `UNION` of sub-queries |
-| intersect | `INTERSECT` of sub-queries |
-| diff | `EXCEPT` or `LEFT JOIN ... WHERE right IS NULL` |
-
-Property alias resolution is data-driven via `cs_config` (e.g., SNOMED's `concept` → `Is a`). The same provider handles SNOMED, LOINC, RxNorm — all terminology-specific behavior is in `cs_config`.
-
-### Mode 2: Legacy Adapter
-
-`LegacyIRAdapter` wraps any provider by tree-walking the IR and calling filter protocol methods:
-
-- **concept** → `locate(code)` per code
-- **filter** → `getPrepContext()` → `filter()` → `executeFilters()`
-- **whole** → `iteratorAll()`
-- **grammar-based** → when `iteratorAll()` returns null: try `specialEnumeration()` for common units (→ unclosed), else throw `isTooCostly`
-- **union/intersect/diff** → composed in JS using membership indexes
-
-Returns `{ candidates, unclosed? }` — orchestrator treats both modes uniformly.
-
----
-
-## Decoration and Overrides
-
-### Bulk Designation Loading
-
-After candidate selection, designations are loaded in bulk per system rather than per-concept during iteration. Filtering is applied in order:
-
-1. **By use**: filter to specific `use` system|code pairs (via `designations` parameter)
-2. **By language**: filter to requested `displayLanguage` or HTTP `Accept-Language`
-3. **Redundancy suppression**: omit designations where `designation.value === concept.display`
-
-### Compose-Level Overrides
-
-FHIR allows `compose.include[].concept[].display` and `.designation[]` to override code system values. The orchestrator carries these overrides through the IR tree in `meta` fields, then applies them after bulk decoration:
-
-1. `collectComposeOverrides()` — walks the resolved IR tree to extract per-code display and designation overrides
-2. `applyComposeOverrides()` — patches the decorated candidates, replacing displays and adding designations
-3. Designation overrides only apply when `includeDesignations` is active
-
----
-
-## Integration with expand.js
-
-The IR engine integrates via `_tryIRExpansion()` in the existing expand worker:
-
-```js
-async performExpansion(valueSet, params) {
-  const engineOverride = params._engine;
-  const useIR = engineOverride === 'ir'
-    || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
-
-  if (useIR) {
-    const irResult = await this._tryIRExpansion(valueSet, params);
-    if (irResult) return irResult;
-  }
-  // Fall through to legacy ValueSetExpander
-  return this._legacyExpansion(valueSet, params);
 }
 ```
 
-The IR engine receives two callbacks and all standard expansion parameters:
-
-- **findProvider(system, version)** — locate provider for a code system
-- **resolveValueSet(url)** — fetch imported ValueSets
-- **Parameters**: `activeOnly`, `text`, `offset`, `count`, `includeDesignations`, `properties`, `designations`, `displayLanguage`
-
-### Activation
-
-| `EXPAND_IR_ENGINE` env | `_engine` param | Behavior |
-|------------------------|-----------------|----------|
-| unset or `!=1` | (none) | Legacy only |
-| unset or `!=1` | `ir` | IR, error if unsupported |
-| `1` | (none) | IR first, legacy fallback |
-| `1` | `ir` | IR, error if unsupported |
-| `1` | `legacy` | Legacy only |
-
-The systemd service sets `EXPAND_IR_ENGINE=1`. Per-request `_engine=ir|legacy` overrides.
-
-### Fallback Behavior
-
-1. **`canHandleValueSet(vsJson)`** — does the ValueSet have a valid `compose`?
-2. **Provider lookup** — can we find a provider for every system? If not, returns `null` (legacy fallback)
-3. **Execution** — if execution throws:
-   - `isTooCostly` errors are re-thrown (not caught)
-   - Other errors are logged and trigger legacy fallback
-
-This allows the IR engine to gracefully decline ValueSets it can't handle, while ensuring resource-intensive errors surface properly.
-
----
-
-## The v0 SQLite Provider
-
-A generic code system provider for the v0 SQLite database schema used by FHIRsmith's importers. Supports SNOMED, LOINC, RxNorm, and any other terminology stored in v0 format.
-
-### Database Schema (v0)
+becomes:
 
 ```
-code_system      ─ base_uri, version, name, content_mode
-concept          ─ code, display, active, abstract, definition
-concept_link     ─ source_concept_id → target_concept_id (hierarchy edges)
-concept_literal  ─ property_id, value (code properties as strings)
-closure          ─ ancestor_id → descendant_id (transitive closure)
-designation      ─ concept_id, language, use_code, term, active, preferred
-property_def     ─ property_id, code, uri, type
-cs_config        ─ JSON blob: hierarchy, filters, search, languages, behaviorFlags
-value_set        ─ url, JSON definition for implicit value sets
-search_fts_*     ─ FTS5 tables for text search
+diff(
+  selector(SNOMED, filter: concept is-a 73211009),
+  selector(SNOMED, filter: concept is-a 44054006)
+)
 ```
 
-### Dual-Mode Support
+"Diabetes mellitus minus Type 2 diabetes."
 
-The v0 provider implements both the legacy filter protocol and native IR:
+### Simplification
 
-- **Legacy protocol**: `locate()`, `getPrepContext()`, `filter()`, `executeFilters()`, `filterMore()`, `filterConcept()`, `parent()`, `designations()`, `properties()`, etc.
-- **IR methods**: `executeIR()`, `countForIR()`, `membershipForIR()`
+Before execution, the engine cleans up the tree:
 
-Both modes return identical results for the same inputs.
+- **Merge duplicate concept lists** — two includes pulling different
+  codes from the same system become one list.
+- **Merge duplicate filters** — same filter appearing twice (e.g. after
+  inlining two imports that reference the same base) → keep one copy.
+- **Split multi-system diffs** — if an include spans SNOMED + LOINC and
+  the exclude only touches SNOMED, split so the SNOMED diff runs
+  independently and LOINC passes through untouched.
+- **Drop empty branches** — remove branches that can't produce codes
+  (e.g. an intersect between two different code systems).
 
-### Runtime Configuration
-
-The provider reads `cs_config` to build a runtime configuration. All terminology-specific behavior is data-driven:
-
-- **hierarchy** — which property defines parent→child edges
-- **filters.properties.aliases** — FHIR property → DB property mapping
-- **search** — multi-source FTS configuration (display, designation, literal)
-- **languages** — default language for displays
-- **status** — which property holds concept status
-- **iteration.defaultCodeRegex** — filter for `iteratorAll()` (excludes metadata)
-- **behaviorFlags.tags** — tags for specialization matching (see below)
-
-### Specialization System
-
-Some terminologies need behavior beyond what the generic provider offers (e.g., SNOMED post-coordinated expressions, LOINC implicit value set generation from URL patterns). Rather than hardcoding these, a specialization registry allows subclass modules to declare interest in specific terminologies:
-
-```js
-// In a hypothetical cs-sqlite-snomed-v0.js
-SqliteV0FactoryProvider.registerSpecialization({
-  id: 'snomed-expressions',
-  systemPrefix: 'http://snomed.info/sct',
-  FactoryClass: SnomedSqliteV0Factory,
-});
-```
-
-At startup, `library.js` calls `SqliteV0FactoryProvider.createFromMetadata(i18n, dbPath)` instead of constructing the factory directly. This method:
-
-1. Opens the database and loads metadata (canonical URI, `behaviorFlags.tags` from `cs_config`)
-2. Checks the specialization registry for a matching entry (by URL prefix and/or tags)
-3. Returns a specialized factory subclass if one matches, otherwise the generic base
-
-Matching rules:
-- **`systemPrefix`**: prefix-matched against the DB's canonical URI
-- **`tags`**: all listed tags must be present in the DB's `behaviorFlags.tags`
-- **`priority`**: higher wins when multiple entries match
-
-Subclasses override factory methods like `build()` (to return a specialized per-request provider) and `buildKnownValueSet()` (to handle terminology-specific implicit value sets). The per-request `SqliteV0Provider` and its IR execution methods remain unchanged.
-
-With no specializations registered (the current state), `createFromMetadata()` behaves identically to direct construction.
+The goal: give each code system provider a self-contained piece of the
+expansion, with no cross-system dependencies.
 
 ---
 
-## Membership Types
+## How providers are called
 
-Composable set-membership objects for code-level `∈` testing without materializing full expansions. Used by `membershipForIR()` and the legacy adapter for intersect/diff operations.
+The orchestrator walks the simplified tree system by system. For each
+code system it finds the provider, then asks it to execute its subtree.
 
-| Type | Behavior |
-|------|----------|
-| `EmptyMembership` | Always false |
-| `SetMembership` | O(1) lookup in memory |
-| `SqlMembership` | Parameterized query per lookup |
-| `UnionMembership` | True if any child is true |
-| `IntersectMembership` | True if all children are true |
-| `DiffMembership` | True if left and not right |
+### v0 SQLite providers (fast path)
+
+If the provider has `executeIR()`, the orchestrator calls it directly.
+The v0 provider compiles the entire subtree to a single SQL query —
+unions, intersects, diffs, hierarchy, property filters, text search all
+happen in SQL. This is the fast path.
+
+### All other providers (automatic wrapping)
+
+Providers without `executeIR()` — cs-cs (FHIR package CodeSystems),
+UCUM, country, currency, area codes, etc. — are automatically wrapped
+in a filter-protocol adapter (`LegacyIRAdapter` in the code). The
+adapter walks the tree and calls the provider's standard filter protocol
+methods:
+
+- **concept** → `locate(code)` for each code
+- **filter** → `filter()` / `executeFilters()`
+- **whole** → `iteratorAll()`
+- **grammar-based** (UCUM, MIME, language) → `specialEnumeration()` if
+  available (returns common units for UCUM), otherwise signals too-costly
+- **union/intersect/diff** → executed in memory
+
+The orchestrator doesn't care which path a provider takes. Both return
+the same thing: a list of `{ code, display }` candidates.
 
 ---
 
-## Key Behavioral Differences vs Legacy
+## Pagination
 
-| Aspect | IR engine | Legacy |
-|--------|-----------|--------|
-| Output shape | Always flat | May be hierarchical |
-| Pagination | Stride dispatch per system | Materialize all, slice |
-| count=0 | `SELECT COUNT(*)` | Full expansion then count |
-| Designations | Bulk load after selection | Per-concept during iteration |
-| Limit | Pre-check total vs limit | Mid-enumeration safety valve |
-| Property filter matching | Code only (FHIR R4 §5.8.2) | Code or display (legacy bug) |
+### Multi-system stride
 
-See `docs/legacy-expansion-gap.md` for hierarchy behavior details.
+For a ValueSet spanning multiple code systems, the orchestrator sorts
+systems in canonical URI order and "strides" the pagination window
+across them.
+
+Example: ValueSet includes SNOMED (124 codes) + LOINC (66,000 codes).
+Client requests `offset=120, count=10`:
+
+- SNOMED contributes codes 120–123 → 4 codes
+- LOINC contributes codes 0–5 → 6 codes
+- Systems whose entire range falls before the offset are skipped
+
+No system ever materializes more than `count` rows. For `count=0`,
+the engine runs count-only queries and returns just the total.
+
+### Hierarchy and pagination
+
+When pagination is active (explicit `offset` or `count < total`),
+the expansion is always flat — no nested `contains`. This matches FHIR
+spec guidance that paging applies to flat lists.
+
+When the full result set fits in one page and the code system has
+hierarchy, the engine nests children under parents (matching the original
+expander's behavior). `excludeNested=true` forces flat regardless.
+
+### Limits and too-costly
+
+Unpaginated expansion exceeding the server limit (default 1,000) throws
+a `too-costly` OperationOutcome. Paginated requests bypass this check.
 
 ---
 
-## Structured Tracing
+## Designations and properties
 
-The IR engine includes structured tracing (`tx/engine/expand-trace.js`) using `AsyncLocalStorage`. Zero-cost when inactive.
+After selecting candidates, designations and properties are loaded in
+bulk — one batch per system, not per concept:
 
-Activated via `_trace=true` query parameter. Trace data is attached to the expansion response as a FHIR extension:
+1. **`designation` parameter** — filters to matching use codes only
+2. **`displayLanguage`** — filters to the requested language
+3. **Redundancy suppression** — designations matching the primary display
+   are omitted
+4. **Compose-level overrides** — `include.concept[].display` and
+   `.designation[]` replace or supplement code system values
+
+### Supplements
+
+Inline supplements (submitted via `tx-resource`) flow through the
+existing provider supplement machinery. The IR engine wires the
+`useSupplement` parameter and `valueset-supplement` extension to the
+provider's supplement loading, and emits `used-supplement` parameters in
+the response.
+
+---
+
+## What's different from the original expander
+
+| | IR engine | Original expander |
+|---|-----------|-------------------|
+| **Architecture** | Pipeline: parse → simplify → execute → decorate → format | Single pass, ~1,300 lines |
+| **v0 provider usage** | Compiles expansion plan to single SQL query | Calls filter protocol methods one at a time |
+| **Pagination** | Stride per system — only materializes the requested page | Materializes all codes, then slices |
+| **`count=0`** | SQL `COUNT(*)` — no codes materialized | Full expansion, then counts |
+| **Hierarchy** | Flat when paginating; nested when full result fits in one page | May be nested always |
+| **Designations** | Bulk-loaded after code selection | Loaded per-concept during iteration |
+| **Property filter matching** | Matches by code only (per FHIR R4 spec) | Matches by code or display (original quirk) |
+| **Limit enforcement** | Checks total before expanding | Safety valve during iteration |
+| **Tracing** | Structured trace via `_trace=true` | None |
+
+---
+
+## Structured tracing
+
+Add `_trace=true` to any `$expand` request to get a structured execution
+trace as an extension on the response:
 
 ```
 expansion.extension[].url = "http://fhirsmith.org/StructureDefinition/expand-trace"
-expansion.extension[].valueString = <JSON trace>
+expansion.extension[].valueString = <JSON>
 ```
 
-Trace output includes:
-- Hierarchical span tree (orchestration phases, per-system dispatch)
-- SQL query details (text, params, row counts, timing)
-- Pagination decisions
-
----
-
-## Module Map
-
-### `tx/engine/`
-
-| Module | Role |
-|--------|------|
-| `ir.js` | IR node constructors |
-| `build-ir.js` | ValueSet JSON → IR compiler |
-| `resolve-imports.js` | Async import inlining |
-| `rewrite.js` | IR optimization passes |
-| `orchestrator.js` | Pipeline orchestrator — pagination, decoration, response building |
-| `legacy-ir-adapter.js` | Adapter wrapping legacy providers for IR execution |
-| `membership.js` | Composable set-membership types (Set, Sql, Union, Intersect, Diff) |
-| `expand-trace.js` | Structured tracing (`_trace=true`) via AsyncLocalStorage |
-| `index.js` | Public API exports |
-
-### Integration points in upstream code
-- `tx/workers/expand.js` — `_tryIRExpansion()`, supplement collection, limit wiring
-- `tx/params.js` — `_engine` parsing
-- `tx/library.js` — v0 database loader (calls `createFromMetadata()`)
+Includes timing per pipeline phase, SQL queries with parameters and row
+counts, and pagination decisions. Zero overhead when not requested.
 
 ---
 
 ## Testing
 
-| Suite | Count | Runs against |
-|-------|-------|--------------|
-| `scripts/ir-harness.mjs` | 151 | Running server (HTTP) |
-| `scripts/ir-rewrite-tests.mjs` | 8 | No server (pure) |
+### HTTP test harness — 166 tests (`scripts/ir-harness.mjs`)
 
-The HTTP harness is the source of truth. It covers core set operations, all selector shapes, pagination (including deep offsets), text search, designation/property decoration, compose overrides, inline supplements, grammar-based providers (UCUM unclosed, MIME too-costly), limit enforcement, and stress tests.
+The primary test suite. Runs against a live server, exercising real
+`$expand` calls:
 
-Run with `--legacy` for legacy-engine comparison, `--perf` for an HTML performance table.
+| Area | What it covers |
+|------|---------------|
+| **Hierarchy filters** | SNOMED is-a, descendent-of, concept-in refsets |
+| **Property filters** | LOINC STATUS, CLASSTYPE, SCALE_TYP; RxNorm TTY; SNOMED concept properties |
+| **Text search** | Free-text `filter` parameter across systems |
+| **Concept enumeration** | Explicit code lists for SNOMED, LOINC, RxNorm, gender, language |
+| **Whole-system** | Full expansion of gender, publication-status, currency, US states, area codes |
+| **Excludes** | Enumerated excludes, filter-based excludes, cross-system excludes |
+| **Multi-system** | Unions across v0 + cs-cs + preloaded-map providers |
+| **ValueSet imports** | Pure import, import + system intersection, imported excludes |
+| **Pagination** | Disjoint pages, last-page partial, offset-beyond-end, deep offsets (50K+), count=0 |
+| **Pagination safety** | Full-set reconstruction across pages (no gaps, no duplicates) |
+| **Designations** | includeDesignations, displayLanguage, designation use filter, compose overrides, redundancy suppression |
+| **Properties** | property=definition, wildcard properties, concept-valued properties |
+| **Supplements** | useSupplement, valueset-supplement extension, display overrides, missing supplement validation |
+| **Hierarchy nesting** | Conditional nesting, excludeNested, pagination forces flat, IR-vs-original parity |
+| **Grammar-based** | UCUM unclosed expansion, MIME too-costly, language codes |
+| **Limits** | Default limit enforcement, explicit limit, pagination bypasses limit |
+| **Stress tests** | Deep SNOMED pagination (50K offset into 124K), complex inc/exc, mixed-system text+limit |
+| **IR vs original comparison** | Side-by-side comparison of both engines for hierarchy output |
 
-Jest tests in `tests/engine/` and `tests/cs/` cover individual modules for fast iteration.
+```
+node scripts/ir-harness.mjs              # all tests, IR engine
+node scripts/ir-harness.mjs --legacy     # all tests, original expander
+node scripts/ir-harness.mjs "SNOMED"     # filter by name
+node scripts/ir-harness.mjs --perf       # performance comparison table
+```
+
+### Simplification unit tests — 8 tests (`scripts/ir-rewrite-tests.mjs`)
+
+Tests the expansion plan simplification logic directly (no server
+needed): concept-list merging, filter deduplication, multi-system diff
+splitting, cross-system empty elimination.
+
+### Jest unit tests (`tests/engine/`, `tests/cs/`)
+
+| File | Tests | What |
+|------|-------|------|
+| `cs-sqlite-v0.test.js` | 31 | v0 provider: locate, filter, iterate, IR execution, designations, properties |
+| `orchestrator.test.js` | 19 | Full pipeline: expansion, pagination, count=0, designations, properties, metadata |
+| `legacy-ir-adapter.test.js` | 11 | Filter-protocol adapter: concept, filter, union, diff, intersect; parity with native |
+| `comparison.test.js` | 7 | IR vs original expander code-for-code parity on real SNOMED/LOINC data |
+| `e2e-comparison.test.js` | 8 | HTTP-level IR vs original expander comparison (requires running server) |
+| `hierarchy-regressions.test.js` | 2 | Edge cases: pagination window order, cross-system identity |
+| `partition-safety.test.js` | 6 | Validates expansion plan before execution (rejects unsafe partitions) |
+| `library-error-handling.test.js` | 6 | Library config loading, error reporting, env var substitution |
 
 ---
 
-## Design Decisions
+## File map
 
-### Separation of Concerns
+### v0 SQLite provider (`tx/cs/`)
 
-The IR approach separates parsing (pure), optimization (pure), execution (I/O), decoration (I/O), and formatting (pure). Each phase can be tested, optimized, and reasoned about independently.
+| File | What it does |
+|------|-------------|
+| `cs-sqlite-v0.js` | Generic code system provider — implements both the standard filter protocol and `executeIR()` for the IR engine |
+| `sqlite-v0-sql.js` | Builds SQL queries from expansion plan subtrees (used only by the IR engine path) |
 
-### IR as Abstraction Boundary
+### IR expansion engine (`tx/engine/`)
 
-The IR tree is provider-agnostic. Providers can execute it however they want: SQL compilation, in-memory iteration, API calls, lazy evaluation. This enables provider-specific optimizations without changing the orchestrator.
+| File | What it does |
+|------|-------------|
+| `build-ir.js` | Reads a ValueSet compose and builds the expansion plan tree |
+| `resolve-imports.js` | Fetches imported ValueSets and inlines them into the tree |
+| `rewrite.js` | Simplifies the tree: merge, deduplicate, partition by system |
+| `orchestrator.js` | Runs the pipeline: count → paginate → execute → decorate → build response |
+| `legacy-ir-adapter.js` | Wraps filter-protocol providers so they can execute expansion plan trees |
+| `ir.js` | Node constructors for the expansion plan tree |
+| `membership.js` | "Does code X belong to set Y?" testers for intersect/diff |
+| `expand-trace.js` | Structured tracing infrastructure |
+| `index.js` | Public exports |
 
-### Adapter Pattern over Rewrite
+### Modified upstream files
 
-Rather than modifying every provider to add `executeIR()`, the adapter wraps them automatically. Zero changes to existing providers. When a provider wants better performance, it can opt into native IR execution.
-
-### Flat Output
-
-The IR engine always returns flat expansions. This matches tx.fhir.org behavior, simplifies pagination (FHIR spec says paging only applies to flat), and keeps the orchestrator focused on set operations rather than hierarchy building.
-
-### Opt-in Activation
-
-IR engine is off by default. Existing behavior is unchanged unless explicitly enabled. Per-request `_engine` parameter allows A/B testing and gradual migration.
-
-### Bulk Decoration
-
-Designations and properties are loaded in a bulk pass after candidate selection. This separates filtering from decoration and enables efficient batch loading.
-
-### Data-Driven Configuration
-
-The v0 provider reads all behavior from `cs_config`. No terminology-specific code; the same provider handles SNOMED, LOINC, RxNorm, etc. identically. Terminology-specific extensions are supported via the specialization registry.
+| File | Change |
+|------|--------|
+| `tx/workers/expand.js` | Added `_tryIRExpansion()` entry point with fallback |
+| `tx/params.js` | Parses `_engine` parameter |
+| `tx/library.js` | Loads v0 SQLite databases via `sqlite-v0:` source type |
 
 ---
 
-## See Also
+## See also
 
 - `docs/ir-engine-gap-plan.md` — Phase-by-phase implementation history
-- `docs/legacy-expansion-gap.md` — Hierarchical vs. flat expansion analysis
-- `scripts/ir-harness.mjs` — HTTP test harness
-- `scripts/ir-rewrite-tests.mjs` — IR optimizer unit tests
+  and test cross-reference
+- `docs/legacy-expansion-gap.md` — Hierarchical vs flat expansion
+  differences
+- `scripts/ir-harness.mjs` — HTTP test harness (source of truth)
+- `scripts/ir-rewrite-tests.mjs` — Simplification unit tests
