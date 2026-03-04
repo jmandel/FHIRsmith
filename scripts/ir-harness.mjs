@@ -1547,6 +1547,20 @@ async function run() {
     }
   });
 
+  // ── Phase 2 batch 4: remaining green tests ──
+
+  await test('coverage: UCUM whole-system with gender peer include', async () => {
+    // Adapted from codex-2 UCUM+lang test. UCUM whole-system returns 0 in IR
+    // (specialEnumeration not handled — Phase 6), but the peer code should appear.
+    const { result } = await expand(vs([
+      {system:'http://unitsofmeasure.org'},
+      {system:SYS.GENDER, concept:[{code:'male'}]},
+    ]));
+    const c = codes(result);
+    assert(findCode(result,'male'), 'gender peer code should be present');
+    assert(c.length >= 1, 'expected at least peer concept');
+  });
+
   // ── summary ──────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(50)}`);
 
