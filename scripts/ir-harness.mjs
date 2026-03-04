@@ -14,6 +14,8 @@ const SYS = {
   SCT: 'http://snomed.info/sct',
   LOINC: 'http://loinc.org',
   RXNORM: 'http://www.nlm.nih.gov/research/umls/rxnorm',
+  GENDER: 'http://hl7.org/fhir/administrative-gender',
+  PUBSTAT: 'http://hl7.org/fhir/publication-status',
 };
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -250,6 +252,89 @@ async function run() {
     assert(entry?.designation?.length > 0, 'has designations');
   });
 
+  console.log('\n=== Whole-system (cs-cs / legacy adapter) ===');
+
+  await test('gender whole-system: 4 codes', async () => {
+    const { result } = await expand(vs({ system: SYS.GENDER }));
+    eq(result.expansion.total, 4, 'total');
+    assert(findCode(result, 'male')?.display === 'Male', 'male');
+    assert(findCode(result, 'female')?.display === 'Female', 'female');
+    assert(findCode(result, 'other')?.display === 'Other', 'other');
+    assert(findCode(result, 'unknown')?.display === 'Unknown', 'unknown');
+  });
+
+  await test('gender enumerated subset: male+female only', async () => {
+    const { result } = await expand(vs({ system: SYS.GENDER, concept: [{ code: 'male' }, { code: 'female' }] }));
+    eq(result.expansion.total, 2, 'total');
+    assert(findCode(result, 'male'), 'male present');
+    assert(!findCode(result, 'unknown'), 'unknown absent');
+  });
+
+  await test('gender exclude: minus other+unknown = male+female', async () => {
+    const { result } = await expand(
+      vs({ system: SYS.GENDER },
+         { system: SYS.GENDER, concept: [{ code: 'other' }, { code: 'unknown' }] }));
+    eq(result.expansion.total, 2, 'total');
+    assert(findCode(result, 'male'), 'male remains');
+    assert(findCode(result, 'female'), 'female remains');
+    assert(!findCode(result, 'other'), 'other excluded');
+    assert(!findCode(result, 'unknown'), 'unknown excluded');
+  });
+
+  await test('LOINC enumerated: 2160-0 + 2345-7', async () => {
+    const { result } = await expand(vs({ system: SYS.LOINC, concept: [{ code: '2160-0' }, { code: '2345-7' }] }));
+    eq(result.expansion.total, 2, 'total');
+    assert(findCode(result, '2160-0')?.display?.includes('Creatinine'), 'Creatinine');
+    assert(findCode(result, '2345-7')?.display?.includes('Glucose'), 'Glucose');
+  });
+
+  await test('RxNorm enumerated: aspirin + ibuprofen + acetaminophen', async () => {
+    const { result } = await expand(vs({ system: SYS.RXNORM, concept: [{ code: '161' }, { code: '5640' }, { code: '1191' }] }));
+    eq(result.expansion.total, 3, 'total');
+    assert(findCode(result, '1191')?.display === 'aspirin', 'aspirin');
+    assert(findCode(result, '5640')?.display === 'ibuprofen', 'ibuprofen');
+    assert(findCode(result, '161')?.display === 'acetaminophen', 'acetaminophen');
+  });
+
+  await test('SNOMED concept-in refset 723560006: 19 top-level categories', async () => {
+    const { result } = await expand(vs({ system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'in', value: 'http://snomed.info/sct?fhir_vs=refset/723560006' }] }));
+    eq(result.expansion.total, 19, 'total');
+    assert(findCode(result, '404684003'), 'Clinical finding');
+    assert(findCode(result, '71388002'), 'Procedure');
+    assert(findCode(result, '123037004'), 'Body structure');
+  });
+
+  await test('same-system dedup: gender male+female \u222a female+other = 3', async () => {
+    const { result } = await expand(vs([
+      { system: SYS.GENDER, concept: [{ code: 'male' }, { code: 'female' }] },
+      { system: SYS.GENDER, concept: [{ code: 'female' }, { code: 'other' }] },
+    ]));
+    eq(result.expansion.total, 3, 'total (female deduped)');
+    assert(findCode(result, 'male'), 'male');
+    assert(findCode(result, 'female'), 'female');
+    assert(findCode(result, 'other'), 'other');
+  });
+
+  await test('cross-system exclude: gender+pubstat minus both unknowns = 6', async () => {
+    const { result } = await expand(vs(
+      [{ system: SYS.GENDER }, { system: SYS.PUBSTAT }],
+      [{ system: SYS.GENDER, concept: [{ code: 'unknown' }] },
+       { system: SYS.PUBSTAT, concept: [{ code: 'unknown' }] }]));
+    eq(result.expansion.total, 6, 'total');
+    assert(!codes(result).some(c => c.code === 'unknown'), 'no unknowns');
+    eq(codes(result).filter(c => c.system === SYS.GENDER).length, 3, 'gender count');
+    eq(codes(result).filter(c => c.system === SYS.PUBSTAT).length, 3, 'pubstat count');
+  });
+
+  await test('text filter across cs-cs systems: gender+pubstat filter=unknown', async () => {
+    const { result } = await expand(vs([{ system: SYS.GENDER }, { system: SYS.PUBSTAT }]),
+      { filter: 'unknown' });
+    assert(codes(result).length >= 2, 'at least 2 matches');
+    const systems = new Set(codes(result).map(c => c.system));
+    eq(systems.size, 2, 'matches from both systems');
+  });
+
   console.log('\n=== Multi-system ===');
 
   await test('SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems', async () => {
@@ -262,6 +347,41 @@ async function run() {
     const systems = new Set(codes(result).map(c => c.system));
     eq(systems.size, 3, 'system count');
     assert(findCode(result, '1191')?.display === 'aspirin', 'RxNorm display');
+  });
+
+  await test('Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5', async () => {
+    const { result, ms } = await expand(vs([
+      { system: 'http://hl7.org/fhir/administrative-gender' },
+      { system: SYS.SCT, concept: [{ code: '73211009' }] },
+    ]));
+    eq(result.expansion.total, 5, 'total');
+    const systems = new Set(codes(result).map(c => c.system));
+    eq(systems.size, 2, 'system count');
+    assert(findCode(result, 'male')?.display === 'Male', 'gender display');
+    assert(findCode(result, '73211009')?.display?.startsWith('Diabetes mellitus'), 'SNOMED display');
+  });
+
+  await test('Mixed v0+cs-cs: gender (4) + SNOMED is-a (124), stride across boundary', async () => {
+    // Canonical order: gender first (http://hl7...), SNOMED second (http://snomed...)
+    // offset=2 count=5 → 2 gender + 3 SNOMED
+    const { result } = await expand(vs([
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+      { system: 'http://hl7.org/fhir/administrative-gender' },
+    ]), { count: 5, offset: 2, activeOnly: true });
+    eq(result.expansion.total, 128, 'total');
+    eq(codes(result).length, 5, 'page size');
+    const systems = new Set(codes(result).map(c => c.system));
+    eq(systems.size, 2, 'page spans both systems');
+  });
+
+  await test('Mixed v0+cs-cs + text filter', async () => {
+    const { result } = await expand(vs([
+      { system: 'http://hl7.org/fhir/administrative-gender' },
+      { system: SYS.SCT, concept: [{ code: '73211009' }, { code: '44054006' }] },
+    ]), { filter: 'male' });
+    // 'male' matches gender code; SNOMED diabetes doesn't match
+    assert(findCode(result, 'male'), 'male found');
+    assert(codes(result).length >= 1, 'at least male');
   });
 
   await test('Multi-system stride pagination', async () => {

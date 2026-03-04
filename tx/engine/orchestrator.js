@@ -142,7 +142,7 @@ async function expandViaIR(vsJson, opts = {}) {
     let sysCount = 0;
     if (typeof irProvider.countForIR === 'function') {
       const cntSpan = trace.begin('countForIR', { system });
-      sysCount = irProvider.countForIR(subtree, { activeOnly, text });
+      sysCount = await irProvider.countForIR(subtree, { activeOnly, text });
       cntSpan.end({ count: sysCount });
     }
 
