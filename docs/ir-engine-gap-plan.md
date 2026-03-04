@@ -558,38 +558,37 @@ The trace/pushdown-toggle infrastructure doesn't exist in our engine.
    comprehensive param echoing (designations, displayLanguage, properties).
 3. ✅ **Phase 1.6–1.8** (99be2ca): displayLanguage echoed, redundant
    designation test (passes as-is), property regex in sqlite-v0-sql.
-4. ✅ **Phase 2 batches 1-3** (7c1c316, 6f5516c, 67d8fe0): 40 ported
-   tests covering shape-A/B, infra, filters, logic, pagination,
-   multi-system, coverage, pagination-safety. 109 total tests.
-6. **Create `scripts/ir-rewrite-tests.mjs`** for Phase 3 unit tests
-7. **Add e2e rewrite parity tests** to the harness
-8. **Phase 4**: Add missing providers to fixture YAML (usstates,
-   areacode, mimetypes) + port unblocked tests
-9. **Phase 5**: Wire useSupplement + valueset-supplement extension
+4. ✅ **Phase 2 batches 1–4** (7c1c316 → a5938d9): 49 ported tests
+   covering shape-A/B, infra, filters, logic, pagination,
+   multi-system, coverage, pagination-safety. 110 total harness tests.
+5. ✅ **Phase 3** (433139d, eae89d3): 8 IR rewrite/optimizer unit
+   tests in `scripts/ir-rewrite-tests.mjs`. Code-or-display gap
+   documented as legacy bug (won’t replicate).
+6. ✅ **Phase 4+6** (b93b0f8): Added usstates, areacode, mimetypes
+   to fixture YAML. Grammar-based provider handling in adapter
+   (UCUM specialEnumeration, MIME/lang too-costly). 18 new tests
+   (14 fixture + 3 grammar + 1 updated). 128 harness tests.
+7. **Phase 5**: Wire useSupplement + valueset-supplement extension
    into IR findProvider callback, emit used-supplement, validate
    missing supplements. All inline CS — no SQL changes.
    Port 9 codex-2 tests + 2 new v0 supplement tests.
-10. **Phase 6**: Grammar-based provider handling (UCUM specialEnumeration,
-    MIME/lang too-costly errors)
-11. **Phase 7**: Limit enforcement + too-costly errors
-12. **Phase 8**: High-value stress tests
-13. **Phase 5-adv** (deferred): Supplement property filter pushdown,
+8. **Phase 7**: Limit enforcement + too-costly errors
+9. **Phase 8**: High-value stress tests
+10. **Phase 5-adv** (deferred): Supplement property filter pushdown,
     SQLite supplement fixture DBs, codex-2-internal tracing tests
 
 ## Test count projection
 
 | Phase | New tests | Running total | Notes |
 |---|---|---|---|
-| Current | 61 | 61 | |
-| Phase 1 fixes + tests | ~8 | ~69 | Engine changes (4 already committed) |
-| Phase 2 ports | ~25 | ~94 | No engine changes |
-| Phase 3 rewrite tests | ~9 | ~103 | Unit + parity |
-| Phase 4 fixture | ~14 | ~117 | YAML change only |
-| Phase 5 inline supplements | ~11 | ~128 | Inline CS plumbing (9 codex-2 + 2 new v0) |
-| Phase 6 grammar providers | ~3 | ~131 | Adapter changes |
-| Phase 7 limit/too-costly | ~3 | ~134 | |
-| Phase 8 high-value | ~4 | ~138 | |
-| Phase 5-adv supplement filters | ~13 | ~151 | SQLite fixtures, property filter pushdown |
+| ✅ Phase 1 fixes + tests | 8 | 69 | Engine changes |
+| ✅ Phase 2 ports | 41 | 110 | No engine changes |
+| ✅ Phase 3 rewrite tests | 8 | 118 | Unit tests (separate file) |
+| ✅ Phase 4+6 fixture+grammar | 18 | 128+8=136 | YAML + adapter changes |
+| Phase 5 inline supplements | ~11 | ~147 | Inline CS plumbing (9 codex-2 + 2 new v0) |
+| Phase 7 limit/too-costly | ~3 | ~150 | |
+| Phase 8 high-value | ~4 | ~154 | |
+| Phase 5-adv supplement filters | ~13 | ~167 | SQLite fixtures, property filter pushdown |
 | **N/A** | | | 6 codex-2-internal / v3-only |
 
 ## Committed Phase 1 work
@@ -604,6 +603,13 @@ Commit `dfedbd0` implements Phase 1 items 1.1–1.4:
 ---
 
 ## Appendix: Full codex-2 cross-reference
+
+> **Note**: This appendix was written at the start of the gap analysis.
+> Dispositions marked with colored circles were accurate at that time.
+> As of Phase 4+6 completion, all tests previously marked green/yellow/
+> orange/brown/red for Phases 1–4,6 are now ported. The remaining
+> actionable items are purple (Phase 5 supplements), red (Phase 7 limits),
+> and orange-square (Phase 8 stress).
 
 Every codex-2 test mapped to a disposition. Legend:
 - ✅ = already ported (equivalent test exists in ir-harness)
@@ -857,21 +863,19 @@ Every codex-2 test mapped to a disposition. Legend:
 
 ## Summary by disposition
 
-| Disposition | Count | Phase | Description |
+| Phase | Status | Tests | Description |
 |---|---|---|---|
-| ✅ Already ported | 41 | — | Equivalent test in ir-harness |
-| 🟢 Port now | ~30 | 2 | Works today, just needs test |
-| 🟡 Port after fix | ~7 | 1 | Needs engine change (4 committed) |
-| 🟠 Rewrite unit test | ~9 | 3 | IR optimizer verification |
-| 🟫 Fixture expansion | ~14 | 4 | Add providers to YAML, then port |
-| 🟣 Inline supplements | 9 | 5 | Inline CS plumbing (designations + property projection) |
-| 🟤 Advanced supplements | 13 | 5-adv | SQLite supplement DBs, property filtering, codex-2 internals |
-| 🟥 Grammar/limit | ~6 | 6–7 | UCUM specialEnumeration, too-costly |
-| 🟧 High-value stress | ~4 | 8 | Large-scale pagination/parity |
-| ⚫ Codex-2-internal | 6 | N/A | Trace assertions, decision tables, v3-only guards |
-| **Total** | **~139** | | 6 N/A + ~133 eventually testable |
-
-Phase 5 also adds ~2 new tests (v0 supplement path) not from codex-2.
+| 1 Functional fixes | DONE | 8 | Compose overrides, designations, used-valueset, count guard, regex |
+| 2 Port existing | DONE | 41 | shape-A/B, infra, filters, logic, pagination, multi-system, coverage |
+| 3 Rewrite tests | DONE | 8 | IR optimizer unit tests (separate file) |
+| 4 Fixture expansion | DONE | 14 | US states, area codes, MIME, language providers |
+| 5 Inline supplements | NEXT | ~11 | Inline CS plumbing (9 codex-2 + 2 new v0) |
+| 5-adv Supplement filters | deferred | ~13 | SQLite supplement DBs, property filtering |
+| 6 Grammar providers | DONE | 3 | UCUM specialEnumeration, MIME/lang too-costly |
+| 7 Limit/too-costly | pending | ~3 | Limit enforcement |
+| 8 High-value stress | pending | ~4 | Large-scale pagination/parity |
+| N/A Codex-2-internal | skip | 6 | Trace assertions, decision tables, v3-only guards |
+| **Total** | | **~111 done + ~31 remaining** | 128 harness + 8 rewrite = **136 passing** |
 
 ---
 
