@@ -49,6 +49,7 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   if (opts.count !== undefined) params.push({ name: 'count', valueInteger: opts.count });
   if (opts.offset !== undefined) params.push({ name: 'offset', valueInteger: opts.offset });
   if (opts.activeOnly) params.push({ name: 'activeOnly', valueBoolean: true });
+  if (opts.excludeNested != null) params.push({ name: 'excludeNested', valueBoolean: opts.excludeNested });
   if (opts.filter) params.push({ name: 'filter', valueString: opts.filter });
   if (opts.includeDesignations) params.push({ name: 'includeDesignations', valueBoolean: true });
   if (WANT_TRACE) params.push({ name: '_trace', valueString: 'true' });
@@ -2149,6 +2150,278 @@ async function run() {
     }), { count: 5 });
     assert(result.expansion.total > 100,
       `RxNorm TTY=SCD should have many codes, got ${result.expansion.total}`);
+  });
+
+  // ── Phase 9: hierarchical expansion ──────────────────────────────────
+  // These test that the IR engine produces hierarchical (nested .contains)
+  // output matching the legacy engine for cs-cs providers with hierarchy.
+
+  // Helper: collect only top-level contains (no recursion)
+  function topLevel(result) {
+    return (result.expansion?.contains || []);
+  }
+
+  // Helper: check if result has any nested .contains
+  function hasNesting(result) {
+    for (const c of result.expansion?.contains || []) {
+      if (c.contains && c.contains.length > 0) return true;
+    }
+    return false;
+  }
+
+  // Helper: collect all codes from nested structure, with depth info
+  function codesWithDepth(result) {
+    const out = [];
+    const walk = (items, depth) => {
+      for (const c of items || []) {
+        out.push({ code: c.code, display: c.display, depth });
+        walk(c.contains, depth + 1);
+      }
+    };
+    walk(result.expansion?.contains, 0);
+    return out;
+  }
+
+  // Helper: get children of a specific code in the expansion
+  function childrenOf(result, parentCode) {
+    const find = (items) => {
+      for (const c of items || []) {
+        if (c.code === parentCode) return (c.contains || []).map(x => x.code);
+        const sub = find(c.contains);
+        if (sub) return sub;
+      }
+      return null;
+    };
+    return find(result.expansion?.contains) || [];
+  }
+
+  // ── 9.1: whole-system hierarchy (default, excludeNested not set) ──
+
+  await test('hierarchy: condition-clinical whole-system has nested structure', async () => {
+    // condition-clinical: active→[recurrence,relapse], inactive→[remission,resolved], unknown
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+    );
+    eq(result.expansion.total, 7, 'total');
+    assert(hasNesting(result), 'should have nested .contains');
+    // Top-level should be roots only
+    const roots = topLevel(result).map(c => c.code);
+    assert(roots.includes('active'), 'active is root');
+    assert(roots.includes('inactive'), 'inactive is root');
+    assert(roots.includes('unknown'), 'unknown is root');
+    assert(!roots.includes('recurrence'), 'recurrence should be nested, not root');
+    assert(!roots.includes('remission'), 'remission should be nested, not root');
+    // Check parent-child relationships
+    const activeKids = childrenOf(result, 'active');
+    assert(activeKids.includes('recurrence'), 'recurrence is child of active');
+    assert(activeKids.includes('relapse'), 'relapse is child of active');
+    const inactiveKids = childrenOf(result, 'inactive');
+    assert(inactiveKids.includes('remission'), 'remission is child of inactive');
+    assert(inactiveKids.includes('resolved'), 'resolved is child of inactive');
+  });
+
+  await test('hierarchy: condition-ver-status whole-system has nested structure', async () => {
+    // unconfirmed→[provisional,differential], confirmed, refuted, entered-in-error
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status' }),
+    );
+    eq(result.expansion.total, 6, 'total');
+    assert(hasNesting(result), 'should have nested .contains');
+    const roots = topLevel(result).map(c => c.code);
+    assert(!roots.includes('provisional'), 'provisional should be nested');
+    assert(!roots.includes('differential'), 'differential should be nested');
+    const kids = childrenOf(result, 'unconfirmed');
+    assert(kids.includes('provisional'), 'provisional is child of unconfirmed');
+    assert(kids.includes('differential'), 'differential is child of unconfirmed');
+  });
+
+  await test('hierarchy: goal-achievement multi-level nesting preserved', async () => {
+    // in-progress→[improving,worsening,no-change], achieved→[sustaining],
+    // not-achieved→[no-progress,not-attainable]
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/goal-achievement' }),
+    );
+    eq(result.expansion.total, 9, 'total');
+    assert(hasNesting(result), 'should have nested .contains');
+    const roots = topLevel(result).map(c => c.code);
+    eq(roots.length, 3, 'three root codes');
+    const ipKids = childrenOf(result, 'in-progress');
+    eq(ipKids.length, 3, 'in-progress has 3 children');
+    const naKids = childrenOf(result, 'not-achieved');
+    eq(naKids.length, 2, 'not-achieved has 2 children');
+  });
+
+  await test('hierarchy: total counts all codes including nested', async () => {
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+    );
+    // total should be 7 (all codes), not 3 (root count)
+    eq(result.expansion.total, 7, 'total includes nested codes');
+    // Recursive walk should also find 7
+    eq(codes(result).length, 7, 'recursive walk finds all 7');
+  });
+
+  // ── 9.2: excludeNested=true → flat output ──
+
+  await test('hierarchy: excludeNested=true returns flat condition-clinical', async () => {
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      { excludeNested: true },
+    );
+    eq(result.expansion.total, 7, 'total');
+    assert(!hasNesting(result), 'should NOT have nested .contains');
+    // All 7 codes at top level
+    eq(topLevel(result).length, 7, 'all codes at top level');
+    const allCodes = topLevel(result).map(c => c.code);
+    assert(allCodes.includes('recurrence'), 'recurrence at top level');
+    assert(allCodes.includes('remission'), 'remission at top level');
+  });
+
+  await test('hierarchy: excludeNested=true on goal-achievement is flat', async () => {
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/goal-achievement' }),
+      { excludeNested: true },
+    );
+    eq(result.expansion.total, 9, 'total');
+    assert(!hasNesting(result), 'should NOT have nested .contains');
+    eq(topLevel(result).length, 9, 'all 9 codes flat');
+  });
+
+  // ── 9.3: pagination forces flat ──
+
+  await test('hierarchy: offset > 0 forces flat even on hierarchical CS', async () => {
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      { offset: 1, count: 3 },
+    );
+    assert(!hasNesting(result), 'paginated result should be flat');
+    eq(result.expansion.total, 7, 'total still 7');
+  });
+
+  await test('hierarchy: count < total forces flat', async () => {
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      { count: 3 },
+    );
+    assert(!hasNesting(result), 'partial page should be flat');
+    eq(result.expansion.total, 7, 'total still 7');
+  });
+
+  await test('hierarchy: count >= total allows nesting', async () => {
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      { count: 100 },
+    );
+    assert(hasNesting(result), 'count >= total should allow nesting');
+    eq(result.expansion.total, 7, 'total');
+  });
+
+  // ── 9.4: non-hierarchical CS is unaffected ──
+
+  await test('hierarchy: non-hierarchical CS (gender) is always flat', async () => {
+    const { result } = await expand(
+      vs({ system: 'http://hl7.org/fhir/administrative-gender' }),
+    );
+    eq(result.expansion.total, 4, 'total');
+    assert(!hasNesting(result), 'gender has no hierarchy');
+    eq(topLevel(result).length, 4, 'all 4 at top level');
+  });
+
+  // ── 9.5: concept enumeration (not whole-system) ──
+
+  await test('hierarchy: concept enumeration from hierarchical CS is flat', async () => {
+    // Requesting specific codes — no hierarchy regardless
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical',
+           concept: [{ code: 'active' }, { code: 'recurrence' }, { code: 'inactive' }] }),
+    );
+    eq(codes(result).length, 3, 'three codes returned');
+    // Even though active→recurrence in the full system, concept enumeration
+    // should not nest (only whole-system iteration walks the tree)
+    assert(!hasNesting(result), 'concept enumeration should be flat');
+  });
+
+  // ── 9.6: filter on hierarchical CS ──
+
+  await test('hierarchy: filter on hierarchical CS uses parent() for nesting', async () => {
+    // Use is-a filter on condition-clinical to get a subtree
+    // is-a 'active' should return: active, recurrence, relapse
+    const { result } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical',
+           filter: [{ property: 'concept', op: 'is-a', value: 'active' }] }),
+    );
+    eq(result.expansion.total, 3, 'active subtree has 3 codes');
+    const allCodes = codes(result).map(c => c.code);
+    assert(allCodes.includes('active'), 'has active');
+    assert(allCodes.includes('recurrence'), 'has recurrence');
+    assert(allCodes.includes('relapse'), 'has relapse');
+    // Should be nested: active → [recurrence, relapse]
+    assert(hasNesting(result), 'is-a filter result should be nested');
+    const activeKids = childrenOf(result, 'active');
+    assert(activeKids.includes('recurrence'), 'recurrence under active');
+    assert(activeKids.includes('relapse'), 'relapse under active');
+  });
+
+  // ── 9.7: IR matches legacy for hierarchical output ──
+
+  await test('hierarchy: IR matches legacy for condition-clinical', async () => {
+    const { result: ir } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      {}, 'ir',
+    );
+    const { result: legacy } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      {}, 'legacy',
+    );
+    // Same total
+    eq(ir.expansion.total, legacy.expansion.total, 'totals match');
+    // Same set of codes
+    const irCodes = codes(ir).map(c => c.code).sort();
+    const legCodes = codes(legacy).map(c => c.code).sort();
+    eq(JSON.stringify(irCodes), JSON.stringify(legCodes), 'same code sets');
+    // Same nesting structure
+    const irNested = hasNesting(ir);
+    const legNested = hasNesting(legacy);
+    eq(irNested, legNested, 'both have same nesting');
+    // Same root codes
+    const irRoots = topLevel(ir).map(c => c.code).sort();
+    const legRoots = topLevel(legacy).map(c => c.code).sort();
+    eq(JSON.stringify(irRoots), JSON.stringify(legRoots), 'same root codes');
+  });
+
+  await test('hierarchy: IR matches legacy for goal-achievement', async () => {
+    const { result: ir } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/goal-achievement' }),
+      {}, 'ir',
+    );
+    const { result: legacy } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/goal-achievement' }),
+      {}, 'legacy',
+    );
+    eq(ir.expansion.total, legacy.expansion.total, 'totals match');
+    const irRoots = topLevel(ir).map(c => c.code).sort();
+    const legRoots = topLevel(legacy).map(c => c.code).sort();
+    eq(JSON.stringify(irRoots), JSON.stringify(legRoots), 'same root codes');
+    // Check a specific subtree matches
+    const irIpKids = childrenOf(ir, 'in-progress').sort();
+    const legIpKids = childrenOf(legacy, 'in-progress').sort();
+    eq(JSON.stringify(irIpKids), JSON.stringify(legIpKids), 'in-progress children match');
+  });
+
+  await test('hierarchy: IR matches legacy excludeNested=true', async () => {
+    const { result: ir } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      { excludeNested: true }, 'ir',
+    );
+    const { result: legacy } = await expand(
+      vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
+      { excludeNested: true }, 'legacy',
+    );
+    assert(!hasNesting(ir), 'IR flat');
+    assert(!hasNesting(legacy), 'legacy flat');
+    const irCodes = codes(ir).map(c => c.code).sort();
+    const legCodes = codes(legacy).map(c => c.code).sort();
+    eq(JSON.stringify(irCodes), JSON.stringify(legCodes), 'same codes when flat');
   });
 
   // ── summary ──────────────────────────────────────────────────────────
