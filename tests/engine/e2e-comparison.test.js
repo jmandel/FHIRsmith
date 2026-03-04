@@ -46,14 +46,29 @@ async function expandBothPaths(vsUrl, extraParams = {}) {
   return { ir, legacy };
 }
 
+/** Recursively extract all codes from expansion (handles nested .contains hierarchy). */
 function extractCodes(expansion) {
-  return (expansion?.expansion?.contains || []).map(c => c.code).sort();
+  const codes = [];
+  function walk(contains) {
+    for (const c of contains || []) {
+      codes.push(c.code);
+      walk(c.contains);
+    }
+  }
+  walk(expansion?.expansion?.contains);
+  return codes.sort();
 }
 
 function extractCodeDisplayPairs(expansion) {
-  return (expansion?.expansion?.contains || [])
-    .map(c => ({ code: c.code, display: c.display }))
-    .sort((a, b) => a.code.localeCompare(b.code));
+  const pairs = [];
+  function walk(contains) {
+    for (const c of contains || []) {
+      pairs.push({ code: c.code, display: c.display });
+      walk(c.contains);
+    }
+  }
+  walk(expansion?.expansion?.contains);
+  return pairs.sort((a, b) => a.code.localeCompare(b.code));
 }
 
 // Use a getter-like pattern to defer the check
@@ -74,24 +89,20 @@ describe('E2E: IR vs Legacy expansion comparison', () => {
     }, timeout);
   }
 
-  testIfServer('SNOMED is-a: IR is superset of legacy (legacy has known gaps)', async () => {
+  testIfServer('SNOMED is-a: same code set (legacy hierarchy flattened)', async () => {
     const { ir, legacy } = await expandBothPaths(
       'http://snomed.info/sct?fhir_vs=isa/73211009',
       { count: '200', activeOnly: 'true' }
     );
 
-    const irCodes = new Set(extractCodes(ir));
-    const legacyCodes = new Set(extractCodes(legacy));
+    const irCodes = extractCodes(ir);
+    const legacyCodes = extractCodes(legacy);
 
-    // Same total (both derive from same closure table)
+    // Same total
     expect(ir.expansion.total).toBe(legacy.expansion.total);
-    // Legacy is a subset of IR (legacy ValueSetExpander may miss codes due
-    // to iterator-based traversal vs IR's direct SQL on closure table)
-    for (const c of legacyCodes) {
-      expect(irCodes.has(c)).toBe(true);
-    }
-    // IR returns at least as many
-    expect(irCodes.size).toBeGreaterThanOrEqual(legacyCodes.size);
+    // Same code set (legacy may nest codes in .contains hierarchy;
+    // extractCodes walks recursively to get all codes)
+    expect(irCodes).toEqual(legacyCodes);
   });
 
   testIfServer('SNOMED is-a: same displays', async () => {
@@ -148,11 +159,8 @@ describe('E2E: IR vs Legacy expansion comparison', () => {
     const ir = await irResp.json();
     const legacy = await legacyResp.json();
 
-    // IR is superset of legacy for same reason as is-a test
-    const irCodes = new Set(extractCodes(ir));
-    const legacyCodes = new Set(extractCodes(legacy));
-    for (const c of legacyCodes) expect(irCodes.has(c)).toBe(true);
-    expect(irCodes.size).toBeGreaterThanOrEqual(legacyCodes.size);
+    expect(ir.expansion.total).toBe(legacy.expansion.total);
+    expect(extractCodes(ir)).toEqual(extractCodes(legacy));
   });
 
   testIfServer('SNOMED concept enumeration: same codes and displays', async () => {
@@ -264,15 +272,15 @@ describe('E2E: IR vs Legacy expansion comparison', () => {
     expect(irEntry.designation).toBeDefined();
     expect(legacyEntry.designation).toBeDefined();
 
-    // IR bulk decoration filters inactive designations; legacy includes all.
-    // IR designations should be a subset of legacy.
-    const irDesigValues = new Set((irEntry.designation || []).map(d => d.value));
+    // Compare designation values (sort for deterministic comparison).
+    // IR bulk decoration filters inactive designations; legacy may include them.
+    // So IR designations should be a subset of legacy.
+    const irDesigValues = (irEntry.designation || []).map(d => d.value).sort();
     const legacyDesigValues = new Set((legacyEntry.designation || []).map(d => d.value));
+    expect(irDesigValues.length).toBeGreaterThan(0);
     for (const v of irDesigValues) {
       expect(legacyDesigValues.has(v)).toBe(true);
     }
-    expect(irDesigValues.size).toBeGreaterThan(0);
-    expect(legacyDesigValues.size).toBeGreaterThanOrEqual(irDesigValues.size);
   });
 
   testIfServer('LOINC property filter: same code set', async () => {
