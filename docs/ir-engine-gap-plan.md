@@ -286,57 +286,212 @@ comparing membership:
 
 ---
 
-## Phase 4 — Deferred (need infrastructure or are out of scope)
+## Phase 4 — Fixture expansion
 
-### 4.1 Supplement system (22 codex-2 tests)
+Several codex-2 tests use providers not in our test fixture. Most can
+be enabled by adding one line to `tests/tx/fixtures/v0-test-library.yaml`.
 
-The entire supplement subsystem (`useSupplement` parameter, supplement
-resolution, supplement property/designation projection) is a large
-feature that the IR engine doesn't touch. Supplements flow through
-the provider layer (`loadSupplements` in `worker.js`), which the IR
-engine calls via `findProvider`. So basic supplement *loading* works,
-but the IR engine doesn't:
-- Emit `used-supplement` parameters
-- Handle supplement-based property filters
-- Handle `valueset-supplement` extension validation
+### 4.1 Add `internal:usstates` to fixture (7 tests unblocked)
 
-This is a substantial feature area (22 tests). Defer to a separate
-work stream.
+**Prerequisite**: Add `- internal:usstates` to the YAML sources list.
+No code changes needed—the `USStateFactoryProvider` is already
+implemented in `tx/cs/cs-usstates.js` and registered in `tx/library.js`
+case `"usstates"`. 57 US states/territories, preloaded map provider.
 
-### 4.2 Providers not loaded in fixture (12 codex-2 tests)
+**Tests unblocked**:
+- `shape-A: US states full expansion` (L1163)
+- `shape-B: US states enumerated` (L2372)
+- `exclude: US states subtract 2 from 4 enumerated` (L3040)
+- `exclude: exclude from whole system (preloaded map)` (L3151)
+- `pagination: US states disjoint pages` (L3198)
+- `pagination: US states last page partial` (L3218)
+- `pagination: US states offset beyond end` (L3226)
 
-These need providers not available in our test fixture:
-- `shape-A: US states full expansion` / `shape-A: area codes` — USPS, M49 not loaded
-- `shape-B: US states enumerated` — USPS not loaded
-- `shape-B: language codes enumerated` — bcp:47 concept include works but whole-system doesn't
-- `shape-B: MIME types enumerated` — MIME not loaded
-- `filter: area codes class=region/country` — M49 not loaded
-- `exclude: US states subtract...` — USPS not loaded
-- `exclude: exclude from whole system (preloaded map)` — USPS not loaded
-- `pagination: currency/US states` — USPS not loaded
-- `coverage: with USPS peer` — USPS not loaded
+Also unblocks coverage/multi-system tests that pair USPS with other systems:
+- `multi-system: gender + US states union` (L3341)
+- `coverage: valueset-import include with USPS peer` (L3700, L3712)
+- `pagination-safety: mixed v0 + preloaded reconstruct` (L3796)
 
-**Options**: Add `internal:usps` to the test library YAML, or skip.
-Most behaviors these test are already covered by gender/country.
+### 4.2 Add `internal:areacode` to fixture (3 tests unblocked)
 
-### 4.3 notClosed: grammar-based providers (2 codex-2 tests)
-- `notClosed: UCUM expansion reports valueset-unclosed extension` — UCUM is loaded; need to verify IR handles this
-- `notClosed: MIME whole-system expansion is not enumerable` — MIME not loaded
+**Prerequisite**: Add `- internal:areacode` to YAML. Provider is
+`AreaCodeFactoryProvider` in `tx/cs/cs-areacode.js`, system
+`http://unstats.un.org/unsd/methods/m49/m49.htm`. Has property
+filters (`class` = region/country).
 
-### 4.4 Internal engine-specific tests (5 codex-2 tests)
-- `logic: total policy decision table` — tests codex-2's `decideTotalOutcome` function, which we don't have
-- `logic: display fast path is exercised on cs-cs provider` — tests codex-2 internal trace counter
-- `logic: low limit without pagination returns too-costly` — tests limit enforcement, different in IR
-- `logic: low limit with pagination allows partial page` — tests limit enforcement
-- `logic: text-filter low-limit fallback short-circuits without total` — tests codex-2 fallback
+**Tests unblocked**:
+- `shape-A: area codes full expansion` (L1225)
+- `filter: area codes class=region` (L2517)
+- `filter: area codes class=country` (L2533)
+- `coverage: areacode class filter with cs-cs peer` (L3740)
 
-### 4.5 High-value stress tests (4 codex-2 tests)
-- `high-value: mixed-system text filter limit boundary then success` — complex multi-mode test
-- `high-value: include.valueSet + sibling filter works at scale` — pushdown/fallback comparison
-- `high-value: SNOMED hierarchy tail pagination is stable across modes` — large offset comparison
-- `high-value: complex same-system include/exclude pages are internally consistent per mode` — complex
+### 4.3 Add `internal:mimetypes` to fixture (2 tests unblocked)
 
-These are valuable but complex. Port after phases 1–3.
+**Prerequisite**: Add `- internal:mimetypes` to YAML. Provider is
+`MimeTypeServicesFactory` in `tx/cs/cs-mimetypes.js`, system
+`urn:ietf:bcp:13`. Grammar-based (`totalCount()` returns -1), so
+whole-system expansion should fail or return unclosed.
+
+**Tests unblocked**:
+- `shape-B: MIME types enumerated` (L2497) — concept-include, not whole-system
+- `notClosed: MIME whole-system not enumerable` (L2832)
+- `coverage: MIME concept + language peer` (L3636)
+
+### 4.4 Language provider (already loaded)
+
+`internal:lang` IS in the fixture. `urn:ietf:bcp:47` concept-include
+works (verified: `en`, `fr-CA` resolve). Whole-system throws because
+`cs-lang.js` line 299: `"Language valuesets cannot be expanded…"`.
+
+**Tests already unblocked**:
+- `shape-B: language codes enumerated` (L2483) — uses concept include, should work
+- `params: language code includeDesignations` (L2681) — concept include + designations
+
+---
+
+## Phase 5 — Supplement system (22 codex-2 tests)
+
+Supplements flow through the provider layer. Investigation reveals:
+
+**What already works**: `_tryIRExpansion` calls `worker.findCodeSystem()`
+which calls `loadSupplements()`. Language packs (auto-detected via
+`cs.isLangPack()`) are loaded. The provider returned to the IR engine
+is already supplement-aware—`SqliteV0Provider` receives supplements
+in its constructor and merges supplement designations/properties via
+`_displayFromSupplements()` and `_listSupplementDesignations()`.
+
+**What doesn't work**:
+1. `useSupplement` parameter: IR passes `statedSupplements=null` to
+   `findCodeSystem` (expand.js L2007). Legacy passes
+   `this.requiredSupplements` (populated from `params.supplements`).
+   Fix: pass `params.supplements` as statedSupplements in `_tryIRExpansion`.
+2. `valueset-supplement` extension: Legacy reads this from the VS at
+   line 1161 and adds to `requiredSupplements`. IR doesn't.
+   Fix: read the extension from `vsJson` in `_tryIRExpansion` and
+   merge into the supplement set.
+3. `used-supplement` parameter: IR's `buildExpandedValueSet` doesn't
+   emit it. Fix: providers that used supplements could expose a
+   `usedSupplements()` method, or the orchestrator could check
+   `provider.supplements` after expansion.
+4. Missing supplement validation: Legacy checks that all required
+   supplements were used and throws `VALUESET_SUPPLEMENT_MISSING` if
+   not. IR doesn't.
+5. Supplement property filters: Legacy supports filtering by
+   supplement-defined properties via fallback predicates. The IR SQL
+   builder doesn't know about supplement properties.
+
+**Phased approach**:
+- **5a**: Wire `useSupplement` + `valueset-supplement` into IR's
+  `findProvider` callback (fix #1, #2). This makes supplement
+  designations/properties appear in results. ~10 lines changed.
+- **5b**: Emit `used-supplement` parameter (fix #3). Requires
+  plumbing supplement URLs from provider through orchestrator.
+- **5c**: Validate required supplements (fix #4). Port the
+  `checkSupplements` logic.
+- **5d**: Supplement property filter pushdown (fix #5). Complex;
+  may be best handled by falling back to legacy for these cases.
+
+**Tests by sub-phase**:
+| Sub-phase | Tests |
+|---|---|
+| 5a | `supplement: useSupplement applies content` (L1300), `supplement: valueset-supplement extension activates` (L1391), `supplement: version-pinned canonical accepted` (L1610), `supplement: provided but not requested is ignored` (L1355) |
+| 5b | `supplement: used-supplement deduped` (L1433) |
+| 5c | `supplement: missing required fails` (L1472), `supplement: missing VS extension fails` (L1498) |
+| 5d | `supplement: designation filter selects supplement use` (L1526), `supplement: itemWeight projected` (L1573) |
+| 5a+ | All 9 `supplement-sqlite:` tests (D20 fixture), 2 `supplement d20+d8` tests |
+| 5d | 2 `supplement-report:` tests |
+
+---
+
+## Phase 6 — Grammar-based providers (UCUM, MIME, language)
+
+### 6.1 UCUM whole-system: specialEnumeration handling
+
+**Problem**: UCUM whole-system returns 0 codes in IR. Legacy handles
+this via `specialEnumeration()`—when a provider returns a VS URL
+from `specialEnumeration()`, legacy expands that VS instead of
+iterating the code system. UCUM returns
+`http://hl7.org/fhir/ValueSet/ucum-common` which has ~300 common units.
+
+The IR engine's `LegacyIRAdapter` calls `iteratorAll()` which
+delegates to `iterator(null)` on UCUM, which returns null→empty.
+The adapter doesn't know about `specialEnumeration()`.
+
+**Fix**: In `LegacyIRAdapter.executeSelector()`, when `shape==='whole'`
+and `provider.specialEnumeration()` returns a URL, resolve and expand
+that VS instead of calling `iteratorAll()`. Also set the
+`valueset-unclosed` flag on the expansion.
+
+**Tests**: `notClosed: UCUM expansion reports valueset-unclosed` (L2195)
+
+### 6.2 MIME/language grammar errors
+
+MIME and language whole-system should throw "cannot be enumerated"
+errors. Currently the IR engine returns empty instead of erroring.
+
+**Fix**: `LegacyIRAdapter.executeSelector()` for `shape==='whole'`
+should check `provider.totalCount() === -1` (grammar-based) and
+either throw or return a signal that triggers the error.
+
+**Tests**: `notClosed: MIME whole-system not enumerable` (L2832)
+
+---
+
+## Phase 7 — Limit enforcement and too-costly errors
+
+The IR engine doesn't implement the `limit` parameter's too-costly
+check. Legacy throws `VALUESET_TOO_COSTLY` when total > limit and
+no pagination is used.
+
+Currently, IR silently truncates to `EXTERNAL_DEFAULT_LIMIT` (1000)
+when no count is specified. With pagination (`count` + `offset`),
+users can page through any result set.
+
+**What to implement**:
+1. When `params.limit > 0` and no pagination (`offset < 0`), check
+   total against limit before returning. Throw too-costly if exceeded.
+2. When `params.limit > 0` with pagination, allow partial pages
+   (current behavior is correct).
+3. Text filter + limit: skip total computation, just cap results.
+
+**Tests**:
+- `logic: low limit without pagination returns too-costly` (L4389)
+- `logic: low limit with pagination allows partial page` (L4404)
+- `logic: text-filter low-limit fallback short-circuits without total` (L4419)
+
+---
+
+## Phase 8 — High-value stress tests (4 codex-2 tests)
+
+These are expensive integration tests verifying behavior at scale.
+No engine changes needed—they test pagination stability and parity.
+
+- `high-value: mixed-system text filter limit boundary` (L4437) —
+  needs Phase 7 (limit enforcement) first
+- `high-value: include.valueSet + sibling filter at scale` (L4513) —
+  portworthy after Phase 2; tests import + filter pagination
+- `high-value: SNOMED hierarchy tail pagination stable` (L5014) —
+  portworthy now; tests deep offset on large is-a
+- `high-value: complex same-system inc/exc pages consistent` (L5070) —
+  portworthy now; tests multi-include with excludes
+
+---
+
+## Codex-2-internal tests (not applicable)
+
+These test codex-2-specific internals that don't exist in our engine:
+
+| Test | Why N/A |
+|---|---|
+| `logic: total policy decision table` (L3987) | Tests `decideTotalOutcome()` function from codex-2's `expand-v3/` |
+| `logic: display fast path exercised` (L4025) | Tests codex-2 trace counter `display_fastpath_hits` |
+| `logic: sqlite-v0 pushdown active` (L3899) | Tests codex-2 trace span `v0.expandQuery` |
+| `logic: fallback deep-offset no partial total` (L4210) | Tests codex-2 pushdown-off fallback behavior |
+| `v3-gap: mixed-system import prevents root pushdown` (L4931) | Tests codex-2 root pushdown guard |
+
+These 5 tests are truly N/A. Our engine's equivalent behaviors are
+tested via e2e parity (Phase 3) and functional tests (Phases 1–2).
+The trace/pushdown-toggle infrastructure doesn't exist in our engine.
 
 ---
 
@@ -351,18 +506,43 @@ These are valuable but complex. Port after phases 1–3.
 6. **Implement 1.8** (property regex in SQL) + test
 7. **Create `scripts/ir-rewrite-tests.mjs`** for Phase 3 unit tests
 8. **Add e2e rewrite parity tests** to the harness
-9. **Port high-value stress tests** (Phase 4.5)
-10. **Evaluate supplement scope** (Phase 4.1)
+9. **Phase 4**: Add missing providers to fixture YAML (usstates,
+   areacode, mimetypes) + port unblocked tests
+10. **Phase 5a**: Wire useSupplement into IR findProvider callback
+11. **Phase 5b–5c**: used-supplement emission + validation
+12. **Phase 6**: Grammar-based provider handling (UCUM specialEnumeration,
+    MIME/lang too-costly errors)
+13. **Phase 7**: Limit enforcement + too-costly errors
+14. **Phase 8**: High-value stress tests
+15. **Phase 5d**: Supplement property filter pushdown (complex, may
+    require SQL builder changes or fallback-to-legacy)
 
 ## Test count projection
 
-| Phase | New tests | Running total |
-|---|---|---|
-| Current | 61 | 61 |
-| Phase 1 fixes + tests | ~8 | ~69 |
-| Phase 2 ports | ~25 | ~94 |
-| Phase 3 rewrite unit tests | ~9 | ~103 |
-| Phase 4.5 stress tests | ~4 | ~107 |
+| Phase | New tests | Running total | Notes |
+|---|---|---|---|
+| Current | 61 | 61 | |
+| Phase 1 fixes + tests | ~8 | ~69 | Engine changes |
+| Phase 2 ports | ~25 | ~94 | No engine changes |
+| Phase 3 rewrite tests | ~10 | ~104 | Unit + parity |
+| Phase 4 fixture | ~14 | ~118 | YAML change only |
+| Phase 5a–5c supplements | ~8 | ~126 | Wire + validate |
+| Phase 6 grammar providers | ~3 | ~129 | Adapter changes |
+| Phase 7 limit/too-costly | ~3 | ~132 | |
+| Phase 8 high-value | ~4 | ~136 | |
+| Phase 5d supplement filters | ~6 | ~142 | Complex |
+| **Remaining N/A** | | | 5 codex-2-internal, ~8 covered by adapted tests |
+
+## Stash contents
+
+`git stash list` shows partial work implementing Phase 1 items 1.1–1.4:
+- `tx/engine/orchestrator.js`: compose display/designation override,
+  used-valueset emission, count≥0 guard, collectComposeOverrides/
+  applyComposeOverrides/walkIR helpers, addParamIfAbsent helper
+- `tx/engine/resolve-imports.js`: usedValueSets tracking in
+  resolveImports, attached as `_usedValueSets` on resolved IR
+
+Apply with `git stash pop`.
 
 ---
 
@@ -370,21 +550,23 @@ These are valuable but complex. Port after phases 1–3.
 
 Every codex-2 test mapped to a disposition. Legend:
 - ✅ = already ported (equivalent test exists in ir-harness)
-- 🟢 = port now (works today, no engine change needed)
-- 🟡 = port after fix (needs engine change from Phase 1)
-- 🟠 = rewrite unit test (Phase 3)
-- 🟣 = deferred: supplement system
-- ⚪ = deferred: fixture not loaded
-- ⚫ = deferred: codex-2-internal (traces/pushdown toggles/decision tables)
+- 🟢 = port now (works today, no engine change needed) — Phase 2
+- 🟡 = port after fix (needs engine change) — Phase 1
+- 🟠 = rewrite unit test — Phase 3
+- 🟣 = supplement system — Phase 5
+- 🟫 = fixture expansion — Phase 4 (add to YAML then port)
+- 🟥 = grammar/limit handling — Phase 6–7
+- 🟧 = high-value stress test — Phase 8
+- ⚫ = codex-2-internal (5 tests, not applicable)
 
 ### shape-A (whole system)
 | # | Test | Disposition | Notes |
 |---|---|---|---|
-| 1 | shape-A: US states full expansion | ⚪ | USPS not loaded |
+| 1 | shape-A: US states full expansion | 🟫 | USPS not loaded |
 | 2 | shape-A: currency full expansion | 🟢 | internal:currency loaded |
 | 3 | shape-A: administrative-gender (cs-cs) | 🟢 | covered by `gender whole-system: 4 codes` but codex-2 has tighter assertions |
 | 4 | shape-A: publication-status (cs-cs) | 🟢 | |
-| 5 | shape-A: area codes full expansion | ⚪ | M49 not loaded |
+| 5 | shape-A: area codes full expansion | 🟫 | M49 not loaded |
 
 ### infra
 | # | Test | Disposition | Notes |
@@ -404,13 +586,13 @@ Every codex-2 test mapped to a disposition. Legend:
 | # | Test | Disposition | Notes |
 |---|---|---|---|
 | 30 | params: property=definition | 🟢 | verified working via curl |
-| 31 | params: language code includeDesignations (internal:lang) | ⚪ | bcp:47 concept include works but whole-system doesn't |
+| 31 | params: language code includeDesignations (internal:lang) | 🟫 | bcp:47 concept include works but whole-system doesn't |
 
 ### notClosed
 | # | Test | Disposition | Notes |
 |---|---|---|---|
-| 32 | notClosed: UCUM valueset-unclosed | 🟢 | UCUM loaded; need to verify IR handles specialEnumeration |
-| 33 | notClosed: MIME whole-system not enumerable | ⚪ | MIME provider not loaded |
+| 32 | notClosed: UCUM valueset-unclosed | 🟥 | Phase 6: needs specialEnumeration handling |
+| 33 | notClosed: MIME whole-system not enumerable | 🟫 | MIME provider not loaded |
 
 ### meta (9 tests)
 | # | Test | Disposition | Notes |
@@ -428,21 +610,21 @@ Every codex-2 test mapped to a disposition. Legend:
 ### shape-B (enumerated)
 | # | Test | Disposition | Notes |
 |---|---|---|---|
-| 43 | shape-B: US states enumerated | ⚪ | USPS not loaded |
+| 43 | shape-B: US states enumerated | 🟫 | USPS not loaded |
 | 44 | shape-B: gender enumerated subset | ✅ | `gender enumerated subset: male+female only` |
 | 45 | shape-B: SNOMED enumerated | ✅ | `SNOMED 3 codes: correct displays` |
 | 46 | shape-B: LOINC enumerated | ✅ | `LOINC enumerated: 2160-0 + 2345-7` |
 | 47 | shape-B: RxNorm enumerated | ✅ | `RxNorm enumerated: aspirin + ibuprofen + acetaminophen` |
 | 48 | shape-B: user-supplied display override | 🟡 | needs 1.1 (stashed) |
 | 49 | shape-B: single concept exact match (v0) | 🟢 | |
-| 50 | shape-B: language codes enumerated | ⚪ | bcp:47 not enumerable as whole system |
-| 51 | shape-B: MIME types enumerated | ⚪ | MIME not loaded |
+| 50 | shape-B: language codes enumerated | 🟫 | bcp:47 not enumerable as whole system |
+| 51 | shape-B: MIME types enumerated | 🟫 | MIME not loaded |
 
 ### filter (13 tests)
 | # | Test | Disposition | Notes |
 |---|---|---|---|
-| 52 | filter: area codes class=region | ⚪ | M49 not loaded |
-| 53 | filter: area codes class=country | ⚪ | M49 not loaded |
+| 52 | filter: area codes class=region | 🟫 | M49 not loaded |
+| 53 | filter: area codes class=country | 🟫 | M49 not loaded |
 | 54 | filter: currency decimals=0 | 🟢 | internal:currency loaded |
 | 55 | filter: country code regex A.* | 🟢 | internal:country loaded |
 | 56 | filter: gender regex [mf].* | 🟢 | verified working |
@@ -481,22 +663,22 @@ Every codex-2 test mapped to a disposition. Legend:
 | # | Test | Disposition | Notes |
 |---|---|---|---|
 | 79 | exclude: gender minus other+unknown | ✅ | `gender exclude: minus other+unknown = male+female` |
-| 80 | exclude: US states subtract 2 from 4 | ⚪ | USPS not loaded |
+| 80 | exclude: US states subtract 2 from 4 | 🟫 | USPS not loaded |
 | 81 | exclude: SNOMED exclude enumerated from is-a | ✅ | `Diabetes exclude 2 enumerated codes` |
 | 82 | exclude: SNOMED is-a minus Type2 | ✅ | `Diabetes minus Type2 subtree: 108 codes` |
 | 83 | exclude: SNOMED is-a minus Type1 | ✅ | covered by `Diabetes minus Type1+Type2` |
 | 84 | exclude: inline FHIR filter-based exclude | 🟢 | condition-ver-status loaded |
 | 85 | exclude: cross-system multi-exclude | ✅ | `cross-system exclude: gender+pubstat minus both unknowns` |
-| 86 | exclude: exclude from whole system | ⚪ | USPS not loaded |
+| 86 | exclude: exclude from whole system | 🟫 | USPS not loaded |
 
 ### pagination (8 tests)
 | # | Test | Disposition | Notes |
 |---|---|---|---|
 | 87 | pagination: currency count=10 offset=0 | 🟢 | currency loaded |
 | 88 | pagination-bug: preloaded map total consistency | 🟢 | use currency instead of USPS |
-| 89 | pagination: US states disjoint pages | ⚪ | USPS not loaded |
-| 90 | pagination: US states last page partial | ⚪ | USPS not loaded |
-| 91 | pagination: US states offset beyond end | ⚪ | USPS not loaded (but covered by existing) |
+| 89 | pagination: US states disjoint pages | 🟫 | USPS not loaded |
+| 90 | pagination: US states last page partial | 🟫 | USPS not loaded |
+| 91 | pagination: US states offset beyond end | 🟫 | USPS not loaded (but covered by existing) |
 | 92 | pagination: SNOMED is-a paginated | ✅ | `Diabetes pages are disjoint` |
 | 93 | pagination: count=0 returns total only | ✅ | `Clinical finding count=0: total=124412` |
 | 94 | pagination: high offset (>1000) | ✅ | `LOINC STATUS=ACTIVE high offset (1000,20)` |
@@ -505,7 +687,7 @@ Every codex-2 test mapped to a disposition. Legend:
 ### multi-system (5 tests)
 | # | Test | Disposition | Notes |
 |---|---|---|---|
-| 96 | multi-system: gender + US states | ⚪ | USPS not loaded |
+| 96 | multi-system: gender + US states | 🟫 | USPS not loaded |
 | 97 | multi-system: SNOMED + gender (mixed) | ✅ | `Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5` |
 | 98 | multi-system: three systems | ✅ | `SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems` |
 | 99 | multi-system: v0 filter + preloaded + cs-cs | 🟢 | substitute currency for USPS |
@@ -537,13 +719,13 @@ Every codex-2 test mapped to a disposition. Legend:
 | # | Test | Disposition | Notes |
 |---|---|---|---|
 | 111 | coverage: UCUM whole-system + lang peer | 🟢 | UCUM + gender peer (skip lang peer) |
-| 112 | coverage: MIME concept + lang peer | ⚪ | MIME not loaded |
+| 112 | coverage: MIME concept + lang peer | 🟫 | MIME not loaded |
 | 113 | coverage: tx-resource whole + cs-cs peer | 🟢 | |
 | 114 | coverage: tx-resource concept + exclude + peer | 🟢 | |
 | 115 | coverage: valueset-import + USPS peer | 🟢 | substitute gender for USPS |
 | 116 | coverage: valueset-import + USPS peer + exclude | 🟢 | substitute gender for USPS |
 | 117 | coverage: country regex + cs-cs peer | 🟢 | country + gender |
-| 118 | coverage: areacode class filter + cs-cs peer | ⚪ | M49 not loaded |
+| 118 | coverage: areacode class filter + cs-cs peer | 🟫 | M49 not loaded |
 
 ### pagination-safety (5 tests)
 | # | Test | Disposition | Notes |
@@ -571,17 +753,17 @@ Every codex-2 test mapped to a disposition. Legend:
 | 135 | logic: system exclude global with imports | 🟢 | |
 | 136 | logic: mixed import+peer pagination | 🟢 | |
 | 137 | logic: bulk locate >50 concepts | 🟢 | |
-| 138 | logic: low limit returns too-costly | ⚫ | limit enforcement different in IR |
-| 139 | logic: low limit + pagination partial | ⚫ | limit enforcement different in IR |
-| 140 | logic: text-filter low-limit short-circuits | ⚫ | limit enforcement different in IR |
+| 138 | logic: low limit returns too-costly | 🟥 | Phase 7: limit enforcement |
+| 139 | logic: low limit + pagination partial | 🟥 | Phase 7: limit enforcement |
+| 140 | logic: text-filter low-limit short-circuits | 🟥 | Phase 7: limit enforcement |
 
 ### high-value (4 tests)
 | # | Test | Disposition | Notes |
 |---|---|---|---|
-| 141 | high-value: mixed-system text filter limit | ⚫ | complex limit boundary test |
-| 142 | high-value: include.valueSet + sibling filter | 🟢 | valuable scale test |
-| 143 | high-value: SNOMED hierarchy tail pagination | 🟢 | valuable for verifying deep offsets |
-| 144 | high-value: complex same-system inc/exc pages | 🟢 | |
+| 141 | high-value: mixed-system text filter limit | 🟧 | Phase 8, needs Phase 7 first |
+| 142 | high-value: include.valueSet + sibling filter | 🟧 | Phase 8 |
+| 143 | high-value: SNOMED hierarchy tail pagination | 🟧 | Phase 8 |
+| 144 | high-value: complex same-system inc/exc pages | 🟧 | Phase 8 |
 
 ### v3-lowering (3 tests)
 | # | Test | Disposition | Notes |
@@ -604,18 +786,21 @@ Every codex-2 test mapped to a disposition. Legend:
 | # | Test | Disposition | Notes |
 |---|---|---|---|
 | 154 | v3-invariant: import+filter deep page parity | 🟠 | parity test: optimized vs unopt |
-| 155 | v3-gap: mixed-system import prevents root pushdown | ⚫ | tests codex-2 root pushdown guard |
+| 155 | v3-gap: mixed-system import prevents root pushdown | ⚫ | N/A: codex-2-internal |
 
 ---
 
 ## Summary by disposition
 
-| Disposition | Count | Description |
-|---|---|---|
-| ✅ Already ported | 41 | Equivalent test in ir-harness |
-| 🟢 Port now | ~36 | Works today, just needs test |
-| 🟡 Port after fix | ~7 | Needs Phase 1 engine change |
-| 🟠 Rewrite unit test | ~10 | Phase 3: IR optimizer verification |
-| 🟣 Supplement deferred | 22 | Entire supplement subsystem |
-| ⚪ Fixture not loaded | ~17 | USPS/M49/MIME not available |
-| ⚫ Codex-2-internal | ~12 | Trace assertions, pushdown toggles, limit policy |
+| Disposition | Count | Phase | Description |
+|---|---|---|---|
+| ✅ Already ported | 41 | — | Equivalent test in ir-harness |
+| 🟢 Port now | ~30 | 2 | Works today, just needs test |
+| 🟡 Port after fix | ~7 | 1 | Needs engine change (4 stashed) |
+| 🟠 Rewrite unit test | ~10 | 3 | IR optimizer verification |
+| 🟫 Fixture expansion | ~14 | 4 | Add providers to YAML, then port |
+| 🟣 Supplement system | 22 | 5 | Wire supplements into IR path |
+| 🟥 Grammar/limit | ~6 | 6–7 | UCUM specialEnumeration, too-costly |
+| 🟧 High-value stress | ~4 | 8 | Large-scale pagination/parity |
+| ⚫ Codex-2-internal | 5 | N/A | Trace assertions, decision tables |
+| **Total** | **~139** | | 5 N/A + ~134 eventually testable |
