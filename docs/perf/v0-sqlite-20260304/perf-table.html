@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>IR vs Legacy Perf</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; }
+  h1 { font-size: 1.3em; }
+  .meta { color: #666; font-size: 0.85em; margin-bottom: 1em; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 6px 10px; border: 1px solid #ddd; text-align: left; }
+  th { background: #f5f5f5; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ir-win { background: #e8f5e9; }
+  .leg-win { background: #fff3e0; }
+  .ir-only { background: #e3f2fd; }
+  .even { }
+  .err { color: #c62828; }
+  .muted { color: #777; }
+</style></head><body>
+<h1>IR vs Legacy Engine — Performance Comparison</h1>
+<p class="meta">Generated 2026-03-04 21:57:08 UTC &middot; median of 3 runs &middot; _nocache=true &middot; details in perf-table.details/</p>
+<table>
+<thead><tr><th>Category</th><th>Test</th><th>IR</th><th>Legacy</th><th>Winner</th><th>Details</th></tr></thead>
+<tbody>
+<tr class="even"><td>Multi-system</td><td>Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5</td><td class="num">4ms</td><td class="num">4ms</td><td>≈</td><td><a href="perf-table.details/001-mixed-v0-cs-cs-gender-4-snomed-enum-1-5.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="ir-win"><td>Multi-system</td><td>Mixed v0+cs-cs: gender (4) + SNOMED is-a (124), stride across boundary</td><td class="num">3ms</td><td class="num">10ms</td><td>IR ×3.3</td><td><a href="perf-table.details/002-mixed-v0-cs-cs-gender-4-snomed-is-a-124-stride-across-boundary.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="even"><td>Multi-system</td><td>Mixed v0+cs-cs + text filter</td><td class="num">1ms</td><td class="num">2ms</td><td>≈</td><td><a href="perf-table.details/003-mixed-v0-cs-cs-text-filter.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="even"><td>Meta</td><td>meta: v0 used-codesystem includes version</td><td class="num">1ms</td><td class="num">2ms</td><td>≈</td><td><a href="perf-table.details/004-meta-v0-used-codesystem-includes-version.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="even"><td>Pagination safety</td><td>pagination-safety: mixed v0+cs-cs reconstruct full set</td><td class="num">1ms</td><td class="num">2ms</td><td>≈</td><td><a href="perf-table.details/005-pagination-safety-mixed-v0-cs-cs-reconstruct-full-set.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="ir-win"><td>Pagination safety</td><td>pagination-safety: v0 filter+cs-cs pages are disjoint</td><td class="num">2ms</td><td class="num">10ms</td><td>IR ×5.0</td><td><a href="perf-table.details/006-pagination-safety-v0-filter-cs-cs-pages-are-disjoint.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="even"><td>Phase 2</td><td>shape-B: single concept exact match (v0)</td><td class="num">1ms</td><td class="num">2ms</td><td>≈</td><td><a href="perf-table.details/007-shape-b-single-concept-exact-match-v0.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="ir-win"><td>Phase 2</td><td>multi-system: v0 filter + preloaded whole + cs-cs enumerated</td><td class="num">3ms</td><td class="num">12ms</td><td>IR ×4.0</td><td><a href="perf-table.details/008-multi-system-v0-filter-preloaded-whole-cs-cs-enumerated.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="ir-win"><td>Phase 2</td><td>provider: v0 SNOMED large is-a pagination consistency</td><td class="num">2ms</td><td class="num">9ms</td><td>IR ×4.5</td><td><a href="perf-table.details/009-provider-v0-snomed-large-is-a-pagination-consistency.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="ir-win"><td>Phase 2</td><td>provider: v0 RxNorm text search + property filter combined</td><td class="num">9ms</td><td class="num">279ms</td><td>IR ×31.0</td><td><a href="perf-table.details/010-provider-v0-rxnorm-text-search-property-filter-combined.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="even"><td>Phase 2</td><td>pagination-safety: mixed v0 + preloaded reconstruct full set</td><td class="num">3ms</td><td class="num">5ms</td><td>≈</td><td><a href="perf-table.details/011-pagination-safety-mixed-v0-preloaded-reconstruct-full-set.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="leg-win"><td>Phase 2</td><td>logic: code regex handled in sqlite-v0</td><td class="num">806ms</td><td class="num">722ms</td><td>Leg ×1.1</td><td><a href="perf-table.details/012-logic-code-regex-handled-in-sqlite-v0.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="even"><td>Phase 2</td><td>supplement: inline supplement adds designation to SNOMED v0 code</td><td class="num">2ms</td><td class="num">2ms</td><td>≈</td><td><a href="perf-table.details/013-supplement-inline-supplement-adds-designation-to-snomed-v0-code.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+<tr class="even"><td>Phase 2</td><td>supplement: inline supplement display override on LOINC v0 code</td><td class="num">2ms</td><td class="num">3ms</td><td>≈</td><td><a href="perf-table.details/014-supplement-inline-supplement-display-override-on-loinc-v0-code.html" target="_blank" rel="noopener">Execution details</a></td></tr>
+</tbody></table>
+</body></html>

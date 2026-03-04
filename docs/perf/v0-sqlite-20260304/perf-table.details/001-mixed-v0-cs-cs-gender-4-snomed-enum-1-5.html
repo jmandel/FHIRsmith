@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#1 Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5</h1>
+  <div class="meta">Category: Multi-system · Median perf: Legacy=4ms | IR=4ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 5ms capture call · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 8ms capture call · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "system": "http://snomed.info/sct",
+                "concept": [
+                  {
+                    "code": "73211009"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "system": "http://snomed.info/sct",
+                "concept": [
+                  {
+                    "code": "73211009"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>No structured trace payload returned.</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 2.12,
+  "sqlCount": 1,
+  "sqlMs": 0.08,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 2,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 1000
+      },
+      "children": [
+        {
+          "name": "note",
+          "message": "count:static",
+          "data": {
+            "system": "http://snomed.info/sct",
+            "count": 1
+          },
+          "t": 1.32
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          },
+          "children": [],
+          "ms": 0.13,
+          "result": {
+            "count": 4
+          }
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 5,
+            "offset": 0,
+            "count": 1000,
+            "systems": 2
+          },
+          "children": [
+            {
+              "name": "system:http://hl7.org/fhir/administrative-gender",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 4
+              },
+              "children": [],
+              "ms": 0.09,
+              "result": {
+                "candidates": 4
+              }
+            },
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 1
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0,
+                        "buildMs": 0.01,
+                        "prepMs": 0.04,
+                        "execMs": 0.08
+                      },
+                      "t": 1.87
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_x_c0": "73211009",
+                        "_limit": 1
+                      },
+                      "rows": 1,
+                      "ms": 0.08,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 0.2,
+                  "result": {
+                    "candidates": 1
+                  }
+                }
+              ],
+              "ms": 0.22,
+              "result": {
+                "candidates": 1
+              }
+            }
+          ],
+          "ms": 0.34,
+          "result": {
+            "paged": 5
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 5,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 1.37,
+      "result": {
+        "total": 5,
+        "contains": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "871",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Wed, 04 Mar 2026 21:56:59 GMT",
+    "etag": "W/\"367-Jw9ck9DR3SZS7RxWzrG1fopf+qQ\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-10"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-04T21:56:59.402Z",
+      "identifier": "urn:uuid:e4039226-2e98-466b-81be-02d5dac21ff2",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "total": 5,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "male",
+          "display": "Male"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "female",
+          "display": "Female"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "other",
+          "display": "Other"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "unknown",
+          "display": "Unknown"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "73211009",
+          "display": "Diabetes mellitus"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2815",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Wed, 04 Mar 2026 21:56:59 GMT",
+    "etag": "W/\"aff-/zDa6rKlPknA1AAg/LH+k8g0nPE\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-11"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-04T21:56:59.407Z",
+      "identifier": "urn:uuid:3f842704-9804-45e4-80c7-5ed4222d6c89",
+      "total": 5,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "female",
+          "version": "4.0.1",
+          "display": "Female"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "male",
+          "version": "4.0.1",
+          "display": "Male"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "other",
+          "version": "4.0.1",
+          "display": "Other"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "unknown",
+          "version": "4.0.1",
+          "display": "Unknown"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "73211009",
+          "version": "http://snomed.info/sct/900000000000207008/version/20250201",
+          "display": "Diabetes mellitus"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":2.12,\"sqlCount\":1,\"sqlMs\":0.08,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":1.32},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.13,\"result\":{\"count\":4}},{\"name\":\"pagination\",\"args\":{\"total\":5,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.09,\"result\":{\"candidates\":4}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.04,\"execMs\":0.08},\"t\":1.87}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1},\"rows\":1,\"ms\":0.08,\"label\":\"executeIR\"}],\"ms\":0.2,\"result\":{\"candidates\":1}}],\"ms\":0.22,\"result\":{\"candidates\":1}}],\"ms\":0.34,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":1.37,\"result\":{\"total\":5,\"contains\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

@@ -437,6 +437,49 @@ scripts/run-ir-harness.sh --all --db-dir /home/jmandel/hobby/sct/cache
 # one-command start/wait/run/teardown wrapper; writes logs + perf artifacts under tmp/ir-harness-runs/
 ```
 
+### v0 SQLite perf snapshot (IR vs legacy, same providers)
+
+Measured on this branch with both engines using the same v0 SQLite
+provider stack (SNOMED/LOINC/RxNorm DBs from
+`tests/tx/fixtures/v0-test-library.yaml`):
+
+```bash
+scripts/run-ir-harness.sh \
+  --perf \
+  --db-dir /home/jmandel/hobby/sct/cache \
+  --filter v0 \
+  --out-dir tmp/ir-harness-runs/20260304-v0-perf \
+  --perf-out tmp/ir-harness-runs/20260304-v0-perf/perf-table.html
+```
+
+Result set: 14 v0-focused harness rows, median of 3 runs each.
+
+- Meaningful deltas (absolute diff >= 5ms): IR faster in 5, legacy faster in 1
+- Near-ties (absolute diff < 5ms): 8 rows
+
+Representative rows:
+
+| Test | Legacy median | IR median | Delta |
+|------|---------------|-----------|-------|
+| `provider: v0 RxNorm text search + property filter combined` | 279ms | 9ms | IR faster by 270ms (31.0x) |
+| `pagination-safety: v0 filter+cs-cs pages are disjoint` | 10ms | 2ms | IR faster by 8ms (5.0x) |
+| `multi-system: v0 filter + preloaded whole + cs-cs enumerated` | 12ms | 3ms | IR faster by 9ms (4.0x) |
+| `provider: v0 SNOMED large is-a pagination consistency` | 9ms | 2ms | IR faster by 7ms (4.5x) |
+| `logic: code regex handled in sqlite-v0` | 722ms | 806ms | Legacy faster by 84ms (1.12x) |
+
+Artifacts:
+
+- Perf log: `tmp/ir-harness-runs/20260304-v0-perf/harness-perf.log`
+- Perf HTML: `tmp/ir-harness-runs/20260304-v0-perf/perf-table.html`
+- Split execution details: `tmp/ir-harness-runs/20260304-v0-perf/perf-table.details/`
+- Checked-in static-site source copy: `docs/perf/v0-sqlite-20260304/`
+
+To build the docs landing site (used by GitHub Pages workflow):
+
+```bash
+npm run build:docs-site
+```
+
 ### Simplification unit tests — 8 tests (`scripts/ir-rewrite-tests.mjs`)
 
 Tests the expansion plan simplification logic directly (no server
@@ -447,13 +490,13 @@ splitting, cross-system empty elimination.
 
 | File | Tests | What |
 |------|-------|------|
-| `cs-sqlite-v0.test.js` | 31 | v0 provider: locate, filter, iterate, IR execution, designations, properties |
-| `orchestrator.test.js` | 19 | Full pipeline: expansion, pagination, count=0, designations, properties, metadata |
+| `cs-sqlite-v0.test.js` | 30 | v0 provider: locate, filter, iterate, IR execution, designations, properties |
+| `orchestrator.test.js` | 21 | Full pipeline: expansion, pagination, count=0, designations, properties, metadata |
 | `legacy-ir-adapter.test.js` | 11 | Filter-protocol adapter: concept, filter, union, diff, intersect; parity with native |
-| `comparison.test.js` | 7 | IR vs original expander code-for-code parity on real SNOMED/LOINC data |
+| `comparison.test.js` | 10 | IR vs original expander code-for-code parity on real SNOMED/LOINC data |
 | `e2e-comparison.test.js` | 8 | HTTP-level IR vs original expander comparison (requires running server) |
 | `hierarchy-regressions.test.js` | 2 | Edge cases: pagination window order, cross-system identity |
-| `partition-safety.test.js` | 6 | Validates expansion plan before execution (rejects unsafe partitions) |
+| `partition-safety.test.js` | 8 | Validates expansion plan before execution (rejects unsafe partitions) |
 | `library-error-handling.test.js` | 6 | Library config loading, error reporting, env var substitution |
 
 ### IR Fuzz + Direct Oracle
