@@ -26,6 +26,13 @@ function getIREngine() {
   return _irEngine;
 }
 
+// Trace infrastructure (lazy-loaded)
+let _expandTrace;
+function getExpandTrace() {
+  if (!_expandTrace) _expandTrace = require('../engine/expand-trace');
+  return _expandTrace;
+}
+
 // Expansion limits (from Pascal constants)
 const EXTERNAL_DEFAULT_LIMIT = 1000;
 const INTERNAL_DEFAULT_LIMIT = 10000;
@@ -1984,49 +1991,70 @@ class ExpandWorker extends TerminologyWorker {
    */
   async _tryIRExpansion(valueSet, params) {
     const { canHandleValueSet, expandViaIR, buildExpandedValueSet } = getIREngine();
+    const { ExpandTrace, traceStore, formatTraceSummary } = getExpandTrace();
     const vsJson = valueSet.jsonObj || valueSet;
 
     if (!canHandleValueSet(vsJson)) return null;
 
-    const worker = this;
-    const result = await expandViaIR(vsJson, {
-      findProvider: async (system, version) => {
-        try {
-          return await worker.findCodeSystem(system, version, params, ['complete', 'fragment'], false, true);
-        } catch {
-          return null;
-        }
-      },
-      resolveValueSet: async (url, version) => {
-        try {
-          const vs = await worker.provider.findValueSet(url, version);
-          return vs?.jsonObj || vs;
-        } catch {
-          return null;
-        }
-      },
-      activeOnly: !!params.activeOnly,
-      text: params.filter || null,
-      offset: Math.max(params.offset || 0, 0),
-      count: params.count >= 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
-      includeDesignations: !!params.includeDesignations,
-      properties: params.properties || [],
-    });
+    const wantTrace = !!params._trace;
+    const traceObj = wantTrace ? new ExpandTrace() : null;
 
-    if (!result) return null;
+    const runExpansion = async () => {
+      const worker = this;
+      const result = await expandViaIR(vsJson, {
+        findProvider: async (system, version) => {
+          try {
+            return await worker.findCodeSystem(system, version, params, ['complete', 'fragment'], false, true);
+          } catch {
+            return null;
+          }
+        },
+        resolveValueSet: async (url, version) => {
+          try {
+            const vs = await worker.provider.findValueSet(url, version);
+            return vs?.jsonObj || vs;
+          } catch {
+            return null;
+          }
+        },
+        activeOnly: !!params.activeOnly,
+        text: params.filter || null,
+        offset: Math.max(params.offset || 0, 0),
+        count: params.count >= 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
+        includeDesignations: !!params.includeDesignations,
+        properties: params.properties || [],
+      });
 
-    // Check for warnings about unsupported systems
-    if (result.warnings?.some(w => w.includes('Systems without IR support'))) {
-      return null; // Fall back to legacy for complete expansion
+      if (!result) return null;
+
+      // Check for warnings about unsupported systems
+      if (result.warnings?.some(w => w.includes('Systems without IR support'))) {
+        return null; // Fall back to legacy for complete expansion
+      }
+
+      const expansion = buildExpandedValueSet(vsJson, result.expansion, {
+        offset: params.offset,
+        count: params.count,
+        activeOnly: params.activeOnly,
+        filter: params.filter,
+        includeDefinition: params.includeDefinition,
+      });
+
+      // Attach trace to the expansion sub-object (not the top-level ValueSet)
+      if (wantTrace && traceObj && expansion?.expansion) {
+        traceObj.attachTo(expansion.expansion);
+        const summary = formatTraceSummary(traceObj.toJSON());
+        this.opContext?.log?.(`[IR trace] ${summary}`);
+      }
+
+      return expansion;
+    };
+
+    // Run inside traceStore if tracing is active
+    if (wantTrace && traceObj) {
+      return traceStore.run(traceObj, runExpansion);
     }
-
-    return buildExpandedValueSet(vsJson, result.expansion, {
-      offset: params.offset,
-      count: params.count,
-      activeOnly: params.activeOnly,
-      filter: params.filter,
-      includeDefinition: params.includeDefinition,
-    });
+    return runExpansion();
   }
 
   /**

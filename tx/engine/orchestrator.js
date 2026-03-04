@@ -18,6 +18,7 @@ const { resolveImports } = require('./resolve-imports');
 const { optimize, collectSystems, projectToSystem, splitDiffRoot } = require('./rewrite');
 const IR = require('./ir');
 const { wrapWithLegacyIR } = require('./legacy-ir-adapter');
+const { trace } = require('./expand-trace');
 
 /**
  * Check if a ValueSet can be handled by the IR engine.
@@ -75,6 +76,12 @@ async function expandViaIR(vsJson, opts = {}) {
   } = opts;
 
   const warnings = [];
+  const orchestrateSpan = trace.begin('orchestrate', {
+    url: vsJson.url, systems: Object.keys(vsJson.compose?.include || []).length,
+    activeOnly, text, offset, count,
+  });
+
+  try {
 
   // 1. Compile ValueSet to IR
   const rawIR = buildIRFromValueSet(vsJson);
@@ -103,97 +110,51 @@ async function expandViaIR(vsJson, opts = {}) {
     };
   }
 
-  // 5. For each system, project the IR and execute
-  const allCandidates = [];
+  // 5. Resolve providers and project IR per system (canonical order by system|version)
+  const sortedSystems = [...systems.entries()]
+    .sort(([a], [b]) => a.localeCompare(b));
+
   const unsupportedSystems = [];
   const usedSystems = new Set();
   const totalOnly = count === 0;
 
-  for (const [key, { system, version }] of systems) {
+  // Phase 1: resolve providers, project subtrees, get per-system counts.
+  // Counts are cheap (~0.1-5ms) and let us stride across systems without
+  // materializing candidates we'll skip.
+  const resolved = []; // [{ system, version, provVersion, subtree, irProvider, provider, count }]
+  for (const [key, { system, version }] of sortedSystems) {
     const subtree = projectToSystem(optimizedIR, system, version);
     if (!subtree || subtree.kind === 'empty') continue;
 
     const provider = await findProvider(system, version);
-    if (!provider) {
-      unsupportedSystems.push(system);
-      continue;
-    }
+    if (!provider) { unsupportedSystems.push(system); continue; }
 
     const provVersion = (typeof provider.version === 'function' ? provider.version() : provider.version) || version;
-
-    // Track used code systems (system|version canonical)
     usedSystems.add(provVersion ? `${system}|${provVersion}` : system);
 
-    // Use native IR if available, otherwise wrap with LegacyIRAdapter
     let irProvider = provider;
     if (typeof provider.executeIR !== 'function') {
-      try {
-        irProvider = wrapWithLegacyIR(provider);
-      } catch (e) {
-        unsupportedSystems.push(system);
-        continue;
-      }
+      try { irProvider = wrapWithLegacyIR(provider); }
+      catch { unsupportedSystems.push(system); continue; }
     }
 
-    // For count=0 (total-only), use countForIR if available to avoid fetching all codes
-    if (totalOnly && typeof irProvider.countForIR === 'function') {
-      const cnt = irProvider.countForIR(subtree, { activeOnly });
-      // Push a sentinel so we can count, but we won't paginate into it
-      for (let i = 0; i < cnt; i++) {
-        allCandidates.push({ system, version: provVersion, code: `__count_${i}`, _countOnly: true });
-      }
-      continue;
+    // Get per-system count for stride pagination
+    let sysCount = 0;
+    if (typeof irProvider.countForIR === 'function') {
+      const cntSpan = trace.begin('countForIR', { system });
+      sysCount = irProvider.countForIR(subtree, { activeOnly, text });
+      cntSpan.end({ count: sysCount });
     }
 
-    const result = await irProvider.executeIR(subtree, {
-      activeOnly,
-      text,
-      // Don't paginate per-system — collect all, paginate at the end
-      count: undefined,
-      offset: undefined,
-    });
-    for (const c of result.candidates) {
-      allCandidates.push({
-        system,
-        version: provVersion,
-        code: c.code,
-        display: c.display,
-        definition: c.definition,
-        active: c.active,
-        conceptId: c.conceptId,
-        _provider: provider,
-      });
-    }
+    resolved.push({ system, version, provVersion, subtree, irProvider, provider, count: sysCount });
   }
 
   if (unsupportedSystems.length > 0) {
     warnings.push(`Systems without IR support: ${unsupportedSystems.join(', ')}`);
-    // If any system is unsupported, we can't produce a complete expansion
-    // The caller should fall back to legacy
-    if (unsupportedSystems.length === systems.size) {
-      return null; // Signal: can't handle at all
-    }
+    if (unsupportedSystems.length === systems.size) return null;
   }
 
-  // 6. Cross-system dedup (by system|code)
-  const seen = new Set();
-  const deduped = [];
-  for (const c of allCandidates) {
-    const key = `${c.system}|${c.code}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      deduped.push(c);
-    }
-  }
-
-  // 7. Apply active-only filter (in case provider didn't)
-  let filtered = deduped;
-  if (activeOnly) {
-    filtered = deduped.filter(c => c.active !== false);
-  }
-
-  // 8. Pagination
-  const total = filtered.length;
+  const total = resolved.reduce((s, r) => s + r.count, 0);
 
   // count=0 means total-only — return no codes
   if (totalOnly) {
@@ -208,10 +169,60 @@ async function expandViaIR(vsJson, opts = {}) {
     };
   }
 
-  const paged = filtered.slice(offset, offset + count);
+  // Phase 2: stride pagination — walk systems in canonical order,
+  // skip systems whose codes fall before `offset`, fetch only from
+  // systems whose codes fall within the [offset, offset+count) window.
+  const allCandidates = [];
+  let cursor = 0;           // running position across all systems
+  let remaining = count;    // how many codes we still need
+
+  const pagSpan = trace.begin('pagination', { total, offset, count, systems: resolved.length });
+  for (const r of resolved) {
+    if (remaining <= 0) break;
+
+    const sysEnd = cursor + r.count;
+    if (sysEnd <= offset) {
+      // Entire system is before the page window — skip
+      cursor = sysEnd;
+      continue;
+    }
+
+    // How many to skip within this system, and how many to take
+    const sysOffset = Math.max(offset - cursor, 0);
+    const sysCount = Math.min(remaining, r.count - sysOffset);
+
+    const sysSpan = trace.begin(`system:${r.system}`, { sysOffset, sysCount });
+    const result = await r.irProvider.executeIR(r.subtree, {
+      activeOnly, text,
+      count: sysCount,
+      offset: sysOffset,
+    });
+    sysSpan.end({ candidates: result.candidates.length });
+
+    for (const c of result.candidates) {
+      allCandidates.push({
+        system: r.system,
+        version: r.provVersion,
+        code: c.code,
+        display: c.display,
+        definition: c.definition,
+        active: c.active,
+        conceptId: c.conceptId,
+        _provider: r.provider,
+      });
+    }
+
+    remaining -= result.candidates.length;
+    cursor = sysEnd;
+  }
+  pagSpan.end({ paged: allCandidates.length });
+
+  const paged = allCandidates;
 
   // 9. Decorate candidates (designations + properties)
+  const decoSpan = trace.begin('bulkDesignations', { count: paged.length, includeDesignations });
   await decorateCandidates(paged, { includeDesignations, properties });
+  decoSpan.end();
 
   // 10. Build contains entries
   const contains = paged.map(c => {
@@ -250,7 +261,7 @@ async function expandViaIR(vsJson, opts = {}) {
     return entry;
   });
 
-  return {
+  const finalResult = {
     expansion: {
       total,
       offset: offset > 0 ? offset : undefined,
@@ -259,6 +270,13 @@ async function expandViaIR(vsJson, opts = {}) {
     },
     warnings,
   };
+  orchestrateSpan.end({ total, contains: contains.length });
+  return finalResult;
+
+  } finally {
+    // Ensure orchestrate span is closed even on error
+    orchestrateSpan.end();
+  }
 }
 
 /**

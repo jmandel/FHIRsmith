@@ -21,6 +21,7 @@ const { BaseCSServices } = require('./cs-base');
 const { DesignationUse } = require('../library/designations');
 const { VersionUtilities } = require('../../library/version-utilities');
 const { buildExpandSql, buildMembershipSql, buildCountSql } = require('../engine/sqlite-v0-sql');
+const { trace } = require('../engine/expand-trace');
 
 // ── Helper functions (ported from codex) ────────────────────────────
 
@@ -906,6 +907,8 @@ class SqliteV0Provider extends BaseCSServices {
       return { candidates: [], total: 0 };
     }
 
+    const span = trace.begin('executeIR:sql', { system: this.#meta.baseUri });
+
     // Supply density hints for the EXISTS rewrite optimization.
     // Quick closure count (0.1-5ms) lets the SQL builder choose between
     // EXISTS (fast for dense sets) and JOIN+sort (fast for sparse sets).
@@ -918,10 +921,15 @@ class SqliteV0Provider extends BaseCSServices {
     );
 
     if (sql.includes('WHERE 0')) {
+      span.end({ empty: true });
       return { candidates: [], total: 0 };
     }
 
+    const t0 = performance.now();
     const rows = this.#db.prepare(sql).all(params);
+    const elapsedMs = performance.now() - t0;
+    trace.sql(sql, params, rows.length, elapsedMs, 'executeIR');
+
     const candidates = rows
       .filter(r => r.code != null)
       .map(r => ({
@@ -932,6 +940,7 @@ class SqliteV0Provider extends BaseCSServices {
         conceptId: r.concept_id,
       }));
 
+    span.end({ candidates: candidates.length });
     return { candidates };
   }
 
@@ -973,6 +982,8 @@ class SqliteV0Provider extends BaseCSServices {
   countForIR(subtree, opts = {}) {
     if (!subtree || subtree.kind === 'empty') return 0;
 
+    const span = trace.begin('countForIR:sql', { system: this.#meta.baseUri });
+
     const enrichedOpts = { ...opts,
       _conceptCount: this.#getConceptCount(),
       _closureCount: this.#getClosureCount(subtree),
@@ -981,8 +992,13 @@ class SqliteV0Provider extends BaseCSServices {
       subtree, this.#meta.csId, '_cnt', this.#propDefs, this.#runtime, enrichedOpts
     );
 
+    const t0 = performance.now();
     const row = this.#db.prepare(sql).get(params);
-    return row?.cnt ?? 0;
+    const elapsedMs = performance.now() - t0;
+    const cnt = row?.cnt ?? 0;
+    trace.sql(sql, params, cnt, elapsedMs, 'countForIR');
+    span.end({ count: cnt });
+    return cnt;
   }
 
   /** Whether this provider supports native IR execution. */

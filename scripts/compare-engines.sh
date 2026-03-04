@@ -55,6 +55,48 @@ add_post "LOINC CLASSTYPE=1 count=0" \
 add_get "SNOMED is-a Diabetes + text filter 'gestational'" \
   "${BASE}?url=http://snomed.info/sct?fhir_vs=isa/73211009&count=200&activeOnly=true&filter=gestational"
 
+# --- Codex-2 harness: descendent-of ---
+add_get "SNOMED descendent-of Diabetes (excludes self)" \
+  "${BASE}?url=http://snomed.info/sct?fhir_vs=isa/73211009&count=200&activeOnly=true&property=concept&op=descendent-of"
+
+# --- Codex-2 harness: RxNorm ---
+add_post "RxNorm TTY=IN first 50" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://www.nlm.nih.gov/research/umls/rxnorm","filter":[{"property":"TTY","op":"=","value":"IN"}]}]}}},{"name":"count","valueInteger":50}]}'
+
+add_post "RxNorm text=aspirin TTY=IN" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://www.nlm.nih.gov/research/umls/rxnorm","filter":[{"property":"TTY","op":"=","value":"IN"}]}]}}},{"name":"count","valueInteger":20},{"name":"filter","valueString":"aspirin"}]}'
+
+# --- Codex-2 harness: LOINC STATUS ---
+add_post "LOINC STATUS=ACTIVE first 20" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://loinc.org","filter":[{"property":"STATUS","op":"=","value":"ACTIVE"}]}]}}},{"name":"count","valueInteger":20}]}'
+
+# --- Codex-2 harness: text search ---
+add_get "SNOMED text=diabetes first 50" \
+  "${BASE}?url=http://snomed.info/sct?fhir_vs&count=50&filter=diabetes"
+
+add_post "LOINC text=creatinine first 20" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://loinc.org"}]}}},{"name":"count","valueInteger":20},{"name":"filter","valueString":"creatinine"}]}'
+
+# --- Codex-2 harness: multi-exclude ---
+add_post "SNOMED is-a minus Type1+Type2 subtrees" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://snomed.info/sct","filter":[{"property":"concept","op":"is-a","value":"73211009"}]}],"exclude":[{"system":"http://snomed.info/sct","filter":[{"property":"concept","op":"is-a","value":"44054006"}]},{"system":"http://snomed.info/sct","filter":[{"property":"concept","op":"is-a","value":"46635009"}]}]}}},{"name":"count","valueInteger":200},{"name":"activeOnly","valueBoolean":true}]}'
+
+# --- Codex-2 harness: SNOMED text + is-a combined ---
+add_post "SNOMED is-a Diabetes + text 'insulin'" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://snomed.info/sct","filter":[{"property":"concept","op":"is-a","value":"73211009"}]}]}}},{"name":"count","valueInteger":200},{"name":"activeOnly","valueBoolean":true},{"name":"filter","valueString":"insulin"}]}'
+
+# --- Codex-2 harness: multi-system ---
+add_post "Multi-system: SNOMED+LOINC+RxNorm enum" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://snomed.info/sct","concept":[{"code":"73211009"}]},{"system":"http://loinc.org","concept":[{"code":"2160-0"}]},{"system":"http://www.nlm.nih.gov/research/umls/rxnorm","concept":[{"code":"1191"}]}]}}}]}'
+
+# --- Codex-2 harness: SNOMED is-a pagination consistency ---
+add_get "SNOMED is-a Diabetes page reconstruct (offset=60,count=30)" \
+  "${BASE}?url=http://snomed.info/sct?fhir_vs=isa/73211009&count=30&offset=60&activeOnly=true"
+
+# --- Codex-2 harness: LOINC high offset ---
+add_post "LOINC STATUS=ACTIVE high offset (offset=1000,count=20)" \
+  '{"resourceType":"Parameters","parameter":[{"name":"valueSet","resource":{"resourceType":"ValueSet","compose":{"include":[{"system":"http://loinc.org","filter":[{"property":"STATUS","op":"=","value":"ACTIVE"}]}]}}},{"name":"count","valueInteger":20},{"name":"offset","valueInteger":1000}]}'
+
 TOTAL=${#NAMES[@]}
 
 echo "========================================="

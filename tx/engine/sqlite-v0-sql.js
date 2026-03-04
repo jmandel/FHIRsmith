@@ -1,5 +1,7 @@
 'use strict';
 
+const { trace } = require('./expand-trace');
+
 /**
  * SQL fragment builder for the v0 SQLite terminology schema.
  *
@@ -376,6 +378,11 @@ function buildExpandSql(expr, csId, opts, propertyDefs, runtime) {
     && opts._conceptCount > 0 && opts._closureCount > 0
     && (opts._closureCount / opts._conceptCount) > 0.01;
   if (useExistsRewrite) {
+    trace.note('EXISTS rewrite chosen', {
+      closureCount: opts._closureCount,
+      conceptCount: opts._conceptCount,
+      ratio: Math.round((opts._closureCount / opts._conceptCount) * 10000) / 100,
+    });
     let sql = inner._existsRewrite.sql;
     if (opts.activeOnly) {
       sql += ' AND c.active = 1';
@@ -390,6 +397,14 @@ function buildExpandSql(expr, csId, opts, propertyDefs, runtime) {
       sql += ' OFFSET @_offset';
     }
     return { sql, params };
+  }
+
+  if (inner._existsRewrite) {
+    trace.note('standard path chosen (EXISTS rewrite skipped)', {
+      closureCount: opts._closureCount,
+      conceptCount: opts._conceptCount,
+      hasText: !!opts.text,
+    });
   }
 
   // ── Standard inner/outer pattern ──────────────────────────────
@@ -461,6 +476,10 @@ function buildCountSql(expr, csId, prefix, propertyDefs, runtime, opts = {}) {
       && (opts._closureCount / opts._conceptCount) > 0.01) {
     let sql = inner._existsRewrite.sql;
     if (opts.activeOnly) sql += ' AND c.active = 1';
+    if (opts.text) {
+      const searchSql = buildFtsSearchSql(csId, opts.text, params, runtime);
+      if (searchSql) sql += ` AND c.concept_id IN (${searchSql})`;
+    }
     return {
       sql: `SELECT COUNT(*) AS cnt FROM (${sql})`,
       params,
@@ -470,6 +489,10 @@ function buildCountSql(expr, csId, prefix, propertyDefs, runtime, opts = {}) {
   let where = '';
   if (opts.activeOnly) {
     where += ' AND _cnt.active = 1';
+  }
+  if (opts.text) {
+    const searchSql = buildFtsSearchSql(csId, opts.text, params, runtime);
+    if (searchSql) where += ` AND _cnt.concept_id IN (${searchSql})`;
   }
   return {
     sql: `SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (${inner.sql}) AS _cnt WHERE 1=1${where}`,

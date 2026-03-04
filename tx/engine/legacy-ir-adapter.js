@@ -39,7 +39,23 @@ function wrapWithLegacyIR(provider) {
      * Returns { candidates: [{code, display, ...}] }.
      */
     async executeIR(subtree, opts = {}) {
-      const candidates = await executeNode(provider, subtree, opts);
+      let candidates = await executeNode(provider, subtree, opts);
+      // Apply text filter (legacy providers don't handle FTS natively)
+      if (opts.text) {
+        const lower = opts.text.toLowerCase();
+        candidates = candidates.filter(c =>
+          (c.display || '').toLowerCase().includes(lower)
+          || (c.code || '').toLowerCase().includes(lower)
+        );
+      }
+      // Sort for deterministic pagination (code order matches SQL behavior)
+      candidates.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+      // Apply count/offset after materialization
+      if (opts.offset > 0 || opts.count != null) {
+        const off = opts.offset || 0;
+        const lim = opts.count != null ? opts.count : candidates.length;
+        candidates = candidates.slice(off, off + lim);
+      }
       return { candidates };
     },
 
@@ -54,7 +70,14 @@ function wrapWithLegacyIR(provider) {
      * Count by materializing.
      */
     async countForIR(subtree, opts = {}) {
-      const candidates = await executeNode(provider, subtree, opts);
+      let candidates = await executeNode(provider, subtree, opts);
+      if (opts.text) {
+        const lower = opts.text.toLowerCase();
+        candidates = candidates.filter(c =>
+          (c.display || '').toLowerCase().includes(lower)
+          || (c.code || '').toLowerCase().includes(lower)
+        );
+      }
       return candidates.length;
     },
   };

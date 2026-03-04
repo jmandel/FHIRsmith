@@ -258,6 +258,10 @@ class TxParameters {
           this._nocache = strToBool(getValuePrimitive(p), true);
           break;
         }
+        case '_trace': {
+          this._trace = strToBool(getValuePrimitive(p), true);
+          break;
+        }
       }
     }
 
