@@ -254,6 +254,10 @@ class TxParameters {
           this._engine = getValuePrimitive(p);
           break;
         }
+        case '_nocache': {
+          this._nocache = strToBool(getValuePrimitive(p), true);
+          break;
+        }
       }
     }
 

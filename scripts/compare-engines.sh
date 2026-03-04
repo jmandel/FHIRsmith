@@ -5,6 +5,7 @@ set -euo pipefail
 
 BASE="${1:-http://localhost:8000}/r4/ValueSet/\$expand"
 RUNS=5
+NOCACHE="&_nocache=true"  # bypass expansion cache for fair timing
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 GRN='\033[0;32m'; RED='\033[0;31m'; YEL='\033[0;33m'; RST='\033[0m'
@@ -74,17 +75,19 @@ for ((t=0; t<TOTAL; t++)); do
 
   # Build request args for each engine
   if [ "$method" = "GET" ]; then
-    ir_args=(-sf "${url}&_engine=ir")
-    leg_args=(-sf "${url}&_engine=legacy")
-    ir_time_args=(-sf -o /dev/null -w '%{time_total}' "${url}&_engine=ir")
-    leg_time_args=(-sf -o /dev/null -w '%{time_total}' "${url}&_engine=legacy")
+    ir_args=(-s "${url}&_engine=ir")
+    leg_args=(-s "${url}&_engine=legacy")
+    ir_time_args=(-sf -o /dev/null -w '%{time_total}' "${url}&_engine=ir${NOCACHE}")
+    leg_time_args=(-sf -o /dev/null -w '%{time_total}' "${url}&_engine=legacy${NOCACHE}")
   else
     ir_body=$(echo "$body" | python3 -c "import sys,json; d=json.load(sys.stdin); d['parameter'].append({'name':'_engine','valueString':'ir'}); print(json.dumps(d))")
     leg_body=$(echo "$body" | python3 -c "import sys,json; d=json.load(sys.stdin); d['parameter'].append({'name':'_engine','valueString':'legacy'}); print(json.dumps(d))")
-    ir_args=(-sf -X POST -H 'Content-Type: application/json' -d "$ir_body" "$BASE")
-    leg_args=(-sf -X POST -H 'Content-Type: application/json' -d "$leg_body" "$BASE")
-    ir_time_args=(-sf -o /dev/null -w '%{time_total}' -X POST -H 'Content-Type: application/json' -d "$ir_body" "$BASE")
-    leg_time_args=(-sf -o /dev/null -w '%{time_total}' -X POST -H 'Content-Type: application/json' -d "$leg_body" "$BASE")
+    ir_body_nc=$(echo "$ir_body" | python3 -c "import sys,json; d=json.load(sys.stdin); d['parameter'].append({'name':'_nocache','valueString':'true'}); print(json.dumps(d))")
+    leg_body_nc=$(echo "$leg_body" | python3 -c "import sys,json; d=json.load(sys.stdin); d['parameter'].append({'name':'_nocache','valueString':'true'}); print(json.dumps(d))")
+    ir_args=(-s -X POST -H 'Content-Type: application/json' -d "$ir_body" "$BASE")
+    leg_args=(-s -X POST -H 'Content-Type: application/json' -d "$leg_body" "$BASE")
+    ir_time_args=(-sf -o /dev/null -w '%{time_total}' -X POST -H 'Content-Type: application/json' -d "$ir_body_nc" "$BASE")
+    leg_time_args=(-sf -o /dev/null -w '%{time_total}' -X POST -H 'Content-Type: application/json' -d "$leg_body_nc" "$BASE")
   fi
 
   # Fetch both (use -s not -sf so we get error response bodies)

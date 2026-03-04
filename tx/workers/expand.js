@@ -1913,7 +1913,8 @@ class ExpandWorker extends TerminologyWorker {
     const expansionCache = this.opContext.expansionCache;
     // Compute cache key (only if caching is available and not debugging)
     let cacheKey = null;
-    if (expansionCache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
+    const skipCache = params._nocache;
+    if (!skipCache && expansionCache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
       cacheKey = expansionCache.computeKey(valueSet, params, this.additionalResources);
 
       // Check for cached expansion
