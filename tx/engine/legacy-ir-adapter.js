@@ -89,10 +89,19 @@ function wrapWithLegacyIR(provider) {
           || (c.code || '').toLowerCase().includes(lower)
         );
       }
-      return candidates.length;
+      return countWithChildren(candidates);
     },
   };
   return wrapper;
+}
+
+/** Count candidates including any nested _children. */
+function countWithChildren(candidates) {
+  let n = candidates.length;
+  for (const c of candidates) {
+    if (c._children) n += countWithChildren(c._children);
+  }
+  return n;
 }
 
 /** Propagate _unclosed from child results onto a new array. */
@@ -171,6 +180,8 @@ async function executeNode(provider, node, opts) {
  */
 async function executeSelector(provider, sel, opts) {
   const { activeOnly = false } = opts;
+  const wantParent = typeof provider.hasParents === 'function' && provider.hasParents()
+    && typeof provider.parent === 'function';
 
   if (sel.shape === 'concept') {
     // Enumerated concept codes
@@ -183,13 +194,14 @@ async function executeSelector(provider, sel, opts) {
       const display = await provider.display(ctx);
       const inactive = await provider.isInactive(ctx);
       if (activeOnly && inactive) continue;
-      results.push({
+      const entry = {
         code,
         display,
         active: !inactive,
         definition: await provider.definition(ctx),
         _context: ctx,
-      });
+      };
+      results.push(entry);
     }
     return results;
   }
@@ -221,19 +233,26 @@ async function executeSelector(provider, sel, opts) {
       }
 
       const display = await provider.display(ctx);
-      results.push({
+      const entry = {
         code,
         display,
         active: !inactive,
         definition: await provider.definition(ctx),
         _context: ctx,
-      });
+      };
+      if (wantParent) entry._parentCode = await provider.parent(ctx);
+      results.push(entry);
     }
     return results;
   }
 
   if (sel.shape === 'whole' || sel.shape === 'all') {
-    // Iterate all concepts
+    // Hierarchical provider — walk the tree via iterator(null) → children
+    if (wantParent && typeof provider.iterator === 'function') {
+      return await iterateHierarchy(provider, null, activeOnly);
+    }
+
+    // Flat provider or no hierarchy — iterate all concepts
     const iter = await provider.iteratorAll();
     if (!iter) {
       // Grammar-based provider — cannot enumerate directly.
@@ -299,6 +318,41 @@ async function executeSelector(provider, sel, opts) {
 /**
  * Build a membership index for a node against a legacy provider.
  */
+/**
+ * Walk a hierarchical provider's tree via iterator(), producing candidates
+ * with `_children` arrays that mirror the code system's structure.
+ * Returns an array of root-level candidates; each may have nested `_children`.
+ */
+async function iterateHierarchy(provider, parentCtx, activeOnly) {
+  const iter = await provider.iterator(parentCtx);
+  if (!iter) return [];
+  const results = [];
+  let ctx = await provider.nextContext(iter);
+  while (ctx) {
+    const code = await provider.code(ctx);
+    const inactive = await provider.isInactive(ctx);
+    if (!activeOnly || !inactive) {
+      const display = await provider.display(ctx);
+      const entry = {
+        code,
+        display,
+        active: !inactive,
+        definition: await provider.definition(ctx),
+        _context: ctx,
+      };
+      const children = await iterateHierarchy(provider, ctx, activeOnly);
+      if (children.length > 0) entry._children = children;
+      results.push(entry);
+    } else {
+      // Skip inactive parent, reparent active descendants
+      const children = await iterateHierarchy(provider, ctx, activeOnly);
+      results.push(...children);
+    }
+    ctx = await provider.nextContext(iter);
+  }
+  return results;
+}
+
 async function buildMembership(provider, node) {
   if (!node) return new EmptyMembership();
 
@@ -346,7 +400,7 @@ function proxyProvider(provider) {
   // Copy over commonly-needed methods
   for (const method of [
     'system', 'version', 'name', 'description', 'totalCount',
-    'contentMode', 'isNotClosed', 'hasParents',
+    'contentMode', 'isNotClosed', 'hasParents', 'parent',
     'locate', 'code', 'display', 'definition',
     'isAbstract', 'isInactive', 'isDeprecated', 'getStatus',
     'designations', 'properties', 'extensions',

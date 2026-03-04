@@ -2040,6 +2040,7 @@ class ExpandWorker extends TerminologyWorker {
         offset: Math.max(params.offset || 0, 0),
         count: params.count >= 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
         includeDesignations: !!params.includeDesignations,
+        excludeNested: !!params.excludeNested,
         properties: params.properties || [],
         designations: params.designations || [],
         // Enforce limit only when no explicit pagination requested

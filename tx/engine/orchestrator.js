@@ -54,6 +54,59 @@ function countFromIR(node, text) {
   }
 }
 
+/** Enrich a raw candidate with system metadata. */
+function enrichCandidate(c, resolved) {
+  const entry = {
+    system: resolved.system, version: resolved.provVersion,
+    code: c.code, display: c.display, definition: c.definition,
+    active: c.active, conceptId: c.conceptId, _provider: resolved.provider,
+  };
+  if (c._parentCode) entry._parentCode = c._parentCode;
+  return entry;
+}
+
+/** Flatten a tree of candidates (with _children) into a flat array with _parentCode set. */
+function flattenCandidates(candidates, resolved, parentCode) {
+  const result = [];
+  for (const c of candidates) {
+    const entry = enrichCandidate(c, resolved);
+    if (parentCode) entry._parentCode = parentCode;
+    result.push(entry);
+    if (c._children) {
+      result.push(...flattenCandidates(c._children, resolved, c.code));
+    }
+  }
+  return result;
+}
+
+/**
+ * Nest flat `contains` entries into a tree using `_parentCode` from candidates.
+ * Modifies `contains` in place — replaces content with root entries only,
+ * children nested inside their parent's `.contains[]`.
+ */
+function nestContains(contains, candidates) {
+  if (!candidates.some(c => c._parentCode)) return;
+  const entryByCode = new Map();
+  for (const e of contains) entryByCode.set(e.code, e);
+  const roots = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    const entry = contains[i];
+    if (!entry) continue;
+    const parentEntry = c._parentCode ? entryByCode.get(c._parentCode) : null;
+    if (parentEntry) {
+      if (!parentEntry.contains) parentEntry.contains = [];
+      parentEntry.contains.push(entry);
+    } else {
+      roots.push(entry);
+    }
+  }
+  if (roots.length > 0) {
+    contains.length = 0;
+    contains.push(...roots);
+  }
+}
+
 function canHandleValueSet(vsJson) {
   const compose = vsJson?.compose;
   if (!compose) return false;
@@ -104,6 +157,7 @@ async function expandViaIR(vsJson, opts = {}) {
     includeDesignations = false,
     properties = [],
     designations = [],
+    excludeNested = false,
     limit = 0,
   } = opts;
 
@@ -281,21 +335,16 @@ async function expandViaIR(vsJson, opts = {}) {
     sysSpan.end({ candidates: result.candidates.length });
     if (result.unclosed) unclosedMessages.push(result.unclosed);
 
-    for (const c of result.candidates) {
-      allCandidates.push({
-        system: r.system, version: r.provVersion,
-        code: c.code, display: c.display, definition: c.definition,
-        active: c.active, conceptId: c.conceptId, _provider: r.provider,
-      });
-    }
+    allCandidates.push(...flattenCandidates(result.candidates, r, null));
 
     // Infer total: if we got fewer rows than requested AND we got at
     // least one row, we’re on the last page → total = offset + rows.
     // If we got 0 rows (offset past end) or a full page (more data
     // exists), fall through to the lazy COUNT.
-    if (result.candidates.length > 0 && result.candidates.length < count) {
-      deferredTotal = offset + result.candidates.length;
-      trace.note('total:inferred', { offset, returned: result.candidates.length, total: deferredTotal });
+    const flatCount = allCandidates.length;
+    if (flatCount > 0 && flatCount < count) {
+      deferredTotal = offset + flatCount;
+      trace.note('total:inferred', { offset, returned: flatCount, total: deferredTotal });
     } else if (typeof r.irProvider.countForIR === 'function') {
       // Full page or empty page past end — need exact count.
       const cntSpan = trace.begin('countForIR:lazy', { system: r.system });
@@ -331,13 +380,7 @@ async function expandViaIR(vsJson, opts = {}) {
       sysSpan.end({ candidates: result.candidates.length });
       if (result.unclosed) unclosedMessages.push(result.unclosed);
 
-      for (const c of result.candidates) {
-        allCandidates.push({
-          system: r.system, version: r.provVersion,
-          code: c.code, display: c.display, definition: c.definition,
-          active: c.active, conceptId: c.conceptId, _provider: r.provider,
-        });
-      }
+      allCandidates.push(...flattenCandidates(result.candidates, r, null));
 
       remaining -= result.candidates.length;
       cursor = sysEnd;
@@ -415,6 +458,15 @@ async function expandViaIR(vsJson, opts = {}) {
 
     return entry;
   });
+
+  // 11. Nest hierarchy when conditions allow.
+  // Candidates carry _parentCode from adapter (tree walk or parent() calls).
+  // Nest when: not excluded, not paginating, all codes fit in response.
+  const canNest = !excludeNested && offset === 0
+    && (count < 0 || count >= (knownTotal ?? deferredTotal ?? contains.length));
+  if (canNest && paged.some(c => c._parentCode)) {
+    nestContains(contains, paged);
+  }
 
   // Collect used supplements from all resolved providers
   const usedSupplements = new Set();
