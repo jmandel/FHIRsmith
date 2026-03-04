@@ -261,6 +261,14 @@ async function expandViaIR(vsJson, opts = {}) {
   let deferredTotal = null;
   const unclosedMessages = [];  // grammar-based providers signal unclosed expansion
 
+  // Collect unclosed signals discovered during counting phase (before executeIR).
+  // This ensures unclosed is reported even for systems skipped by pagination.
+  for (const r of resolved) {
+    if (r.irProvider._discoveredUnclosed) {
+      for (const msg of r.irProvider._discoveredUnclosed) unclosedMessages.push(msg);
+    }
+  }
+
   const pagSpan = trace.begin('pagination', { total: knownTotal, offset, count, systems: resolved.length });
 
   if (!needsCounts && resolved.length === 1) {

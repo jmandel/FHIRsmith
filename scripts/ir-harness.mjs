@@ -2017,6 +2017,27 @@ async function run() {
 
   // ── Phase 8: high-value stress tests ──
 
+  await test('unclosed: multi-system with grammar provider reports unclosed on all pages', async () => {
+    // UCUM (grammar-based, unclosed) + SNOMED hand parts.
+    // SNOMED sorts first alphabetically, so page 1 is all SNOMED.
+    // The unclosed signal must still appear even when UCUM isn't on this page.
+    const mixedVS = vs([
+      {system:SYS.UCUM},
+      {system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'85562004'}]}, // hand structure
+    ]);
+    const { result } = await expand(mixedVS, { offset: 0, count: 10 });
+    // Page should be all SNOMED (it sorts before UCUM)
+    const systems = new Set(codes(result).map(c => c.system));
+    assert(systems.has(SYS.SCT), 'first page should have SNOMED codes');
+    assert(!systems.has(SYS.UCUM), 'first page should not yet have UCUM codes');
+    // But unclosed must still be reported
+    const unclosed = (result.expansion.extension || []).find(
+      e => e.url === 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+    assert(unclosed, 'valueset-unclosed extension must be present even on SNOMED-only page');
+    assert(unclosed.valueString?.includes('grammar'),
+      `unclosed message should mention grammar, got: ${unclosed?.valueString}`);
+  });
+
   await test('stress: deep SNOMED is-a pagination stable across adjacent pages', async () => {
     // Two overlapping pages deep into Clinical finding hierarchy
     const isA404684003 = vs({system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'404684003'}]});

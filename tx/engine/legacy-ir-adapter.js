@@ -28,9 +28,12 @@ const {
  * @returns {{ executeIR, membershipForIR, countForIR, hasExecuteIR }}
  */
 function wrapWithLegacyIR(provider) {
-  return {
+  const wrapper = {
     // Proxy all provider methods
     ...proxyProvider(provider),
+
+    /** Unclosed messages discovered during countForIR (before executeIR runs). */
+    _discoveredUnclosed: [],
 
     hasExecuteIR() { return true; },
 
@@ -75,6 +78,10 @@ function wrapWithLegacyIR(provider) {
      */
     async countForIR(subtree, opts = {}) {
       let candidates = await executeNode(provider, subtree, opts);
+      // Stash unclosed signal discovered during counting (before executeIR runs)
+      if (candidates._unclosed) {
+        wrapper._discoveredUnclosed.push(candidates._unclosed);
+      }
       if (opts.text) {
         const lower = opts.text.toLowerCase();
         candidates = candidates.filter(c =>
@@ -85,6 +92,7 @@ function wrapWithLegacyIR(provider) {
       return candidates.length;
     },
   };
+  return wrapper;
 }
 
 /** Propagate _unclosed from child results onto a new array. */
