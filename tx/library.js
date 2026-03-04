@@ -21,6 +21,7 @@ const {UniiServicesFactory} = require("./cs/cs-unii");
 const {SnomedServicesFactory} = require("./cs/cs-snomed");
 const {CPTServicesFactory} = require("./cs/cs-cpt");
 const {OMOPServicesFactory} = require("./cs/cs-omop");
+const {SqliteV0FactoryProvider} = require("./cs/cs-sqlite-v0");
 const {PackageValueSetProvider} = require("./vs/vs-package");
 const {PackageConceptMapProvider} = require("./cm/cm-package");
 const {IETFLanguageCodeFactory} = require("./cs/cs-lang");
@@ -278,6 +279,10 @@ class Library {
         await this.loadUrl(packageManager, details, isDefault, mode, true);
         break;
         
+      case 'sqlite-v0':
+        await this.loadSqliteV0(details, isDefault, mode);
+        break;
+
       default:
         throw new Error(`Unknown source type: ${type}`);
     }
@@ -437,6 +442,16 @@ class Library {
     const omop = new OMOPServicesFactory(this.i18n, omopFN);
     await omop.load();
     this.registerProvider(omopFN, omop, isDefault);
+  }
+
+  async loadSqliteV0(details, isDefault, mode) {
+    const dbPath = await this.getOrDownloadFile(details);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+    const factory = new SqliteV0FactoryProvider(this.i18n, dbPath);
+    await factory.load();
+    this.registerProvider(dbPath, factory, isDefault);
   }
 
   async loadNpm(packageManager, details, isDefault, mode, csOnly) {
