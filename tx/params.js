@@ -250,6 +250,10 @@ class TxParameters {
         case "exclude-system": {
           throw new Issue('error', 'not-supported', null, null, "The parameter 'exclude-system' is not supported by this system", null, 400);
         }
+        case '_engine': {
+          this._engine = getValuePrimitive(p);
+          break;
+        }
       }
     }
 

@@ -1959,7 +1959,10 @@ class ExpandWorker extends TerminologyWorker {
     }
 
     // Try IR engine first (opt-in via EXPAND_IR_ENGINE=1)
-    if (process.env.EXPAND_IR_ENGINE === '1') {
+    // Per-request override: _engine=ir forces IR, _engine=legacy forces legacy
+    const engineOverride = params._engine;
+    const useIR = engineOverride === 'ir' || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
+    if (useIR) {
       try {
         const irResult = await this._tryIRExpansion(valueSet, params);
         if (irResult) return irResult;

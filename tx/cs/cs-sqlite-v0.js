@@ -22,6 +22,88 @@ const { DesignationUse } = require('../library/designations');
 const { VersionUtilities } = require('../../library/version-utilities');
 const { buildExpandSql, buildMembershipSql, buildCountSql } = require('../engine/sqlite-v0-sql');
 
+// ── Helper functions (ported from codex) ────────────────────────────
+
+function normalizedFilterCandidates(value, valueCfg) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return [];
+  const cfg = valueCfg || {};
+  const aliases = cfg.aliases || {};
+  const out = new Set();
+  out.add(raw);
+  const rawKey = (cfg.normalizeCase !== false) ? raw.toLowerCase() : raw;
+  let alias = aliases[raw];
+  if (alias === undefined) alias = aliases[rawKey];
+  if (alias !== undefined && alias !== null && String(alias).trim() !== '')
+    out.add(String(alias).trim());
+  return Array.from(out);
+}
+
+function splitFilterValueList(value) {
+  if (Array.isArray(value)) return value.map(v => String(v ?? '').trim()).filter(Boolean);
+  return String(value ?? '').split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function inferSourcesFromValueKind(valueKind) {
+  if (valueKind === 'literal') return ['literal'];
+  if (valueKind === 'concept') return ['link'];
+  return ['literal', 'link'];
+}
+
+function dedupSources(sources, valueKind) {
+  const input = Array.isArray(sources) && sources.length > 0 ? sources : inferSourcesFromValueKind(valueKind);
+  const cleaned = [...new Set(input.filter(s => s === 'literal' || s === 'link'))];
+  return cleaned.length > 0 ? cleaned : inferSourcesFromValueKind(valueKind);
+}
+
+function toFtsMatchText(text) {
+  return `"${String(text || '').replace(/"/g, '""')}"`;
+}
+
+function sanitizeName(system) {
+  return (system || 'CS').replace(/[^A-Za-z0-9]/g, '').slice(0, 40) || 'CS';
+}
+
+function buildRuntimeConfig(rawCfg, system) {
+  const cfg = rawCfg || {};
+  const searchRaw = cfg['search'] || {};
+  const sources = Array.isArray(searchRaw.sources) && searchRaw.sources.length > 0
+    ? searchRaw.sources.filter(s => ['display', 'designation', 'literal'].includes(s))
+    : ['designation'];
+  const search = {
+    mode: searchRaw.mode || 'like',
+    activeOnly: searchRaw.activeOnly !== false,
+    designationActiveOnly: searchRaw.designationActiveOnly !== false,
+    literalActiveOnly: searchRaw.literalActiveOnly !== false,
+    sources,
+    ftsTables: {
+      display: searchRaw.ftsTables?.display || 'search_fts_display',
+      designation: searchRaw.ftsTables?.designation || 'search_fts_designation',
+      literal: searchRaw.ftsTables?.literal || 'search_fts_literal',
+    },
+    likeFallback: { enabled: searchRaw.likeFallback?.enabled !== false, caseInsensitive: searchRaw.likeFallback?.caseInsensitive !== false },
+  };
+  const runtime = {
+    versioning: cfg['versioning'] || { algorithm: 'string', partialMatch: true },
+    languages: cfg['languages'] || { default: 'en' },
+    designations: cfg['designations'] || {},
+    hierarchy: cfg['hierarchy'] || { propertyCode: null, edgeSetId: 1, closure: { enabled: true, fallbackRecursive: false } },
+    filters: cfg['filters'] || { concept: { operators: ['=', 'is-a', 'descendent-of', 'in'] }, code: { operators: ['regex'] } },
+    implicitValueSets: cfg['implicitValueSets'] || {
+      all: { queries: ['fhir_vs', 'fhir_vs=all'] },
+      isa: { queryPrefix: 'fhir_vs=isa/', filter: { property: 'concept', op: 'is-a', valueFromSuffix: true } },
+      refset: { queryPrefix: 'fhir_vs=refset/', filter: { property: 'concept', op: 'in', valueFromSuffix: true } },
+    },
+    status: cfg['status'] || { inactive: { source: 'concept.active', invert: true }, deprecated: { source: 'constant', value: false }, abstract: { source: 'constant', value: false } },
+    iteration: cfg['iteration'] || {},
+    search,
+    behaviorFlags: cfg['behaviorFlags'] || {},
+  };
+  if (!runtime.hierarchy.edgeSetId) runtime.hierarchy.edgeSetId = 1;
+  if (!runtime.languages.default) runtime.languages.default = 'en';
+  return runtime;
+}
+
 // ── Context wrappers ────────────────────────────────────────────────
 
 /** Context returned by locate() and used by all per-concept methods. */
@@ -77,7 +159,7 @@ class SqliteV0Provider extends BaseCSServices {
       .get({ cs: this.#meta.csId }).cnt;
   }
 
-  contentMode() { return CodeSystemContentMode.COMPLETE; }
+  contentMode() { return CodeSystemContentMode.Complete; }
   isNotClosed() { return false; }
   hasParents()  { return this.#closureOk; }
 
@@ -135,7 +217,45 @@ class SqliteV0Provider extends BaseCSServices {
 
   async getStatus(context) {
     const ctx = await this.#ctx(context);
+    // Check statusProperty config (e.g. LOINC stores STATUS in concept_literal)
+    const statusPropCode = this.#runtime.status?.statusProperty;
+    if (statusPropCode) {
+      const propDef = this.#propDefs.get(statusPropCode);
+      if (propDef) {
+        const row = this.#prep('statusProp',
+          `SELECT COALESCE(value_text, value_raw) AS value FROM concept_literal
+           WHERE source_concept_id = @cid AND property_id = @pid AND active = 1 LIMIT 1`)
+          .get({ cid: ctx.concept_id, pid: propDef.property_id });
+        if (row?.value) return row.value;
+      }
+    }
     return ctx.active ? 'active' : 'inactive';
+  }
+
+  versionIsMoreDetailed(checkVersion, actualVersion) {
+    if (!checkVersion || !actualVersion) return false;
+    const partialMatch = this.#runtime.versioning?.partialMatch !== false;
+    if (!partialMatch) return checkVersion === actualVersion;
+    return actualVersion.startsWith(checkVersion);
+  }
+
+  async subsumesTest(codeA, codeB) {
+    const a = await this.#ctx(codeA);
+    const b = await this.#ctx(codeB);
+    if (!a || !b) return 'not-subsumed';
+    if (a.code === b.code) return 'equivalent';
+    if (this.#isA(a.concept_id, b.concept_id)) return 'subsumes';
+    if (this.#isA(b.concept_id, a.concept_id)) return 'subsumed-by';
+    return 'not-subsumed';
+  }
+
+  #isA(ancestorId, descendantId) {
+    if (!this.#closureOk || !ancestorId || !descendantId) return false;
+    if (ancestorId === descendantId) return true;
+    const row = this.#prep('isA',
+      'SELECT 1 AS found FROM closure WHERE ancestor_id = @anc AND descendant_id = @desc LIMIT 1')
+      .get({ anc: ancestorId, desc: descendantId });
+    return !!row;
   }
 
   async itemWeight() { return null; }
@@ -230,12 +350,16 @@ class SqliteV0Provider extends BaseCSServices {
   async doesFilter(prop, op, value) {
     const filtersCfg = this.#runtime.filters || {};
     if (prop === 'concept' && filtersCfg.concept?.operators?.includes(op)) return true;
-    if (prop === 'code' && filtersCfg.code?.operators?.includes(op)) return true;
-    // Check per-property config
-    if (filtersCfg.properties?.byCode?.[prop]) {
-      return filtersCfg.properties.byCode[prop].operators?.includes(op) ?? false;
+    if (prop === 'code' && op === 'regex') return true;
+    if (filtersCfg[prop]?.operators?.includes(op)) return true;
+    // Regex on any literal property
+    if (op === 'regex' && prop !== 'concept') {
+      const propDef = this.#propDefs.get(prop);
+      if (propDef && propDef.value_kind !== 'concept') return true;
     }
-    if (filtersCfg.properties?.allPropertiesFilterable) return true;
+    // Check property config with alias resolution
+    const resolved = this.#resolvePropertyFilterConfig(prop);
+    if (resolved?.operators?.includes(op)) return true;
     return false;
   }
 
@@ -259,26 +383,35 @@ class SqliteV0Provider extends BaseCSServices {
     const joins = [];
     const wheres = [`c.cs_id = @cs`];
     let idx = 0;
+    const codeSetFilters = [];  // property filters that produce code sets
+    let codeRegex = null;
 
     for (const f of filters) {
       const frag = this.#buildFilterFragment(f, `f${idx}`, 'c', params);
       if (frag) {
-        if (frag.joins) joins.push(frag.joins);
-        if (frag.sql) wheres.push(frag.sql);
+        if (frag._codeSet) { codeSetFilters.push(frag._codeSet); }
+        else if (frag._codeRegex) { codeRegex = frag._codeRegex; }
+        else {
+          if (frag.joins) joins.push(frag.joins);
+          if (frag.sql) wheres.push(frag.sql);
+        }
       }
       idx++;
     }
 
+    // Multi-source text search (display + designation + literal FTS)
     if (search) {
       const searchCfg = this.#runtime.search;
       if (searchCfg?.mode?.startsWith('fts')) {
-        // FTS5 search on display table
-        const ftsTable = searchCfg.ftsTables?.display || 'search_fts_display';
-        params.search_term = `"${search.replace(/"/g, '""')}"*`;
-        joins.push(`JOIN ${ftsTable} fts ON fts.rowid = c.concept_id`);
-        wheres.push(`${ftsTable} MATCH @search_term`);
+        const matchText = toFtsMatchText(search);
+        const searchCodes = this.#searchCodesWithFts(matchText, searchCfg);
+        if (searchCodes.length === 0) {
+          filterContext._v0.resultSet = new V0FilterSet([]);
+          return [filterContext._v0.resultSet];
+        }
+        codeSetFilters.push(searchCodes);
       } else {
-        // LIKE fallback
+        // LIKE fallback on display only
         params.search_like = `%${search}%`;
         wheres.push(`c.display LIKE @search_like`);
       }
@@ -289,9 +422,65 @@ class SqliteV0Provider extends BaseCSServices {
       WHERE ${wheres.join(' AND ')}
       ORDER BY c.code`;
 
-    const rows = this.#db.prepare(sql).all(params);
+    let rows = this.#db.prepare(sql).all(params);
+
+    // Apply code regex filter (JS-side)
+    if (codeRegex) {
+      try {
+        const re = new RegExp(codeRegex);
+        rows = rows.filter(r => re.test(r.code));
+      } catch (e) {
+        throw new Error(`Invalid code regex '${codeRegex}': ${e.message}`);
+      }
+    }
+
+    // Intersect with all code-set filters
+    if (codeSetFilters.length > 0) {
+      let allowed = new Set(codeSetFilters[0]);
+      for (let i = 1; i < codeSetFilters.length; i++) {
+        const next = new Set(codeSetFilters[i]);
+        allowed = new Set([...allowed].filter(c => next.has(c)));
+      }
+      rows = rows.filter(r => allowed.has(r.code));
+    }
+
     filterContext._v0.resultSet = new V0FilterSet(rows);
     return [filterContext._v0.resultSet];
+  }
+
+  /** Multi-source FTS search across display/designation/literal tables. */
+  #searchCodesWithFts(matchText, searchCfg) {
+    const codeSet = new Set();
+    const activeClause = searchCfg.activeOnly ? ' AND c.active = 1' : '';
+    for (const source of searchCfg.sources) {
+      if (source === 'display') {
+        const tbl = searchCfg.ftsTables.display;
+        const rows = this.#db.prepare(
+          `SELECT c.code FROM ${tbl} f JOIN concept c ON c.concept_id = f.rowid
+           WHERE c.cs_id = @cs${activeClause} AND f.term MATCH @mt`
+        ).all({ cs: this.#meta.csId, mt: matchText });
+        for (const r of rows) codeSet.add(r.code);
+      } else if (source === 'designation') {
+        const tbl = searchCfg.ftsTables.designation;
+        const dClause = searchCfg.designationActiveOnly ? ' AND d.active = 1' : '';
+        const rows = this.#db.prepare(
+          `SELECT c.code FROM ${tbl} f JOIN designation d ON d.designation_id = f.rowid
+           JOIN concept c ON c.concept_id = d.concept_id
+           WHERE c.cs_id = @cs${activeClause}${dClause} AND f.term MATCH @mt`
+        ).all({ cs: this.#meta.csId, mt: matchText });
+        for (const r of rows) codeSet.add(r.code);
+      } else if (source === 'literal') {
+        const tbl = searchCfg.ftsTables.literal;
+        const lClause = searchCfg.literalActiveOnly ? ' AND cl.active = 1' : '';
+        const rows = this.#db.prepare(
+          `SELECT c.code FROM ${tbl} f JOIN concept_literal cl ON cl.literal_id = f.rowid
+           JOIN concept c ON c.concept_id = cl.source_concept_id
+           WHERE c.cs_id = @cs${activeClause}${lClause} AND f.term MATCH @mt`
+        ).all({ cs: this.#meta.csId, mt: matchText });
+        for (const r of rows) codeSet.add(r.code);
+      }
+    }
+    return [...codeSet];
   }
 
   async filterSize(filterContext, set) {
@@ -323,17 +512,17 @@ class SqliteV0Provider extends BaseCSServices {
 
   async iteratorAll() {
     const iterCfg = this.#runtime.iteration;
-    let sql = 'SELECT concept_id, code, display, definition, active FROM concept WHERE cs_id = @cs';
-    const params = { cs: this.#meta.csId };
+    const sql = 'SELECT concept_id, code, display, definition, active FROM concept WHERE cs_id = @cs ORDER BY code';
+    let rows = this.#db.prepare(sql).all({ cs: this.#meta.csId });
 
-    // Apply code regex filter if configured (like LOINC's "only codes matching X")
+    // Apply code regex filter if configured (e.g. LOINC: only codes matching ^[0-9]{3,}.*)
     if (iterCfg?.defaultCodeRegex) {
-      // SQLite doesn't natively support regex, so we do GLOB-style or filter in JS
-      // For now, fetch all and let the caller deal with it
+      try {
+        const re = new RegExp(iterCfg.defaultCodeRegex);
+        rows = rows.filter(r => re.test(r.code));
+      } catch { /* ignore bad regex */ }
     }
 
-    sql += ' ORDER BY code';
-    const rows = this.#db.prepare(sql).all(params);
     return new V0FilterSet(rows);
   }
 
@@ -434,77 +623,219 @@ class SqliteV0Provider extends BaseCSServices {
       }
     }
 
-    // ── code regex filter ──
+    // ── code regex filter (eager JS-side matching) ──
     if (property === 'code' && op === 'regex') {
-      // SQLite doesn't support REGEXP natively; use GLOB or load all + filter in JS
-      // For now, fall through to property-based approach
+      // Return null here — handled via _v0CodeRegex on the filter context
+      return { _codeRegex: value };
     }
 
-    // ── generic property filters ──
-    const propDef = this.#propDefs.get(property);
+    // ── generic property filters (with full alias/config resolution) ──
+    const propCfg = this.#resolvePropertyFilterConfig(property);
+    if (!propCfg) return null;
+
+    const propDef = this.#propDefs.get(propCfg.propertyCode);
     if (!propDef) return null;
 
-    if (propDef.value_kind === 'concept') {
-      // Property that points to another concept
-      const propCfg = filtersCfg.properties?.byCode?.[property];
-      const linkMatch = propCfg?.linkMatch || filtersCfg.properties?.defaultLinkMatch || 'code';
-
-      if (op === '=') {
-        params[`${prefix}_pid`] = propDef.property_id;
-        params[`${prefix}_val`] = this.#normalizeFilterValue(property, value);
-        if (linkMatch === 'code-or-display') {
-          return {
-            sql: `(tgt_${prefix}.code = @${prefix}_val OR tgt_${prefix}.display = @${prefix}_val)`,
-            joins: `JOIN concept_link lnk_${prefix} ON lnk_${prefix}.source_concept_id = ${alias}.concept_id AND lnk_${prefix}.property_id = @${prefix}_pid AND lnk_${prefix}.active = 1`
-              + ` JOIN concept tgt_${prefix} ON tgt_${prefix}.concept_id = lnk_${prefix}.target_concept_id`,
-          };
-        }
-        return {
-          sql: `tgt_${prefix}.code = @${prefix}_val`,
-          joins: `JOIN concept_link lnk_${prefix} ON lnk_${prefix}.source_concept_id = ${alias}.concept_id AND lnk_${prefix}.property_id = @${prefix}_pid AND lnk_${prefix}.active = 1`
-            + ` JOIN concept tgt_${prefix} ON tgt_${prefix}.concept_id = lnk_${prefix}.target_concept_id`,
-        };
-      }
+    if (op === '=') {
+      const candidates = normalizedFilterCandidates(value, propCfg.value);
+      if (candidates.length === 0) return { sql: '0=1', joins: '' };
+      // Use codeSet approach: eagerly compute matching codes
+      const codes = this.#propertyEqualsCodes(propCfg, candidates);
+      return { _codeSet: codes };
     }
-
-    if (propDef.value_kind !== 'concept') {
-      // Literal property
-      if (op === '=') {
-        params[`${prefix}_pid`] = propDef.property_id;
-        params[`${prefix}_val`] = this.#normalizeFilterValue(property, value);
-        return {
-          sql: `lit_${prefix}.value_text = @${prefix}_val`,
-          joins: `JOIN concept_literal lit_${prefix} ON lit_${prefix}.source_concept_id = ${alias}.concept_id AND lit_${prefix}.property_id = @${prefix}_pid AND lit_${prefix}.active = 1`,
-        };
+    if (op === 'in') {
+      const members = splitFilterValueList(value);
+      const aggregate = new Set();
+      for (const member of members) {
+        const candidates = normalizedFilterCandidates(member, propCfg.value);
+        if (candidates.length === 0) continue;
+        for (const code of this.#propertyEqualsCodes(propCfg, candidates)) aggregate.add(code);
       }
-      if (op === 'regex') {
-        // SQLite REGEXP requires extension; for now match via LIKE if pattern is simple
-        params[`${prefix}_pid`] = propDef.property_id;
-        // Convert simple regex to LIKE (basic heuristic)
-        const likeValue = value.replace(/\.\*/g, '%').replace(/\./g, '_');
-        params[`${prefix}_val`] = likeValue;
-        return {
-          sql: `lit_${prefix}.value_text LIKE @${prefix}_val`,
-          joins: `JOIN concept_literal lit_${prefix} ON lit_${prefix}.source_concept_id = ${alias}.concept_id AND lit_${prefix}.property_id = @${prefix}_pid AND lit_${prefix}.active = 1`,
-        };
-      }
-      if (op === 'exists') {
-        params[`${prefix}_pid`] = propDef.property_id;
-        if (value === 'true') {
-          return {
-            sql: '1=1',
-            joins: `JOIN concept_literal lit_${prefix} ON lit_${prefix}.source_concept_id = ${alias}.concept_id AND lit_${prefix}.property_id = @${prefix}_pid AND lit_${prefix}.active = 1`,
-          };
-        } else {
-          return {
-            sql: `NOT EXISTS (SELECT 1 FROM concept_literal lit2 WHERE lit2.source_concept_id = ${alias}.concept_id AND lit2.property_id = @${prefix}_pid AND lit2.active = 1)`,
-            joins: '',
-          };
-        }
-      }
+      return { _codeSet: [...aggregate] };
+    }
+    if (op === 'regex') {
+      const codes = this.#propertyRegexCodes(propCfg, value);
+      return { _codeSet: codes };
+    }
+    if (op === 'exists') {
+      const codes = this.#propertyExistsCodes(propCfg, value);
+      return { _codeSet: codes };
     }
 
     return null;
+  }
+
+  /** Find codes matching property = candidates (literal + link sources). */
+  #propertyEqualsCodes(propCfg, candidates) {
+    const codeSet = new Set();
+    if (propCfg.sources.includes('literal')) {
+      const placeholders = candidates.map((_, i) => `@pc${i}`).join(',');
+      const p = { pid: propCfg.propertyId, cs: this.#meta.csId };
+      candidates.forEach((c, i) => { p[`pc${i}`] = c; });
+      const rows = this.#db.prepare(
+        `SELECT DISTINCT c.code FROM concept_literal cl
+         JOIN concept c ON c.concept_id = cl.source_concept_id
+         WHERE cl.property_id = @pid AND cl.active = 1 AND c.cs_id = @cs
+         AND (cl.value_text COLLATE NOCASE IN (${placeholders}) OR (cl.value_text IS NULL AND cl.value_raw COLLATE NOCASE IN (${placeholders})))`
+      ).all(p);
+      for (const r of rows) codeSet.add(r.code);
+    }
+    if (propCfg.sources.includes('link')) {
+      const placeholders = candidates.map((_, i) => `@lc${i}`).join(',');
+      const p = { pid: propCfg.propertyId, cs: this.#meta.csId };
+      candidates.forEach((c, i) => { p[`lc${i}`] = c; });
+      let tgtSql = `tgt.code COLLATE NOCASE IN (${placeholders})`;
+      if (propCfg.linkMatch === 'code-or-display') {
+        tgtSql += ` OR tgt.display COLLATE NOCASE IN (${placeholders})`;
+      }
+      const rows = this.#db.prepare(
+        `SELECT DISTINCT src.code FROM concept_link l
+         JOIN concept src ON src.concept_id = l.source_concept_id
+         JOIN concept tgt ON tgt.concept_id = l.target_concept_id
+         WHERE l.property_id = @pid AND l.active = 1 AND src.cs_id = @cs AND (${tgtSql})`
+      ).all(p);
+      for (const r of rows) codeSet.add(r.code);
+    }
+    return [...codeSet].sort();
+  }
+
+  /** Find codes matching property regex. */
+  #propertyRegexCodes(propCfg, pattern) {
+    let regex;
+    try { regex = new RegExp(String(pattern || '')); }
+    catch (e) { throw new Error(`Invalid regex '${pattern}': ${e.message}`); }
+    const codeSet = new Set();
+    if (propCfg.sources.includes('literal')) {
+      const rows = this.#db.prepare(
+        `SELECT c.code, COALESCE(cl.value_text, cl.value_raw) AS value FROM concept_literal cl
+         JOIN concept c ON c.concept_id = cl.source_concept_id
+         WHERE cl.property_id = @pid AND cl.active = 1 AND c.cs_id = @cs AND COALESCE(cl.value_text, cl.value_raw) IS NOT NULL`
+      ).all({ pid: propCfg.propertyId, cs: this.#meta.csId });
+      for (const r of rows) if (regex.test(r.value)) codeSet.add(r.code);
+    }
+    if (propCfg.sources.includes('link')) {
+      const rows = this.#db.prepare(
+        `SELECT src.code, tgt.code AS tc, tgt.display AS td FROM concept_link l
+         JOIN concept src ON src.concept_id = l.source_concept_id
+         JOIN concept tgt ON tgt.concept_id = l.target_concept_id
+         WHERE l.property_id = @pid AND l.active = 1 AND src.cs_id = @cs`
+      ).all({ pid: propCfg.propertyId, cs: this.#meta.csId });
+      for (const r of rows) {
+        if ((r.tc && regex.test(r.tc)) || (propCfg.linkMatch === 'code-or-display' && r.td && regex.test(r.td)))
+          codeSet.add(r.code);
+      }
+    }
+    return [...codeSet].sort();
+  }
+
+  /** Find codes where property exists/not-exists. */
+  #propertyExistsCodes(propCfg, value) {
+    const expectExists = String(value ?? 'true').toLowerCase() !== 'false';
+    const codeSet = new Set();
+    if (propCfg.sources.includes('literal')) {
+      const rows = this.#db.prepare(
+        `SELECT DISTINCT c.code FROM concept_literal cl JOIN concept c ON c.concept_id = cl.source_concept_id
+         WHERE cl.property_id = @pid AND cl.active = 1 AND c.cs_id = @cs`
+      ).all({ pid: propCfg.propertyId, cs: this.#meta.csId });
+      for (const r of rows) codeSet.add(r.code);
+    }
+    if (propCfg.sources.includes('link')) {
+      const rows = this.#db.prepare(
+        `SELECT DISTINCT src.code FROM concept_link l JOIN concept src ON src.concept_id = l.source_concept_id
+         WHERE l.property_id = @pid AND l.active = 1 AND src.cs_id = @cs`
+      ).all({ pid: propCfg.propertyId, cs: this.#meta.csId });
+      for (const r of rows) codeSet.add(r.code);
+    }
+    if (expectExists) return [...codeSet].sort();
+    // Invert: all codes minus those that have the property
+    const all = this.#db.prepare('SELECT code FROM concept WHERE cs_id = @cs').all({ cs: this.#meta.csId });
+    return all.map(r => r.code).filter(c => !codeSet.has(c)).sort();
+  }
+
+  /** Run special property handler (e.g. LOINC answers-for derived-link-filter). */
+  #runSpecialPropertyHandler(propCfg, op, value) {
+    const handler = propCfg.specialHandler;
+    if (!handler || handler.kind !== 'derived-link-filter') throw new Error(`Unsupported special handler: ${JSON.stringify(handler)}`);
+    const values = op === 'in' ? splitFilterValueList(value) : [String(value ?? '').trim()];
+    const allCandidates = new Set();
+    for (const v of values) for (const c of normalizedFilterCandidates(v, propCfg.value)) allCandidates.add(c);
+    if (allCandidates.size === 0) return [];
+    // Seed: direct codes + inverse lookups
+    const seedCfg = handler.seed || {};
+    const seedCodes = new Set();
+    const directPrefixes = Array.isArray(seedCfg.directCodePrefixes) ? seedCfg.directCodePrefixes : [];
+    for (const raw of allCandidates) {
+      if (seedCfg.allowAnyDirect === true || directPrefixes.some(p => raw.startsWith(p))) seedCodes.add(raw);
+    }
+    if (seedCfg.inversePropertyCode) {
+      const invProp = this.#propDefs.get(seedCfg.inversePropertyCode);
+      if (invProp) {
+        const codes = [...allCandidates];
+        const ph = codes.map((_, i) => `@s${i}`).join(',');
+        const p = { cs: this.#meta.csId, pid: invProp.property_id };
+        codes.forEach((c, i) => { p[`s${i}`] = c; });
+        const rows = this.#db.prepare(
+          `SELECT DISTINCT src.code FROM concept_link l
+           JOIN concept src ON src.concept_id = l.source_concept_id
+           JOIN concept tgt ON tgt.concept_id = l.target_concept_id
+           WHERE src.cs_id = @cs AND l.property_id = @pid AND l.active = 1 AND tgt.code IN (${ph})`
+        ).all(p);
+        for (const r of rows) seedCodes.add(r.code);
+      }
+    }
+    if (seedCodes.size === 0) return [];
+    // Projection
+    const projCfg = handler.projection || {};
+    const projProp = this.#propDefs.get(projCfg.propertyCode);
+    if (!projProp) return [];
+    const side = projCfg.side === 'source' ? 'source' : 'target';
+    const seeds = [...seedCodes];
+    const ph = seeds.map((_, i) => `@p${i}`).join(',');
+    const p = { cs: this.#meta.csId, pid: projProp.property_id };
+    seeds.forEach((c, i) => { p[`p${i}`] = c; });
+    const rows = this.#db.prepare(
+      `SELECT DISTINCT ${side === 'source' ? 'src' : 'tgt'}.code FROM concept_link l
+       JOIN concept src ON src.concept_id = l.source_concept_id
+       JOIN concept tgt ON tgt.concept_id = l.target_concept_id
+       WHERE src.cs_id = @cs AND l.property_id = @pid AND l.active = 1 AND src.code IN (${ph})`
+    ).all(p);
+    return rows.map(r => r.code).sort();
+  }
+
+  /** Resolve property filter config with alias resolution (ported from codex). */
+  #resolvePropertyFilterConfig(propertyCode) {
+    if (!propertyCode) return null;
+    const filtersCfg = this.#runtime.filters?.properties;
+    if (!filtersCfg) {
+      const propDef = this.#propDefs.get(propertyCode);
+      if (!propDef) return null;
+      return {
+        propertyId: propDef.property_id, propertyCode,
+        operators: ['=', 'in'], sources: inferSourcesFromValueKind(propDef.value_kind),
+        linkMatch: 'code-only', value: {}, specialHandler: null,
+      };
+    }
+    const aliases = filtersCfg.aliases || {};
+    const rawCode = String(propertyCode);
+    const aliasTarget = aliases[rawCode] ?? aliases[rawCode.toLowerCase()];
+    const resolvedCode = aliasTarget || rawCode;
+    const byCode = filtersCfg.byCode || {};
+    const specific = byCode[resolvedCode] || byCode[rawCode] || null;
+    if (!specific && filtersCfg.allPropertiesFilterable !== true) return null;
+    const propDef = this.#propDefs.get(resolvedCode);
+    if (!propDef) return null;
+    const operators = Array.isArray(specific?.operators) && specific.operators.length > 0
+      ? specific.operators
+      : (Array.isArray(filtersCfg.defaultOperators) && filtersCfg.defaultOperators.length > 0 ? filtersCfg.defaultOperators : ['=']);
+    const defaultSources = Array.isArray(filtersCfg.defaultSources) ? filtersCfg.defaultSources : inferSourcesFromValueKind(propDef.value_kind);
+    const sources = Array.isArray(specific?.sources) && specific.sources.length > 0 ? specific.sources : defaultSources;
+    const linkMatch = specific?.linkMatch || filtersCfg.defaultLinkMatch || 'code-only';
+    const valueCfg = { ...(filtersCfg.defaultValue || {}), ...(specific?.value || {}) };
+    return {
+      propertyId: propDef.property_id, propertyCode: resolvedCode,
+      operators, sources: dedupSources(sources, propDef.value_kind),
+      linkMatch, value: valueCfg, specialHandler: specific?.specialHandler || null,
+    };
   }
 
   /** Normalize filter values (case, aliases) based on runtime config. */
@@ -746,17 +1077,15 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
         name: cs.name,
       };
 
-      // Load runtime config
-      this.#runtime = {};
+      // Load runtime config with defaults
+      const rawCfg = {};
       const configs = db.prepare('SELECT key, value FROM cs_config WHERE cs_id = @cs').all({ cs: cs.cs_id });
       for (const cfg of configs) {
         const shortKey = cfg.key.replace(/^runtime\./, '');
-        try {
-          this.#runtime[shortKey] = JSON.parse(cfg.value);
-        } catch {
-          this.#runtime[shortKey] = cfg.value;
-        }
+        try { rawCfg[shortKey] = JSON.parse(cfg.value); }
+        catch { rawCfg[shortKey] = cfg.value; }
       }
+      this.#runtime = buildRuntimeConfig(rawCfg, cs.base_uri);
 
       // Load property definitions
       this.#propDefs = new Map();
@@ -836,46 +1165,21 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
       }
     }
 
-    // Check for is-a pattern (e.g., ?fhir_vs=isa/73211009)
-    if (implicitVS.isa?.queryPrefix) {
-      const prefix = `${base}?${implicitVS.isa.queryPrefix}`;
-      if (url.startsWith(prefix)) {
-        const code = url.substring(prefix.length);
-        const filter = { ...implicitVS.isa.filter };
-        if (filter.valueFromSuffix) {
-          filter.value = code;
-          delete filter.valueFromSuffix;
-        }
-        return {
-          resourceType: 'ValueSet',
-          url,
-          version: this.version(),
-          status: 'active',
-          name: `IsA_${code}`,
-          compose: { include: [{ system: base, filter: [filter] }] },
-        };
-      }
-    }
-
-    // Check for refset pattern (e.g., ?fhir_vs=refset/447566000)
-    if (implicitVS.refset?.queryPrefix) {
-      const prefix = `${base}?${implicitVS.refset.queryPrefix}`;
-      if (url.startsWith(prefix)) {
-        const code = url.substring(prefix.length);
-        const filter = { ...implicitVS.refset.filter };
-        if (filter.valueFromSuffix) {
-          filter.value = code;
-          delete filter.valueFromSuffix;
-        }
-        return {
-          resourceType: 'ValueSet',
-          url,
-          version: this.version(),
-          status: 'active',
-          name: `Refset_${code}`,
-          compose: { include: [{ system: base, filter: [filter] }] },
-        };
-      }
+    // Check all implicit VS patterns (isa, refset, etc.) generically
+    for (const [name, cfg] of Object.entries(implicitVS)) {
+      if (!cfg || !cfg.queryPrefix || !cfg.filter) continue;
+      const prefix = `${base}?${cfg.queryPrefix}`;
+      if (!url.startsWith(prefix)) continue;
+      const suffix = url.substring(prefix.length);
+      const filterValue = cfg.filter.valueFromSuffix ? suffix : cfg.filter.value;
+      return {
+        resourceType: 'ValueSet',
+        url,
+        version: this.version(),
+        status: 'active',
+        name: `${sanitizeName(base)}${name}${suffix}`,
+        compose: { include: [{ system: base, filter: [{ property: cfg.filter.property, op: cfg.filter.op, value: filterValue }] }] },
+      };
     }
 
     // Check value_set table for explicit value sets
