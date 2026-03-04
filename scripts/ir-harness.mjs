@@ -44,6 +44,12 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   if (opts.includeDesignations) params.push({ name: 'includeDesignations', valueBoolean: true });
   if (WANT_TRACE) params.push({ name: '_trace', valueString: 'true' });
   params.push({ name: '_nocache', valueString: 'true' });
+  // Attach inline tx-resource(s) (e.g. custom CodeSystems)
+  if (opts.txResources) {
+    for (const res of Array.isArray(opts.txResources) ? opts.txResources : [opts.txResources]) {
+      params.push({ name: 'tx-resource', resource: res });
+    }
+  }
 
   const t0 = performance.now();
   const resp = await fetch(EXPAND, {
@@ -67,6 +73,20 @@ function codes(result) {
 
 function findCode(result, code) {
   return codes(result).find(c => c.code === code);
+}
+
+function expansionParams(result, name) {
+  return (result.expansion?.parameter || []).filter(p => p.name === name);
+}
+
+function hasExpansionParam(result, name, value) {
+  const params = expansionParams(result, name);
+  if (value === undefined) return params.length > 0;
+  return params.some(p => (p.valueUri || p.valueString || p.valueCode || p.valueBoolean) === value);
+}
+
+function expansionExtensions(result, url) {
+  return (result.expansion?.extension || []).filter(e => e.url === url);
 }
 
 async function test(name, fn) {
@@ -661,6 +681,156 @@ async function run() {
     }), { includeDesignations: true });
     const entry = findCode(result, '2160-0');
     assert(entry?.designation?.length > 0, 'has designations');
+  });
+
+  // ── Expansion metadata & canonical status warnings ───────────────────
+  console.log('\n── Expansion metadata & canonical status warnings ──');
+
+  // Helper: build a complete inline CodeSystem
+  function inlineCS(url, overrides = {}) {
+    return {
+      resourceType: 'CodeSystem',
+      url,
+      version: '1.0.0',
+      status: 'active',
+      content: 'complete',
+      concept: [
+        { code: 'A', display: 'Alpha' },
+        { code: 'B', display: 'Bravo' },
+        { code: 'C', display: 'Charlie' },
+      ],
+      ...overrides,
+    };
+  }
+
+  // Helper: build a VS referencing an inline CS
+  function vsForCS(csUrl) {
+    return {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/test-vs',
+      status: 'active',
+      compose: { include: [{ system: csUrl }] },
+    };
+  }
+
+  await test('meta: used-codesystem emitted for single system', async () => {
+    const cs = inlineCS('http://example.org/cs/meta-used-1');
+    const { result } = await expand(vsForCS(cs.url), { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    const usedParams = expansionParams(result, 'used-codesystem');
+    assert(usedParams.length >= 1, 'expected at least one used-codesystem parameter');
+    assert(usedParams.some(p => p.valueUri?.includes('example.org/cs/meta-used-1')),
+      `used-codesystem should reference the inline CS, got: ${JSON.stringify(usedParams)}`);
+  });
+
+  await test('meta: used-codesystem emitted for multi-system', async () => {
+    const cs1 = inlineCS('http://example.org/cs/multi-1');
+    const cs2 = inlineCS('http://example.org/cs/multi-2', {
+      concept: [{ code: 'X', display: 'Xray' }],
+    });
+    const vsJson = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/test-vs-multi',
+      status: 'active',
+      compose: { include: [
+        { system: cs1.url },
+        { system: cs2.url },
+      ] },
+    };
+    const { result } = await expand(vsJson, { txResources: [cs1, cs2] });
+    assert(codes(result).length === 4, `expected 4 codes, got ${codes(result).length}`);
+    const usedParams = expansionParams(result, 'used-codesystem');
+    assert(usedParams.some(p => p.valueUri?.includes('multi-1')),
+      'should record cs/multi-1');
+    assert(usedParams.some(p => p.valueUri?.includes('multi-2')),
+      'should record cs/multi-2');
+  });
+
+  await test('meta: warning-draft for draft CodeSystem', async () => {
+    const cs = inlineCS('http://example.org/cs/draft-1', { status: 'draft' });
+    const { result } = await expand(vsForCS(cs.url), { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    assert(hasExpansionParam(result, 'warning-draft'),
+      `expected warning-draft parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
+  });
+
+  await test('meta: warning-retired for retired CodeSystem', async () => {
+    const cs = inlineCS('http://example.org/cs/retired-1', { status: 'retired' });
+    const { result } = await expand(vsForCS(cs.url), { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    assert(hasExpansionParam(result, 'warning-retired'),
+      `expected warning-retired parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
+  });
+
+  await test('meta: warning-experimental for experimental CodeSystem (non-experimental VS)', async () => {
+    const cs = inlineCS('http://example.org/cs/experimental-1', { experimental: true });
+    const { result } = await expand(vsForCS(cs.url), { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    assert(hasExpansionParam(result, 'warning-experimental'),
+      `expected warning-experimental parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
+  });
+
+  await test('meta: NO warning-draft when VS is also draft', async () => {
+    const cs = inlineCS('http://example.org/cs/draft-2', { status: 'draft' });
+    const vsJson = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/test-vs-draft',
+      status: 'draft',  // VS is also draft — should suppress warning
+      compose: { include: [{ system: cs.url }] },
+    };
+    const { result } = await expand(vsJson, { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    assert(!hasExpansionParam(result, 'warning-draft'),
+      `should NOT have warning-draft when VS is also draft, got params: ${JSON.stringify(result.expansion?.parameter)}`);
+  });
+
+  // Note: legacy engine has a bug here — ValueSet wrapper doesn't expose .experimental,
+  // so it always emits warning-experimental. IR engine correctly suppresses it.
+  await test('meta: NO warning-experimental when VS is also experimental', async () => {
+    const cs = inlineCS('http://example.org/cs/experimental-2', { experimental: true });
+    const vsJson = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/test-vs-experimental',
+      status: 'active',
+      experimental: true,  // VS is also experimental — should suppress warning
+      compose: { include: [{ system: cs.url }] },
+    };
+    const { result } = await expand(vsJson, { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    assert(!hasExpansionParam(result, 'warning-experimental'),
+      `should NOT have warning-experimental when VS is also experimental`);
+  });
+
+  await test('meta: warning-deprecated via standardsStatus extension', async () => {
+    const cs = inlineCS('http://example.org/cs/deprecated-1', {
+      extension: [{
+        url: 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status',
+        valueCode: 'deprecated',
+      }],
+    });
+    const { result } = await expand(vsForCS(cs.url), { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    assert(hasExpansionParam(result, 'warning-deprecated'),
+      `expected warning-deprecated parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
+  });
+
+  await test('meta: fragment CodeSystem sets valueset-unclosed extension', async () => {
+    const cs = inlineCS('http://example.org/cs/fragment-1', { content: 'fragment' });
+    const { result } = await expand(vsForCS(cs.url), { txResources: cs });
+    assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
+    const unclosed = expansionExtensions(result, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+    assert(unclosed.length > 0,
+      `expected valueset-unclosed extension, got extensions: ${JSON.stringify(result.expansion?.extension)}`);
+  });
+
+  await test('meta: SNOMED expansion emits used-codesystem with version', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    }), { count: 5 });
+    const usedParams = expansionParams(result, 'used-codesystem');
+    assert(usedParams.some(p => p.valueUri?.startsWith('http://snomed.info/sct')),
+      `SNOMED expansion should have used-codesystem, got: ${JSON.stringify(usedParams)}`);
   });
 
   // ── summary ──────────────────────────────────────────────────────────

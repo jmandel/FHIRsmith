@@ -146,6 +146,7 @@ async function expandViaIR(vsJson, opts = {}) {
 
   const unsupportedSystems = [];
   const usedSystems = new Set();
+  const providerMeta = [];  // { vurl, status, standardsStatus, experimental, contentMode }
   const totalOnly = count === 0;
 
   // Phase 1: resolve providers, project subtrees, get per-system counts.
@@ -160,7 +161,19 @@ async function expandViaIR(vsJson, opts = {}) {
     if (!provider) { unsupportedSystems.push(system); continue; }
 
     const provVersion = (typeof provider.version === 'function' ? provider.version() : provider.version) || version;
-    usedSystems.add(provVersion ? `${system}|${provVersion}` : system);
+    const vurl = provVersion ? `${system}|${provVersion}` : system;
+    usedSystems.add(vurl);
+
+    // Collect provider canonical status for expansion metadata warnings
+    const provStatus = typeof provider.status === 'function' ? provider.status() : {};
+    const contentMode = typeof provider.contentMode === 'function' ? provider.contentMode() : 'complete';
+    providerMeta.push({
+      vurl,
+      status: provStatus?.status || '',
+      standardsStatus: provStatus?.standardsStatus || '',
+      experimental: provStatus?.experimental || false,
+      contentMode: contentMode || 'complete',
+    });
 
     let irProvider = provider;
     if (typeof provider.executeIR !== 'function') {
@@ -215,6 +228,7 @@ async function expandViaIR(vsJson, opts = {}) {
         offset: offset > 0 ? offset : undefined,
         contains: [],
         usedSystems: [...usedSystems],
+        providerMeta,
       },
       warnings,
     };
@@ -349,6 +363,7 @@ async function expandViaIR(vsJson, opts = {}) {
       offset: offset > 0 ? offset : undefined,
       contains,
       usedSystems: [...usedSystems],
+      providerMeta,
     },
     warnings,
   };
@@ -414,6 +429,63 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
     for (const sys of expansion.usedSystems) {
       exp.parameter.push({ name: 'used-codesystem', valueUri: sys });
     }
+  }
+
+  // Canonical status warnings for each provider (mirrors legacy checkCanonicalStatus)
+  if (expansion.providerMeta) {
+    const sourceVS = params.sourceVS || vsJson;
+    const sourceStatus = sourceVS.status || '';
+    const sourceStandardsStatus = sourceVS.extension?.find(
+      e => e.url === 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'
+    )?.valueCode || '';
+    const sourceExperimental = sourceVS.experimental || false;
+
+    for (const meta of expansion.providerMeta) {
+      // Fragment content mode → valueset-unclosed extension
+      if (meta.contentMode === 'fragment') {
+        if (!exp.extension) exp.extension = [];
+        const unclosedUrl = 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed';
+        if (!exp.extension.some(e => e.url === unclosedUrl)) {
+          exp.extension.push({ url: unclosedUrl, valueBoolean: true });
+        }
+      }
+
+      // Status warnings (mutually exclusive, checked in priority order)
+      if (meta.standardsStatus === 'deprecated') {
+        addParamIfAbsent(exp, 'warning-deprecated', meta.vurl);
+      } else if (meta.standardsStatus === 'withdrawn') {
+        addParamIfAbsent(exp, 'warning-withdrawn', meta.vurl);
+      } else if (meta.status === 'retired') {
+        addParamIfAbsent(exp, 'warning-retired', meta.vurl);
+      } else if (meta.experimental && !sourceExperimental) {
+        addParamIfAbsent(exp, 'warning-experimental', meta.vurl);
+      } else if (
+        (meta.status === 'draft' || meta.standardsStatus === 'draft') &&
+        !(sourceStatus === 'draft' || sourceStandardsStatus === 'draft')
+      ) {
+        addParamIfAbsent(exp, 'warning-draft', meta.vurl);
+      }
+    }
+  }
+
+  // Also check the source ValueSet itself (legacy does this)
+  {
+    const sourceVS = params.sourceVS || vsJson;
+    const vsStatus = sourceVS.status || '';
+    const vsStdStatus = sourceVS.extension?.find(
+      e => e.url === 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'
+    )?.valueCode || '';
+    const vsVurl = sourceVS.version ? `${sourceVS.url}|${sourceVS.version}` : sourceVS.url;
+
+    if (vsStdStatus === 'deprecated') {
+      addParamIfAbsent(exp, 'warning-deprecated', vsVurl);
+    } else if (vsStdStatus === 'withdrawn') {
+      addParamIfAbsent(exp, 'warning-withdrawn', vsVurl);
+    } else if (vsStatus === 'retired') {
+      addParamIfAbsent(exp, 'warning-retired', vsVurl);
+    }
+    // Note: experimental/draft on the VS itself is checked against itself
+    // in legacy, which is a no-op (source == resource). Skip here.
   }
 
   result.expansion = exp;
@@ -482,6 +554,15 @@ async function decorateCandidates(candidates, opts = {}) {
       }
     }
   }
+}
+
+/**
+ * Add a URI parameter to expansion if not already present (dedup by name+value).
+ */
+function addParamIfAbsent(exp, name, valueUri) {
+  if (!exp.parameter) exp.parameter = [];
+  if (exp.parameter.some(p => p.name === name && p.valueUri === valueUri)) return;
+  exp.parameter.push({ name, valueUri });
 }
 
 module.exports = {

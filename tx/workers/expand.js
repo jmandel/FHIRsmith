@@ -2038,6 +2038,7 @@ class ExpandWorker extends TerminologyWorker {
         activeOnly: params.activeOnly,
         filter: params.filter,
         includeDefinition: params.includeDefinition,
+        sourceVS: vsJson,
       });
 
       // Attach trace to the expansion sub-object (not the top-level ValueSet)
