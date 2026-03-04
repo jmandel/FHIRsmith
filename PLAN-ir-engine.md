@@ -1,6 +1,6 @@
 # Implementation Plan: IR-Based Expansion Engine
 
-## Status (2026-03-04)
+## Status (2026-03-04, updated after Phase 0-2 completion)
 
 ### Current State
 
@@ -375,11 +375,13 @@ property selection, etc.
 
 ## Implementation Phases (Revised)
 
-### Phase 0: Create upstream-based branch + v0 provider
+### Phase 0: Create upstream-based branch + v0 provider ✅ DONE
 
-1. Create new branch from `upstream/main`
-2. Add `better-sqlite3` dependency
-3. Write the SQLite v0 provider in two layers:
+Commit: d572cfd
+
+1. ✅ Created `ir-engine` branch from `upstream/main`
+2. ✅ Added `better-sqlite3` to package.json
+3. ✅ Wrote the SQLite v0 provider in two layers:
 
    **Layer 1 — CodeSystemProvider for upstream expand.js**:
    - Factory class that loads a v0.db, registers with `library.js`
@@ -397,56 +399,69 @@ property selection, etc.
    - `membershipForIR()` builds prepared `EXISTS` statement
    - This is what the IR engine calls for v0 systems
 
-4. Add `sqlite-v0:` source type to `library.js`
-5. Verify: server starts, loads v0 databases, legacy expand.js works
-   with v0 provider for SNOMED/LOINC/RxNorm expansions
+4. ✅ Added `sqlite-v0:` source type to `library.js` (with absolute path support)
+5. ✅ Verified: 21 Jest tests passing, server loads v0 databases
 
-### Phase 1: Port standalone IR modules + LegacyIRAdapter
+### Phase 1: Native IR execution on v0 provider ✅ DONE
 
-1. Copy the standalone IR modules (ir.js, build-ir.js, resolve-imports.js,
-   rewrite.js, membership.js) — zero dependencies
-2. Copy sqlite-v0-sql.js (the IR→SQL compiler) — used by the provider's
-   executeIR() from Phase 0
-3. Build the LegacyIRAdapter:
-   - Wraps any CodeSystemProvider
-   - Implements executeIR() by tree-walking IR, calling provider
-     methods at leaves
-   - Implements membershipForIR() using composable membership types
-   - Handles union/intersect/diff via enumeration + membership
-4. Verify integration tests pass (both v0 executor and legacy adapter)
+Commit: 8644247
 
-### Phase 2: Engine orchestrator + wiring into expand.js
+1. ✅ IR modules already ported (ir.js, build-ir.js, resolve-imports.js,
+   rewrite.js, membership.js, sqlite-v0-sql.js)
+2. ✅ Added executeIR(subtree, opts) to SqliteV0Provider — compiles IR
+   subtree to SQL via sqlite-v0-sql.js, executes against database
+3. ✅ Added membershipForIR(subtree) — prepared EXISTS statement for O(1) point-checks
+4. ✅ Added countForIR(subtree, opts) — COUNT(DISTINCT code) query
+5. ✅ Added hasExecuteIR() → true for native IR detection
+6. ✅ 9 new IR execution tests passing
+7. ⚠️ LegacyIRAdapter deferred to Phase 4 (not needed until non-v0 providers need IR)
 
-1. Port engine.js (orchestrator):
-   - Compile → optimize → partition by system
-   - For each system: check if provider has native executeIR,
-     else wrap in LegacyIRAdapter
-   - Cross-system exclusion via membershipForIR
-   - Dedup + paging
-2. Wire into upstream expand.js:
-   - Add `_shouldUseIREngine()` / `_expandViaIREngine()` to ExpandWorker
-   - Discover providers from `codeSystemFactories`
-   - Env var opt-in: `EXPAND_IR_ENGINE=1`
-   - Graceful fallback to legacy ValueSetExpander on failure
+### Phase 2: Engine orchestrator + wiring into expand.js ✅ DONE
 
-### Phase 3: Decoration pipeline
+Commits: 66f3e19, 038d594
 
-Engine produces candidates. Decorate from provider:
-- **v0 SQLite**: bulk SQL by concept_id for designations, properties
-- **Legacy**: call cs.designations(ctx), cs.properties(ctx) per code
-- Feed decorated candidates into upstream's `includeCode()` logic
-  or equivalent for final FHIR formatting (supplements, language
-  filtering, property selection)
+1. ✅ Built orchestrator (tx/engine/orchestrator.js):
+   - canHandleValueSet(): checks if IR can handle a ValueSet
+   - expandViaIR(): full pipeline (compile → resolve imports → optimize →
+     partition → dispatch to providers → dedup → paginate → build FHIR result)
+   - buildExpandedValueSet(): wraps expansion in FHIR ValueSet
+2. ✅ Wired into expand.js:
+   - ExpandWorker.performExpansion() tries IR first when EXPAND_IR_ENGINE=1
+   - _tryIRExpansion() adapts worker's findCodeSystem to orchestrator callbacks
+   - Graceful fallback: any failure, unsupported system, or unhandleable VS
+     silently falls back to legacy ValueSetExpander
+3. ✅ 11 orchestrator tests passing
+4. ✅ End-to-end server tested: SNOMED is-a (12ms), diff (3ms), LOINC property filter (217ms)
+5. ✅ Fallback to legacy verified for non-v0 systems (administrative-gender)
 
-### Phase 4: Comparison testing
+### Phase 3: Decoration pipeline (NEXT)
 
-Expand a suite of ValueSets with both IR engine and legacy expander.
+The IR engine currently returns basic candidates (code, display, version,
+active status). Next step is adding decoration:
+
+- **Designations**: For v0 providers, bulk SQL fetch by concept_id from
+  `designation` table. For concepts enumerated in compose.include.concept,
+  also pass through VS-level designations.
+- **Properties**: Bulk fetch from concept_link/concept_literal.
+- **Supplement overlays**: Call _listSupplementDesignations on the provider.
+- **includeDesignations param**: Only include when requested.
+- **properties param**: Filter to requested property codes.
+
+### Phase 4: LegacyIRAdapter + comparison testing
+
+Build the LegacyIRAdapter that wraps any CodeSystemProvider and implements
+executeIR() by tree-walking the IR and calling legacy methods at leaves.
+This gives every upstream provider automatic IR support.
+
+Then expand a suite of ValueSets with both IR engine and legacy expander.
 Compare results code-for-code, designation-for-designation.
 
 ### Phase 5: Advanced features
-- Supplement handling
-- Text search
-- Hierarchy/count/total
+- Supplement handling (already supported at provider level)
+- Text search (already working via FTS5)
+- Hierarchy/count/total (count already working)
+- handlesSelecting() integration for efficiency
+- Multi-system ValueSets with cross-system exclusion
 
 ## Upstream Provider API Summary
 
