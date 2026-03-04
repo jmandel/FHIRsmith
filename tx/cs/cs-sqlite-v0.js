@@ -1202,21 +1202,94 @@ class SqliteV0Provider extends BaseCSServices {
 
 // ── Factory (long-lived, loaded at startup) ─────────────────────────
 
-class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
-  #dbPath;
-  #meta;       // { csId, baseUri, canonicalUri, version, name, editionCode }
-  #runtime;    // parsed cs_config values
-  #propDefs;   // Map<propertyCode, {property_id, value_kind, is_hierarchy}>
-  #conceptCount = null; // cached at load() — immutable per database
-  #loaded = false;
+// ── Specialization registry ─────────────────────────────────────────
+// Subclass modules call SqliteV0FactoryProvider.registerSpecialization()
+// at require-time to declare interest in specific terminologies.
+// See createFromMetadata() for the matching algorithm.
+const V0_SPECIALIZATION_REGISTRY = [];
 
-  constructor(i18n, dbPath) {
+class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
+  _dbPath;
+  _meta;       // { csId, baseUri, canonicalUri, version, name, editionCode }
+  _runtime;    // parsed cs_config values
+  _propDefs;   // Map<propertyCode, {property_id, value_kind, is_hierarchy}>
+  _conceptCount = null; // cached at load() — immutable per database
+  _loaded = false;
+
+  /**
+   * Register a v0 specialization. Subclass modules call this at require-time.
+   *
+   * @param {Object} def
+   * @param {string} def.id - Unique identifier (e.g. 'snomed-expressions')
+   * @param {Function} def.FactoryClass - Subclass of SqliteV0FactoryProvider
+   * @param {string} [def.systemPrefix] - URL prefix to match against the DB's canonical URI
+   * @param {string[]} [def.tags] - All listed tags must be present in the DB's behaviorFlags.tags
+   * @param {number} [def.priority=0] - Higher priority wins on conflict
+   */
+  static registerSpecialization(def) {
+    if (!def || typeof def !== 'object') throw new Error('registerSpecialization requires an object');
+    if (typeof def.FactoryClass !== 'function') throw new Error('registerSpecialization requires a FactoryClass');
+    if (!def.systemPrefix && (!def.tags || def.tags.length === 0)) {
+      throw new Error('registerSpecialization requires systemPrefix and/or tags');
+    }
+    V0_SPECIALIZATION_REGISTRY.push({
+      id: String(def.id || `v0-spec-${V0_SPECIALIZATION_REGISTRY.length + 1}`),
+      priority: Number.isFinite(def.priority) ? def.priority : 0,
+      systemPrefix: def.systemPrefix || null,
+      tags: Array.isArray(def.tags) ? def.tags : [],
+      FactoryClass: def.FactoryClass,
+    });
+    V0_SPECIALIZATION_REGISTRY.sort((a, b) => b.priority - a.priority);
+  }
+
+  /**
+   * Load a v0 database and return the appropriate factory instance.
+   * Probes db metadata (canonical URI + behaviorFlags.tags), checks the
+   * specialization registry, and returns a specialized factory if one
+   * matches — otherwise the generic base.
+   *
+   * @param {Object} i18n
+   * @param {string} dbPath
+   * @param {Object} [options]
+   * @param {string} [options.specialization] - 'none' to force generic base,
+   *   or a specific id to select from the registry. Omit for auto-detection.
+   */
+  static async createFromMetadata(i18n, dbPath, options = {}) {
+    const base = new SqliteV0FactoryProvider(i18n, dbPath, options);
+    await base.load();
+
+    const { specialization } = options;
+    if (specialization === 'none' || V0_SPECIALIZATION_REGISTRY.length === 0) {
+      return base;
+    }
+
+    const system = base.system() || '';
+    const flags = base._runtime?.behaviorFlags || {};
+    const dbTags = new Set(Array.isArray(flags.tags) ? flags.tags : []);
+
+    for (const entry of V0_SPECIALIZATION_REGISTRY) {
+      if (specialization && entry.id !== specialization) continue;
+      const urlMatch = !entry.systemPrefix || system.startsWith(entry.systemPrefix);
+      const tagMatch = entry.tags.length === 0 || entry.tags.every(t => dbTags.has(t));
+      if (urlMatch && tagMatch) {
+        // Matched — construct the specialized factory instead
+        const resolved = new entry.FactoryClass(i18n, dbPath, options);
+        await resolved.load();
+        return resolved;
+      }
+    }
+
+    return base;
+  }
+
+  constructor(i18n, dbPath, options = {}) {
     super(i18n);
-    this.#dbPath = dbPath;
+    this._dbPath = dbPath;
+    this._options = options;
   }
 
   async load() {
-    const db = new BetterSqlite3(this.#dbPath, { readonly: true });
+    const db = new BetterSqlite3(this._dbPath, { readonly: true });
     try {
       // Apply perf pragmas
       db.pragma('cache_size = 10000');
@@ -1225,8 +1298,8 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
 
       // Load code_system metadata
       const cs = db.prepare('SELECT * FROM code_system LIMIT 1').get();
-      if (!cs) throw new Error(`No code_system row in ${this.#dbPath}`);
-      this.#meta = {
+      if (!cs) throw new Error(`No code_system row in ${this._dbPath}`);
+      this._meta = {
         csId: cs.cs_id,
         baseUri: cs.base_uri,
         editionCode: cs.edition_code,
@@ -1243,13 +1316,13 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
         try { rawCfg[shortKey] = JSON.parse(cfg.value); }
         catch { rawCfg[shortKey] = cfg.value; }
       }
-      this.#runtime = buildRuntimeConfig(rawCfg, cs.base_uri);
+      this._runtime = buildRuntimeConfig(rawCfg, cs.base_uri);
 
       // Load property definitions
-      this.#propDefs = new Map();
+      this._propDefs = new Map();
       const props = db.prepare('SELECT * FROM property_def WHERE cs_id = @cs').all({ cs: cs.cs_id });
       for (const p of props) {
-        this.#propDefs.set(p.property_code, {
+        this._propDefs.set(p.property_code, {
           property_id: p.property_id,
           value_kind: p.value_kind,
           is_hierarchy: !!p.is_hierarchy,
@@ -1259,34 +1332,34 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
 
       // Cache concept count for EXISTS rewrite density heuristic.
       // This avoids a ~17ms full-table COUNT(*) on every request.
-      this.#conceptCount = db.prepare(
+      this._conceptCount = db.prepare(
         'SELECT COUNT(*) AS cnt FROM concept WHERE cs_id = @cs'
       ).get({ cs: cs.cs_id }).cnt;
 
-      this.#loaded = true;
+      this._loaded = true;
     } finally {
       db.close();
     }
   }
 
   system() {
-    return this.#meta?.baseUri || 'unknown';
+    return this._meta?.baseUri || 'unknown';
   }
 
   version() {
-    return this.#meta?.canonicalUri || null;
+    return this._meta?.canonicalUri || null;
   }
 
   name() {
-    return this.#meta?.name || 'sqlite-v0';
+    return this._meta?.name || 'sqlite-v0';
   }
 
   defaultVersion() {
-    return this.#meta?.version || 'unknown';
+    return this._meta?.version || 'unknown';
   }
 
   id() {
-    return `sqlite-v0-${this.#meta?.baseUri}-${this.#meta?.version}`;
+    return `sqlite-v0-${this._meta?.baseUri}-${this._meta?.version}`;
   }
 
   iteratable() {
@@ -1295,20 +1368,20 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
 
   async build(opContext, supplements) {
     this.recordUse();
-    const db = new BetterSqlite3(this.#dbPath, { readonly: true });
+    const db = new BetterSqlite3(this._dbPath, { readonly: true });
     db.pragma('cache_size = 10000');
     db.pragma('temp_store = MEMORY');
     db.pragma('mmap_size = 268435456');
-    return new SqliteV0Provider(opContext, supplements, db, this.#meta, this.#runtime, this.#propDefs, this.#conceptCount);
+    return new SqliteV0Provider(opContext, supplements, db, this._meta, this._runtime, this._propDefs, this._conceptCount);
   }
 
   /** Build implicit value sets from URL patterns (like SNOMED's fhir_vs=isa/X). */
   async buildKnownValueSet(url, vsVersion) {
-    if (vsVersion && this.#meta.version && vsVersion !== this.#meta.version) {
+    if (vsVersion && this._meta.version && vsVersion !== this._meta.version) {
       return null;
     }
 
-    const implicitVS = this.#runtime.implicitValueSets;
+    const implicitVS = this._runtime.implicitValueSets;
     if (!implicitVS) return null;
 
     const base = this.system();
@@ -1347,9 +1420,9 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
     }
 
     // Check value_set table for explicit value sets
-    const db = new BetterSqlite3(this.#dbPath, { readonly: true });
+    const db = new BetterSqlite3(this._dbPath, { readonly: true });
     try {
-      const row = db.prepare('SELECT * FROM value_set WHERE url = @url AND cs_id = @cs').get({ url, cs: this.#meta.csId });
+      const row = db.prepare('SELECT * FROM value_set WHERE url = @url AND cs_id = @cs').get({ url, cs: this._meta.csId });
       if (row) {
         // Fetch member codes
         const members = db.prepare(
@@ -1379,7 +1452,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
   }
 
   getPartialVersion() {
-    const ver = this.#meta?.version;
+    const ver = this._meta?.version;
     if (ver && VersionUtilities.isSemVer(ver)) {
       return VersionUtilities.getMajMin(ver);
     }

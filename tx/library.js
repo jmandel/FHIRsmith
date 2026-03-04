@@ -455,8 +455,7 @@ class Library {
     if (mode === "fetch" || mode === "npm") {
       return;
     }
-    const factory = new SqliteV0FactoryProvider(this.i18n, dbPath);
-    await factory.load();
+    const factory = await SqliteV0FactoryProvider.createFromMetadata(this.i18n, dbPath);
     this.registerProvider(dbPath, factory, isDefault);
   }
 

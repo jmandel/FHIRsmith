@@ -215,12 +215,41 @@ See `docs/legacy-expansion-gap.md` for hierarchy behavior details.
 | `index.js` | Public API exports |
 
 ### `tx/cs/cs-sqlite-v0.js`
-Generic v0 SQLite provider — dual-mode (legacy filter protocol + native IR), supplement-aware. Data-driven via `cs_config`.
+
+Generic v0 SQLite provider — dual-mode (legacy filter protocol + native IR), supplement-aware. All terminology-specific behavior is data-driven via `cs_config`.
+
+#### Specialization system
+
+Some terminologies need behavior beyond what the generic provider offers (e.g., SNOMED post-coordinated expressions, LOINC implicit value set generation from URL patterns). Rather than hardcoding these, a specialization registry allows subclass modules to declare interest in specific terminologies:
+
+```js
+// In cs-sqlite-snomed-v0.js (hypothetical)
+SqliteV0FactoryProvider.registerSpecialization({
+  id: 'snomed-expressions',
+  systemPrefix: 'http://snomed.info/sct',
+  FactoryClass: SnomedSqliteV0Factory,
+});
+```
+
+At startup, `library.js` calls `SqliteV0FactoryProvider.createFromMetadata(i18n, dbPath)` instead of constructing the factory directly. This method:
+
+1. Opens the database and loads metadata (canonical URI, `behaviorFlags.tags` from `cs_config`)
+2. Checks the specialization registry for a matching entry (by URL prefix and/or tags)
+3. Returns a specialized factory subclass if one matches, otherwise the generic base
+
+Matching rules:
+- **`systemPrefix`**: prefix-matched against the DB's canonical URI
+- **`tags`**: all listed tags must be present in the DB's `behaviorFlags.tags`
+- **`priority`**: higher wins when multiple entries match
+
+With no specializations registered (the current state), `createFromMetadata()` behaves identically to direct construction — zero overhead, but the seam is in place for future extensions.
+
+Subclasses override factory methods like `build()` (to return a specialized per-request provider) and `buildKnownValueSet()` (to handle terminology-specific implicit value sets). The per-request `SqliteV0Provider` and its IR execution methods remain unchanged.
 
 ### Integration points in upstream code
 - `tx/workers/expand.js` — `_tryIRExpansion()`, supplement collection, limit wiring
 - `tx/params.js` — `_engine` parsing
-- `tx/library.js` — v0 database loader
+- `tx/library.js` — v0 database loader (calls `createFromMetadata()`)
 
 ---
 
