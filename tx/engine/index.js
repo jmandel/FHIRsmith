@@ -16,6 +16,7 @@ const { optimize, flatten, collectSystems, projectToSystem, splitDiffRoot, flatt
 const membership = require('./membership');
 
 const orchestrator = require('./orchestrator');
+const { wrapWithLegacyIR } = require('./legacy-ir-adapter');
 
 module.exports = {
   // IR constructors
@@ -41,4 +42,7 @@ module.exports = {
 
   // Orchestrator
   ...orchestrator,
+
+  // Legacy adapter
+  wrapWithLegacyIR,
 };

@@ -434,27 +434,29 @@ Commits: 66f3e19, 038d594
 4. ✅ End-to-end server tested: SNOMED is-a (12ms), diff (3ms), LOINC property filter (217ms)
 5. ✅ Fallback to legacy verified for non-v0 systems (administrative-gender)
 
-### Phase 3: Decoration pipeline (NEXT)
+### Phase 3: Decoration pipeline ✅ DONE
 
-The IR engine currently returns basic candidates (code, display, version,
-active status). Next step is adding decoration:
+Commit: 2fe8dab
 
-- **Designations**: For v0 providers, bulk SQL fetch by concept_id from
-  `designation` table. For concepts enumerated in compose.include.concept,
-  also pass through VS-level designations.
-- **Properties**: Bulk fetch from concept_link/concept_literal.
-- **Supplement overlays**: Call _listSupplementDesignations on the provider.
-- **includeDesignations param**: Only include when requested.
-- **properties param**: Filter to requested property codes.
+1. ✅ bulkDesignations(conceptIds) on v0 provider: single SQL IN query, batched
+2. ✅ bulkProperties(conceptIds) on v0 provider: concept_link + concept_literal
+3. ✅ decorateCandidates() in orchestrator: groups by provider, calls bulk methods
+4. ✅ includeDesignations param: designation entries in FHIR output
+5. ✅ property param: valueCoding/valueString in FHIR output
+6. ✅ 4 new tests, server verified end-to-end
 
-### Phase 4: LegacyIRAdapter + comparison testing
+### Phase 4: LegacyIRAdapter ✅ DONE
 
-Build the LegacyIRAdapter that wraps any CodeSystemProvider and implements
-executeIR() by tree-walking the IR and calling legacy methods at leaves.
-This gives every upstream provider automatic IR support.
+Commit: 0e32418
 
-Then expand a suite of ValueSets with both IR engine and legacy expander.
-Compare results code-for-code, designation-for-designation.
+1. ✅ LegacyIRAdapter (tx/engine/legacy-ir-adapter.js): wraps any CodeSystemProvider
+2. ✅ Fully async: awaits all provider method calls
+3. ✅ Selector execution: concept (locate), filter (filter protocol), whole (iteratorAll)
+4. ✅ Set operations: union (dedup), intersect (enumerate+membership), diff (exclude)
+5. ✅ Membership building: materializes selectors, composes with union/intersect/diff
+6. ✅ Orchestrator now uses adapter for non-v0 systems
+7. ✅ 11 tests including 3 parity tests (adapter vs native SQL produce identical results)
+8. ✅ Non-v0 systems participate in IR expansion
 
 ### Phase 5: Advanced features
 - Supplement handling (already supported at provider level)
