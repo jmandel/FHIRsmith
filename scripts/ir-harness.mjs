@@ -1305,7 +1305,8 @@ async function run() {
   });
 
   await test('text-search: SNOMED filter=diabetes no pagination', async () => {
-    const { result } = await expand(vs({system:SYS.SCT}), {filter:'diabetes'});
+    // count: 2000 to bypass default limit (diabetes returns ~1179 codes > 1000 limit)
+    const { result } = await expand(vs({system:SYS.SCT}), {filter:'diabetes', count: 2000});
     const c = codes(result);
     assert(c.length > 0, `expected results, got ${c.length}`);
     assert(c.length >= 100, `expected many results, got ${c.length}`);
@@ -1555,10 +1556,11 @@ async function run() {
 
   await test('coverage: UCUM whole-system with gender peer include', async () => {
     // UCUM whole-system uses specialEnumeration (ucum-common) — returns common units + unclosed
+    // count: 2000 to bypass default limit (UCUM common = 1364 + 1 gender > 1000)
     const { result } = await expand(vs([
       {system:SYS.UCUM},
       {system:SYS.GENDER, concept:[{code:'male'}]},
-    ]));
+    ]), { count: 2000 });
     const c = codes(result);
     assert(findCode(result,'male'), 'gender peer code should be present');
     assert(c.length > 100, `expected many UCUM common units + peer, got ${c.length}`);
@@ -1981,6 +1983,107 @@ async function run() {
     assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
     assert(findCode(result,'text/html'), 'MIME text/html should be present');
     assert(findCode(result,'en'), 'language en should be present');
+  });
+
+  // ── Phase 7: limit enforcement ──
+
+  await test('limit: SNOMED whole-system exceeds default limit → too-costly', async () => {
+    try {
+      await expand(vs({system:SYS.SCT}));
+      assert(false, 'expected too-costly error');
+    } catch (e) {
+      assert(e.message.includes('too-costly') || e.message.includes('limit') || e.message.includes('codes'),
+        `error should mention limit/too-costly, got: ${e.message}`);
+    }
+  });
+
+  await test('limit: explicit limit=50 rejects US states (62 codes)', async () => {
+    try {
+      await expand(vs({system:SYS.USPS}), {
+        params: [{ name: 'limit', valueInteger: 50 }],
+      });
+      assert(false, 'expected too-costly error');
+    } catch (e) {
+      assert(e.message.includes('62') || e.message.includes('limit'),
+        `error should mention count or limit, got: ${e.message}`);
+    }
+  });
+
+  await test('limit: pagination bypasses limit for large system', async () => {
+    const { result } = await expand(vs({system:SYS.SCT}), { offset: 0, count: 10 });
+    assert(result.expansion.total > 1000, `SNOMED total should be >1000, got ${result.expansion.total}`);
+    assert(result.expansion.contains.length === 10, `expected 10 codes, got ${result.expansion.contains.length}`);
+  });
+
+  // ── Phase 8: high-value stress tests ──
+
+  await test('stress: deep SNOMED is-a pagination stable across adjacent pages', async () => {
+    // Two overlapping pages deep into Clinical finding hierarchy
+    const isA404684003 = vs({system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'404684003'}]});
+    const { result: p1 } = await expand(isA404684003, { offset: 50000, count: 20 });
+    const { result: p2 } = await expand(isA404684003, { offset: 50010, count: 20 });
+
+    assert(p1.expansion.total === p2.expansion.total, `totals should match: ${p1.expansion.total} vs ${p2.expansion.total}`);
+    assert(p1.expansion.total > 100000, `Clinical finding total should be >100k, got ${p1.expansion.total}`);
+    assert(p1.expansion.contains.length === 20, `p1 should have 20 codes, got ${p1.expansion.contains.length}`);
+
+    // p1's last 10 codes should equal p2's first 10 codes (overlap region)
+    const p1Last10 = p1.expansion.contains.slice(10).map(c => c.code);
+    const p2First10 = p2.expansion.contains.slice(0, 10).map(c => c.code);
+    assert(JSON.stringify(p1Last10) === JSON.stringify(p2First10),
+      'overlapping region should be identical across adjacent pages');
+  });
+
+  await test('stress: complex same-system inc/exc with pagination', async () => {
+    // Include is-a diabetes, exclude two specific codes, paginate
+    const complexVS = vs(
+      [{system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'73211009'}]}],
+      [{system:SYS.SCT, concept:[{code:'44054006'},{code:'46635009'}]}]
+    );
+    const { result: full } = await expand(complexVS, { count: 0 });
+    assert(full.expansion.total > 100, `expected >100 diabetes descendants, got ${full.expansion.total}`);
+
+    // Paginate and verify excludes are absent
+    const { result: p1 } = await expand(complexVS, { offset: 0, count: full.expansion.total });
+    const allCodes = codes(p1).map(c => c.code);
+    assert(!allCodes.includes('44054006'), 'excluded code 44054006 must not appear');
+    assert(!allCodes.includes('46635009'), 'excluded code 46635009 must not appear');
+    assert(allCodes.length === full.expansion.total, `all codes should match total: ${allCodes.length} vs ${full.expansion.total}`);
+  });
+
+  await test('stress: mixed-system text filter with limit boundary', async () => {
+    // SNOMED + LOINC filtered by 'glucose' — total > 1000, so unpaginated triggers limit
+    const mixedVS = vs([{system:SYS.SCT},{system:SYS.LOINC}]);
+
+    // Unpaginated should fail with too-costly
+    try {
+      await expand(mixedVS, { filter: 'glucose' });
+      assert(false, 'expected too-costly error for mixed-system glucose without pagination');
+    } catch (e) {
+      assert(e.message.includes('too-costly') || e.message.includes('limit') || e.message.includes('codes'),
+        `error should mention limit/too-costly, got: ${e.message}`);
+    }
+
+    // With explicit count, should succeed and contain both systems
+    const { result } = await expand(mixedVS, { filter: 'glucose', offset: 0, count: 2000 });
+    assert(result.expansion.total > 1000, `mixed-system glucose total should be >1000, got ${result.expansion.total}`);
+    const systems = new Set(codes(result).map(c => c.system));
+    assert(systems.has(SYS.LOINC), 'LOINC codes should be present');
+    assert(systems.has(SYS.SCT), 'SNOMED codes should be present');
+  });
+
+  await test('stress: include.valueSet + sibling filter at scale', async () => {
+    // Import a published VS (observation-codes = LOINC whole-system) with a SNOMED filter peer
+    const { result } = await expand(vs([
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+      { system: SYS.LOINC, concept: [{ code: '2339-0' }, { code: '2345-7' }] },
+    ]), { count: 200 });
+    const c = codes(result);
+    assert(c.length > 10, `expected many codes, got ${c.length}`);
+    const systems = new Set(c.map(x => x.system));
+    assert(systems.has(SYS.SCT), 'SNOMED codes should be present');
+    assert(systems.has(SYS.LOINC), 'LOINC codes should be present');
+    assert(findCode(result, '2339-0'), 'LOINC 2339-0 should be present');
   });
 
   // ── summary ──────────────────────────────────────────────────────────

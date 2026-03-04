@@ -104,6 +104,7 @@ async function expandViaIR(vsJson, opts = {}) {
     includeDesignations = false,
     properties = [],
     designations = [],
+    limit = 0,
   } = opts;
 
   const warnings = [];
@@ -226,6 +227,13 @@ async function expandViaIR(vsJson, opts = {}) {
   const knownTotal = resolved.every(r => r.count != null)
     ? resolved.reduce((s, r) => s + r.count, 0) : null;
 
+  // Limit enforcement: reject expansion when total exceeds limit (no pagination)
+  if (limit > 0 && knownTotal != null && knownTotal > limit) {
+    const e = new Error(`Expansion of ${vsJson.url || 'ValueSet'} would produce ${knownTotal} codes (limit = ${limit})`);
+    e.isTooCostly = true;
+    throw e;
+  }
+
   // count=0 means total-only — return no codes
   if (totalOnly) {
     return {
@@ -285,6 +293,13 @@ async function expandViaIR(vsJson, opts = {}) {
       const cntSpan = trace.begin('countForIR:lazy', { system: r.system });
       deferredTotal = await r.irProvider.countForIR(r.subtree, { activeOnly, text });
       cntSpan.end({ count: deferredTotal });
+    }
+
+    // Limit enforcement for single-system deferred path
+    if (limit > 0 && deferredTotal != null && deferredTotal > limit) {
+      const e = new Error(`Expansion of ${vsJson.url || 'ValueSet'} would produce ${deferredTotal} codes (limit = ${limit})`);
+      e.isTooCostly = true;
+      throw e;
     }
   } else {
     // Multi-system stride pagination (counts already resolved above).
