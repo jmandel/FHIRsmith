@@ -872,3 +872,27 @@ Every codex-2 test mapped to a disposition. Legend:
 | **Total** | **~139** | | 6 N/A + ~133 eventually testable |
 
 Phase 5 also adds ~2 new tests (v0 supplement path) not from codex-2.
+
+---
+
+## Known gaps discovered during implementation
+
+### Concept-valued property filters: code-or-display matching
+
+The legacy v0 provider supports `linkMatch: "code-or-display"` for
+concept-valued property filters (e.g. LOINC CLASS, COMPONENT, etc.).
+When filtering `CLASS = CHEM`, the legacy provider matches against
+both the target concept's code (`LP7786-9`) AND its display (`CHEM`).
+
+The IR SQL builder (`sqlite-v0-sql.js`) only matches against `code IN (...)`,
+missing the display match. This means filters like `CLASS = CHEM` return 0
+results via IR but work via legacy.
+
+**Fix**: In `buildFilterClause` for concept-valued properties, when the
+runtime config specifies `linkMatch: "code-or-display"`, the SQL should
+also match against `concept.display`. This requires passing the runtime
+filter config into the SQL builder.
+
+**Impact**: LOINC CLASS, COMPONENT, PROPERTY, TIME_ASPCT, SYSTEM,
+SCALE_TYP, METHOD_TYP filters all use `code-or-display`. These work
+via the LegacyIRAdapter fallback but not via native IR SQL pushdown.
