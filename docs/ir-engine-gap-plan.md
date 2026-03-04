@@ -1,0 +1,621 @@
+# IR Engine Gap Analysis & Porting Plan
+
+> Produced by comparing `rework-expand-codex-2` (155 tests) against
+> `ir-engine` (61 tests, commit `7229055`). Covers functional gaps,
+> testability, and rewrite/optimization verification.
+
+## Current test fixture
+
+The running server loads `tests/tx/fixtures/v0-test-library.yaml`:
+
+| Provider type | Systems loaded |
+|---|---|
+| v0 SQLite | SNOMED, LOINC, RxNorm |
+| cs-cs (npm) | administrative-gender, publication-status, condition-ver-status, observation-category, and ~80 others from hl7.terminology.r4#6.2.0 |
+| internal | country (`urn:iso:std:iso:3166`), currency (`urn:iso:std:iso:4217`) |
+| ucum | UCUM (`http://unitsofmeasure.org`) |
+| cs-cs (inline) | Any CodeSystem submitted via `tx-resource` |
+| **NOT loaded** | language (`urn:ietf:bcp:47`), MIME (`urn:ietf:bcp:13`), USPS/US states, M49 area codes |
+
+---
+
+## Phase 1 — Functional fixes (engine changes needed)
+
+These are behaviors the IR engine should have but doesn't. Each needs
+code changes before tests can pass.
+
+### 1.1 Compose-level display override
+
+**What**: When `compose.include[].concept[].display` provides a display,
+the expansion should use it instead of the provider's display.  FHIR R4
+§5.8.2: "If a display is provided, it overrides the display from the
+code system." (Actually nuanced — the spec says servers may still use
+the CS display, but tx.fhir.org uses the compose display.)
+
+**Where to fix**: `tx/engine/orchestrator.js` — after `executeIR` returns
+candidates, overlay compose display from IR `subtree.conceptCodes[].display`.
+
+**How to verify**: Expand `{system: GENDER, concept: [{code: "male", display: "Masculin"}]}` → entry has `display: "Masculin"` (or "Male" — test accepts either, per codex-2).
+
+**Stash status**: Fix already implemented in stashed work.
+
+**Tests to port**:
+- `shape-B: enumerated with user-supplied display override` (codex-2 L2451)
+
+### 1.2 Compose-level inline designations
+
+**What**: When `compose.include[].concept[]` carries a `designation` array,
+those designations should appear in the expansion when `includeDesignations=true`.
+
+**Where to fix**: Same orchestrator post-processing as 1.1 — thread
+`conceptCodes[].designation` through to the `_composeDesignations` on
+each candidate, merge into final `entry.designation`.
+
+**How to verify**: Expand gender `male` with inline designation
+`{language: "de", value: "Maennlich"}` + `includeDesignations=true` →
+designation array includes the German entry.
+
+**Stash status**: Fix already implemented in stashed work.
+
+**Tests to port**:
+- `lang: compose inline designation override is included with includeDesignations` (codex-2 L2762)
+
+### 1.3 `used-valueset` expansion parameter
+
+**What**: When a ValueSet import is resolved, the expansion should emit
+a `used-valueset` parameter with the imported VS's canonical URL.
+
+**Where to fix**: `tx/engine/resolve-imports.js` — track resolved URLs
+in a `usedValueSets` Set, attach to resolved IR. `orchestrator.js` —
+thread through to `buildExpandedValueSet` which emits the parameters.
+
+**How to verify**: Expand `{valueSet: ["http://hl7.org/fhir/ValueSet/administrative-gender"]}` →
+expansion parameters include `{name: "used-valueset", valueUri: "…/administrative-gender|4.0.1"}`.
+
+**Stash status**: Fix already implemented in stashed work.
+
+**Tests to port**:
+- `meta: ValueSet import emits used-valueset parameter` (codex-2 L2240)
+
+### 1.4 `count` parameter should not emit `-1`
+
+**What**: When no `count` is requested, the IR engine emits
+`{name: "count", valueInteger: -1}`. Should be omitted.
+
+**Where to fix**: `tx/engine/orchestrator.js` `buildExpandedValueSet` —
+guard `params.count >= 0` before emitting.
+
+**Stash status**: Fix already implemented in stashed work.
+
+**Tests to port**: Existing meta tests already implicitly cover this.
+
+### 1.5 `designation` parameter filter
+
+**What**: The `designation` parameter (e.g. `http://snomed.info/sct|900000000000003001`)
+should filter which designations appear in the expansion. Currently IR
+returns all designations unfiltered.
+
+**Where to fix**: `tx/engine/orchestrator.js` — in `buildExpandedValueSet`
+or `decorateCandidates`, parse the designation param and filter
+`c._designations` to only those matching the `system|code` use filter.
+Alternatively, pass the filter down to `bulkDesignations` so it can
+SELECT only matching rows.
+
+**How to verify**: SNOMED concept `73211009` with
+`designation=http://snomed.info/sct|900000000000003001` +
+`includeDesignations=true` → only FSN designations returned (legacy
+returns 1, IR currently returns 3).
+
+**Stash status**: NOT yet implemented.
+
+**Tests to port**:
+- `lang: designation parameter filters SNOMED designations by FSN use code` (codex-2 L2716)
+
+### 1.6 `displayLanguage` parameter
+
+**What**: The `displayLanguage` parameter should influence which display
+is chosen for each code, and be echoed in expansion parameters.
+
+**Where to fix**: The `_tryIRExpansion` wrapper needs to read
+`params.DisplayLanguages` and pass it into `expandViaIR` options.
+The orchestrator needs to pass it to `decorateCandidates`. The display
+selection logic in `bulkDesignations` or the orchestrator needs to
+pick the best display for the requested language.
+
+**How to verify**: SNOMED concept `73211009` with `displayLanguage=en` →
+display matches default English display; expansion parameters include
+`{name: "displayLanguage", valueCode: "en"}`.
+
+**Stash status**: NOT yet implemented.
+
+**Tests to port**:
+- `lang: displayLanguage=en matches default display for SNOMED concept` (codex-2 L2739)
+
+### 1.7 Redundant designation suppression
+
+**What**: When `includeDesignations=true`, a designation whose `value`
+equals the primary `display` and has no special `use` should be
+suppressed to avoid redundancy.
+
+**Where to fix**: `tx/engine/orchestrator.js` in the contains builder —
+filter out designations where `d.value === entry.display` and
+`(!d.use || d.use.code === 'display')` and lang is English/absent.
+
+**How to verify**: SNOMED `73211009` with `includeDesignations=true` →
+no designation entry has `value === display` with display-typed use.
+
+**Stash status**: NOT yet implemented.
+
+**Tests to port**:
+- `lang: redundant designation equal to primary display is suppressed` (codex-2 L2813)
+
+### 1.8 Property-value `regex` filter in SQL
+
+**What**: The IR SQL builder (`sqlite-v0-sql.js`) only handles
+`code` regex (`property === 'code' && op === 'regex'`). It doesn't
+handle regex on literal/string properties like LOINC's `STATUS`.
+The legacy v0 provider handles this via the filter protocol, which
+the LegacyIRAdapter wraps — so it works via fallback, but native
+IR SQL gets 0 results.
+
+**Where to fix**: `tx/engine/sqlite-v0-sql.js` — add a branch for
+`op === 'regex'` on `propDef.value_kind === 'string'/'literal'`,
+using `REGEXP` against `concept_literal.value_text`.
+
+**How to verify**: `{system: LOINC, filter: [{property: "STATUS", op: "regex", value: "^ACT"}]}` →
+returns results (currently returns 0).
+
+**Tests to port**:
+- `logic: regex filter works for literal-valued property in sqlite-v0` (codex-2 L3958) — adapted
+
+---
+
+## Phase 2 — Portworthy tests (no engine changes needed)
+
+These codex-2 tests exercise behaviors the IR engine already handles
+correctly. They just haven't been ported to `scripts/ir-harness.mjs`.
+
+### 2.1 tx-resource infrastructure
+- `infra: tx-resource injected CodeSystem can be expanded` (L1240)
+- `infra: tx-resource injected ValueSet import resolves against injected CodeSystem` (L1264)
+
+### 2.2 Inline FHIR cs-cs filters
+- `filter: gender regex [mf].* (inline FHIR cs-cs)` (L2587) — verified working
+- `filter: inline FHIR is-a with hierarchy (condition-ver-status)` (L2638) — verified working
+- `filter: inline FHIR descendent-of (condition-ver-status)` (L2655) — verified working
+- `filter: inline FHIR concept = exact code (cs-cs)` (L2669) — verified working
+- `filter: country code regex A.* (cs-country)` (L2569) — internal:country is loaded
+
+### 2.3 Shape A: whole-system expansions
+- `shape-A: administrative-gender (inline FHIR cs-cs)` (L1196)
+- `shape-A: publication-status (inline FHIR cs-cs)` (L1212)
+- `shape-A: currency full expansion (preloaded map)` (L1181) — internal:currency loaded
+
+### 2.4 Shape B: additional enumerated
+- `shape-B: single concept exact match (v0)` (L2470)
+- `shape-B: SNOMED enumerated (v0 pushdown)` (L2401) — already covered but this has tighter assertions
+- `shape-B: LOINC enumerated (v0 pushdown)` (L2418)
+- `shape-B: RxNorm enumerated (v0 pushdown)` (L2434)
+- `shape-B: gender enumerated subset (inline FHIR cs-cs)` (L2387) — overlaps existing
+
+### 2.5 Filter: property filters on non-v0 providers
+- `filter: currency decimals=0 (property =)` (L2548) — if internal:currency supports property filters
+
+### 2.6 Additional exclude patterns
+- `exclude: inline FHIR filter-based exclude (condition-ver-status)` (L3100)
+
+### 2.7 Additional pagination tests
+- `pagination: count=0 returns total only` (L3254) — we have similar but codex-2 is more specific
+
+### 2.8 Import & intersection logic
+- `logic: same-system valueSet intersections constrain final include membership` (L3911) — verified working via curl
+- `logic: imported include/exclude valueSets (no system) apply Inc/Exc semantics` (L4033)
+- `logic: total includes direct and imported include contributions` (L4080)
+- `logic: whole-system descendant traversal keeps exact total` (L4115) — for inline CS
+- `logic: total reflects imported excludes without mutating accumulated list` (L4150)
+- `logic: mixed import+peer include/exclude paginates without gaps or duplicates` (L4290)
+- `logic: bulk locate resolver handles >50 unique concepts in fallback mode` (L4358)
+
+### 2.9 Provider-specific behaviors (working via legacy adapter)
+- `provider: cs-cs hierarchy iteration (condition-ver-status)` (L3557)
+- `provider: v0 RxNorm text search + property filter combined` (L3602)
+
+### 2.10 Coverage: multi-provider combinations
+- `coverage: tx-resource whole include with cs-cs peer` (L3647)
+- `coverage: tx-resource concept include + exclude with cs-cs peer` (L3671)
+- `coverage: valueset-import include with cs-cs peer` (adapt L3700 to use gender instead of USPS)
+
+### 2.11 Pagination safety (import-aware)
+- `pagination-safety: valueset-import peer with excludes reconstructs full set` (L3832)
+- `pagination-safety: mixed import+system high-count page is not silently capped` (L4959)
+
+### 2.12 params: property=definition
+- `params: property=definition includes definition property on contains entries` (L2171) — verified working
+
+### 2.13 Designations on cs-cs whole-system
+- `lang: includeDesignations on package cs-cs whole-system is structurally valid` (L2782)
+
+---
+
+## Phase 3 — IR rewrite/optimizer verification
+
+These tests verify that the IR compiler, rewriter, and optimizer
+produce correct and optimal trees. They're NOT testing end-to-end
+expansion behavior — they're testing the IR layer directly by
+calling `buildIRFromValueSet`, `resolveImports`, `optimize`, and
+inspecting the resulting tree structure.
+
+Our engine has all these modules (`tx/engine/build-ir.js`,
+`tx/engine/rewrite.js`, `tx/engine/resolve-imports.js`). The codex-2
+tests exercise optimizations that our `rewrite.js` implements:
+
+| Optimization | Our code | Codex-2 test |
+|---|---|---|
+| Union concept coalescing (same-system concepts merge) | `coalesceUnionItems` / `mergeConceptSelectors` | L4898 (union folding) |
+| Union filter dedup (identical filter selectors collapse) | `coalesceUnionItems` / `filterSignature` | L4823 (duplicate filter dedup), L4898 |
+| Intersect filter coalescing (same-system filters merge clauses) | `coalesceIntersectItems` / `mergeSelectorsForIntersect` | L4765 (intersect same-system filters) |
+| Intersect filter+concept → intersectCodes | `mergeSelectorsForIntersect` | L4863 (intersect filter+concept) |
+| Cross-system intersect projection → empty | `projectToSystem` | L4889 (projection eliminates empty) |
+| Diff partitioning by system | `partitionDiffBySystem` | L4793 (nested diff partitioning) |
+| Import inlining (resolved imports become concrete subtrees) | `simplify` case `'import'` | All import tests |
+
+**These should be unit tests**, not HTTP harness tests. They call
+the IR functions directly and inspect tree shapes. We should create
+a separate test file (e.g. `scripts/ir-rewrite-tests.mjs` or add
+a section to the harness) that imports our `tx/engine` modules and
+verifies these rewrite properties.
+
+**Tests to port (as unit tests):**
+1. `v3-lowering-gap: intersect same-system filters coalesce in rewrite` (L4765)
+2. `v3-lowering-gap: nested diff partitioning rewrites multi-system left branches` (L4793)
+3. `v3-lowering-gap: duplicate filter branches are deduped after import inline` (L4823)
+4. `v3-lowering-gap: intersect filter+concept lowers to selector with intersectCodes` (L4863)
+5. `v3-lowering-gap: projection eliminates empty intersect branches` (L4889)
+6. `v3-lowering-gap: queryIR union folding merges concept unions and dedupes identical filters` (L4898) — adapted (we don't have `compileExprToQueryIR` but the union folding happens in `coalesceUnionItems`)
+
+**Tests to port (as e2e parity tests):**
+
+The `v3-lowering:` tests verify that the *optimized* path produces
+the same results as the *unoptimized* path. We can do the same by
+running with `EXPAND_V3_DISABLE_REWRITE_OPT=1` vs without and
+comparing membership:
+
+7. `v3-lowering: import-intersect-with-union compiles to single provider pushdown` (L4637) — adapted: verify optimized and unoptimized produce same codes
+8. `v3-lowering: include minus union-excludes uses single provider query` (L4686) — adapted
+9. `v3-lowering: include minus imported diff lowers to single provider query` (L4722) — adapted
+
+---
+
+## Phase 4 — Deferred (need infrastructure or are out of scope)
+
+### 4.1 Supplement system (22 codex-2 tests)
+
+The entire supplement subsystem (`useSupplement` parameter, supplement
+resolution, supplement property/designation projection) is a large
+feature that the IR engine doesn't touch. Supplements flow through
+the provider layer (`loadSupplements` in `worker.js`), which the IR
+engine calls via `findProvider`. So basic supplement *loading* works,
+but the IR engine doesn't:
+- Emit `used-supplement` parameters
+- Handle supplement-based property filters
+- Handle `valueset-supplement` extension validation
+
+This is a substantial feature area (22 tests). Defer to a separate
+work stream.
+
+### 4.2 Providers not loaded in fixture (12 codex-2 tests)
+
+These need providers not available in our test fixture:
+- `shape-A: US states full expansion` / `shape-A: area codes` — USPS, M49 not loaded
+- `shape-B: US states enumerated` — USPS not loaded
+- `shape-B: language codes enumerated` — bcp:47 concept include works but whole-system doesn't
+- `shape-B: MIME types enumerated` — MIME not loaded
+- `filter: area codes class=region/country` — M49 not loaded
+- `exclude: US states subtract...` — USPS not loaded
+- `exclude: exclude from whole system (preloaded map)` — USPS not loaded
+- `pagination: currency/US states` — USPS not loaded
+- `coverage: with USPS peer` — USPS not loaded
+
+**Options**: Add `internal:usps` to the test library YAML, or skip.
+Most behaviors these test are already covered by gender/country.
+
+### 4.3 notClosed: grammar-based providers (2 codex-2 tests)
+- `notClosed: UCUM expansion reports valueset-unclosed extension` — UCUM is loaded; need to verify IR handles this
+- `notClosed: MIME whole-system expansion is not enumerable` — MIME not loaded
+
+### 4.4 Internal engine-specific tests (5 codex-2 tests)
+- `logic: total policy decision table` — tests codex-2's `decideTotalOutcome` function, which we don't have
+- `logic: display fast path is exercised on cs-cs provider` — tests codex-2 internal trace counter
+- `logic: low limit without pagination returns too-costly` — tests limit enforcement, different in IR
+- `logic: low limit with pagination allows partial page` — tests limit enforcement
+- `logic: text-filter low-limit fallback short-circuits without total` — tests codex-2 fallback
+
+### 4.5 High-value stress tests (4 codex-2 tests)
+- `high-value: mixed-system text filter limit boundary then success` — complex multi-mode test
+- `high-value: include.valueSet + sibling filter works at scale` — pushdown/fallback comparison
+- `high-value: SNOMED hierarchy tail pagination is stable across modes` — large offset comparison
+- `high-value: complex same-system include/exclude pages are internally consistent per mode` — complex
+
+These are valuable but complex. Port after phases 1–3.
+
+---
+
+## Execution order
+
+1. **Apply stashed work** (1.1–1.4 already done): compose display,
+   compose designation, used-valueset, count≥0 guard
+2. **Write tests for 1.1–1.4** + port Phase 2 tests that already work
+3. **Implement 1.5** (designation filter) + test
+4. **Implement 1.6** (displayLanguage) + test
+5. **Implement 1.7** (redundant designation suppression) + test
+6. **Implement 1.8** (property regex in SQL) + test
+7. **Create `scripts/ir-rewrite-tests.mjs`** for Phase 3 unit tests
+8. **Add e2e rewrite parity tests** to the harness
+9. **Port high-value stress tests** (Phase 4.5)
+10. **Evaluate supplement scope** (Phase 4.1)
+
+## Test count projection
+
+| Phase | New tests | Running total |
+|---|---|---|
+| Current | 61 | 61 |
+| Phase 1 fixes + tests | ~8 | ~69 |
+| Phase 2 ports | ~25 | ~94 |
+| Phase 3 rewrite unit tests | ~9 | ~103 |
+| Phase 4.5 stress tests | ~4 | ~107 |
+
+---
+
+## Appendix: Full codex-2 cross-reference
+
+Every codex-2 test mapped to a disposition. Legend:
+- ✅ = already ported (equivalent test exists in ir-harness)
+- 🟢 = port now (works today, no engine change needed)
+- 🟡 = port after fix (needs engine change from Phase 1)
+- 🟠 = rewrite unit test (Phase 3)
+- 🟣 = deferred: supplement system
+- ⚪ = deferred: fixture not loaded
+- ⚫ = deferred: codex-2-internal (traces/pushdown toggles/decision tables)
+
+### shape-A (whole system)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 1 | shape-A: US states full expansion | ⚪ | USPS not loaded |
+| 2 | shape-A: currency full expansion | 🟢 | internal:currency loaded |
+| 3 | shape-A: administrative-gender (cs-cs) | 🟢 | covered by `gender whole-system: 4 codes` but codex-2 has tighter assertions |
+| 4 | shape-A: publication-status (cs-cs) | 🟢 | |
+| 5 | shape-A: area codes full expansion | ⚪ | M49 not loaded |
+
+### infra
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 6 | infra: tx-resource injected CodeSystem | 🟢 | verified via curl; already works |
+| 7 | infra: tx-resource injected VS import | 🟢 | verified via curl; already works |
+
+### supplement (22 tests)
+| # | Test | Disposition |
+|---|---|---|
+| 8–18 | supplement: * (9 tests) | 🟣 |
+| 19–27 | supplement-sqlite: * (9 tests) | 🟣 |
+| 28–29 | supplement-report: * (2 tests) | 🟣 |
+| 154–155 | supplement d20+d8 loinc: * (2 tests) | 🟣 |
+
+### params
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 30 | params: property=definition | 🟢 | verified working via curl |
+| 31 | params: language code includeDesignations (internal:lang) | ⚪ | bcp:47 concept include works but whole-system doesn't |
+
+### notClosed
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 32 | notClosed: UCUM valueset-unclosed | 🟢 | UCUM loaded; need to verify IR handles specialEnumeration |
+| 33 | notClosed: MIME whole-system not enumerable | ⚪ | MIME provider not loaded |
+
+### meta (9 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 34 | meta: multi-system used-codesystem | ✅ | `meta: multi-system emits used-codesystem for each system` |
+| 35 | meta: used-codesystem dedupes | ✅ | `meta: used-codesystem dedupes repeated same-system` |
+| 36 | meta: ValueSet import used-valueset | 🟡 | needs 1.3 (stashed) |
+| 37 | meta: offset/count echoed | ✅ | `meta: offset/count are echoed in expansion parameters` |
+| 38 | meta: text filter echoed | ✅ | `meta: text filter is echoed in expansion parameters` |
+| 39 | meta: draft warning | ✅ | `meta: warning-draft for draft CodeSystem` |
+| 40 | meta: retired warning | ✅ | `meta: warning-retired for retired CodeSystem` |
+| 41 | meta: draft suppressed when VS is draft | ✅ | `meta: NO warning-draft when VS is also draft` |
+| 42 | meta: fragment valueset-unclosed | ✅ | `meta: fragment CodeSystem sets valueset-unclosed extension` |
+
+### shape-B (enumerated)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 43 | shape-B: US states enumerated | ⚪ | USPS not loaded |
+| 44 | shape-B: gender enumerated subset | ✅ | `gender enumerated subset: male+female only` |
+| 45 | shape-B: SNOMED enumerated | ✅ | `SNOMED 3 codes: correct displays` |
+| 46 | shape-B: LOINC enumerated | ✅ | `LOINC enumerated: 2160-0 + 2345-7` |
+| 47 | shape-B: RxNorm enumerated | ✅ | `RxNorm enumerated: aspirin + ibuprofen + acetaminophen` |
+| 48 | shape-B: user-supplied display override | 🟡 | needs 1.1 (stashed) |
+| 49 | shape-B: single concept exact match (v0) | 🟢 | |
+| 50 | shape-B: language codes enumerated | ⚪ | bcp:47 not enumerable as whole system |
+| 51 | shape-B: MIME types enumerated | ⚪ | MIME not loaded |
+
+### filter (13 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 52 | filter: area codes class=region | ⚪ | M49 not loaded |
+| 53 | filter: area codes class=country | ⚪ | M49 not loaded |
+| 54 | filter: currency decimals=0 | 🟢 | internal:currency loaded |
+| 55 | filter: country code regex A.* | 🟢 | internal:country loaded |
+| 56 | filter: gender regex [mf].* | 🟢 | verified working |
+| 57 | filter: SNOMED is-a diabetes | ✅ | `is-a Diabetes: 124 codes` |
+| 58 | filter: SNOMED descendent-of diabetes | ✅ | `descendent-of Diabetes: 123 codes` |
+| 59 | filter: inline FHIR is-a (condition-ver-status) | 🟢 | verified working |
+| 60 | filter: inline FHIR descendent-of | 🟢 | verified working |
+| 61 | filter: inline FHIR concept = exact | 🟢 | verified working |
+| 62 | filter: SNOMED concept-in refset | ✅ | `SNOMED concept-in refset 723560006` |
+| 63 | filter: RxNorm TTY=IN | ✅ | `RxNorm TTY=IN first 50` |
+| 64 | filter: LOINC STATUS=ACTIVE | ✅ | `LOINC STATUS=ACTIVE first 20` |
+
+### lang (7 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 65 | lang: includeDesignations SNOMED concept | ✅ | `lang: SNOMED includeDesignations returns entries` |
+| 66 | lang: designation filter by FSN | 🟡 | needs 1.5 |
+| 67 | lang: displayLanguage=en | 🟡 | needs 1.6 |
+| 68 | lang: compose inline designation | 🟡 | needs 1.2 (stashed) |
+| 69 | lang: includeDesignations cs-cs whole-system | 🟢 | |
+| 70 | lang: includeDesignations SNOMED is-a filter | ✅ | `lang: SNOMED is-a filter includeDesignations` |
+| 71 | lang: redundant designation suppressed | 🟡 | needs 1.7 |
+
+### text-search (7 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 72 | text-search: SNOMED filter=diabetes | ✅ | covered by `is-a Diabetes + text` tests |
+| 73 | text-search: SNOMED filter=diabetes no pagination | 🟢 | good regression test |
+| 74 | text-search: SNOMED filter + is-a combined | ✅ | `combined: SNOMED is-a + text filter` |
+| 75 | text-search: RxNorm filter=aspirin | ✅ | `RxNorm text aspirin + TTY=IN` |
+| 76 | text-search: LOINC filter=creatinine | ✅ | `LOINC text creatinine first 20` |
+| 77 | text-search: inline FHIR filter=male | ✅ | `text filter across cs-cs systems` |
+| 78 | text-search: multi-system with filter | ✅ | `Mixed v0+cs-cs + text filter` |
+
+### exclude (8 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 79 | exclude: gender minus other+unknown | ✅ | `gender exclude: minus other+unknown = male+female` |
+| 80 | exclude: US states subtract 2 from 4 | ⚪ | USPS not loaded |
+| 81 | exclude: SNOMED exclude enumerated from is-a | ✅ | `Diabetes exclude 2 enumerated codes` |
+| 82 | exclude: SNOMED is-a minus Type2 | ✅ | `Diabetes minus Type2 subtree: 108 codes` |
+| 83 | exclude: SNOMED is-a minus Type1 | ✅ | covered by `Diabetes minus Type1+Type2` |
+| 84 | exclude: inline FHIR filter-based exclude | 🟢 | condition-ver-status loaded |
+| 85 | exclude: cross-system multi-exclude | ✅ | `cross-system exclude: gender+pubstat minus both unknowns` |
+| 86 | exclude: exclude from whole system | ⚪ | USPS not loaded |
+
+### pagination (8 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 87 | pagination: currency count=10 offset=0 | 🟢 | currency loaded |
+| 88 | pagination-bug: preloaded map total consistency | 🟢 | use currency instead of USPS |
+| 89 | pagination: US states disjoint pages | ⚪ | USPS not loaded |
+| 90 | pagination: US states last page partial | ⚪ | USPS not loaded |
+| 91 | pagination: US states offset beyond end | ⚪ | USPS not loaded (but covered by existing) |
+| 92 | pagination: SNOMED is-a paginated | ✅ | `Diabetes pages are disjoint` |
+| 93 | pagination: count=0 returns total only | ✅ | `Clinical finding count=0: total=124412` |
+| 94 | pagination: high offset (>1000) | ✅ | `LOINC STATUS=ACTIVE high offset (1000,20)` |
+| 95 | pagination: deep offset invariant | ✅ | `deep offset 110K into 124K set` |
+
+### multi-system (5 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 96 | multi-system: gender + US states | ⚪ | USPS not loaded |
+| 97 | multi-system: SNOMED + gender (mixed) | ✅ | `Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5` |
+| 98 | multi-system: three systems | ✅ | `SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems` |
+| 99 | multi-system: v0 filter + preloaded + cs-cs | 🟢 | substitute currency for USPS |
+| 100 | multi-system: same system dedup | ✅ | `same-system dedup: gender male+female ∪ female+other = 3` |
+
+### vs-import (2 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 101 | vs-import: pure import admin-gender | ✅ | `vs-import: pure import of administrative-gender` |
+| 102 | vs-import: system + valueSet intersection | ✅ | `vs-import: system + valueSet intersection` |
+
+### combined (4 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 103 | combined: SNOMED is-a + text | ✅ | `combined: SNOMED is-a + text filter` |
+| 104 | combined: include + exclude filter same system | ✅ | `combined: include filter + exclude filter same system` |
+| 105 | combined: enumerated + text filter | ✅ | `combined: enumerated + text filter` |
+| 106 | combined: multi-system + exclude + pagination | ✅ | `combined: multi-system + exclude + pagination` |
+
+### provider (4 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 107 | provider: preloaded map iteration (currency) | 🟢 | currency loaded |
+| 108 | provider: cs-cs hierarchy iteration | 🟢 | condition-ver-status loaded |
+| 109 | provider: v0 SNOMED large is-a pagination | 🟢 | port as pagination consistency test |
+| 110 | provider: v0 RxNorm text + property combined | 🟢 | |
+
+### coverage (8 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 111 | coverage: UCUM whole-system + lang peer | 🟢 | UCUM + gender peer (skip lang peer) |
+| 112 | coverage: MIME concept + lang peer | ⚪ | MIME not loaded |
+| 113 | coverage: tx-resource whole + cs-cs peer | 🟢 | |
+| 114 | coverage: tx-resource concept + exclude + peer | 🟢 | |
+| 115 | coverage: valueset-import + USPS peer | 🟢 | substitute gender for USPS |
+| 116 | coverage: valueset-import + USPS peer + exclude | 🟢 | substitute gender for USPS |
+| 117 | coverage: country regex + cs-cs peer | 🟢 | country + gender |
+| 118 | coverage: areacode class filter + cs-cs peer | ⚪ | M49 not loaded |
+
+### pagination-safety (5 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 119 | pagination-safety: mixed v0 + cs-cs reconstruct | ✅ | `pagination-safety: mixed v0+cs-cs reconstruct full set` |
+| 120 | pagination-safety: mixed v0 + preloaded reconstruct | 🟢 | use currency instead of USPS |
+| 121 | pagination-safety: valueset-import + excludes | 🟢 | |
+| 122 | pagination-safety: mixed providers disjoint windows | ✅ | `pagination-safety: v0 filter+cs-cs pages are disjoint` |
+| 123 | pagination-safety: import+system high-count not capped | 🟢 | |
+
+### logic (17 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 124 | logic: sqlite-v0 pushdown active | ⚫ | trace assertion; behavior covered |
+| 125 | logic: same-system VS intersections | 🟢 | verified working |
+| 126 | logic: regex filter in v0 pushdown | 🟢 | code regex works; port behavior part |
+| 127 | logic: property regex in v0 | 🟡 | needs 1.8 |
+| 128 | logic: total policy decision table | ⚫ | tests codex-2-only function |
+| 129 | logic: display fast path | ⚫ | tests codex-2-only trace counter |
+| 130 | logic: imported inc/exc VS semantics | 🟢 | |
+| 131 | logic: total includes imported contributions | 🟢 | |
+| 132 | logic: whole-system descendant total | 🟢 | |
+| 133 | logic: total reflects imported excludes | 🟢 | |
+| 134 | logic: fallback deep-offset no partial total | ⚫ | tests codex-2 fallback mode |
+| 135 | logic: system exclude global with imports | 🟢 | |
+| 136 | logic: mixed import+peer pagination | 🟢 | |
+| 137 | logic: bulk locate >50 concepts | 🟢 | |
+| 138 | logic: low limit returns too-costly | ⚫ | limit enforcement different in IR |
+| 139 | logic: low limit + pagination partial | ⚫ | limit enforcement different in IR |
+| 140 | logic: text-filter low-limit short-circuits | ⚫ | limit enforcement different in IR |
+
+### high-value (4 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 141 | high-value: mixed-system text filter limit | ⚫ | complex limit boundary test |
+| 142 | high-value: include.valueSet + sibling filter | 🟢 | valuable scale test |
+| 143 | high-value: SNOMED hierarchy tail pagination | 🟢 | valuable for verifying deep offsets |
+| 144 | high-value: complex same-system inc/exc pages | 🟢 | |
+
+### v3-lowering (3 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 145 | v3-lowering: import-intersect-union single pushdown | 🟠 | parity test: optimized vs unoptimized |
+| 146 | v3-lowering: include minus union-excludes | 🟠 | parity test |
+| 147 | v3-lowering: include minus imported diff | 🟠 | parity test |
+
+### v3-lowering-gap (6 tests)
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 148 | v3-lowering-gap: intersect same-system filters coalesce | 🟠 | unit test on our rewrite.js |
+| 149 | v3-lowering-gap: nested diff partitioning | 🟠 | unit test |
+| 150 | v3-lowering-gap: duplicate filter dedup | 🟠 | unit test |
+| 151 | v3-lowering-gap: intersect filter+concept → intersectCodes | 🟠 | unit test |
+| 152 | v3-lowering-gap: projection eliminates empty intersect | 🟠 | unit test |
+| 153 | v3-lowering-gap: union folding concept+filter dedup | 🟠 | unit test (adapted; no queryIR) |
+
+### v3-invariant / v3-gap
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 154 | v3-invariant: import+filter deep page parity | 🟠 | parity test: optimized vs unopt |
+| 155 | v3-gap: mixed-system import prevents root pushdown | ⚫ | tests codex-2 root pushdown guard |
+
+---
+
+## Summary by disposition
+
+| Disposition | Count | Description |
+|---|---|---|
+| ✅ Already ported | 41 | Equivalent test in ir-harness |
+| 🟢 Port now | ~36 | Works today, just needs test |
+| 🟡 Port after fix | ~7 | Needs Phase 1 engine change |
+| 🟠 Rewrite unit test | ~10 | Phase 3: IR optimizer verification |
+| 🟣 Supplement deferred | 22 | Entire supplement subsystem |
+| ⚪ Fixture not loaded | ~17 | USPS/M49/MIME not available |
+| ⚫ Codex-2-internal | ~12 | Trace assertions, pushdown toggles, limit policy |
