@@ -137,7 +137,7 @@ class SqliteV0Provider extends BaseCSServices {
   #closureOk;  // boolean — is the closure table populated?
   #stmts;      // prepared statements cache
 
-  constructor(opContext, supplements, db, meta, runtime, propDefs) {
+  constructor(opContext, supplements, db, meta, runtime, propDefs, conceptCount = null) {
     super(opContext, supplements);
     this.#db = db;
     this.#meta = meta;
@@ -145,6 +145,7 @@ class SqliteV0Provider extends BaseCSServices {
     this.#propDefs = propDefs;
     this.#closureOk = !!runtime.hierarchy?.closure?.enabled;
     this.#stmts = {};
+    this.#conceptCountCache = conceptCount; // pre-warmed from factory
   }
 
   // ── metadata ─────────────────────────────────────────────────────
@@ -1169,6 +1170,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
   #meta;       // { csId, baseUri, canonicalUri, version, name, editionCode }
   #runtime;    // parsed cs_config values
   #propDefs;   // Map<propertyCode, {property_id, value_kind, is_hierarchy}>
+  #conceptCount = null; // cached at load() — immutable per database
   #loaded = false;
 
   constructor(i18n, dbPath) {
@@ -1218,6 +1220,12 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
         });
       }
 
+      // Cache concept count for EXISTS rewrite density heuristic.
+      // This avoids a ~17ms full-table COUNT(*) on every request.
+      this.#conceptCount = db.prepare(
+        'SELECT COUNT(*) AS cnt FROM concept WHERE cs_id = @cs'
+      ).get({ cs: cs.cs_id }).cnt;
+
       this.#loaded = true;
     } finally {
       db.close();
@@ -1254,7 +1262,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
     db.pragma('cache_size = 10000');
     db.pragma('temp_store = MEMORY');
     db.pragma('mmap_size = 268435456');
-    return new SqliteV0Provider(opContext, supplements, db, this.#meta, this.#runtime, this.#propDefs);
+    return new SqliteV0Provider(opContext, supplements, db, this.#meta, this.#runtime, this.#propDefs, this.#conceptCount);
   }
 
   /** Build implicit value sets from URL patterns (like SNOMED's fhir_vs=isa/X). */
