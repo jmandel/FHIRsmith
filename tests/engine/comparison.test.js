@@ -295,6 +295,27 @@ describeIfDBs('IR vs Legacy comparison', () => {
     expect(result.ir.size).toBe(2);
   });
 
+  test('SNOMED is-a with union of two filters', async () => {
+    const result = await compareExpansion({
+      resourceType: 'ValueSet',
+      compose: {
+        include: [
+          { system: 'http://snomed.info/sct', filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+          { system: 'http://snomed.info/sct', filter: [{ property: 'concept', op: 'is-a', value: '38341003' }] }, // Hypertension
+        ],
+      },
+    }, { activeOnly: true });
+
+    if (!result.match) {
+      console.log(`  IR: ${result.ir.size}, Legacy: ${result.legacy.size}`);
+      if (result.irOnly.size > 0) console.log(`  IR-only (first 5): ${[...result.irOnly].slice(0, 5).join(', ')}`);
+      if (result.legacyOnly.size > 0) console.log(`  Legacy-only (first 5): ${[...result.legacyOnly].slice(0, 5).join(', ')}`);
+    }
+    expect(result.match).toBe(true);
+    // Union should be >= either individual set
+    expect(result.ir.size).toBeGreaterThan(100);
+  });
+
   test('SNOMED activeOnly filters inactive concepts', async () => {
     // 100005 is an inactive SNOMED concept
     const withInactive = await compareExpansion({

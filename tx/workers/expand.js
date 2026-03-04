@@ -2004,7 +2004,7 @@ class ExpandWorker extends TerminologyWorker {
       activeOnly: !!params.activeOnly,
       text: params.filter || null,
       offset: Math.max(params.offset || 0, 0),
-      count: params.count > 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
+      count: params.count >= 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
       includeDesignations: !!params.includeDesignations,
       properties: params.properties || [],
     });

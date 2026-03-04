@@ -405,4 +405,100 @@ describeIfDBs('expandViaIR', () => {
 
     expect(result).toBeNull();
   });
+
+  test('count=0 returns total only with no contains', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:diabetes-count0',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      activeOnly: true,
+      count: 0,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains).toEqual([]);
+    expect(result.expansion.total).toBeGreaterThan(50); // Many subtypes of diabetes
+  });
+
+  test('used-codesystem reported in expansion', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:dm-used-cs',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, { findProvider, count: 10 });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.usedSystems).toBeDefined();
+    expect(result.expansion.usedSystems.length).toBe(1);
+    // Should be system|version canonical format
+    expect(result.expansion.usedSystems[0]).toMatch(/^http:\/\/snomed\.info\/sct\|/);
+  });
+
+  test('buildExpandedValueSet includes used-codesystem parameters', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'http://example.com/ValueSet/test-used-cs',
+      status: 'active',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, { findProvider, count: 10 });
+    const expanded = buildExpandedValueSet(vs, result.expansion, { count: 10 });
+
+    const usedCSParams = expanded.expansion.parameter.filter(p => p.name === 'used-codesystem');
+    expect(usedCSParams.length).toBe(1);
+    expect(usedCSParams[0].valueUri).toMatch(/^http:\/\/snomed\.info\/sct\|/);
+  });
+
+  test('count=0 with buildExpandedValueSet produces total, no contains', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'http://example.com/ValueSet/count0-full',
+      status: 'active',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      activeOnly: true,
+      count: 0,
+    });
+    const expanded = buildExpandedValueSet(vs, result.expansion, {
+      count: 0,
+      activeOnly: true,
+    });
+
+    expect(expanded.expansion.total).toBeGreaterThan(50);
+    expect(expanded.expansion.contains).toBeUndefined(); // empty array becomes undefined
+    // count param should be present
+    const countParam = expanded.expansion.parameter.find(p => p.name === 'count');
+    expect(countParam).toBeDefined();
+    expect(countParam.valueInteger).toBe(0);
+  });
 });

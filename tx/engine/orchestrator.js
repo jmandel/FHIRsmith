@@ -106,6 +106,8 @@ async function expandViaIR(vsJson, opts = {}) {
   // 5. For each system, project the IR and execute
   const allCandidates = [];
   const unsupportedSystems = [];
+  const usedSystems = new Set();
+  const totalOnly = count === 0;
 
   for (const [key, { system, version }] of systems) {
     const subtree = projectToSystem(optimizedIR, system, version);
@@ -116,6 +118,11 @@ async function expandViaIR(vsJson, opts = {}) {
       unsupportedSystems.push(system);
       continue;
     }
+
+    const provVersion = (typeof provider.version === 'function' ? provider.version() : provider.version) || version;
+
+    // Track used code systems (system|version canonical)
+    usedSystems.add(provVersion ? `${system}|${provVersion}` : system);
 
     // Use native IR if available, otherwise wrap with LegacyIRAdapter
     let irProvider = provider;
@@ -128,6 +135,16 @@ async function expandViaIR(vsJson, opts = {}) {
       }
     }
 
+    // For count=0 (total-only), use countForIR if available to avoid fetching all codes
+    if (totalOnly && typeof irProvider.countForIR === 'function') {
+      const cnt = irProvider.countForIR(subtree, { activeOnly });
+      // Push a sentinel so we can count, but we won't paginate into it
+      for (let i = 0; i < cnt; i++) {
+        allCandidates.push({ system, version: provVersion, code: `__count_${i}`, _countOnly: true });
+      }
+      continue;
+    }
+
     const result = await irProvider.executeIR(subtree, {
       activeOnly,
       text,
@@ -138,7 +155,7 @@ async function expandViaIR(vsJson, opts = {}) {
     for (const c of result.candidates) {
       allCandidates.push({
         system,
-        version: (typeof provider.version === 'function' ? provider.version() : provider.version) || version,
+        version: provVersion,
         code: c.code,
         display: c.display,
         definition: c.definition,
@@ -177,6 +194,20 @@ async function expandViaIR(vsJson, opts = {}) {
 
   // 8. Pagination
   const total = filtered.length;
+
+  // count=0 means total-only — return no codes
+  if (totalOnly) {
+    return {
+      expansion: {
+        total,
+        offset: offset > 0 ? offset : undefined,
+        contains: [],
+        usedSystems: [...usedSystems],
+      },
+      warnings,
+    };
+  }
+
   const paged = filtered.slice(offset, offset + count);
 
   // 9. Decorate candidates (designations + properties)
@@ -224,6 +255,7 @@ async function expandViaIR(vsJson, opts = {}) {
       total,
       offset: offset > 0 ? offset : undefined,
       contains,
+      usedSystems: [...usedSystems],
     },
     warnings,
   };
@@ -275,6 +307,13 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
   }
   if (params.filter) {
     exp.parameter.push({ name: 'filter', valueString: params.filter });
+  }
+
+  // Report used code systems
+  if (expansion.usedSystems) {
+    for (const sys of expansion.usedSystems) {
+      exp.parameter.push({ name: 'used-codesystem', valueUri: sys });
+    }
   }
 
   result.expansion = exp;
