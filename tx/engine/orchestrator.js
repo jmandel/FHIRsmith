@@ -227,6 +227,9 @@ async function expandViaIR(vsJson, opts = {}) {
     const sysOffset = Math.max(offset - cursor, 0);
     const sysCount = Math.min(remaining, r.count - sysOffset);
 
+    // Skip systems that contribute zero codes to this page
+    if (sysCount <= 0) { cursor = sysEnd; continue; }
+
     const sysSpan = trace.begin(`system:${r.system}`, { sysOffset, sysCount });
     const result = await r.irProvider.executeIR(r.subtree, {
       activeOnly, text,

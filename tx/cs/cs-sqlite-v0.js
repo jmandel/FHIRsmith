@@ -906,6 +906,34 @@ class SqliteV0Provider extends BaseCSServices {
     if (!subtree || subtree.kind === 'empty') {
       return { candidates: [], total: 0 };
     }
+    // Short-circuit when caller needs zero rows (defensive; orchestrator
+    // should skip this call, but guard against mis-use).
+    if (opts.count === 0) {
+      return { candidates: [] };
+    }
+
+    // Fast path: small concept enumerations with text filter.
+    // Locate each code and text-match in JS instead of FTS SQL.
+    if (opts.text && subtree.kind === 'selector' && subtree.shape === 'concept'
+        && subtree.conceptCodes?.length <= 50) {
+      const lower = opts.text.toLowerCase();
+      const candidates = [];
+      for (const cc of subtree.conceptCodes) {
+        if (opts.count != null && candidates.length >= opts.count) break;
+        const row = this.#prep('locate',
+          'SELECT concept_id, code, display, definition, active FROM concept WHERE cs_id = @cs AND code = @code')
+          .get({ cs: this.#meta.csId, code: cc.code });
+        if (!row) continue;
+        if (opts.activeOnly && !row.active) continue;
+        if ((row.display || '').toLowerCase().includes(lower)
+            || (row.code || '').toLowerCase().includes(lower)) {
+          candidates.push({ code: row.code, display: row.display,
+            definition: row.definition, active: !!row.active, conceptId: row.concept_id });
+        }
+      }
+      trace.note('executeIR:fastpath', { codes: subtree.conceptCodes.length, text: opts.text, hits: candidates.length });
+      return { candidates };
+    }
 
     const span = trace.begin('executeIR:sql', { system: this.#meta.baseUri });
 
@@ -997,6 +1025,25 @@ class SqliteV0Provider extends BaseCSServices {
    */
   countForIR(subtree, opts = {}) {
     if (!subtree || subtree.kind === 'empty') return 0;
+
+    // Fast path: small concept enumerations with text filter.
+    // Locate each code and text-match in JS instead of FTS SQL (~17ms → <1ms).
+    if (opts.text && subtree.kind === 'selector' && subtree.shape === 'concept'
+        && subtree.conceptCodes?.length <= 50) {
+      const lower = opts.text.toLowerCase();
+      let cnt = 0;
+      for (const cc of subtree.conceptCodes) {
+        const row = this.#prep('locate',
+          'SELECT concept_id, code, display, definition, active FROM concept WHERE cs_id = @cs AND code = @code')
+          .get({ cs: this.#meta.csId, code: cc.code });
+        if (!row) continue;
+        if (opts.activeOnly && !row.active) continue;
+        if ((row.display || '').toLowerCase().includes(lower)
+            || (row.code || '').toLowerCase().includes(lower)) cnt++;
+      }
+      trace.note('countForIR:fastpath', { codes: subtree.conceptCodes.length, text: opts.text, count: cnt });
+      return cnt;
+    }
 
     const span = trace.begin('countForIR:sql', { system: this.#meta.baseUri });
 
