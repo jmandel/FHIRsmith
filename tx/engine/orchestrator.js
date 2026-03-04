@@ -17,6 +17,7 @@ const { buildIRFromValueSet } = require('./build-ir');
 const { resolveImports } = require('./resolve-imports');
 const { optimize, collectSystems, projectToSystem, splitDiffRoot } = require('./rewrite');
 const IR = require('./ir');
+const { wrapWithLegacyIR } = require('./legacy-ir-adapter');
 
 /**
  * Check if a ValueSet can be handled by the IR engine.
@@ -116,30 +117,35 @@ async function expandViaIR(vsJson, opts = {}) {
       continue;
     }
 
-    if (typeof provider.executeIR === 'function') {
-      // Native IR execution (v0 SQLite provider)
-      const result = provider.executeIR(subtree, {
-        activeOnly,
-        text,
-        // Don't paginate per-system — collect all, paginate at the end
-        count: undefined,
-        offset: undefined,
-      });
-      for (const c of result.candidates) {
-        allCandidates.push({
-          system,
-          version: provider.version?.() || version,
-          code: c.code,
-          display: c.display,
-          definition: c.definition,
-          active: c.active,
-          conceptId: c.conceptId,
-          _provider: provider,
-        });
+    // Use native IR if available, otherwise wrap with LegacyIRAdapter
+    let irProvider = provider;
+    if (typeof provider.executeIR !== 'function') {
+      try {
+        irProvider = wrapWithLegacyIR(provider);
+      } catch (e) {
+        unsupportedSystems.push(system);
+        continue;
       }
-    } else {
-      // No native IR — system not supported by IR engine yet
-      unsupportedSystems.push(system);
+    }
+
+    const result = await irProvider.executeIR(subtree, {
+      activeOnly,
+      text,
+      // Don't paginate per-system — collect all, paginate at the end
+      count: undefined,
+      offset: undefined,
+    });
+    for (const c of result.candidates) {
+      allCandidates.push({
+        system,
+        version: (typeof provider.version === 'function' ? provider.version() : provider.version) || version,
+        code: c.code,
+        display: c.display,
+        definition: c.definition,
+        active: c.active,
+        conceptId: c.conceptId,
+        _provider: provider,
+      });
     }
   }
 
