@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 /**
  * IR engine test harness — hits the running server, asserts concrete expectations.
- * Usage: node scripts/ir-harness.mjs [filter] [--legacy] [--trace]
+ * Usage: node scripts/ir-harness.mjs [filter] [--legacy] [--trace] [--perf]
+ *
+ * --perf   Run each test with both engines (5 runs each), collect median
+ *          timings, write tmp/perf-table.html at the end.
  */
 const BASE = process.env.BASE_URL || 'http://localhost:8000';
 const EXPAND = `${BASE}/r4/ValueSet/$expand`;
 const FILTER = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : null;
 const RUN_LEGACY = process.argv.includes('--legacy');
 const WANT_TRACE = process.argv.includes('--trace');
+const PERF_MODE = process.argv.includes('--perf');
 const RUNS = parseInt(process.env.PERF_RUNS || '3', 10);
+const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
 
 const SYS = {
   SCT: 'http://snomed.info/sct',
@@ -28,6 +33,7 @@ function vs(include, exclude) {
 }
 
 async function expand(vsJson, opts = {}, engine = 'ir') {
+  lastExpandCall = { vsJson, opts };
   const params = [{ name: 'valueSet', resource: vsJson }];
   params.push({ name: '_engine', valueString: engine });
   if (opts.count !== undefined) params.push({ name: 'count', valueInteger: opts.count });
@@ -64,12 +70,24 @@ function findCode(result, code) {
 
 async function test(name, fn) {
   if (FILTER && !name.toLowerCase().includes(FILTER.toLowerCase())) { skipped++; return; }
+  lastExpandCall = null;
   try {
     const t0 = performance.now();
     await fn();
     const ms = (performance.now() - t0).toFixed(0);
     console.log(`  \x1b[32m✓\x1b[0m ${name} (${ms}ms)`);
     passed++;
+
+    // In perf mode, re-run the last expand() call with both engines
+    if (PERF_MODE && lastExpandCall) {
+      const { vsJson, opts } = lastExpandCall;
+      const ir = await timeEngine(vsJson, opts, 'ir', PERF_RUNS);
+      const leg = await timeEngine(vsJson, opts, 'legacy', PERF_RUNS);
+      perfRows.push({ name, category: currentCategory, irMs: ir.ms, legMs: leg.ms, irErr: ir.err, legErr: leg.err });
+      const irStr = ir.err ? '❌' : `${ir.ms}ms`;
+      const legStr = leg.err ? '❌' : `${leg.ms}ms`;
+      console.log(`    perf: IR=${irStr}  Legacy=${legStr}`);
+    }
   } catch (e) {
     console.log(`  \x1b[31m✗\x1b[0m ${name}`);
     console.log(`    ${e.message}`);
@@ -80,6 +98,29 @@ async function test(name, fn) {
 function assert(cond, msg) { if (!cond) throw new Error(msg); }
 function eq(a, b, msg) { if (a !== b) throw new Error(`${msg}: expected ${b}, got ${a}`); }
 
+// ── perf collection ────────────────────────────────────────────────────
+const perfRows = [];  // { name, category, irMs, legMs, irErr, legErr }
+let currentCategory = '';
+let lastExpandCall = null;  // { vsJson, opts } from most recent expand()
+
+function median(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
+async function timeEngine(vsJson, opts, engine, runs) {
+  const times = [];
+  for (let i = 0; i < runs; i++) {
+    try {
+      const { ms } = await expand(vsJson, opts, engine);
+      times.push(ms);
+    } catch {
+      return { ms: null, err: true };
+    }
+  }
+  return { ms: Math.round(median(times)), err: false };
+}
+
 // ── tests ──────────────────────────────────────────────────────────────
 async function run() {
   // Check server is up
@@ -88,7 +129,7 @@ async function run() {
     if (!r.ok) throw new Error();
   } catch { console.error('Server not reachable at', BASE); process.exit(1); }
 
-  console.log('\n=== SNOMED is-a ===');
+  console.log('\n=== SNOMED is-a ==='); currentCategory = 'SNOMED is-a';
 
   await test('is-a Diabetes: 124 codes, includes self+children', async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
@@ -123,7 +164,7 @@ async function run() {
     assert(ms < 500, `expected <500ms, got ${ms.toFixed(0)}ms`);
   });
 
-  console.log('\n=== Pagination ===');
+  console.log('\n=== Pagination ==='); currentCategory = 'Pagination';
 
   await test('Diabetes pages are disjoint and reconstruct full set', async () => {
     const allCodes = new Set();
@@ -146,7 +187,7 @@ async function run() {
     eq(codes(result).length, 20, 'page size');
   });
 
-  console.log('\n=== Excludes ===');
+  console.log('\n=== Excludes ==='); currentCategory = 'Excludes';
 
   await test('Diabetes minus Type2 subtree: 108 codes', async () => {
     const { result } = await expand(
@@ -182,7 +223,7 @@ async function run() {
     assert(findCode(result, '73211009'), 'self remains');
   });
 
-  console.log('\n=== Text search ===');
+  console.log('\n=== Text search ==='); currentCategory = 'Text search';
 
   await test('is-a Diabetes + text gestational: 8 codes', async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
@@ -212,7 +253,7 @@ async function run() {
     assert(findCode(result, '1191'), 'aspirin 1191 present');
   });
 
-  console.log('\n=== Property filters ===');
+  console.log('\n=== Property filters ==='); currentCategory = 'Property filters';
 
   await test('RxNorm TTY=IN first 50', async () => {
     const { result } = await expand(vs({ system: SYS.RXNORM, filter: [{ property: 'TTY', op: '=', value: 'IN' }] }),
@@ -236,7 +277,7 @@ async function run() {
     eq(codes(result).length, 20, 'page size');
   });
 
-  console.log('\n=== Concept enumeration ===');
+  console.log('\n=== Concept enumeration ==='); currentCategory = 'Concept enum';
 
   await test('SNOMED 3 codes: correct displays', async () => {
     const { result } = await expand(vs({ system: SYS.SCT, concept: [{ code: '73211009' }, { code: '44054006' }, { code: '46635009' }] }));
@@ -252,7 +293,7 @@ async function run() {
     assert(entry?.designation?.length > 0, 'has designations');
   });
 
-  console.log('\n=== Whole-system (cs-cs / legacy adapter) ===');
+  console.log('\n=== Whole-system (cs-cs / legacy adapter) ==='); currentCategory = 'Whole-system';
 
   await test('gender whole-system: 4 codes', async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }));
@@ -335,7 +376,7 @@ async function run() {
     eq(systems.size, 2, 'matches from both systems');
   });
 
-  console.log('\n=== Multi-system ===');
+  console.log('\n=== Multi-system ==='); currentCategory = 'Multi-system';
 
   await test('SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems', async () => {
     const { result } = await expand(vs([
@@ -402,7 +443,67 @@ async function run() {
   console.log(`\n${'='.repeat(50)}`);
   console.log(`  \x1b[32m${passed} passed\x1b[0m, \x1b[31m${failed} failed\x1b[0m, ${skipped} skipped`);
   console.log('='.repeat(50));
+
+  if (PERF_MODE && perfRows.length > 0) {
+    const { writeFileSync, mkdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    mkdirSync('tmp', { recursive: true });
+    writeFileSync(join('tmp', 'perf-table.html'), buildPerfHtml(perfRows));
+    console.log(`\nPerf table written to tmp/perf-table.html (${perfRows.length} rows)`);
+  }
+
   process.exit(failed > 0 ? 1 : 0);
+}
+
+// ── perf HTML builder ──────────────────────────────────────────────────
+function buildPerfHtml(rows) {
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const ts = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
+
+  const tableRows = rows.map(r => {
+    const irStr = r.irErr ? '<span class="err">❌</span>' : `${r.irMs}ms`;
+    const legStr = r.legErr ? '<span class="err">❌</span>' : `${r.legMs}ms`;
+    let ratio = '', cls = 'even';
+    if (!r.irErr && !r.legErr && r.irMs > 0 && r.legMs > 0) {
+      if (r.irMs <= r.legMs) {
+        const x = (r.legMs / r.irMs).toFixed(1);
+        ratio = x === '1.0' ? '≈' : `IR ×${x}`;
+        cls = x === '1.0' ? 'even' : 'ir-win';
+      } else {
+        const x = (r.irMs / r.legMs).toFixed(1);
+        ratio = x === '1.0' ? '≈' : `Leg ×${x}`;
+        cls = x === '1.0' ? 'even' : 'leg-win';
+      }
+    } else if (r.legErr && !r.irErr) {
+      ratio = 'IR only'; cls = 'ir-only';
+    }
+    return `<tr class="${cls}"><td>${esc(r.category)}</td><td>${esc(r.name)}</td><td class="num">${irStr}</td><td class="num">${legStr}</td><td>${ratio}</td></tr>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>IR vs Legacy Perf</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; }
+  h1 { font-size: 1.3em; }
+  .meta { color: #666; font-size: 0.85em; margin-bottom: 1em; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 6px 10px; border: 1px solid #ddd; text-align: left; }
+  th { background: #f5f5f5; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ir-win { background: #e8f5e9; }
+  .leg-win { background: #fff3e0; }
+  .ir-only { background: #e3f2fd; }
+  .even { }
+  .err { color: #c62828; }
+</style></head><body>
+<h1>IR vs Legacy Engine — Performance Comparison</h1>
+<p class="meta">Generated ${ts} &middot; median of ${PERF_RUNS} runs &middot; _nocache=true</p>
+<table>
+<thead><tr><th>Category</th><th>Test</th><th>IR</th><th>Legacy</th><th>Winner</th></tr></thead>
+<tbody>
+${tableRows}
+</tbody></table>
+</body></html>`;
 }
 
 run().catch(e => { console.error('Fatal:', e); process.exit(2); });

@@ -809,53 +809,62 @@ trace.count('counterName', 1);
 ## Performance Results
 
 Median of 5 runs, cache disabled (`_nocache=true`), Node 24, single-threaded.
+Generate a fresh HTML table with `node scripts/ir-harness.mjs --perf`
+→ `tmp/perf-table.html`.
 
-### IR wins: large sets, property filters, text search (2–27×)
+### IR wins: large sets, property filters, text search (7–30×)
 
 | Query | IR | Legacy | Winner |
 |-------|---:|-------:|--------|
-| LOINC CLASSTYPE=1 (c=50, 66K total) | 86ms | 818ms | **IR ×9.6** |
-| LOINC STATUS=ACTIVE (c=20, 96K total) | 117ms | 739ms | **IR ×6.3** |
-| LOINC text=creatinine (c=20) | 70ms | 618ms | **IR ×8.8** |
-| RxNorm TTY=IN (c=50, 14K total) | 38ms | 436ms | **IR ×11.4** |
-| RxNorm text=aspirin TTY=IN | 21ms | 361ms | **IR ×17.5** |
-| SNOMED text=diabetes (c=50) | 41ms | 1095ms | **IR ×26.6** |
-| SNOMED Clinical finding 124K (c=50) | 184ms | 353ms | **IR ×1.9** |
+| LOINC CLASSTYPE=1 (c=50, 66K total) | 76ms | 695ms | **IR ×9.1** |
+| LOINC STATUS=ACTIVE (c=20, 96K total) | 108ms | 732ms | **IR ×6.8** |
+| LOINC text=creatinine (c=20) | 63ms | 694ms | **IR ×11.0** |
+| RxNorm TTY=IN (c=50, 14K total) | 24ms | 423ms | **IR ×17.6** |
+| RxNorm text=aspirin TTY=IN | 12ms | 354ms | **IR ×29.5** |
+| SNOMED Clinical finding 124K (c=50) | 188ms | 295ms | **IR ×1.6** |
+| Multi-system stride: SCT is-a+LOINC (c=10,off=120) | 95ms | 720ms | **IR ×7.6** |
+
+### IR wins: excludes (3–4×)
+
+| Query | IR | Legacy | Winner |
+|-------|---:|-------:|--------|
+| Diabetes minus Type2 subtree (108) | 4ms | 14ms | **IR ×3.5** |
+| Diabetes minus Type1+Type2 (86) | 4ms | 15ms | **IR ×3.8** |
+| Diabetes exclude 2 enumerated codes | 3ms | 15ms | **IR ×5.0** |
 
 ### IR only: legacy errors on these
 
 | Query | IR | Legacy |
 |-------|---:|--------|
-| SNOMED Clinical finding count=0 (124K) | 176ms | ❌ too-costly (>1000) |
-| LOINC CLASSTYPE=1 count=0 (66K) | 53ms | ❌ too-costly (>1000) |
-| LOINC STATUS=ACTIVE off=1000 (96K) | 119ms | ❌ too-costly (>1000) |
+| SNOMED Clinical finding count=0 (124K) | 182ms | ❌ too-costly (>1000) |
+| LOINC STATUS=ACTIVE off=1000 (96K) | 109ms | ❌ too-costly (>1000) |
 
-### Legacy wins: small sets (≤200 codes, 1.3–7×)
+### Near parity (≤200 codes)
 
-| Query | IR | Legacy | Winner |
-|-------|---:|-------:|--------|
-| SNOMED is-a Diabetes (124 codes) | 21ms | 16ms | Legacy ×1.3 |
-| SNOMED is-a Diabetes count=0 | 21ms | 15ms | Legacy ×1.4 |
-| SNOMED diff: Diabetes−Type2 (108) | 21ms | 17ms | Legacy ×1.3 |
-| SNOMED 3-code enum + designations | 21ms | 5ms | Legacy ×4.1 |
-| SNOMED Diabetes + text gestational | 63ms | 33ms | Legacy ×1.9 |
-| SNOMED is-a + text insulin | 35ms | 15ms | Legacy ×2.3 |
-| Multi: SCT+LOINC+RxNorm enum (3) | 39ms | 8ms | Legacy ×4.6 |
-| Mixed: gender + SCT enum (5) | 21ms | 3ms | Legacy ×7.0 |
+| Query | IR | Legacy | Ratio |
+|-------|---:|-------:|-------|
+| SNOMED is-a Diabetes (124 codes) | 25ms | 18ms | Leg ×1.4 |
+| SNOMED descendent-of Diabetes (123) | 22ms | 16ms | Leg ×1.4 |
+| SNOMED is-a + text gestational (8) | 41ms | 29ms | Leg ×1.4 |
+| SNOMED is-a + text insulin (24) | 17ms | 15ms | ≈ |
+| SNOMED 3-code enum + designations | 2ms | 3ms | ≈ |
+| SNOMED+LOINC+RxNorm enum (3) | 3ms | 7ms | IR ×2.3 |
+| Mixed gender+SCT enum (5) | 2ms | 3ms | ≈ |
+| Gender whole-system (4) | 1ms | 2ms | ≈ |
 
 ### Analysis
 
-IR has a fixed ~18ms floor (orchestrator setup, IR compile, SQL build,
-provider resolution). For small sets where the actual query takes <1ms,
-this overhead dominates. Legacy's row-by-row iteration is faster for
-sets under ~200 codes because it avoids the orchestrator entirely.
+IR has a fixed ~2ms floor (orchestrator setup, IR compile, SQL build).
+The remaining overhead for small SNOMED queries is the closure count
+SQL (~8ms for `countForIR`). For large sets, IR's SQL pushdown
+(LIMIT/OFFSET, EXISTS rewrite, FTS5) avoids materializing the full
+result. Legacy must iterate all matching codes, build hierarchy, then
+paginate — or error at the 1000-code limit.
 
-For large sets, IR's SQL pushdown (LIMIT/OFFSET, EXISTS rewrite, FTS5)
-avoids materializing the full result. Legacy must iterate all matching
-codes, build hierarchy, then paginate — or error at the 1000-code limit.
-
-The crossover point is roughly **200–500 result codes**: below that legacy
-is faster; above that IR pulls ahead rapidly.
+IR now wins on excludes (3–5×) because SQL `EXCEPT` is cheaper than
+legacy's N parent queries plus post-filter. The crossover point where
+IR starts dominating is roughly **200 result codes**; below that the
+two engines are within 1.5× of each other.
 
 ---
 
@@ -868,6 +877,7 @@ expectations. 32 tests covering all provider types and query patterns.
 node scripts/ir-harness.mjs              # run all 32
 node scripts/ir-harness.mjs "refset"     # filter by name
 node scripts/ir-harness.mjs --trace      # attach trace to each request
+node scripts/ir-harness.mjs --perf       # run both engines, write tmp/perf-table.html
 ```
 
 ### Coverage matrix
