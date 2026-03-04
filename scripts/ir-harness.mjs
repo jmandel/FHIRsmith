@@ -1180,6 +1180,180 @@ async function run() {
     assert(totalDesignations >= 0, 'designation check completed');
   });
 
+  // ── Phase 2 batch 2: logic, provider, pagination, text-search, exclude ──
+
+  await test('logic: imported inc/exc valueSets apply Inc/Exc semantics', async () => {
+    const csUrl = `http://example.org/cs/palette-${Date.now()}`;
+    const incVsUrl = `http://example.org/vs/palette-inc-${Date.now()}`;
+    const excVsUrl = `http://example.org/vs/palette-exc-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[{code:'red',display:'Red'},{code:'blue',display:'Blue'},{code:'green',display:'Green'},{code:'yellow',display:'Yellow'}]};
+    const incVs = {resourceType:'ValueSet',url:incVsUrl,status:'active',
+      compose:{include:[{system:csUrl,concept:[{code:'red'},{code:'blue'},{code:'green'}]}]}};
+    const excVs = {resourceType:'ValueSet',url:excVsUrl,status:'active',
+      compose:{include:[{system:csUrl,concept:[{code:'blue'}]}]}};
+    const { result } = await expand(vs([{valueSet:[incVsUrl]}],[{valueSet:[excVsUrl]}]),
+      {txResources:[cs,incVs,excVs]});
+    assert(codes(result).length === 2, `expected 2 codes, got ${codes(result).length}`);
+    assert(findCode(result,'red'), 'red should remain');
+    assert(findCode(result,'green'), 'green should remain');
+    assert(!findCode(result,'blue'), 'blue should be excluded');
+  });
+
+  await test('logic: total includes direct and imported include contributions', async () => {
+    const csUrl = `http://example.org/cs/total-${Date.now()}`;
+    const impVsUrl = `http://example.org/vs/total-imp-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[{code:'red',display:'Red'},{code:'blue',display:'Blue'},{code:'green',display:'Green'},{code:'yellow',display:'Yellow'}]};
+    const impVs = {resourceType:'ValueSet',url:impVsUrl,status:'active',
+      compose:{include:[{system:csUrl,concept:[{code:'green'},{code:'yellow'}]}]}};
+    const { result } = await expand(vs([
+      {system:csUrl,concept:[{code:'red'},{code:'blue'}]},
+      {valueSet:[impVsUrl]},
+    ]),{txResources:[cs,impVs]});
+    assert(codes(result).length === 4, `expected 4 codes, got ${codes(result).length}`);
+    assert(result.expansion.total === 4, `expected total=4, got ${result.expansion.total}`);
+  });
+
+  await test('logic: whole-system descendant traversal keeps exact total', async () => {
+    const csUrl = `http://example.org/cs/hier-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[
+        {code:'root-a',display:'Root A',concept:[{code:'child-a1',display:'Child A1'},{code:'child-a2',display:'Child A2'}]},
+        {code:'root-b',display:'Root B',concept:[{code:'child-b1',display:'Child B1'}]},
+      ]};
+    const { result } = await expand(vs({system:csUrl}),{txResources:[cs]});
+    const all = codes(result);
+    assert(all.length === 5, `expected 5 flattened codes, got ${all.length}`);
+    assert(result.expansion.total === 5, `expected total=5, got ${result.expansion.total}`);
+  });
+
+  await test('logic: total reflects imported excludes without mutating accumulated list', async () => {
+    const csUrl = `http://example.org/cs/exc-total-${Date.now()}`;
+    const incVsUrl = `http://example.org/vs/exc-total-inc-${Date.now()}`;
+    const excVsUrl = `http://example.org/vs/exc-total-exc-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[{code:'red',display:'Red'},{code:'blue',display:'Blue'},{code:'green',display:'Green'},{code:'yellow',display:'Yellow'}]};
+    const incVs = {resourceType:'ValueSet',url:incVsUrl,status:'active',
+      compose:{include:[{system:csUrl}]}};
+    const excVs = {resourceType:'ValueSet',url:excVsUrl,status:'active',
+      compose:{include:[{system:csUrl,concept:[{code:'blue'},{code:'yellow'}]}]}};
+    const { result: full } = await expand(vs([{valueSet:[incVsUrl]}],[{valueSet:[excVsUrl]}]),
+      {txResources:[cs,incVs,excVs]});
+    assert(codes(full).length === 2, `expected 2 survivors, got ${codes(full).length}`);
+    assert(findCode(full,'red'), 'red should remain');
+    assert(findCode(full,'green'), 'green should remain');
+    if (full.expansion.total != null) {
+      assert(full.expansion.total === 2, `expected total=2, got ${full.expansion.total}`);
+    }
+    // Paginated: total should still be 2
+    const { result: page } = await expand(vs([{valueSet:[incVsUrl]}],[{valueSet:[excVsUrl]}]),
+      {txResources:[cs,incVs,excVs], count:1, offset:0});
+    if (page.expansion.total != null) {
+      assert(page.expansion.total === 2, `paged total should be 2, got ${page.expansion.total}`);
+    }
+  });
+
+  await test('logic: mixed import+peer inc/exc paginates without gaps or duplicates', async () => {
+    const csUrl = `http://example.org/cs/page-${Date.now()}`;
+    const incVsUrl = `http://example.org/vs/page-inc-${Date.now()}`;
+    const excVsUrl = `http://example.org/vs/page-exc-${Date.now()}`;
+    const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
+      concept:[{code:'red',display:'Red'},{code:'blue',display:'Blue'},{code:'green',display:'Green'}]};
+    const incVs = {resourceType:'ValueSet',url:incVsUrl,status:'active',
+      compose:{include:[{system:csUrl,concept:[{code:'red'},{code:'blue'},{code:'green'}]}]}};
+    const excVs = {resourceType:'ValueSet',url:excVsUrl,status:'active',
+      compose:{include:[{system:csUrl,concept:[{code:'blue'}]}]}};
+    const query = vs(
+      [{valueSet:[incVsUrl]},{system:SYS.GENDER,concept:[{code:'male'},{code:'female'}]}],
+      [{valueSet:[excVsUrl]},{system:SYS.GENDER,concept:[{code:'female'}]}]);
+    const txR = [cs,incVs,excVs];
+    const { result: full } = await expand(query, {txResources:txR, count:100});
+    const fullCodes = codes(full).map(c => `${c.system}|${c.code}`);
+    const fullSet = new Set(fullCodes);
+    assert(fullSet.size === 3, `expected 3 final codes, got ${fullSet.size}`);
+    // Page through with count=1
+    const pagedCodes = [];
+    for (let off = 0; off < 10; off++) {
+      const { result: p } = await expand(query, {txResources:txR, count:1, offset:off});
+      const pc = codes(p).map(c => `${c.system}|${c.code}`);
+      if (pc.length === 0) break;
+      pagedCodes.push(...pc);
+    }
+    const pagedSet = new Set(pagedCodes);
+    assert(pagedCodes.length === pagedSet.size, 'paged should not duplicate');
+    assert(pagedSet.size === fullSet.size, `paged ${pagedSet.size} != full ${fullSet.size}`);
+  });
+
+  await test('logic: bulk locate handles >50 unique concepts', async () => {
+    // Seed from SNOMED is-a diabetes
+    const { result: seed } = await expand(vs({
+      system: SYS.SCT, filter: [{property:'concept',op:'is-a',value:'73211009'}],
+    }), {count:150});
+    const seedCodes = [...new Set(codes(seed).map(c=>c.code))].slice(0,60);
+    assert(seedCodes.length >= 50, `need >=50 seed codes, got ${seedCodes.length}`);
+    const { result } = await expand(vs({
+      system: SYS.SCT, concept: seedCodes.map(code=>({code})),
+    }), {count:200});
+    const gotSet = new Set(codes(result).map(c=>c.code));
+    assert(gotSet.size === seedCodes.length,
+      `expected ${seedCodes.length} codes, got ${gotSet.size}`);
+  });
+
+  await test('text-search: SNOMED filter=diabetes no pagination', async () => {
+    const { result } = await expand(vs({system:SYS.SCT}), {filter:'diabetes'});
+    const c = codes(result);
+    assert(c.length > 0, `expected results, got ${c.length}`);
+    assert(c.length >= 100, `expected many results, got ${c.length}`);
+  });
+
+  await test('logic: system exclude global when import include is present', async () => {
+    const impVsUrl = `http://example.org/vs/exc-guard-${Date.now()}`;
+    const impVs = {resourceType:'ValueSet',url:impVsUrl,status:'active',
+      compose:{include:[{system:SYS.SCT,concept:[{code:'44054006'}]}]}};
+    const { result } = await expand(vs(
+      [{system:SYS.SCT,filter:[{property:'concept',op:'is-a',value:'73211009'}]},{valueSet:[impVsUrl]}],
+      [{system:SYS.SCT,concept:[{code:'44054006'}]}]
+    ), {txResources:[impVs], count:200});
+    assert(!findCode(result,'44054006'), 'excluded code should not appear despite import');
+  });
+
+  await test('exclude: inline FHIR filter-based exclude (condition-ver-status)', async () => {
+    const { result } = await expand(vs(
+      [{system:SYS.CONDVER}],
+      [{system:SYS.CONDVER,filter:[{property:'concept',op:'is-a',value:'unconfirmed'}]}]
+    ));
+    const c = codes(result);
+    // Total is 6, minus unconfirmed subtree (3) = 3
+    assert(c.length === 3, `expected 3 after exclude, got ${c.length}`);
+    assert(!findCode(result,'unconfirmed'), 'unconfirmed excluded');
+    assert(!findCode(result,'provisional'), 'provisional excluded');
+    assert(!findCode(result,'differential'), 'differential excluded');
+    assert(findCode(result,'confirmed'), 'confirmed should remain');
+  });
+
+  await test('provider: preloaded map iteration (currency full + filter)', async () => {
+    const { result: full } = await expand(vs({system:SYS.CURRENCY}));
+    assert(codes(full).length >= 150, `expected >=150 currencies, got ${codes(full).length}`);
+    const { result: filtered } = await expand(vs({
+      system:SYS.CURRENCY, filter:[{property:'decimals',op:'=',value:'0'}],
+    }));
+    assert(codes(filtered).length === 18,
+      `expected 18 zero-decimal currencies, got ${codes(filtered).length}`);
+  });
+
+  await test('provider: cs-cs hierarchy iteration (condition-ver-status)', async () => {
+    const { result } = await expand(vs({system:SYS.CONDVER}));
+    const c = codes(result);
+    assert(c.length === 6, `expected 6 condition-ver-status codes, got ${c.length}`);
+    assert(findCode(result,'unconfirmed'), 'missing unconfirmed');
+    assert(findCode(result,'provisional'), 'missing provisional');
+    assert(findCode(result,'differential'), 'missing differential');
+    assert(findCode(result,'confirmed'), 'missing confirmed');
+    assert(findCode(result,'refuted'), 'missing refuted');
+    assert(findCode(result,'entered-in-error'), 'missing entered-in-error');
+  });
+
   // ── summary ──────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(50)}`);
 
