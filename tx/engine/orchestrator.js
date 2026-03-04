@@ -24,6 +24,36 @@ const { trace } = require('./expand-trace');
  * Check if a ValueSet can be handled by the IR engine.
  * Returns false for ValueSets that need features we don't support yet.
  */
+/**
+ * Derive count from IR structure without hitting the database.
+ * Returns a number for concept enumerations (known size), null otherwise.
+ * When a text filter is active, we can't statically count (text may filter out codes).
+ */
+function countFromIR(node, text) {
+  if (text) return null; // text filter may reduce the set
+  if (!node) return 0;
+  switch (node.kind) {
+    case 'empty': return 0;
+    case 'selector':
+      if (node.shape === 'concept' && node.conceptCodes?.length > 0) {
+        return node.conceptCodes.length;
+      }
+      return null; // filter or whole-system — need SQL
+    case 'union': {
+      // Union of concept selectors: sum (may overcount if overlapping,
+      // but concept enums within one system don't overlap in practice)
+      let total = 0;
+      for (const child of node.items || []) {
+        const c = countFromIR(child, text);
+        if (c == null) return null;
+        total += c;
+      }
+      return total;
+    }
+    default: return null; // diff, intersect, import — need SQL
+  }
+}
+
 function canHandleValueSet(vsJson) {
   const compose = vsJson?.compose;
   if (!compose) return false;
@@ -138,9 +168,15 @@ async function expandViaIR(vsJson, opts = {}) {
       catch { unsupportedSystems.push(system); continue; }
     }
 
-    // Get per-system count for stride pagination
+    // Get per-system count for stride pagination.
+    // Fast path: concept enumerations have a known count from the IR itself
+    // (no SQL needed). Only call countForIR for filters/whole-system shapes.
     let sysCount = 0;
-    if (typeof irProvider.countForIR === 'function') {
+    const staticCount = countFromIR(subtree, text);
+    if (staticCount != null) {
+      sysCount = staticCount;
+      trace.note('count:static', { system, count: sysCount });
+    } else if (typeof irProvider.countForIR === 'function') {
       const cntSpan = trace.begin('countForIR', { system });
       sysCount = await irProvider.countForIR(subtree, { activeOnly, text });
       cntSpan.end({ count: sysCount });
