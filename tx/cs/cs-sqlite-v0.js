@@ -909,26 +909,39 @@ class SqliteV0Provider extends BaseCSServices {
 
     const span = trace.begin('executeIR:sql', { system: this.#meta.baseUri });
 
-    // Supply density hints for the EXISTS rewrite optimization.
-    // Quick closure count (0.1-5ms) lets the SQL builder choose between
-    // EXISTS (fast for dense sets) and JOIN+sort (fast for sparse sets).
+    // Supply density hints only when the IR contains a closure filter
+    // (is-a / descendent-of). For concept enums and property filters,
+    // the EXISTS rewrite doesn't apply, so skip the expensive COUNT(*).
     const enrichedOpts = { ...opts };
-    enrichedOpts._conceptCount = this.#getConceptCount();
-    enrichedOpts._closureCount = this.#getClosureCount(subtree);
+    const tHints = performance.now();
+    const closureCount = this.#getClosureCount(subtree);
+    if (closureCount > 0) {
+      enrichedOpts._conceptCount = this.#getConceptCount();
+      enrichedOpts._closureCount = closureCount;
+    }
+    const hintsMs = performance.now() - tHints;
 
+    const tBuild = performance.now();
     const { sql, params } = buildExpandSql(
       subtree, this.#meta.csId, enrichedOpts, this.#propDefs, this.#runtime
     );
+    const buildMs = performance.now() - tBuild;
 
     if (sql.includes('WHERE 0')) {
       span.end({ empty: true });
       return { candidates: [], total: 0 };
     }
 
-    const t0 = performance.now();
-    const rows = this.#db.prepare(sql).all(params);
-    const elapsedMs = performance.now() - t0;
-    trace.sql(sql, params, rows.length, elapsedMs, 'executeIR');
+    const tPrep = performance.now();
+    const stmt = this.#db.prepare(sql);
+    const prepMs = performance.now() - tPrep;
+
+    const tExec = performance.now();
+    const rows = stmt.all(params);
+    const execMs = performance.now() - tExec;
+
+    trace.sql(sql, params, rows.length, execMs, 'executeIR');
+    trace.note('executeIR:breakdown', { hintsMs: +hintsMs.toFixed(2), buildMs: +buildMs.toFixed(2), prepMs: +prepMs.toFixed(2), execMs: +execMs.toFixed(2) });
 
     const candidates = rows
       .filter(r => r.code != null)
