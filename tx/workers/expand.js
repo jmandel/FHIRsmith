@@ -2011,7 +2011,7 @@ class ExpandWorker extends TerminologyWorker {
         },
         resolveValueSet: async (url, version) => {
           try {
-            const vs = await worker.provider.findValueSet(url, version);
+            const vs = await worker.findValueSet(url, version);
             return vs?.jsonObj || vs;
           } catch {
             return null;

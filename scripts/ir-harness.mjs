@@ -97,6 +97,9 @@ async function test(name, fn) {
 
 function assert(cond, msg) { if (!cond) throw new Error(msg); }
 function eq(a, b, msg) { if (a !== b) throw new Error(`${msg}: expected ${b}, got ${a}`); }
+function findParams(result, name) {
+  return (result?.expansion?.parameter || []).filter(p => p.name === name);
+}
 
 // ── perf collection ────────────────────────────────────────────────────
 const perfRows = [];  // { name, category, irMs, legMs, irErr, legErr }
@@ -437,6 +440,203 @@ async function run() {
     const systems = new Set(codes(result).map(c => c.system));
     // Should span the boundary between the two systems
     assert(result.expansion.total > 60000, `total ${result.expansion.total}`);
+  });
+
+  // ── meta: expansion parameters ──────────────────────────────────────────
+  console.log('\n=== Meta ==='); currentCategory = 'Meta';
+
+  await test('meta: multi-system emits used-codesystem for each system', async () => {
+    const { result } = await expand(vs([
+      { system: SYS.GENDER, concept: [{ code: 'male' }] },
+      { system: SYS.PUBSTAT, concept: [{ code: 'active' }] },
+    ]));
+    const usedCs = findParams(result, 'used-codesystem').map(p => p.valueUri || '');
+    assert(usedCs.some(v => v.startsWith(SYS.GENDER)), 'gender in used-codesystem');
+    assert(usedCs.some(v => v.startsWith(SYS.PUBSTAT)), 'pubstat in used-codesystem');
+  });
+
+  await test('meta: used-codesystem dedupes repeated same-system', async () => {
+    const { result } = await expand(vs([
+      { system: SYS.GENDER, concept: [{ code: 'male' }, { code: 'female' }] },
+      { system: SYS.GENDER, concept: [{ code: 'other' }] },
+    ]));
+    const usedCs = findParams(result, 'used-codesystem')
+      .filter(p => typeof p.valueUri === 'string' && p.valueUri.startsWith(SYS.GENDER));
+    eq(usedCs.length, 1, 'exactly 1 used-codesystem for gender');
+  });
+
+  await test('meta: offset/count are echoed in expansion parameters', async () => {
+    const { result } = await expand(vs({ system: SYS.GENDER }), { count: 2, offset: 1 });
+    const offsetP = findParams(result, 'offset')[0];
+    const countP = findParams(result, 'count')[0];
+    assert(offsetP?.valueInteger === 1, `expected offset=1, got ${offsetP?.valueInteger}`);
+    assert(countP?.valueInteger === 2, `expected count=2, got ${countP?.valueInteger}`);
+  });
+
+  await test('meta: text filter is echoed in expansion parameters', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    }), { filter: 'mell', count: 5, activeOnly: true });
+    const filterP = findParams(result, 'filter')[0];
+    eq(filterP?.valueString, 'mell', 'filter echoed');
+  });
+
+  await test('meta: v0 used-codesystem includes version', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT, concept: [{ code: '73211009' }],
+    }));
+    const usedCs = findParams(result, 'used-codesystem').map(p => p.valueUri || '');
+    const sctEntry = usedCs.find(v => v.startsWith(SYS.SCT));
+    assert(sctEntry, 'SNOMED in used-codesystem');
+    assert(sctEntry.includes('|'), `expected version in used-codesystem, got ${sctEntry}`);
+  });
+
+  // ── vs-import ────────────────────────────────────────────────────────
+  console.log('\n=== ValueSet imports ==='); currentCategory = 'VS import';
+
+  await test('vs-import: pure import of administrative-gender', async () => {
+    const { result } = await expand(vs({ valueSet: ['http://hl7.org/fhir/ValueSet/administrative-gender'] }));
+    eq(result.expansion.total, 4, 'total');
+    assert(findCode(result, 'male'), 'male');
+    assert(findCode(result, 'female'), 'female');
+    assert(findCode(result, 'other'), 'other');
+    assert(findCode(result, 'unknown'), 'unknown');
+  });
+
+  await test('vs-import: system + valueSet intersection', async () => {
+    const { result } = await expand(vs({
+      system: SYS.GENDER,
+      concept: [{ code: 'male' }, { code: 'female' }, { code: 'other' }],
+      valueSet: ['http://hl7.org/fhir/ValueSet/administrative-gender'],
+    }));
+    eq(result.expansion.total, 3, 'intersection total');
+    assert(findCode(result, 'male'), 'male in intersection');
+    assert(findCode(result, 'female'), 'female in intersection');
+    assert(findCode(result, 'other'), 'other in intersection');
+    assert(!findCode(result, 'unknown'), 'unknown not in intersection');
+  });
+
+  // ── pagination-safety ──────────────────────────────────────────────
+  console.log('\n=== Pagination safety ==='); currentCategory = 'Pagination safety';
+
+  await test('pagination-safety: mixed v0+cs-cs reconstruct full set', async () => {
+    const query = vs([
+      { system: SYS.GENDER },
+      { system: SYS.SCT, concept: [{ code: '73211009' }] },
+    ]);
+    const allCodes = new Set();
+    for (let off = 0; off < 10; off += 2) {
+      const { result } = await expand(query, { count: 2, offset: off });
+      eq(result.expansion.total, 5, `total stable at offset ${off}`);
+      for (const c of codes(result)) {
+        assert(!allCodes.has(c.code), `dup ${c.code} at offset ${off}`);
+        allCodes.add(c.code);
+      }
+    }
+    eq(allCodes.size, 5, 'all codes covered');
+  });
+
+  await test('pagination-safety: v0 filter+cs-cs pages are disjoint', async () => {
+    const query = vs([
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+      { system: SYS.GENDER },
+    ]);
+    const allCodes = new Set();
+    const pageSize = 20;
+    for (let off = 0; off < 128; off += pageSize) {
+      const { result } = await expand(query, { count: pageSize, offset: off, activeOnly: true });
+      eq(result.expansion.total, 128, `total stable at offset ${off}`);
+      for (const c of codes(result)) {
+        assert(!allCodes.has(`${c.system}|${c.code}`), `dup ${c.code} at offset ${off}`);
+        allCodes.add(`${c.system}|${c.code}`);
+      }
+    }
+    eq(allCodes.size, 128, 'all codes covered without gaps');
+  });
+
+  await test('pagination-safety: offset beyond end returns empty', async () => {
+    const { result } = await expand(vs({ system: SYS.GENDER }), { count: 10, offset: 100 });
+    eq(result.expansion.total, 4, 'total');
+    eq(codes(result).length, 0, 'no codes past end');
+  });
+
+  // ── combined ─────────────────────────────────────────────────────────
+  console.log('\n=== Combined ==='); currentCategory = 'Combined';
+
+  await test('combined: SNOMED is-a + text filter', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    }), { filter: 'insulin', activeOnly: true });
+    assert(codes(result).length > 0, 'has results');
+    assert(codes(result).every(c => c.system === SYS.SCT), 'all SNOMED');
+  });
+
+  await test('combined: include filter + exclude filter same system', async () => {
+    const { result } = await expand(
+      vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+         [{ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '44054006' }] },
+          { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '46635009' }] }]),
+      { count: 200, activeOnly: true });
+    eq(result.expansion.total, 86, 'Diabetes minus Type1+Type2');
+    assert(!findCode(result, '44054006'), 'Type2 excluded');
+    assert(!findCode(result, '46635009'), 'Type1 excluded');
+  });
+
+  await test('combined: enumerated + text filter', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      concept: [{ code: '73211009' }, { code: '44054006' }, { code: '46635009' }],
+    }), { filter: 'type' });
+    assert(codes(result).length >= 1, 'at least 1 match');
+    assert(codes(result).every(c => c.display.toLowerCase().includes('type')), 'all match text');
+  });
+
+  await test('combined: multi-system + exclude + pagination', async () => {
+    const query = vs(
+      [{ system: SYS.GENDER }, { system: SYS.PUBSTAT }],
+      [{ system: SYS.GENDER, concept: [{ code: 'unknown' }] },
+       { system: SYS.PUBSTAT, concept: [{ code: 'unknown' }] }]);
+    const allCodes = new Set();
+    for (let off = 0; off < 6; off += 2) {
+      const { result } = await expand(query, { count: 2, offset: off });
+      eq(result.expansion.total, 6, `total at offset ${off}`);
+      for (const c of codes(result)) {
+        assert(c.code !== 'unknown', `unknown at offset ${off}`);
+        allCodes.add(`${c.system}|${c.code}`);
+      }
+    }
+    eq(allCodes.size, 6, 'all 6 codes covered');
+  });
+
+  // ── lang / designations ───────────────────────────────────────────
+  console.log('\n=== Designations ==='); currentCategory = 'Designations';
+
+  await test('lang: SNOMED includeDesignations returns entries', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT, concept: [{ code: '73211009' }],
+    }), { includeDesignations: true });
+    const entry = findCode(result, '73211009');
+    assert(entry?.designation?.length > 0, 'has designations');
+    assert(entry.designation.every(d => d.value?.length > 0), 'all have value');
+  });
+
+  await test('lang: SNOMED is-a filter includeDesignations', async () => {
+    const { result } = await expand(vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    }), { count: 5, activeOnly: true, includeDesignations: true });
+    assert(codes(result).length > 0, 'has results');
+    assert(codes(result).every(c => c.designation?.length > 0), 'all have designations');
+  });
+
+  await test('lang: LOINC includeDesignations returns entries', async () => {
+    const { result } = await expand(vs({
+      system: SYS.LOINC, concept: [{ code: '2160-0' }],
+    }), { includeDesignations: true });
+    const entry = findCode(result, '2160-0');
+    assert(entry?.designation?.length > 0, 'has designations');
   });
 
   // ── summary ──────────────────────────────────────────────────────────
