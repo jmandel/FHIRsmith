@@ -1707,6 +1707,248 @@ async function run() {
     assert(findCode(result,'en').display === 'English');
   });
 
+  // ── Phase 5: inline supplement plumbing ──
+
+  // Helper: inline CS + supplement fixture
+  function suppFixture(csUrl, suppUrl, concepts, suppConcepts, opts = {}) {
+    const cs = {
+      resourceType: 'CodeSystem', url: csUrl, content: 'complete',
+      concept: concepts,
+    };
+    const supp = {
+      resourceType: 'CodeSystem', url: suppUrl, content: 'supplement',
+      supplements: opts.supplements || csUrl,
+      concept: suppConcepts,
+    };
+    if (opts.suppVersion) supp.version = opts.suppVersion;
+    return [cs, supp];
+  }
+
+  await test('supplement: useSupplement applies content + records used-supplement', async () => {
+    const [cs, supp] = suppFixture(
+      'http://example.org/cs-s1', 'http://example.org/supp-s1',
+      [{code:'A', display:'Alpha'}, {code:'B', display:'Bravo'}],
+      [{code:'A', designation:[{language:'de', value:'Anfang'}]}]
+    );
+    const { result } = await expand(
+      vs({system:cs.url, concept:[{code:'A'},{code:'B'}]}),
+      { txResources: [cs, supp], includeDesignations: true,
+        params: [{name:'useSupplement', valueString: supp.url}] }
+    );
+    // Designation from supplement appears
+    const a = findCode(result, 'A');
+    assert(a, 'code A missing');
+    const deDes = (a.designation||[]).find(d => d.language === 'de');
+    assert(deDes?.value === 'Anfang', `expected Anfang, got ${deDes?.value}`);
+    // used-supplement emitted
+    const usedSupp = expansionParams(result, 'used-supplement');
+    assert(usedSupp.length > 0, 'used-supplement param missing');
+    assert(usedSupp[0].valueUri === supp.url, `expected ${supp.url}, got ${usedSupp[0].valueUri}`);
+  });
+
+  await test('supplement: provided but not requested is ignored', async () => {
+    const [cs, supp] = suppFixture(
+      'http://example.org/cs-s2', 'http://example.org/supp-s2',
+      [{code:'X', display:'Xray'}],
+      [{code:'X', designation:[{language:'fr', value:'Rayon'}]}]
+    );
+    // Provide supplement as tx-resource but DON'T request via useSupplement
+    const { result } = await expand(
+      vs({system:cs.url, concept:[{code:'X'}]}),
+      { txResources: [cs, supp], includeDesignations: true }
+    );
+    const x = findCode(result, 'X');
+    assert(x, 'code X missing');
+    // Supplement designation should NOT appear (supplement not requested)
+    const frDes = (x.designation||[]).find(d => d.language === 'fr');
+    assert(!frDes, 'unrequested supplement designation should not leak');
+    // No used-supplement param
+    const usedSupp = expansionParams(result, 'used-supplement');
+    assert(usedSupp.length === 0, 'used-supplement should not be emitted');
+  });
+
+  await test('supplement: valueset-supplement extension activates', async () => {
+    const [cs, supp] = suppFixture(
+      'http://example.org/cs-s3', 'http://example.org/supp-s3',
+      [{code:'M', display:'Mike'}],
+      [{code:'M', designation:[{language:'es', value:'Miguel'}]}]
+    );
+    // Use VS extension instead of useSupplement parameter
+    const vsJson = vs({system:cs.url, concept:[{code:'M'}]});
+    vsJson.extension = [{
+      url: 'http://hl7.org/fhir/StructureDefinition/valueset-supplement',
+      valueCanonical: supp.url,
+    }];
+    const { result } = await expand(vsJson,
+      { txResources: [cs, supp], includeDesignations: true });
+    const m = findCode(result, 'M');
+    const esDes = (m?.designation||[]).find(d => d.language === 'es');
+    assert(esDes?.value === 'Miguel', `expected Miguel, got ${esDes?.value}`);
+  });
+
+  await test('supplement: used-supplement deduped', async () => {
+    const [cs, supp] = suppFixture(
+      'http://example.org/cs-s4', 'http://example.org/supp-s4',
+      [{code:'P', display:'Papa'}, {code:'Q', display:'Quebec'}],
+      [{code:'P', designation:[{language:'de', value:'Pp'}]},
+       {code:'Q', designation:[{language:'de', value:'Qq'}]}]
+    );
+    const { result } = await expand(
+      vs({system:cs.url, concept:[{code:'P'},{code:'Q'}]}),
+      { txResources: [cs, supp], includeDesignations: true,
+        params: [{name:'useSupplement', valueString: supp.url}] }
+    );
+    const usedSupp = expansionParams(result, 'used-supplement');
+    assert(usedSupp.length === 1, `used-supplement should appear once, got ${usedSupp.length}`);
+  });
+
+  await test('supplement: missing required fails', async () => {
+    const cs = {
+      resourceType: 'CodeSystem', url: 'http://example.org/cs-s5',
+      content: 'complete', concept: [{code:'Z', display:'Zulu'}],
+    };
+    try {
+      await expand(
+        vs({system:cs.url, concept:[{code:'Z'}]}),
+        { txResources: [cs],
+          params: [{name:'useSupplement', valueString:'http://example.org/nonexistent'}] }
+      );
+      assert(false, 'expected error for missing supplement');
+    } catch (e) {
+      assert(e.message.includes('not found') || e.message.includes('supplement'),
+        `expected supplement error, got: ${e.message}`);
+    }
+  });
+
+  await test('supplement: missing VS extension supplement fails', async () => {
+    const cs = {
+      resourceType: 'CodeSystem', url: 'http://example.org/cs-s6',
+      content: 'complete', concept: [{code:'Y', display:'Yankee'}],
+    };
+    const vsJson = vs({system:cs.url, concept:[{code:'Y'}]});
+    vsJson.extension = [{
+      url: 'http://hl7.org/fhir/StructureDefinition/valueset-supplement',
+      valueCanonical: 'http://example.org/missing-supp',
+    }];
+    try {
+      await expand(vsJson, { txResources: [cs] });
+      assert(false, 'expected error for missing VS extension supplement');
+    } catch (e) {
+      assert(e.message.includes('not found') || e.message.includes('supplement'),
+        `expected supplement error, got: ${e.message}`);
+    }
+  });
+
+  await test('supplement: designation filter selects supplement use-coded designation', async () => {
+    const [cs, supp] = suppFixture(
+      'http://example.org/cs-s7', 'http://example.org/supp-s7',
+      [{code:'D', display:'Delta'}],
+      [{code:'D', designation:[{
+        language:'en',
+        use:{system:'http://example.org/use', code:'abbrev'},
+        value:'DLT'
+      }]}]
+    );
+    const { result } = await expand(
+      vs({system:cs.url, concept:[{code:'D'}]}),
+      { txResources: [cs, supp], includeDesignations: true,
+        params: [
+          {name:'useSupplement', valueString: supp.url},
+          {name:'designation', valueString:'http://example.org/use|abbrev'},
+        ]}
+    );
+    const d = findCode(result, 'D');
+    const desigs = d?.designation || [];
+    assert(desigs.length === 1, `expected 1 filtered designation, got ${desigs.length}`);
+    assert(desigs[0].value === 'DLT', `expected DLT, got ${desigs[0].value}`);
+  });
+
+  await test('supplement: version-pinned canonical accepted', async () => {
+    const [cs, supp] = suppFixture(
+      'http://example.org/cs-s8', 'http://example.org/supp-s8',
+      [{code:'V', display:'Victor'}],
+      [{code:'V', designation:[{language:'ja', value:'\u30D3\u30AF\u30BF\u30FC'}]}],
+      { suppVersion: '1.0' }
+    );
+    const { result } = await expand(
+      vs({system:cs.url, concept:[{code:'V'}]}),
+      { txResources: [cs, supp], includeDesignations: true,
+        params: [{name:'useSupplement', valueString: supp.url + '|1.0'}] }
+    );
+    const v = findCode(result, 'V');
+    const jaDes = (v?.designation||[]).find(d => d.language === 'ja');
+    assert(jaDes, 'version-pinned supplement designation should appear');
+  });
+
+  await test('supplement: itemWeight extension projected', async () => {
+    const cs = {
+      resourceType: 'CodeSystem', url: 'http://example.org/cs-s9',
+      content: 'complete',
+      concept: [{code:'W', display:'Whiskey'}],
+    };
+    const supp = {
+      resourceType: 'CodeSystem', url: 'http://example.org/supp-s9',
+      content: 'supplement', supplements: cs.url,
+      concept: [{
+        code: 'W',
+        extension: [{
+          url: 'http://hl7.org/fhir/StructureDefinition/itemWeight',
+          valueDecimal: 3.5,
+        }],
+      }],
+    };
+    const { result } = await expand(
+      vs({system:cs.url, concept:[{code:'W'}]}),
+      { txResources: [cs, supp],
+        params: [
+          {name:'useSupplement', valueString: supp.url},
+          {name:'property', valueString:'http://hl7.org/fhir/StructureDefinition/itemWeight'},
+        ]}
+    );
+    const w = findCode(result, 'W');
+    // itemWeight should appear as extension on the contains entry
+    const ext = (w?.extension || []).find(
+      e => e.url === 'http://hl7.org/fhir/StructureDefinition/itemWeight');
+    assert(ext, 'itemWeight extension should be projected');
+    assert(ext.valueDecimal === 3.5, `expected 3.5, got ${ext?.valueDecimal}`);
+  });
+
+  // ── Phase 5: v0 supplement paths ──
+
+  await test('supplement: inline supplement adds designation to SNOMED v0 code', async () => {
+    const supp = {
+      resourceType: 'CodeSystem', url: 'http://example.org/sct-supp-test',
+      content: 'supplement', supplements: SYS.SCT,
+      concept: [{code:'73211009', designation:[{language:'de', value:'Zuckerkrankheit'}]}],
+    };
+    const { result } = await expand(
+      vs({system:SYS.SCT, concept:[{code:'73211009'}]}),
+      { txResources: [supp], includeDesignations: true,
+        params: [{name:'useSupplement', valueString: supp.url}] }
+    );
+    const dm = findCode(result, '73211009');
+    assert(dm, 'missing 73211009');
+    const deDes = (dm.designation||[]).find(d => d.language === 'de' && d.value === 'Zuckerkrankheit');
+    assert(deDes, 'German designation from supplement should appear');
+  });
+
+  await test('supplement: inline supplement display override on LOINC v0 code', async () => {
+    const supp = {
+      resourceType: 'CodeSystem', url: 'http://example.org/loinc-supp-test',
+      content: 'supplement', supplements: SYS.LOINC,
+      concept: [{code:'2160-0', display:'Creatinine [Custom Override]'}],
+    };
+    const { result } = await expand(
+      vs({system:SYS.LOINC, concept:[{code:'2160-0'}]}),
+      { txResources: [supp],
+        params: [{name:'useSupplement', valueString: supp.url}] }
+    );
+    const cr = findCode(result, '2160-0');
+    assert(cr, 'missing 2160-0');
+    assert(cr.display === 'Creatinine [Custom Override]',
+      `expected overridden display, got ${cr.display}`);
+  });
+
   // ── Phase 6: grammar-based provider handling ──
 
   await test('notClosed: UCUM expansion reports valueset-unclosed', async () => {

@@ -344,15 +344,31 @@ async function expandViaIR(vsJson, opts = {}) {
     if (c.active === false) entry.inactive = true;
 
     // Designations: merge provider designations with compose-level overrides,
-    // then apply designation parameter filter if specified
+    // suppress redundant display-typed designations, then filter
     if (includeDesignations) {
       let allDesigs = [];
       if (c._designations?.length > 0) allDesigs.push(...c._designations);
       if (c._composeDesignations?.length > 0) allDesigs.push(...c._composeDesignations);
+      // Suppress designations that duplicate the primary display
+      const primaryDisplay = entry.display;
+      allDesigs = allDesigs.filter(d => {
+        if (!d.value || d.value !== primaryDisplay) return true;
+        const isDisplayUse = !d.use
+          || (d.use.system === 'http://terminology.hl7.org/CodeSystem/designation-usage'
+              && d.use.code === 'display');
+        const isEnOrEmpty = !d.language || d.language.startsWith('en');
+        return !(isDisplayUse && isEnOrEmpty);
+      });
       if (designations.length > 0) {
         allDesigs = filterDesignations(allDesigs, designations);
       }
       if (allDesigs.length > 0) entry.designation = allDesigs;
+    }
+
+    // Extensions (e.g. itemWeight from supplements)
+    if (c._extensions?.length > 0) {
+      if (!entry.extension) entry.extension = [];
+      entry.extension.push(...c._extensions);
     }
 
     // Properties
@@ -377,6 +393,14 @@ async function expandViaIR(vsJson, opts = {}) {
     return entry;
   });
 
+  // Collect used supplements from all resolved providers
+  const usedSupplements = new Set();
+  for (const r of resolved) {
+    const supps = typeof r.provider.listSupplements === 'function'
+      ? r.provider.listSupplements() : [];
+    for (const s of supps) usedSupplements.add(s);
+  }
+
   const total = knownTotal ?? deferredTotal;
   const finalResult = {
     expansion: {
@@ -385,6 +409,7 @@ async function expandViaIR(vsJson, opts = {}) {
       contains,
       usedSystems: [...usedSystems],
       usedValueSets: [...usedValueSets],
+      usedSupplements: [...usedSupplements],
       providerMeta,
       unclosedMessages,
     },
@@ -474,6 +499,13 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
   if (expansion.usedValueSets) {
     for (const vs of expansion.usedValueSets) {
       addParamIfAbsent(exp, 'used-valueset', vs);
+    }
+  }
+
+  // Report used supplements
+  if (expansion.usedSupplements) {
+    for (const s of expansion.usedSupplements) {
+      addParamIfAbsent(exp, 'used-supplement', s);
     }
   }
 
@@ -585,6 +617,19 @@ async function decorateCandidates(candidates, opts = {}) {
       }
     }
 
+    // Fallback: per-code designations for providers without bulkDesignations
+    if (!provider.bulkDesignations && typeof provider.designations === 'function' && includeDesignations) {
+      for (const c of provCandidates) {
+        const ctx = c._context || c.code;
+        if (!ctx) continue;
+        const collector = makeDesignationCollector();
+        try {
+          await provider.designations(ctx, collector);
+        } catch { continue; }
+        c._designations = collector.result();
+      }
+    }
+
     if (typeof provider.bulkProperties === 'function' && properties.length > 0) {
       const conceptIds = provCandidates.filter(c => c.conceptId).map(c => c.conceptId);
       const propMap = provider.bulkProperties(conceptIds);
@@ -601,12 +646,36 @@ async function decorateCandidates(candidates, opts = {}) {
           c._properties.push({ code: 'definition', value: c.definition });
         }
       }
-    } else if (properties.includes('definition')) {
-      // Even without bulk properties, handle definition
+    } else if (properties.length > 0) {
+      // Fallback: per-code properties + extensions for non-bulk providers
       for (const c of provCandidates) {
-        if (c.definition) {
-          if (!c._properties) c._properties = [];
+        if (!c._properties) c._properties = [];
+        if (properties.includes('definition') && c.definition) {
           c._properties.push({ code: 'definition', value: c.definition });
+        }
+        // Fetch properties from provider if available
+        const ctx = c._context || c.code;
+        if (typeof provider.properties === 'function' && ctx) {
+          try {
+            const props = await provider.properties(ctx);
+            if (props?.length > 0) {
+              for (const p of props) {
+                if (properties.includes(p.code) || properties.includes('*')) {
+                  c._properties.push(p);
+                }
+              }
+            }
+          } catch { /* skip */ }
+        }
+        // Fetch extensions (e.g. itemWeight) from provider
+        if (typeof provider.extensions === 'function' && ctx) {
+          try {
+            const exts = await provider.extensions(ctx);
+            if (exts?.length > 0) {
+              if (!c._extensions) c._extensions = [];
+              c._extensions.push(...exts);
+            }
+          } catch { /* skip */ }
         }
       }
     }
@@ -692,6 +761,26 @@ function addParamIfAbsent(exp, name, valueUri) {
   if (!exp.parameter) exp.parameter = [];
   if (exp.parameter.some(p => p.name === name && p.valueUri === valueUri)) return;
   exp.parameter.push({ name, valueUri });
+}
+
+/**
+ * Lightweight designation collector that mimics the Designations class
+ * interface (just addDesignation) without pulling in the full library.
+ */
+function makeDesignationCollector() {
+  const list = [];
+  return {
+    addDesignation(isDisplay, status, lang, use, value, extensions) {
+      if (!value) return;
+      const obj = {};
+      if (lang) obj.language = typeof lang === 'string' ? lang : lang.code || String(lang);
+      if (use) obj.use = use;
+      obj.value = value;
+      if (extensions?.length > 0) obj.extension = extensions;
+      list.push(obj);
+    },
+    result() { return list; },
+  };
 }
 
 module.exports = {

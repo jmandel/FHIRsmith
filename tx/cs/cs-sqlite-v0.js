@@ -926,9 +926,11 @@ class SqliteV0Provider extends BaseCSServices {
           .get({ cs: this.#meta.csId, code: cc.code });
         if (!row) continue;
         if (opts.activeOnly && !row.active) continue;
-        if ((row.display || '').toLowerCase().includes(lower)
+        const suppDisplay = this._displayFromSupplements(row.code);
+        const effectiveDisplay = suppDisplay || row.display;
+        if ((effectiveDisplay || '').toLowerCase().includes(lower)
             || (row.code || '').toLowerCase().includes(lower)) {
-          candidates.push({ code: row.code, display: row.display,
+          candidates.push({ code: row.code, display: effectiveDisplay,
             definition: row.definition, active: !!row.active, conceptId: row.concept_id });
         }
       }
@@ -979,7 +981,7 @@ class SqliteV0Provider extends BaseCSServices {
       .filter(r => r.code != null)
       .map(r => ({
         code: r.code,
-        display: r.display,
+        display: this._displayFromSupplements(r.code) || r.display,
         definition: r.definition,
         active: !!r.active,
         conceptId: r.concept_id,
@@ -1107,6 +1109,41 @@ class SqliteV0Provider extends BaseCSServices {
         });
       }
     }
+    // Merge supplement designations (inline supplements not in the DB)
+    if (this.supplements?.length > 0 && conceptIds.length > 0) {
+      // Build conceptId→code map from a lightweight query
+      const codeBatch = 500;
+      const codeMap = new Map();
+      for (let i = 0; i < conceptIds.length; i += codeBatch) {
+        const batch = conceptIds.slice(i, i + codeBatch);
+        const ph = batch.map((_, j) => `@cid${i + j}`).join(',');
+        const pr = {};
+        batch.forEach((id, j) => { pr[`cid${i + j}`] = id; });
+        const rows = this.#db.prepare(
+          `SELECT concept_id, code FROM concept WHERE concept_id IN (${ph})`
+        ).all(pr);
+        for (const r of rows) codeMap.set(r.concept_id, r.code);
+      }
+      for (const [cid, code] of codeMap) {
+        for (const supplement of this.supplements) {
+          const concept = supplement.getConceptByCode(code);
+          if (!concept) continue;
+          if (!result.has(cid)) result.set(cid, []);
+          const arr = result.get(cid);
+          if (concept.designation) {
+            for (const d of concept.designation) {
+              arr.push({
+                language: d.language || null,
+                use: d.use || null,
+                value: d.value,
+                active: true,
+              });
+            }
+          }
+        }
+      }
+    }
+
     return result;
   }
 

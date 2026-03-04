@@ -1975,11 +1975,12 @@ class ExpandWorker extends TerminologyWorker {
         const irResult = await this._tryIRExpansion(valueSet, params);
         if (irResult) return irResult;
       } catch (e) {
-        // Grammar-based too-costly errors should propagate, not fall back
+        // Structured errors should propagate, not fall back to legacy
         if (e.isTooCostly) {
           throw new Issue('error', 'too-costly', null, null, e.message, null, 422)
             .withDiagnostics(this.opContext?.diagnostics?.());
         }
+        if (e instanceof Issue) throw e;
         this.opContext?.log?.(`IR engine failed, falling back to legacy: ${e.message}`);
       }
     }
@@ -2006,10 +2007,22 @@ class ExpandWorker extends TerminologyWorker {
 
     const runExpansion = async () => {
       const worker = this;
+
+      // Collect required supplements from useSupplement params + VS extension
+      const requiredSupplements = new Set(params.supplements || []);
+      for (const ext of Extensions.list(vsJson, 'http://hl7.org/fhir/StructureDefinition/valueset-supplement')) {
+        const v = getValuePrimitive(ext);
+        if (v) requiredSupplements.add(v);
+      }
+      const statedSupplements = requiredSupplements.size > 0 ? requiredSupplements : null;
+
       const result = await expandViaIR(vsJson, {
         findProvider: async (system, version) => {
           try {
-            return await worker.findCodeSystem(system, version, params, ['complete', 'fragment'], false, true);
+            return await worker.findCodeSystem(
+              system, version, params, ['complete', 'fragment'],
+              false, true, false, false, statedSupplements
+            );
           } catch {
             return null;
           }
@@ -2036,6 +2049,17 @@ class ExpandWorker extends TerminologyWorker {
       // Check for warnings about unsupported systems
       if (result.warnings?.some(w => w.includes('Systems without IR support'))) {
         return null; // Fall back to legacy for complete expansion
+      }
+
+      // Validate that all required supplements were resolved
+      if (requiredSupplements.size > 0) {
+        const used = new Set(result.expansion.usedSupplements || []);
+        const unused = [...requiredSupplements].filter(s => !used.has(s));
+        if (unused.length > 0) {
+          throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING',
+            `Required supplement(s) not found: ${unused.join(', ')}`,
+            'not-found', 422);
+        }
       }
 
       const expansion = buildExpandedValueSet(vsJson, result.expansion, {
