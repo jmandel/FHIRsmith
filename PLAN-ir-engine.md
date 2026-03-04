@@ -2,18 +2,33 @@
 
 ## Status (2026-03-04)
 
-### CRITICAL REORIENTATION
+### Current State
 
-The previous plan was built on top of the JMandel branch (`rework-expand-codex-2`),
-which introduced `expand-v2.js` as a ground-up rewrite of the expander and
-`cs-sqlite-runtime-v0.js` as a new generic SQLite-backed code system provider.
-**That branch is a dead end.** The correct approach is:
+**Branch `ir-engine` created from `upstream/main`.** The standalone IR
+compiler modules are ported and verified working on Node v24. Next step
+is Phase 0: build the v0 SQLite provider.
 
-**Branch off `upstream/main` (HealthIntersections/FHIRsmith) and introduce
-IR-based expansion alongside the original `expand.js`.** The upstream repo
-has no expand-v2, no sqlite-v0 providers, no expand-v3 — just the original
-monolith expander and the legacy per-system providers (SNOMED binary, LOINC
-custom SQLite, RxNorm custom SQLite, etc.).
+### Completed on this branch
+- [x] Create `ir-engine` branch from `upstream/main`
+- [x] Port standalone IR modules (ir.js, build-ir.js, resolve-imports.js,
+      rewrite.js, membership.js, sqlite-v0-sql.js, index.js)
+- [x] Verify IR compiler works on Node v24.13.1
+
+### Next: Phase 0 — v0 SQLite Provider
+- [ ] Add `better-sqlite3` dependency
+- [ ] Write v0 provider factory + CodeSystemProvider implementation
+- [ ] Add `sqlite-v0:` loader to `library.js`
+- [ ] Verify legacy expand.js works with v0 provider
+- [ ] Add `executeIR()` method to v0 provider
+
+### Background
+
+The previous iteration was built on the JMandel branch
+(`rework-expand-codex-2`), which introduced `expand-v2.js` as a
+ground-up rewrite and `cs-sqlite-runtime-v0.js` as a new provider.
+**That branch is a dead end.** This branch starts fresh from
+`upstream/main` — the original `expand.js` monolith and the legacy
+per-system providers.
 
 ### What We're Keeping
 
