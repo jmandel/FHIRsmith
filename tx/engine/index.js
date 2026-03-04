@@ -15,11 +15,7 @@ const { resolveImports, buildIRFromExpansion } = require('./resolve-imports');
 const { optimize, flatten, collectSystems, projectToSystem, splitDiffRoot, flattenUnionToList } = require('./rewrite');
 const membership = require('./membership');
 
-// Lazy-loaded modules (not yet ported to this branch)
-function lazyRequire(name) {
-  let mod;
-  return () => { if (!mod) mod = require(name); return mod; };
-}
+const orchestrator = require('./orchestrator');
 
 module.exports = {
   // IR constructors
@@ -42,4 +38,7 @@ module.exports = {
 
   // Membership indexes
   ...membership,
+
+  // Orchestrator
+  ...orchestrator,
 };

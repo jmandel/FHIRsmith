@@ -19,6 +19,13 @@ const crypto = require('crypto');
 const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
 
+// IR engine (opt-in via EXPAND_IR_ENGINE=1)
+let _irEngine;
+function getIREngine() {
+  if (!_irEngine) _irEngine = require('../engine/orchestrator');
+  return _irEngine;
+}
+
 // Expansion limits (from Pascal constants)
 const EXTERNAL_DEFAULT_LIMIT = 1000;
 const INTERNAL_DEFAULT_LIMIT = 10000;
@@ -1951,10 +1958,71 @@ class ExpandWorker extends TerminologyWorker {
       params.limit = EXTERNAL_DEFAULT_LIMIT; // can't ask for more than this externally, though you can internally
     }
 
+    // Try IR engine first (opt-in via EXPAND_IR_ENGINE=1)
+    if (process.env.EXPAND_IR_ENGINE === '1') {
+      try {
+        const irResult = await this._tryIRExpansion(valueSet, params);
+        if (irResult) return irResult;
+      } catch (e) {
+        this.opContext?.log?.(`IR engine failed, falling back to legacy: ${e.message}`);
+      }
+    }
+
     const filter = new SearchFilterText(params.filter);
     const expander = new ValueSetExpander(this, params);
     expander.logExtraOutput = logExtraOutput;
     return await expander.expand(valueSet, filter);
+  }
+
+  /**
+   * Try expanding via the IR engine. Returns null if IR can't handle this ValueSet.
+   * @private
+   */
+  async _tryIRExpansion(valueSet, params) {
+    const { canHandleValueSet, expandViaIR, buildExpandedValueSet } = getIREngine();
+    const vsJson = valueSet.jsonObj || valueSet;
+
+    if (!canHandleValueSet(vsJson)) return null;
+
+    const worker = this;
+    const result = await expandViaIR(vsJson, {
+      findProvider: async (system, version) => {
+        try {
+          return await worker.findCodeSystem(system, version, params, ['complete', 'fragment'], false, true);
+        } catch {
+          return null;
+        }
+      },
+      resolveValueSet: async (url, version) => {
+        try {
+          const vs = await worker.provider.findValueSet(url, version);
+          return vs?.jsonObj || vs;
+        } catch {
+          return null;
+        }
+      },
+      activeOnly: !!params.activeOnly,
+      text: params.filter || null,
+      offset: Math.max(params.offset || 0, 0),
+      count: params.count > 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
+      includeDesignations: !!params.includeDesignations,
+      properties: params.properties || [],
+    });
+
+    if (!result) return null;
+
+    // Check for warnings about unsupported systems
+    if (result.warnings?.some(w => w.includes('Systems without IR support'))) {
+      return null; // Fall back to legacy for complete expansion
+    }
+
+    return buildExpandedValueSet(vsJson, result.expansion, {
+      offset: params.offset,
+      count: params.count,
+      activeOnly: params.activeOnly,
+      filter: params.filter,
+      includeDefinition: params.includeDefinition,
+    });
   }
 
   /**

@@ -1,0 +1,291 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { canHandleValueSet, expandViaIR, buildExpandedValueSet } = require('../../tx/engine/orchestrator');
+const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
+const { OperationContext } = require('../../tx/operation-context');
+const { TestUtilities } = require('../test-utilities');
+
+const DB_DIR = '/home/exedev/tx-data';
+const SNOMED_DB = path.join(DB_DIR, 'sct_intl_20250201.v0.db');
+const LOINC_DB = path.join(DB_DIR, 'loinc_281_full.v0.db');
+
+const hasDBs = fs.existsSync(SNOMED_DB) && fs.existsSync(LOINC_DB);
+const describeIfDBs = hasDBs ? describe : describe.skip;
+
+let i18n, langDefs;
+let sctFactory, loincFactory;
+let providers = new Map(); // system -> provider
+
+beforeAll(async () => {
+  langDefs = await TestUtilities.loadLanguageDefinitions();
+  i18n = await TestUtilities.loadTranslations(langDefs);
+
+  sctFactory = new SqliteV0FactoryProvider(i18n, SNOMED_DB);
+  await sctFactory.load();
+
+  loincFactory = new SqliteV0FactoryProvider(i18n, LOINC_DB);
+  await loincFactory.load();
+});
+
+function makeOpContext() {
+  return new OperationContext('en', i18n);
+}
+
+async function findProvider(system, version) {
+  if (!providers.has(system)) {
+    let factory;
+    if (system === 'http://snomed.info/sct') factory = sctFactory;
+    else if (system === 'http://loinc.org') factory = loincFactory;
+    if (factory) {
+      providers.set(system, await factory.build(makeOpContext(), null));
+    }
+  }
+  return providers.get(system) || null;
+}
+
+afterAll(() => {
+  for (const p of providers.values()) {
+    if (p && typeof p.close === 'function') p.close();
+  }
+});
+
+describe('canHandleValueSet', () => {
+  test('handles simple include', () => {
+    expect(canHandleValueSet({
+      compose: { include: [{ system: 'http://snomed.info/sct', filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }] }
+    })).toBe(true);
+  });
+
+  test('rejects empty compose', () => {
+    expect(canHandleValueSet({})).toBe(false);
+    expect(canHandleValueSet({ compose: {} })).toBe(false);
+    expect(canHandleValueSet({ compose: { include: [] } })).toBe(false);
+  });
+
+  test('handles include with exclude', () => {
+    expect(canHandleValueSet({
+      compose: {
+        include: [{ system: 'http://snomed.info/sct', filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }],
+        exclude: [{ system: 'http://snomed.info/sct', filter: [{ property: 'concept', op: 'is-a', value: '44054006' }] }],
+      }
+    })).toBe(true);
+  });
+});
+
+describeIfDBs('expandViaIR', () => {
+  test('simple is-a expansion', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:diabetes',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      activeOnly: true,
+      count: 50,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBeGreaterThan(10);
+    expect(result.expansion.contains.length).toBeLessThanOrEqual(50);
+    expect(result.expansion.total).toBeGreaterThan(50); // Many subtypes of diabetes
+
+    // Check structure
+    for (const c of result.expansion.contains) {
+      expect(c.system).toBe('http://snomed.info/sct');
+      expect(c.code).toBeTruthy();
+      expect(c.display).toBeTruthy();
+    }
+  });
+
+  test('include + exclude (diff)', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:diabetes-minus-type2',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }],
+        exclude: [{
+          system: 'http://snomed.info/sct',
+          filter: [{ property: 'concept', op: 'is-a', value: '44054006' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      activeOnly: true,
+      count: 1000,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBeGreaterThan(0);
+
+    // Should NOT include Type 2 diabetes
+    expect(result.expansion.contains.some(c => c.code === '44054006')).toBe(false);
+
+    // Should still include Diabetes mellitus itself (it's not a descendant of Type 2 DM)
+    expect(result.expansion.contains.some(c => c.code === '73211009')).toBe(true);
+  });
+
+  test('concept enumeration', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:specific-codes',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [
+            { code: '73211009' },
+            { code: '44054006' },
+            { code: '46635009' },
+          ],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, { findProvider, count: 100 });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBe(3);
+    const codes = result.expansion.contains.map(c => c.code).sort();
+    expect(codes).toEqual(['44054006', '46635009', '73211009']);
+  });
+
+  test('pagination (offset + count)', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:diabetes',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }],
+      },
+    };
+
+    // First page
+    const page1 = await expandViaIR(vs, { findProvider, activeOnly: true, offset: 0, count: 10 });
+    expect(page1.expansion.contains.length).toBe(10);
+
+    // Second page
+    const page2 = await expandViaIR(vs, { findProvider, activeOnly: true, offset: 10, count: 10 });
+    expect(page2.expansion.contains.length).toBe(10);
+
+    // No overlap
+    const codes1 = new Set(page1.expansion.contains.map(c => c.code));
+    const codes2 = new Set(page2.expansion.contains.map(c => c.code));
+    for (const c of codes2) {
+      expect(codes1.has(c)).toBe(false);
+    }
+
+    // Same total
+    expect(page1.expansion.total).toBe(page2.expansion.total);
+  });
+
+  test('text search filter', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:diabetes-search',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      activeOnly: true,
+      text: 'type 2',
+      count: 50,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBeGreaterThan(0);
+  });
+
+  test('LOINC with property filter', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:loinc-lab',
+      compose: {
+        include: [{
+          system: 'http://loinc.org',
+          filter: [{ property: 'CLASSTYPE', op: '=', value: '1' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider,
+      count: 20,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBe(20);
+    for (const c of result.expansion.contains) {
+      expect(c.system).toBe('http://loinc.org');
+    }
+  });
+
+  test('buildExpandedValueSet produces valid FHIR', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'http://example.com/ValueSet/test',
+      name: 'TestVS',
+      status: 'active',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, { findProvider, count: 100 });
+    const expanded = buildExpandedValueSet(vs, result.expansion, {
+      activeOnly: false,
+    });
+
+    expect(expanded.resourceType).toBe('ValueSet');
+    expect(expanded.url).toBe('http://example.com/ValueSet/test');
+    expect(expanded.expansion).toBeTruthy();
+    expect(expanded.expansion.timestamp).toBeTruthy();
+    expect(expanded.expansion.identifier).toMatch(/^urn:uuid:/);
+    expect(expanded.expansion.contains.length).toBe(1);
+    expect(expanded.expansion.contains[0].code).toBe('73211009');
+    expect(expanded.expansion.total).toBe(1);
+  });
+
+  test('returns null for unsupported systems', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:unknown',
+      compose: {
+        include: [{
+          system: 'http://unknown.system/cs',
+          concept: [{ code: 'test' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider: async () => null,
+      count: 100,
+    });
+
+    expect(result).toBeNull();
+  });
+});
