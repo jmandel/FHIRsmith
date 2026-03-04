@@ -349,57 +349,112 @@ works (verified: `en`, `fr-CA` resolve). Whole-system throws because
 
 ---
 
-## Phase 5 — Supplement system (22 codex-2 tests)
+## Phase 5 — Inline supplement plumbing (~11 tests)
 
-Supplements flow through the provider layer. Investigation reveals:
+Supplements that are represented as inline CodeSystem resources
+(submitted via `tx-resource` with `content: "supplement"`) should
+flow through the IR expansion path. The provider layer already
+handles supplement merging — once `findCodeSystem` receives the
+correct `statedSupplements`, designations and display overrides
+from supplements appear automatically via `_displayFromSupplements()`
+and `_listSupplementDesignations()`.
 
-**What already works**: `_tryIRExpansion` calls `worker.findCodeSystem()`
-which calls `loadSupplements()`. Language packs (auto-detected via
-`cs.isLangPack()`) are loaded. The provider returned to the IR engine
-is already supplement-aware—`SqliteV0Provider` receives supplements
-in its constructor and merges supplement designations/properties via
-`_displayFromSupplements()` and `_listSupplementDesignations()`.
+All supplement fixtures are inline CodeSystem resources — no SQLite
+supplement DBs needed. Each test constructs a CS + supplement CS
+with unique URLs and submits both via `tx-resource`.
 
-**What doesn't work**:
-1. `useSupplement` parameter: IR passes `statedSupplements=null` to
-   `findCodeSystem` (expand.js L2007). Legacy passes
-   `this.requiredSupplements` (populated from `params.supplements`).
-   Fix: pass `params.supplements` as statedSupplements in `_tryIRExpansion`.
-2. `valueset-supplement` extension: Legacy reads this from the VS at
-   line 1161 and adds to `requiredSupplements`. IR doesn't.
-   Fix: read the extension from `vsJson` in `_tryIRExpansion` and
-   merge into the supplement set.
-3. `used-supplement` parameter: IR's `buildExpandedValueSet` doesn't
-   emit it. Fix: providers that used supplements could expose a
-   `usedSupplements()` method, or the orchestrator could check
-   `provider.supplements` after expansion.
-4. Missing supplement validation: Legacy checks that all required
+**What already works**:
+- `_tryIRExpansion` calls `worker.findCodeSystem()` which calls
+  `loadSupplements()`. Language packs (auto-detected via
+  `cs.isLangPack()`) are loaded automatically.
+- The provider returned to the IR engine is already supplement-aware.
+- `FhirCodeSystemProvider` (cs-cs) merges supplement concepts by code.
+- `SqliteV0Provider` merges supplement designations/properties via
+  `_displayFromSupplements()` and `_listSupplementDesignations()`.
+
+**What to fix** (orchestration plumbing only — no SQL changes):
+
+1. **`useSupplement` parameter**: IR passes `statedSupplements=null`
+   to `findCodeSystem`. Legacy passes `this.requiredSupplements`
+   (populated from `params.supplements`). Fix: read `useSupplement`
+   params and pass as `statedSupplements` in `_tryIRExpansion`.
+
+2. **`valueset-supplement` extension**: Legacy reads this from the VS
+   at line 1161 and adds to `requiredSupplements`. Fix: read the
+   extension from `vsJson` in `_tryIRExpansion` and merge into the
+   supplement set.
+
+3. **`used-supplement` parameter**: IR's `buildExpandedValueSet`
+   doesn't emit it. Fix: after expansion, check which providers
+   loaded supplements (e.g. `provider.supplements` array) and emit
+   `used-supplement` parameter for each.
+
+4. **Missing supplement validation**: Legacy checks that all required
    supplements were used and throws `VALUESET_SUPPLEMENT_MISSING` if
-   not. IR doesn't.
-5. Supplement property filters: Legacy supports filtering by
-   supplement-defined properties via fallback predicates. The IR SQL
-   builder doesn't know about supplement properties.
+   not. Fix: port the validation check.
 
-**Phased approach**:
-- **5a**: Wire `useSupplement` + `valueset-supplement` into IR's
-  `findProvider` callback (fix #1, #2). This makes supplement
-  designations/properties appear in results. ~10 lines changed.
-- **5b**: Emit `used-supplement` parameter (fix #3). Requires
-  plumbing supplement URLs from provider through orchestrator.
-- **5c**: Validate required supplements (fix #4). Port the
-  `checkSupplements` logic.
-- **5d**: Supplement property filter pushdown (fix #5). Complex;
-  may be best handled by falling back to legacy for these cases.
+**Implementation**: All 4 fixes are in `_tryIRExpansion` and
+`buildExpandedValueSet` — ~30 lines of orchestration plumbing.
+No IR compiler, SQL builder, or provider changes needed.
 
-**Tests by sub-phase**:
-| Sub-phase | Tests |
-|---|---|
-| 5a | `supplement: useSupplement applies content` (L1300), `supplement: valueset-supplement extension activates` (L1391), `supplement: version-pinned canonical accepted` (L1610), `supplement: provided but not requested is ignored` (L1355) |
-| 5b | `supplement: used-supplement deduped` (L1433) |
-| 5c | `supplement: missing required fails` (L1472), `supplement: missing VS extension fails` (L1498) |
-| 5d | `supplement: designation filter selects supplement use` (L1526), `supplement: itemWeight projected` (L1573) |
-| 5a+ | All 9 `supplement-sqlite:` tests (D20 fixture), 2 `supplement d20+d8` tests |
-| 5d | 2 `supplement-report:` tests |
+**Tests ported from codex-2 (9)**:
+| # | Test | What it covers |
+|---|---|---|
+| 1 | `supplement: useSupplement applies content + records used-supplement` (L1300) | Wire useSupplement, designation projection, used-supplement emission |
+| 2 | `supplement: provided but not requested is ignored` (L1355) | Negative: unrequested supplement must not leak |
+| 3 | `supplement: valueset-supplement extension activates` (L1391) | VS extension reads supplement canonical |
+| 4 | `supplement: used-supplement deduped` (L1433) | Metadata: used-supplement appears once even if multiple codes match |
+| 5 | `supplement: missing required fails` (L1472) | Validation: throws when useSupplement can't be resolved |
+| 6 | `supplement: missing VS extension fails` (L1498) | Validation: throws when VS extension supplement can't be resolved |
+| 7 | `supplement: designation filter selects supplement use-coded designation` (L1526) | Designation param filter works on supplement-provided designations |
+| 8 | `supplement: version-pinned canonical accepted` (L1610) | Version-qualified useSupplement canonical resolves correctly |
+| 9 | `supplement: itemWeight extension projected` (L1573) | Property projection from inline supplement (not filtering) |
+
+Note: test 7 also depends on Phase 1.5 (designation parameter filter)
+being implemented, since it filters designations by use code.
+
+**New tests for v0 supplement path (~2)**:
+
+The codex-2 tests above all use inline toy CodeSystems (cs-cs path).
+We should also verify supplements work against real v0 providers:
+
+| # | Test | What it covers |
+|---|---|---|
+| 10 | `supplement: inline supplement adds designation to SNOMED v0 code` | Submit supplement for 73211009 with German designation, verify with includeDesignations |
+| 11 | `supplement: inline supplement display override on LOINC v0 code` | Submit supplement for 2160-0 with overridden display, verify in expansion |
+
+---
+
+## Phase 5-advanced — Supplement property projection and filtering (deferred)
+
+These tests require deeper integration: sqlite supplement fixture DBs,
+property projection from supplement-defined properties, filtering by
+supplement property values at the SQL level, and codex-2-internal
+tracing infrastructure (`patchWorker`). Deferred until the basic
+supplement plumbing is proven and we need property-filter optimization.
+
+**Property projection** (supplement adds properties to output, no filtering):
+- `supplement: itemWeight extension projected` (L1573) — may work once
+  basic plumbing is done if cs-cs merges extensions, but untested
+
+**Sqlite-native D20 tests** (require fixture DBs + property filter pushdown):
+- `supplement-sqlite: D20 LOINC projects property/designation` (L1646)
+- `supplement-sqlite: D20 LOINC full-page parity` (L1692)
+- `supplement-sqlite: D20 RxNorm projects property/designation` (L1765)
+- `supplement-sqlite: D20 LOINC + RxNorm both apply` (L1811)
+- `supplement-sqlite: D20 SNOMED projects property/designation` (L1852)
+- `supplement-sqlite: SNOMED D20 + designation filter` (L1898)
+- `supplement-sqlite: SNOMED D20 concept filter + property` (L1943)
+- `supplement-sqlite: filter by supplement property value (fallback)` (L1984)
+- `supplement-sqlite: tx-resource negotiated as sqlite-native` (L2009)
+
+**Codex-2-internal tracing** (use `patchWorker` — not portable):
+- `supplement-report: provider-owned filtering avoids fallback` (L2088)
+- `supplement-report: unsupported supplement clause fails` (L2139)
+
+**Multi-supplement property filtering**:
+- `supplement d20+d8 loinc: d20=20,d8=8` (L5132)
+- `supplement d20+d8 loinc: d20=4,d8=8` (L5186)
 
 ---
 
@@ -497,52 +552,51 @@ The trace/pushdown-toggle infrastructure doesn't exist in our engine.
 
 ## Execution order
 
-1. **Apply stashed work** (1.1–1.4 already done): compose display,
-   compose designation, used-valueset, count≥0 guard
-2. **Write tests for 1.1–1.4** + port Phase 2 tests that already work
-3. **Implement 1.5** (designation filter) + test
-4. **Implement 1.6** (displayLanguage) + test
-5. **Implement 1.7** (redundant designation suppression) + test
-6. **Implement 1.8** (property regex in SQL) + test
-7. **Create `scripts/ir-rewrite-tests.mjs`** for Phase 3 unit tests
-8. **Add e2e rewrite parity tests** to the harness
-9. **Phase 4**: Add missing providers to fixture YAML (usstates,
+1. **Write tests for 1.1–1.4** (already committed in dfedbd0) +
+   port Phase 2 tests that already work
+2. **Implement 1.5** (designation filter) + test
+3. **Implement 1.6** (displayLanguage) + test
+4. **Implement 1.7** (redundant designation suppression) + test
+5. **Implement 1.8** (property regex in SQL) + test
+6. **Create `scripts/ir-rewrite-tests.mjs`** for Phase 3 unit tests
+7. **Add e2e rewrite parity tests** to the harness
+8. **Phase 4**: Add missing providers to fixture YAML (usstates,
    areacode, mimetypes) + port unblocked tests
-10. **Phase 5a**: Wire useSupplement into IR findProvider callback
-11. **Phase 5b–5c**: used-supplement emission + validation
-12. **Phase 6**: Grammar-based provider handling (UCUM specialEnumeration,
+9. **Phase 5**: Wire useSupplement + valueset-supplement extension
+   into IR findProvider callback, emit used-supplement, validate
+   missing supplements. All inline CS — no SQL changes.
+   Port 9 codex-2 tests + 2 new v0 supplement tests.
+10. **Phase 6**: Grammar-based provider handling (UCUM specialEnumeration,
     MIME/lang too-costly errors)
-13. **Phase 7**: Limit enforcement + too-costly errors
-14. **Phase 8**: High-value stress tests
-15. **Phase 5d**: Supplement property filter pushdown (complex, may
-    require SQL builder changes or fallback-to-legacy)
+11. **Phase 7**: Limit enforcement + too-costly errors
+12. **Phase 8**: High-value stress tests
+13. **Phase 5-adv** (deferred): Supplement property filter pushdown,
+    SQLite supplement fixture DBs, codex-2-internal tracing tests
 
 ## Test count projection
 
 | Phase | New tests | Running total | Notes |
 |---|---|---|---|
 | Current | 61 | 61 | |
-| Phase 1 fixes + tests | ~8 | ~69 | Engine changes |
+| Phase 1 fixes + tests | ~8 | ~69 | Engine changes (4 already committed) |
 | Phase 2 ports | ~25 | ~94 | No engine changes |
-| Phase 3 rewrite tests | ~10 | ~104 | Unit + parity |
-| Phase 4 fixture | ~14 | ~118 | YAML change only |
-| Phase 5a–5c supplements | ~8 | ~126 | Wire + validate |
-| Phase 6 grammar providers | ~3 | ~129 | Adapter changes |
-| Phase 7 limit/too-costly | ~3 | ~132 | |
-| Phase 8 high-value | ~4 | ~136 | |
-| Phase 5d supplement filters | ~6 | ~142 | Complex |
-| **Remaining N/A** | | | 5 codex-2-internal, ~8 covered by adapted tests |
+| Phase 3 rewrite tests | ~9 | ~103 | Unit + parity |
+| Phase 4 fixture | ~14 | ~117 | YAML change only |
+| Phase 5 inline supplements | ~11 | ~128 | Inline CS plumbing (9 codex-2 + 2 new v0) |
+| Phase 6 grammar providers | ~3 | ~131 | Adapter changes |
+| Phase 7 limit/too-costly | ~3 | ~134 | |
+| Phase 8 high-value | ~4 | ~138 | |
+| Phase 5-adv supplement filters | ~13 | ~151 | SQLite fixtures, property filter pushdown |
+| **N/A** | | | 6 codex-2-internal / v3-only |
 
-## Stash contents
+## Committed Phase 1 work
 
-`git stash list` shows partial work implementing Phase 1 items 1.1–1.4:
+Commit `dfedbd0` implements Phase 1 items 1.1–1.4:
 - `tx/engine/orchestrator.js`: compose display/designation override,
   used-valueset emission, count≥0 guard, collectComposeOverrides/
   applyComposeOverrides/walkIR helpers, addParamIfAbsent helper
 - `tx/engine/resolve-imports.js`: usedValueSets tracking in
   resolveImports, attached as `_usedValueSets` on resolved IR
-
-Apply with `git stash pop`.
 
 ---
 
@@ -575,12 +629,20 @@ Every codex-2 test mapped to a disposition. Legend:
 | 7 | infra: tx-resource injected VS import | 🟢 | verified via curl; already works |
 
 ### supplement (22 tests)
-| # | Test | Disposition |
-|---|---|---|
-| 8–18 | supplement: * (9 tests) | 🟣 |
-| 19–27 | supplement-sqlite: * (9 tests) | 🟣 |
-| 28–29 | supplement-report: * (2 tests) | 🟣 |
-| 154–155 | supplement d20+d8 loinc: * (2 tests) | 🟣 |
+| # | Test | Disposition | Notes |
+|---|---|---|---|
+| 8 | supplement: useSupplement applies content + records used-supplement | 🟣 | Phase 5: inline CS plumbing |
+| 9 | supplement: provided but not requested is ignored | 🟣 | Phase 5: negative test |
+| 10 | supplement: valueset-supplement extension activates | 🟣 | Phase 5: VS extension |
+| 11 | supplement: used-supplement deduped | 🟣 | Phase 5: metadata |
+| 12 | supplement: missing required fails | 🟣 | Phase 5: validation |
+| 13 | supplement: missing VS extension fails | 🟣 | Phase 5: validation |
+| 14 | supplement: designation filter selects supplement use | 🟣 | Phase 5 + Phase 1.5 (designation filter) |
+| 15 | supplement: itemWeight extension projected | 🟣 | Phase 5: property projection (inline CS, no filtering) |
+| 16 | supplement: version-pinned canonical accepted | 🟣 | Phase 5: version-qualified canonical |
+| 17–25 | supplement-sqlite: * (9 tests) | 🟤 | Phase 5-adv: sqlite fixtures + property filter |
+| 26–27 | supplement-report: * (2 tests) | ⚫ | Phase 5-adv: codex-2 patchWorker internals |
+| 154–155 | supplement d20+d8 loinc: * (2 tests) | 🟤 | Phase 5-adv: multi-supplement property filter |
 
 ### params
 | # | Test | Disposition | Notes |
@@ -750,7 +812,7 @@ Every codex-2 test mapped to a disposition. Legend:
 | 132 | logic: whole-system descendant total | 🟢 | |
 | 133 | logic: total reflects imported excludes | 🟢 | |
 | 134 | logic: fallback deep-offset no partial total | ⚫ | tests codex-2 fallback mode |
-| 135 | logic: system exclude global with imports | 🟢 | |
+| 135 | logic: system exclude global with imports | 🟢 | adapt: drop trace assertions, test behavior only |
 | 136 | logic: mixed import+peer pagination | 🟢 | |
 | 137 | logic: bulk locate >50 concepts | 🟢 | |
 | 138 | logic: low limit returns too-costly | 🟥 | Phase 7: limit enforcement |
@@ -785,7 +847,7 @@ Every codex-2 test mapped to a disposition. Legend:
 ### v3-invariant / v3-gap
 | # | Test | Disposition | Notes |
 |---|---|---|---|
-| 154 | v3-invariant: import+filter deep page parity | 🟠 | parity test: optimized vs unopt |
+| 154 | v3-invariant: import+filter deep page parity | ⚫ | N/A: explicitly v3-only (`EXPAND_IMPL !== 'v3'` guard) |
 | 155 | v3-gap: mixed-system import prevents root pushdown | ⚫ | N/A: codex-2-internal |
 
 ---
@@ -796,11 +858,14 @@ Every codex-2 test mapped to a disposition. Legend:
 |---|---|---|---|
 | ✅ Already ported | 41 | — | Equivalent test in ir-harness |
 | 🟢 Port now | ~30 | 2 | Works today, just needs test |
-| 🟡 Port after fix | ~7 | 1 | Needs engine change (4 stashed) |
-| 🟠 Rewrite unit test | ~10 | 3 | IR optimizer verification |
+| 🟡 Port after fix | ~7 | 1 | Needs engine change (4 committed) |
+| 🟠 Rewrite unit test | ~9 | 3 | IR optimizer verification |
 | 🟫 Fixture expansion | ~14 | 4 | Add providers to YAML, then port |
-| 🟣 Supplement system | 22 | 5 | Wire supplements into IR path |
+| 🟣 Inline supplements | 9 | 5 | Inline CS plumbing (designations + property projection) |
+| 🟤 Advanced supplements | 13 | 5-adv | SQLite supplement DBs, property filtering, codex-2 internals |
 | 🟥 Grammar/limit | ~6 | 6–7 | UCUM specialEnumeration, too-costly |
 | 🟧 High-value stress | ~4 | 8 | Large-scale pagination/parity |
-| ⚫ Codex-2-internal | 5 | N/A | Trace assertions, decision tables |
-| **Total** | **~139** | | 5 N/A + ~134 eventually testable |
+| ⚫ Codex-2-internal | 6 | N/A | Trace assertions, decision tables, v3-only guards |
+| **Total** | **~139** | | 6 N/A + ~133 eventually testable |
+
+Phase 5 also adds ~2 new tests (v0 supplement path) not from codex-2.
