@@ -413,7 +413,6 @@ Trace output includes:
 | `orchestrator.js` | Pipeline orchestrator — pagination, decoration, response building |
 | `legacy-ir-adapter.js` | Adapter wrapping legacy providers for IR execution |
 | `membership.js` | Composable set-membership types (Set, Sql, Union, Intersect, Diff) |
-| `sqlite-v0-sql.js` | IR → SQL compiler for v0 schema |
 | `expand-trace.js` | Structured tracing (`_trace=true`) via AsyncLocalStorage |
 | `index.js` | Public API exports |
 
@@ -428,8 +427,8 @@ Trace output includes:
 
 | Suite | Count | Runs against |
 |-------|-------|--------------|
-| `scripts/ir-harness.mjs` | 146 | Running server (HTTP) |
-| `scripts/ir-rewrite-tests.mjs` | 9 | No server (pure) |
+| `scripts/ir-harness.mjs` | 151 | Running server (HTTP) |
+| `scripts/ir-rewrite-tests.mjs` | 8 | No server (pure) |
 
 The HTTP harness is the source of truth. It covers core set operations, all selector shapes, pagination (including deep offsets), text search, designation/property decoration, compose overrides, inline supplements, grammar-based providers (UCUM unclosed, MIME too-costly), limit enforcement, and stress tests.
 

@@ -2107,6 +2107,50 @@ async function run() {
     assert(findCode(result, '2339-0'), 'LOINC 2339-0 should be present');
   });
 
+  // ── Property filter config (sources, linkMatch, aliases) ──
+
+  await test('filter: LOINC SCALE_TYP=Doc uses concept_literal + code-or-display', async () => {
+    // SCALE_TYP is concept-valued but LOINC stores filterable values in
+    // both concept_literal (value_text) and concept_link (target display).
+    // The filter value 'Doc' matches target concept LP32888-7's display.
+    const { result } = await expand(vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'SCALE_TYP', op: '=', value: 'Doc' }],
+    }), { count: 5 });
+    assert(result.expansion.total > 10000,
+      `LOINC SCALE_TYP=Doc should have >10k codes, got ${result.expansion.total}`);
+  });
+
+  await test('filter: LOINC ORDER_OBS=Observation uses literal source with alias', async () => {
+    // ORDER_OBS config: sources=["literal"], value.aliases={"observation":"Observation"}
+    const { result } = await expand(vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'ORDER_OBS', op: '=', value: 'Observation' }],
+    }), { count: 5 });
+    assert(result.expansion.total > 100,
+      `LOINC ORDER_OBS=Observation should have many codes, got ${result.expansion.total}`);
+  });
+
+  await test('filter: LOINC CLASS=CHEM via dual sources', async () => {
+    // CLASS config: sources=["literal","link"], linkMatch=code-or-display
+    const { result } = await expand(vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }],
+    }), { count: 5 });
+    assert(result.expansion.total > 100,
+      `LOINC CLASS=CHEM should have many codes, got ${result.expansion.total}`);
+  });
+
+  await test('filter: RxNorm TTY=SCD uses literal source', async () => {
+    // RxNorm TTY config: sources=["literal"]
+    const { result } = await expand(vs({
+      system: SYS.RXNORM,
+      filter: [{ property: 'TTY', op: '=', value: 'SCD' }],
+    }), { count: 5 });
+    assert(result.expansion.total > 100,
+      `RxNorm TTY=SCD should have many codes, got ${result.expansion.total}`);
+  });
+
   // ── summary ──────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(50)}`);
 

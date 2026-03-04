@@ -20,7 +20,7 @@ const { CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api'
 const { BaseCSServices } = require('./cs-base');
 const { DesignationUse } = require('../library/designations');
 const { VersionUtilities } = require('../../library/version-utilities');
-const { buildExpandSql, buildMembershipSql, buildCountSql } = require('../engine/sqlite-v0-sql');
+const { buildExpandSql, buildMembershipSql, buildCountSql } = require('./sqlite-v0-sql');
 const { trace } = require('../engine/expand-trace');
 
 // ── Helper functions (ported from codex) ────────────────────────────

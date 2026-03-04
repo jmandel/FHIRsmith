@@ -1,20 +1,65 @@
 'use strict';
 
-const { trace } = require('./expand-trace');
+const { trace } = require('../engine/expand-trace');
 
 /**
- * SQL fragment builder for the v0 SQLite terminology schema.
+ * Pure SQL generation for cs-sqlite-v0.js.
  *
- * Compiles IR expression subtrees into SQL queries that can be executed
- * against a v0 database via better-sqlite3. All functions are pure —
- * they produce { sql, params } tuples without touching any database.
- *
- * The generated SQL follows the proven inner/outer pattern from the
- * v0 provider's executeFilters():
- *   - Inner SELECT: include filters via JOINs + WHERE
- *   - Outer SELECT: wraps with DISTINCT, excludes (NOT EXISTS),
- *     search (FTS5), pagination (LIMIT/OFFSET)
+ * Compiles IR subtrees into { sql, params } tuples for the v0 schema.
+ * Called by the v0 provider's executeIR/countForIR/membershipForIR —
+ * no other consumers. Separated for readability (pure functions only,
+ * no database access).
  */
+
+// ── Filter config resolution ─────────────────────────────────────────
+
+/**
+ * Resolve filter config for a property from runtime cs_config.
+ * Returns { sources: string[], linkMatch: string, aliases: object, normalizeCase: boolean }
+ */
+function resolveFilterConfig(property, propDef, runtime) {
+  const filtersCfg = runtime?.filters?.properties;
+  if (!filtersCfg) {
+    // No filter config — use defaults based on value_kind
+    return {
+      sources: propDef.value_kind === 'concept' ? ['link'] : ['literal'],
+      linkMatch: 'code-only',
+      aliases: null,
+      normalizeCase: false,
+    };
+  }
+  const byCode = filtersCfg.byCode || {};
+  const specific = byCode[property] || null;
+  const defaultSources = Array.isArray(filtersCfg.defaultSources)
+    ? filtersCfg.defaultSources
+    : (propDef.value_kind === 'concept' ? ['link'] : ['literal']);
+  const sources = Array.isArray(specific?.sources) && specific.sources.length > 0
+    ? specific.sources : defaultSources;
+  const linkMatch = specific?.linkMatch || filtersCfg.defaultLinkMatch || 'code-only';
+  const valueCfg = { ...(filtersCfg.defaultValue || {}), ...(specific?.value || {}) };
+  return {
+    sources: [...new Set(sources.filter(s => s === 'literal' || s === 'link'))],
+    linkMatch,
+    aliases: valueCfg.aliases || null,
+    normalizeCase: !!valueCfg.normalizeCase,
+  };
+}
+
+/**
+ * Normalize filter values using aliases and case normalization from config.
+ */
+function normalizeFilterValues(values, filterCfg) {
+  return values.map(v => {
+    if (filterCfg.aliases) {
+      const lower = v.toLowerCase();
+      if (filterCfg.aliases[lower] !== undefined) return filterCfg.aliases[lower];
+    }
+    if (filterCfg.normalizeCase) {
+      return v.charAt(0).toUpperCase() + v.slice(1);
+    }
+    return v;
+  });
+}
 
 // ── Fragment builders for individual filter clauses ─────────────────
 
@@ -90,62 +135,79 @@ function buildFilterClauseSql(clause, prefix, alias, csId, propertyDefs, runtime
   const propDef = propertyDefs.get(property);
   if (!propDef) return null;
 
-  if (propDef.value_kind === 'concept') {
-    if (op === '=' || op === 'in') {
-      const values = op === 'in' ? splitFilterValueList(value) : [value];
-      params[`${prefix}_prop`] = propDef.property_id;
-      params[`${prefix}_val_cs`] = csId;
-      params[`${prefix}_eset`] = runtime?.hierarchy?.edgeSetId || 1;
-      const placeholders = values.map((v, j) => {
-        params[`${prefix}_vc${j}`] = v;
-        return `@${prefix}_vc${j}`;
-      }).join(',');
-      return {
-        sql: '',
-        params,
-        joins: ` JOIN concept_link lnk_${prefix}`
-          + ` ON lnk_${prefix}.source_concept_id = ${alias}.concept_id`
-          + ` AND lnk_${prefix}.property_id = @${prefix}_prop`
-          + ` AND lnk_${prefix}.edge_set_id = @${prefix}_eset`
-          + ` AND lnk_${prefix}.active = 1`
-          + ` AND lnk_${prefix}.target_concept_id IN (SELECT concept_id FROM concept WHERE code IN (${placeholders}) AND cs_id = @${prefix}_val_cs)`,
-      };
-    }
-    return null;
-  }
+  // Resolve filter config (sources, linkMatch, aliases) from runtime cs_config.
+  // This determines whether to search concept_literal, concept_link, or both,
+  // and whether to match link targets by code-only or code-or-display.
+  const filterCfg = resolveFilterConfig(property, propDef, runtime);
 
-  if (propDef.value_kind === 'string' || propDef.value_kind === 'literal') {
-    if (op === '=' || op === 'in') {
-      const values = op === 'in' ? splitFilterValueList(value) : [value];
-      params[`${prefix}_prop`] = propDef.property_id;
+  if (op === '=' || op === 'in') {
+    let rawValues = op === 'in' ? splitFilterValueList(value) : [value];
+    const values = normalizeFilterValues(rawValues, filterCfg);
+    params[`${prefix}_prop`] = propDef.property_id;
+
+    // Build sub-queries for each source, UNION them if multiple
+    const subQueries = [];
+
+    if (filterCfg.sources.includes('literal')) {
       const placeholders = values.map((v, j) => {
         params[`${prefix}_vl${j}`] = v;
         return `@${prefix}_vl${j}`;
       }).join(',');
-      return {
-        sql: '',
-        params,
-        joins: ` JOIN concept_literal lit_${prefix}`
-          + ` ON lit_${prefix}.source_concept_id = ${alias}.concept_id`
-          + ` AND lit_${prefix}.property_id = @${prefix}_prop`
-          + ` AND lit_${prefix}.active = 1`
-          + ` AND lit_${prefix}.value_text COLLATE NOCASE IN (${placeholders})`,
-      };
+      subQueries.push(
+        `SELECT source_concept_id FROM concept_literal`
+        + ` WHERE property_id = @${prefix}_prop AND active = 1`
+        + ` AND value_text COLLATE NOCASE IN (${placeholders})`
+      );
     }
-    if (op === 'regex') {
-      params[`${prefix}_prop`] = propDef.property_id;
-      params[`${prefix}_re`] = value;
-      return {
-        sql: '',
-        params,
-        joins: ` JOIN concept_literal lit_${prefix}`
-          + ` ON lit_${prefix}.source_concept_id = ${alias}.concept_id`
-          + ` AND lit_${prefix}.property_id = @${prefix}_prop`
-          + ` AND lit_${prefix}.active = 1`
-          + ` AND lit_${prefix}.value_text REGEXP @${prefix}_re`,
-      };
+
+    if (filterCfg.sources.includes('link')) {
+      params[`${prefix}_eset`] = runtime?.hierarchy?.edgeSetId || 1;
+      params[`${prefix}_val_cs`] = csId;
+      const placeholders = values.map((v, j) => {
+        params[`${prefix}_vc${j}`] = v;
+        return `@${prefix}_vc${j}`;
+      }).join(',');
+      let tgtMatch = `tgt.code COLLATE NOCASE IN (${placeholders})`;
+      if (filterCfg.linkMatch === 'code-or-display') {
+        tgtMatch += ` OR tgt.display COLLATE NOCASE IN (${placeholders})`;
+      }
+      subQueries.push(
+        `SELECT l.source_concept_id FROM concept_link l`
+        + ` JOIN concept tgt ON tgt.concept_id = l.target_concept_id`
+        + ` WHERE l.property_id = @${prefix}_prop`
+        + ` AND l.edge_set_id = @${prefix}_eset`
+        + ` AND l.active = 1`
+        + ` AND (${tgtMatch})`
+      );
     }
-    return null;
+
+    if (subQueries.length === 0) return null;
+
+    const unionSql = subQueries.length === 1
+      ? subQueries[0]
+      : subQueries.join(' UNION ');
+
+    return {
+      sql: ` AND ${alias}.concept_id IN (${unionSql})`,
+      params,
+      joins: '',
+    };
+  }
+
+  if (op === 'regex') {
+    // Regex only applies to literal/string properties
+    if (!filterCfg.sources.includes('literal')) return null;
+    params[`${prefix}_prop`] = propDef.property_id;
+    params[`${prefix}_re`] = value;
+    return {
+      sql: '',
+      params,
+      joins: ` JOIN concept_literal lit_${prefix}`
+        + ` ON lit_${prefix}.source_concept_id = ${alias}.concept_id`
+        + ` AND lit_${prefix}.property_id = @${prefix}_prop`
+        + ` AND lit_${prefix}.active = 1`
+        + ` AND lit_${prefix}.value_text REGEXP @${prefix}_re`,
+    };
   }
 
   return null;
