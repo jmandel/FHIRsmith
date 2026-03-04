@@ -87,6 +87,7 @@ function pageTemplate({ title, bodyHtml }) {
       <a href="ir-engine.html">IR Engine</a>
       <a href="ir-fuzzing.html">Fuzzing</a>
       <a href="ir-compilation-tester.html">Compilation Tester</a>
+      <a href="tools/expand-explorer-lite.html">Explorer Lite</a>
       <a href="perf/v0-sqlite-20260304/perf-table.html">Perf Matrix</a>
     </div>
   </nav>
@@ -114,6 +115,7 @@ function buildLandingPage() {
   <h2>Quick Links</h2>
   <ul>
     <li><a href="perf/v0-sqlite-20260304/perf-table.html">IR vs Legacy v0 Perf Matrix</a></li>
+    <li><a href="tools/expand-explorer-lite.html">Expand Explorer (Lite)</a></li>
     <li><a href="ir-compilation-tester.html">IR Compilation Tester Guide</a></li>
     <li><a href="ir-fuzzing.html">IR Fuzzing + Direct Oracle Guide</a></li>
     <li><a href="ir-engine.html">IR Engine Design and Runtime Notes</a></li>
@@ -132,6 +134,7 @@ function main() {
   const args = parseArgs(process.argv);
   const outDir = args.out;
   const perfSrcDir = path.join(ROOT, 'docs', 'perf');
+  const toolsSrcDir = path.join(ROOT, 'docs', 'tools');
   const docsPages = [
     { src: path.join(ROOT, 'docs', 'ir-engine.md'), out: 'ir-engine.html', title: 'IR Engine' },
     { src: path.join(ROOT, 'docs', 'ir-fuzzing.md'), out: 'ir-fuzzing.html', title: 'IR Fuzzing' },
@@ -151,6 +154,7 @@ function main() {
   }
 
   copyDir(perfSrcDir, path.join(outDir, 'perf'));
+  copyDir(toolsSrcDir, path.join(outDir, 'tools'));
 
   console.log(`Docs site built at ${outDir}`);
 }

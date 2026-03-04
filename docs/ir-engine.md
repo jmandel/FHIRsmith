@@ -480,6 +480,10 @@ To build the docs landing site (used by GitHub Pages workflow):
 npm run build:docs-site
 ```
 
+Published docs include:
+- `tools/expand-explorer-lite.html` — simplified IR compile explorer
+- `perf/v0-sqlite-20260304/perf-table.html` — checked-in v0 perf matrix
+
 ### Simplification unit tests — 8 tests (`scripts/ir-rewrite-tests.mjs`)
 
 Tests the expansion plan simplification logic directly (no server

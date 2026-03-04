@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IR Expand Explorer (Lite)</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+    main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+    h1 { margin: 0 0 12px; font-size: 24px; }
+    .muted { color: #475569; font-size: 14px; }
+    .grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+    @media (min-width: 980px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; }
+    .label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #64748b; margin-bottom: 6px; font-weight: 600; }
+    textarea, input { width: 100%; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; }
+    textarea { min-height: 180px; resize: vertical; }
+    .row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+    button { border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 600; background: #0f172a; color: #fff; cursor: pointer; }
+    button:hover { opacity: .9; }
+    .err { margin-top: 10px; border: 1px solid #ef4444; background: #fef2f2; color: #991b1b; border-radius: 8px; padding: 10px; white-space: pre-wrap; display: none; }
+    pre { margin: 0; background: #0b1220; color: #d1e1ff; border-radius: 8px; padding: 10px; overflow: auto; max-height: 420px; font-size: 12px; line-height: 1.45; }
+    .ok { color: #166534; font-weight: 700; }
+    .bad { color: #991b1b; font-weight: 700; }
+    .small { font-size: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>IR Expand Explorer (Lite)</h1>
+  <p class="muted">Simplified compiler playground using the standalone JS IR compiler. Paste a ValueSet (and optional Parameters / tx-resources), then compile to <code>basicIR</code>, <code>resolvedIR</code>, and <code>loweredIR</code>.</p>
+
+  <div class="grid">
+    <section class="card">
+      <div class="label">ValueSet JSON</div>
+      <textarea id="vsInput" spellcheck="false"></textarea>
+
+      <div class="label" style="margin-top:10px">Parameters JSON (optional)</div>
+      <textarea id="paramsInput" spellcheck="false">{
+  "resourceType": "Parameters",
+  "parameter": []
+}</textarea>
+
+      <div class="label" style="margin-top:10px">Additional Resources JSON Array (optional)</div>
+      <textarea id="resourcesInput" spellcheck="false">[]</textarea>
+
+      <div class="label" style="margin-top:10px">Resolver Endpoint (optional)</div>
+      <input id="endpointInput" type="text" placeholder="https://tx.fhir.org/r4/ValueSet/$expand?url=...">
+
+      <div class="row">
+        <button id="compileBtn">Compile IR</button>
+        <span id="status" class="small muted"></span>
+      </div>
+      <div id="error" class="err"></div>
+    </section>
+
+    <section class="card">
+      <div class="label">Partition Safety</div>
+      <div id="safety" class="small muted">No compile yet.</div>
+      <div class="label" style="margin-top:12px">Basic IR</div>
+      <pre id="basicOut"></pre>
+      <div class="label" style="margin-top:12px">Resolved IR</div>
+      <pre id="resolvedOut"></pre>
+      <div class="label" style="margin-top:12px">Lowered IR</div>
+      <pre id="loweredOut"></pre>
+    </section>
+  </div>
+</main>
+
+<script src="js/standalone-vs-ir-compiler.js"></script>
+<script>
+const SAMPLE_VS = {
+  resourceType: 'ValueSet',
+  url: 'http://example.org/ValueSet/demo-diabetes',
+  compose: {
+    include: [
+      {
+        system: 'http://snomed.info/sct',
+        filter: [{ property: 'concept', op: 'is-a', value: '73211009' }]
+      }
+    ],
+    exclude: [
+      {
+        system: 'http://snomed.info/sct',
+        filter: [{ property: 'concept', op: 'is-a', value: '44054006' }]
+      }
+    ]
+  }
+};
+
+function pretty(v) {
+  return JSON.stringify(v, null, 2);
+}
+
+function analyzePartitionSafety(expr) {
+  const problems = [];
+
+  function walk(node, path) {
+    if (!node || typeof node !== 'object') {
+      problems.push(path + ': invalid node');
+      return;
+    }
+    switch (node.kind) {
+      case 'empty':
+        return;
+      case 'selector':
+        if (!node.system || String(node.system).trim() === '') {
+          problems.push(path + ': selector missing system');
+        }
+        return;
+      case 'import':
+        if (!node.resolved) {
+          problems.push(path + ': unresolved import' + (node.url ? ' (' + node.url + ')' : ''));
+          return;
+        }
+        walk(node.resolved, path + '.resolved');
+        return;
+      case 'union':
+      case 'intersect':
+        for (let i = 0; i < (node.items || []).length; i++) {
+          walk(node.items[i], path + '.items[' + i + ']');
+        }
+        return;
+      case 'diff':
+        walk(node.left, path + '.left');
+        walk(node.right, path + '.right');
+        return;
+      default:
+        problems.push(path + ': unknown node kind "' + node.kind + '"');
+    }
+  }
+
+  walk(expr, 'root');
+  return { ok: problems.length === 0, problems };
+}
+
+function readJson(id, fallback) {
+  const text = document.getElementById(id).value.trim();
+  if (!text) return fallback;
+  return JSON.parse(text);
+}
+
+function setOutput(id, value) {
+  document.getElementById(id).textContent = pretty(value);
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearError() {
+  const el = document.getElementById('error');
+  el.textContent = '';
+  el.style.display = 'none';
+}
+
+async function compileNow() {
+  clearError();
+  document.getElementById('status').textContent = 'Compiling...';
+
+  try {
+    const valueSet = readJson('vsInput', {});
+    const parameters = readJson('paramsInput', null);
+    const additionalResources = readJson('resourcesInput', []);
+    const endpoint = document.getElementById('endpointInput').value.trim();
+
+    const deps = {};
+    if (endpoint) {
+      deps.resolveValueSet = globalThis.ValueSetIRCompiler.createFetchValueSetResolver({
+        endpoint
+      });
+    }
+
+    const out = await globalThis.ValueSetIRCompiler.compileValueSetIR({
+      valueSet,
+      parameters,
+      additionalResources
+    }, deps);
+
+    const safety = analyzePartitionSafety(out.loweredIR);
+    const safetyEl = document.getElementById('safety');
+    if (safety.ok) {
+      safetyEl.innerHTML = '<span class="ok">PASS</span>: lowered IR is partition-safe.';
+    } else {
+      safetyEl.innerHTML = '<span class="bad">FAIL</span>: ' + safety.problems.join(' | ');
+    }
+
+    setOutput('basicOut', out.basicIR);
+    setOutput('resolvedOut', out.resolvedIR);
+    setOutput('loweredOut', out.loweredIR);
+    document.getElementById('status').textContent = 'Compiled.';
+  } catch (err) {
+    document.getElementById('status').textContent = '';
+    showError(String(err && err.stack ? err.stack : err));
+  }
+}
+
+document.getElementById('vsInput').value = pretty(SAMPLE_VS);
+document.getElementById('compileBtn').addEventListener('click', compileNow);
+</script>
+</body>
+</html>

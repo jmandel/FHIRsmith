@@ -3,6 +3,9 @@
 This page is the operator guide for validating IR compilation behavior
 (lowering, rewrite, partition safety, and execution parity).
 
+For an interactive browser view of compile output, use
+`tools/expand-explorer-lite.html` on the published docs site.
+
 ## 1) Quick correctness checks
 
 Run the key engine tests:
