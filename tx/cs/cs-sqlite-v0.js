@@ -914,8 +914,11 @@ class SqliteV0Provider extends BaseCSServices {
     // the EXISTS rewrite doesn't apply, so skip the expensive COUNT(*).
     const enrichedOpts = { ...opts };
     const tHints = performance.now();
+    // EXISTS rewrite requires closure filter AND no text filter.
+    // Skip the expensive getConceptCount (SELECT COUNT ~17ms cold) when
+    // text is present — the rewrite won't fire anyway.
     const closureCount = this.#getClosureCount(subtree);
-    if (closureCount > 0) {
+    if (closureCount > 0 && !opts.text) {
       enrichedOpts._conceptCount = this.#getConceptCount();
       enrichedOpts._closureCount = closureCount;
     }
@@ -997,10 +1000,14 @@ class SqliteV0Provider extends BaseCSServices {
 
     const span = trace.begin('countForIR:sql', { system: this.#meta.baseUri });
 
-    const enrichedOpts = { ...opts,
-      _conceptCount: this.#getConceptCount(),
-      _closureCount: this.#getClosureCount(subtree),
-    };
+    // EXISTS rewrite requires closure filter AND no text filter.
+    // Skip expensive getConceptCount (~17ms cold) when it can't be used.
+    const enrichedOpts = { ...opts };
+    const closureCount = this.#getClosureCount(subtree);
+    if (closureCount > 0 && !opts.text) {
+      enrichedOpts._conceptCount = this.#getConceptCount();
+      enrichedOpts._closureCount = closureCount;
+    }
     const { sql, params } = buildCountSql(
       subtree, this.#meta.csId, '_cnt', this.#propDefs, this.#runtime, enrichedOpts
     );
