@@ -164,6 +164,27 @@ type[!]:details
 - **!** (optional): Append to type to mark this source as the default for its code system. When multiple versions of the same code system are loaded, the default is used when no version is specified.
 - **details**: Type-specific configuration (filename, package name, or internal provider name)
 
+### Environment Variable Substitution
+
+YAML values support `${ENV_VAR}` placeholders. Substitution happens when the library config is loaded.
+
+Example:
+
+```yaml
+sources:
+  - sqlite-v0!:${V0_DB_DIR}/sct_intl_20250201.v0.db
+  - sqlite-v0!:${V0_DB_DIR}/loinc_281_full.v0.db
+  - sqlite-v0:${V0_DB_DIR}/rxnorm_02022026.v0.db
+```
+
+Set `V0_DB_DIR` before starting the server/tests:
+
+```bash
+export V0_DB_DIR=/home/jmandel/hobby/sct/cache
+```
+
+If a referenced variable is missing, startup fails with a clear error naming the missing variable.
+
 ### Source Types
 
 #### `internal` - Built-in Code Systems

@@ -8,19 +8,13 @@
  * control which path is used without restarting.
  */
 
-const fs = require('fs');
-const path = require('path');
 const { expandViaIR } = require('../../tx/engine/orchestrator');
 const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
 const { OperationContext } = require('../../tx/operation-context');
 const { TestUtilities } = require('../test-utilities');
+const { SNOMED_DB, LOINC_DB, RXNORM_DB, hasSnomed, hasLoinc, hasRxnorm } = require('../v0-db-config');
 
-const DB_DIR = '/home/exedev/tx-data';
-const SNOMED_DB = path.join(DB_DIR, 'sct_intl_20250201.v0.db');
-const LOINC_DB = path.join(DB_DIR, 'loinc_281_full.v0.db');
-const RXNORM_DB = path.join(DB_DIR, 'rxnorm_02022026.v0.db');
-
-const hasDBs = fs.existsSync(SNOMED_DB) && fs.existsSync(LOINC_DB);
+const hasDBs = hasSnomed && hasLoinc;
 const describeIfDBs = hasDBs ? describe : describe.skip;
 
 let i18n, langDefs;
@@ -31,11 +25,13 @@ beforeAll(async () => {
   langDefs = await TestUtilities.loadLanguageDefinitions();
   i18n = await TestUtilities.loadTranslations(langDefs);
 
+  if (!hasDBs) return;
+
   factories.snomed = new SqliteV0FactoryProvider(i18n, SNOMED_DB);
   await factories.snomed.load();
   factories.loinc = new SqliteV0FactoryProvider(i18n, LOINC_DB);
   await factories.loinc.load();
-  if (fs.existsSync(RXNORM_DB)) {
+  if (hasRxnorm) {
     factories.rxnorm = new SqliteV0FactoryProvider(i18n, RXNORM_DB);
     await factories.rxnorm.load();
   }

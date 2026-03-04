@@ -15,7 +15,14 @@
 const crypto = require('crypto');
 const { buildIRFromValueSet } = require('./build-ir');
 const { resolveImports } = require('./resolve-imports');
-const { optimize, collectSystems, projectToSystem, splitDiffRoot } = require('./rewrite');
+const {
+  optimize,
+  collectSystems,
+  projectToSystem,
+  analyzePartitionSafety,
+  analyzeProjectedSubtree,
+  splitDiffRoot,
+} = require('./rewrite');
 const IR = require('./ir');
 const { wrapWithLegacyIR } = require('./legacy-ir-adapter');
 const { trace } = require('./expand-trace');
@@ -27,30 +34,69 @@ const { trace } = require('./expand-trace');
 /**
  * Derive count from IR structure without hitting the database.
  * Returns a number for concept enumerations (known size), null otherwise.
- * When a text filter is active, we can't statically count (text may filter out codes).
+ * When text/active filters are active, we can't statically count safely.
  */
-function countFromIR(node, text) {
-  if (text) return null; // text filter may reduce the set
-  if (!node) return 0;
+function countFromIR(node, text, activeOnly) {
+  if (text || activeOnly) return null; // runtime filters may reduce the set
+  const staticSet = staticConceptSetFromIR(node);
+  return staticSet ? staticSet.size : null;
+}
+
+/**
+ * Return an exact set of concept codes when an IR subtree can be evaluated
+ * statically from concept enumerations/imports only. Returns null when any
+ * filter/whole-system selector is present.
+ */
+function staticConceptSetFromIR(node) {
+  if (!node) return new Set();
   switch (node.kind) {
-    case 'empty': return 0;
-    case 'selector':
-      if (node.shape === 'concept' && node.conceptCodes?.length > 0) {
-        return node.conceptCodes.length;
+    case 'empty':
+      return new Set();
+    case 'selector': {
+      if (node.shape !== 'concept') return null;
+      const set = new Set();
+      for (const cc of node.conceptCodes || []) {
+        const code = String(cc?.code || '');
+        if (code) set.add(code);
       }
-      return null; // filter or whole-system — need SQL
-    case 'union': {
-      // Union of concept selectors: sum (may overcount if overlapping,
-      // but concept enums within one system don't overlap in practice)
-      let total = 0;
-      for (const child of node.items || []) {
-        const c = countFromIR(child, text);
-        if (c == null) return null;
-        total += c;
-      }
-      return total;
+      return set;
     }
-    default: return null; // diff, intersect, import — need SQL
+    case 'import':
+      return node.resolved ? staticConceptSetFromIR(node.resolved) : null;
+    case 'union': {
+      const out = new Set();
+      for (const child of node.items || []) {
+        const c = staticConceptSetFromIR(child);
+        if (!c) return null;
+        for (const code of c) out.add(code);
+      }
+      return out;
+    }
+    case 'intersect': {
+      const children = (node.items || []);
+      if (children.length === 0) return new Set();
+      const first = staticConceptSetFromIR(children[0]);
+      if (!first) return null;
+      const out = new Set(first);
+      for (let i = 1; i < children.length; i++) {
+        const c = staticConceptSetFromIR(children[i]);
+        if (!c) return null;
+        for (const code of [...out]) {
+          if (!c.has(code)) out.delete(code);
+        }
+      }
+      return out;
+    }
+    case 'diff': {
+      const left = staticConceptSetFromIR(node.left);
+      const right = staticConceptSetFromIR(node.right);
+      if (!left || !right) return null;
+      const out = new Set(left);
+      for (const code of right) out.delete(code);
+      return out;
+    }
+    default:
+      return null;
   }
 }
 
@@ -79,6 +125,10 @@ function flattenCandidates(candidates, resolved, parentCode) {
   return result;
 }
 
+function appendAll(target, items) {
+  for (const item of items) target.push(item);
+}
+
 /**
  * Nest flat `contains` entries into a tree using `_parentCode` from candidates.
  * Modifies `contains` in place — replaces content with root entries only,
@@ -86,14 +136,17 @@ function flattenCandidates(candidates, resolved, parentCode) {
  */
 function nestContains(contains, candidates) {
   if (!candidates.some(c => c._parentCode)) return;
+  const keyOf = (system, version, code) => `${system || ''}\x00${version || ''}\x00${code || ''}`;
   const entryByCode = new Map();
-  for (const e of contains) entryByCode.set(e.code, e);
+  for (const e of contains) entryByCode.set(keyOf(e.system, e.version, e.code), e);
   const roots = [];
   for (let i = 0; i < candidates.length; i++) {
     const c = candidates[i];
     const entry = contains[i];
     if (!entry) continue;
-    const parentEntry = c._parentCode ? entryByCode.get(c._parentCode) : null;
+    const parentEntry = c._parentCode
+      ? entryByCode.get(keyOf(c.system, c.version, c._parentCode))
+      : null;
     if (parentEntry) {
       if (!parentEntry.contains) parentEntry.contains = [];
       parentEntry.contains.push(entry);
@@ -108,26 +161,12 @@ function nestContains(contains, candidates) {
 }
 
 function canHandleValueSet(vsJson) {
-  const compose = vsJson?.compose;
-  if (!compose) return false;
-
-  const includes = compose.include || [];
-  const excludes = compose.exclude || [];
-
-  // Must have at least one include
-  if (includes.length === 0) return false;
-
-  // Check all components have a system (pure-import only components need
-  // import resolution which we support, but let's be conservative)
-  for (const cset of [...includes, ...excludes]) {
-    // Components with only valueSet imports and no system need import resolution
-    // which we support, but skip components with neither system nor valueSet
-    if (!cset.system && (!cset.valueSet || cset.valueSet.length === 0)) {
-      return false;
-    }
-  }
-
-  return true;
+  // Expansion-only ValueSets should preserve their existing expansion
+  // (legacy short-circuits these). Let legacy handle this shape.
+  if (vsJson?.expansion && !vsJson?.compose) return false;
+  // Be permissive: IR can trivially represent/execute empty or degenerate compose
+  // as an empty expansion, and runtime safety checks still fail-closed when needed.
+  return !!vsJson && typeof vsJson === 'object';
 }
 
 /**
@@ -177,7 +216,7 @@ async function expandViaIR(vsJson, opts = {}) {
   const usedValueSets = new Set();
   if (resolveValueSet) {
     try {
-      resolvedIR = await resolveImports(rawIR, resolveValueSet, { maxDepth: 10 });
+      resolvedIR = await resolveImports(rawIR, resolveValueSet, { maxDepth: 50 });
       // Collect used-valueset URLs from import resolution
       if (resolvedIR._usedValueSets) {
         for (const vs of resolvedIR._usedValueSets) usedValueSets.add(vs);
@@ -190,6 +229,14 @@ async function expandViaIR(vsJson, opts = {}) {
 
   // 3. Optimize
   const optimizedIR = optimize(resolvedIR);
+
+  // 3.5 Guardrail: IR execution requires provably partition-safe expressions.
+  // If this invariant fails, return null so caller can fall back to legacy.
+  const partitionSafety = analyzePartitionSafety(optimizedIR);
+  if (!partitionSafety.ok) {
+    warnings.push(`IR partition safety failed: ${partitionSafety.reason}`);
+    return null;
+  }
 
   // 4. Collect systems and partition
   const systems = collectSystems(optimizedIR);
@@ -217,6 +264,11 @@ async function expandViaIR(vsJson, opts = {}) {
   for (const [key, { system, version }] of sortedSystems) {
     const subtree = projectToSystem(optimizedIR, system, version);
     if (!subtree || subtree.kind === 'empty') continue;
+    const projected = analyzeProjectedSubtree(subtree, system, version);
+    if (!projected.ok) {
+      warnings.push(`IR partition projection failed for ${system}|${version || ''}: ${projected.reason}`);
+      return null;
+    }
 
     const provider = await findProvider(system, version);
     if (!provider) { unsupportedSystems.push(system); continue; }
@@ -246,7 +298,7 @@ async function expandViaIR(vsJson, opts = {}) {
     // Fast path: concept enumerations have a known count from the IR itself
     // (no SQL needed). Only call countForIR for filters/whole-system shapes.
     let sysCount = null; // null = deferred (will be resolved later if needed)
-    const staticCount = countFromIR(subtree, text);
+    const staticCount = countFromIR(subtree, text, activeOnly);
     if (staticCount != null) {
       sysCount = staticCount;
       trace.note('count:static', { system, count: sysCount });
@@ -335,7 +387,7 @@ async function expandViaIR(vsJson, opts = {}) {
     sysSpan.end({ candidates: result.candidates.length });
     if (result.unclosed) unclosedMessages.push(result.unclosed);
 
-    allCandidates.push(...flattenCandidates(result.candidates, r, null));
+    appendAll(allCandidates, flattenCandidates(result.candidates, r, null));
 
     // Infer total: if we got fewer rows than requested AND we got at
     // least one row, we’re on the last page → total = offset + rows.
@@ -380,7 +432,7 @@ async function expandViaIR(vsJson, opts = {}) {
       sysSpan.end({ candidates: result.candidates.length });
       if (result.unclosed) unclosedMessages.push(result.unclosed);
 
-      allCandidates.push(...flattenCandidates(result.candidates, r, null));
+      appendAll(allCandidates, flattenCandidates(result.candidates, r, null));
 
       remaining -= result.candidates.length;
       cursor = sysEnd;

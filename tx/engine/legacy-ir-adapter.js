@@ -46,20 +46,25 @@ function wrapWithLegacyIR(provider) {
       // Capture unclosed signal from grammar-based providers
       const unclosed = candidates._unclosed || null;
       // Apply text filter (legacy providers don't handle FTS natively)
-      if (opts.text) {
-        const lower = opts.text.toLowerCase();
-        candidates = candidates.filter(c =>
-          (c.display || '').toLowerCase().includes(lower)
-          || (c.code || '').toLowerCase().includes(lower)
-        );
-      }
+      candidates = applyTextFilterCandidates(candidates, opts.text);
       // Sort for deterministic pagination (code order matches SQL behavior)
       candidates.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
-      // Apply count/offset after materialization
+      // Apply count/offset after materialization.
+      // For hierarchical trees, apply paging to the flattened code order.
       if (opts.offset > 0 || opts.count != null) {
         const off = opts.offset || 0;
-        const lim = opts.count != null ? opts.count : candidates.length;
-        candidates = candidates.slice(off, off + lim);
+        if (hasHierarchyCandidates(candidates)) {
+          const total = countWithChildren(candidates);
+          const lim = opts.count != null ? opts.count : total;
+          const fullWindow = off === 0 && lim >= total;
+          if (!fullWindow) {
+            const flat = flattenHierarchyCandidates(candidates);
+            candidates = flat.slice(off, off + lim);
+          }
+        } else {
+          const lim = opts.count != null ? opts.count : candidates.length;
+          candidates = candidates.slice(off, off + lim);
+        }
       }
       const result = { candidates };
       if (unclosed) result.unclosed = unclosed;
@@ -82,13 +87,7 @@ function wrapWithLegacyIR(provider) {
       if (candidates._unclosed) {
         wrapper._discoveredUnclosed.push(candidates._unclosed);
       }
-      if (opts.text) {
-        const lower = opts.text.toLowerCase();
-        candidates = candidates.filter(c =>
-          (c.display || '').toLowerCase().includes(lower)
-          || (c.code || '').toLowerCase().includes(lower)
-        );
-      }
+      candidates = applyTextFilterCandidates(candidates, opts.text);
       return countWithChildren(candidates);
     },
   };
@@ -102,6 +101,47 @@ function countWithChildren(candidates) {
     if (c._children) n += countWithChildren(c._children);
   }
   return n;
+}
+
+function hasHierarchyCandidates(candidates) {
+  return candidates.some(c => c._children && c._children.length > 0);
+}
+
+/**
+ * Flatten a candidate tree to pre-order list, preserving parent links.
+ * Used for pagination windows over hierarchical providers.
+ */
+function flattenHierarchyCandidates(candidates, parentCode = null, out = []) {
+  for (const c of candidates) {
+    const entry = { ...c };
+    if (parentCode && !entry._parentCode) entry._parentCode = parentCode;
+    delete entry._children;
+    out.push(entry);
+    if (c._children) flattenHierarchyCandidates(c._children, c.code, out);
+  }
+  return out;
+}
+
+function normalizeForSetOps(candidates) {
+  const out = hasHierarchyCandidates(candidates)
+    ? flattenHierarchyCandidates(candidates)
+    : [...candidates];
+  if (candidates._unclosed && !out._unclosed) out._unclosed = candidates._unclosed;
+  return out;
+}
+
+function applyTextFilterCandidates(candidates, text) {
+  if (!text) return candidates;
+  const lower = String(text).toLowerCase();
+  const base = hasHierarchyCandidates(candidates)
+    ? flattenHierarchyCandidates(candidates)
+    : candidates;
+  const filtered = base.filter(c =>
+    (c.display || '').toLowerCase().includes(lower)
+    || (c.code || '').toLowerCase().includes(lower)
+  );
+  if (candidates._unclosed && !filtered._unclosed) filtered._unclosed = candidates._unclosed;
+  return filtered;
 }
 
 /** Propagate _unclosed from child results onto a new array. */
@@ -132,8 +172,9 @@ async function executeNode(provider, node, opts) {
       const results = [];
       const seen = new Set();
       for (const child of node.items || []) {
-        const childResult = await executeNode(provider, child, opts);
-        propagateUnclosed(results, childResult);
+        const childResultRaw = await executeNode(provider, child, opts);
+        const childResult = normalizeForSetOps(childResultRaw);
+        propagateUnclosed(results, childResultRaw, childResult);
         for (const c of childResult) {
           if (!seen.has(c.code)) {
             seen.add(c.code);
@@ -150,20 +191,22 @@ async function executeNode(provider, node, opts) {
       if (children.length === 1) return await executeNode(provider, children[0], opts);
 
       // Enumerate first child, check membership against rest
-      const first = await executeNode(provider, children[0], opts);
+      const firstRaw = await executeNode(provider, children[0], opts);
+      const first = normalizeForSetOps(firstRaw);
       const memberships = await Promise.all(children.slice(1).map(c => buildMembership(provider, c)));
       const result = first.filter(c =>
         memberships.every(m => m.has(c.code))
       );
-      return propagateUnclosed(result, first);
+      return propagateUnclosed(result, firstRaw, first);
     }
 
     case 'diff': {
-      const left = await executeNode(provider, node.left, opts);
+      const leftRaw = await executeNode(provider, node.left, opts);
+      const left = normalizeForSetOps(leftRaw);
       if (!node.right || node.right.kind === 'empty') return left;
       const rightMembership = await buildMembership(provider, node.right);
       const result = left.filter(c => !rightMembership.has(c.code));
-      return propagateUnclosed(result, left);
+      return propagateUnclosed(result, leftRaw, left);
     }
 
     case 'import':
@@ -208,6 +251,9 @@ async function executeSelector(provider, sel, opts) {
 
   if (sel.shape === 'filter') {
     // Filter protocol
+    const intersectCodes = Array.isArray(sel.intersectCodes) && sel.intersectCodes.length > 0
+      ? new Set(sel.intersectCodes.map(code => String(code)))
+      : null;
     const prep = await provider.getPrepContext(true);
     for (const clause of sel.filterClauses || []) {
       await provider.filter(prep, clause.property, clause.op, clause.value);
@@ -219,6 +265,7 @@ async function executeSelector(provider, sel, opts) {
     while (await provider.filterMore(prep, sets[0])) {
       const ctx = await provider.filterConcept(prep, sets[0]);
       const code = await provider.code(ctx);
+      if (intersectCodes && !intersectCodes.has(String(code))) continue;
       const inactive = await provider.isInactive(ctx);
       if (activeOnly && inactive) continue;
 
@@ -362,7 +409,8 @@ async function buildMembership(provider, node) {
 
     case 'selector': {
       // Materialize and build a Set
-      const candidates = await executeSelector(provider, node, {});
+      const candidatesRaw = await executeSelector(provider, node, {});
+      const candidates = normalizeForSetOps(candidatesRaw);
       return new SetMembership(new Set(candidates.map(c => c.code)));
     }
 

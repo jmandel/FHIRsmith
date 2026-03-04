@@ -1,19 +1,50 @@
 #!/usr/bin/env node
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 /**
  * IR engine test harness — hits the running server, asserts concrete expectations.
- * Usage: node scripts/ir-harness.mjs [filter] [--legacy] [--trace] [--perf]
+ * Usage: node scripts/ir-harness.mjs [filter] [--legacy] [--trace] [--perf] [--perf-out <file>]
  *
  * --perf   Run each test with both engines (5 runs each), collect median
- *          timings, write tmp/perf-table.html at the end.
+ *          timings, write tmp/perf-table.html at the end (or --perf-out path).
  */
 const BASE = process.env.BASE_URL || 'http://localhost:8000';
 const EXPAND = `${BASE}/r4/ValueSet/$expand`;
-const FILTER = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : null;
-const RUN_LEGACY = process.argv.includes('--legacy');
-const WANT_TRACE = process.argv.includes('--trace');
-const PERF_MODE = process.argv.includes('--perf');
+const argv = process.argv.slice(2);
+let PERF_OUT = process.env.PERF_OUT || 'tmp/perf-table.html';
+let FILTER = null;
+for (let i = 0; i < argv.length; i++) {
+  const arg = argv[i];
+  if (arg === '--perf-out') {
+    const next = argv[i + 1];
+    if (!next || next.startsWith('--')) {
+      console.error('Missing value for --perf-out');
+      process.exit(2);
+    }
+    PERF_OUT = next;
+    i++;
+    continue;
+  }
+  if (arg.startsWith('--perf-out=')) {
+    PERF_OUT = arg.slice('--perf-out='.length);
+    continue;
+  }
+  if (!arg.startsWith('--') && FILTER === null) {
+    FILTER = arg;
+  }
+}
+if (!PERF_OUT.trim()) {
+  console.error('--perf-out requires a non-empty output path');
+  process.exit(2);
+}
+const RUN_LEGACY = argv.includes('--legacy');
+const WANT_TRACE = argv.includes('--trace');
+const PERF_MODE = argv.includes('--perf');
 const RUNS = parseInt(process.env.PERF_RUNS || '3', 10);
 const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
+const PERF_OUT_PATH = resolve(PERF_OUT);
+const PERF_OUT_BASE = basename(PERF_OUT_PATH, extname(PERF_OUT_PATH));
+const PERF_DETAILS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.details`);
 
 const SYS = {
   SCT: 'http://snomed.info/sct',
@@ -42,8 +73,7 @@ function vs(include, exclude) {
 }
 
 const DEFAULT_ENGINE = RUN_LEGACY ? 'legacy' : 'ir';
-async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
-  lastExpandCall = { vsJson, opts };
+function buildExpandParameters(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE) {
   const params = [{ name: 'valueSet', resource: vsJson }];
   params.push({ name: '_engine', valueString: engine });
   if (opts.count !== undefined) params.push({ name: 'count', valueInteger: opts.count });
@@ -52,7 +82,7 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   if (opts.excludeNested != null) params.push({ name: 'excludeNested', valueBoolean: opts.excludeNested });
   if (opts.filter) params.push({ name: 'filter', valueString: opts.filter });
   if (opts.includeDesignations) params.push({ name: 'includeDesignations', valueBoolean: true });
-  if (WANT_TRACE) params.push({ name: '_trace', valueString: 'true' });
+  if (forceTrace) params.push({ name: '_trace', valueString: 'true' });
   params.push({ name: '_nocache', valueString: 'true' });
   // Attach inline tx-resource(s) (e.g. custom CodeSystems)
   if (opts.txResources) {
@@ -64,14 +94,64 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   if (opts.params) {
     for (const p of opts.params) params.push(p);
   }
+  return params;
+}
 
+function extractTracePayload(responseJson) {
+  const ext = responseJson?.expansion?.extension || [];
+  const traceExt = ext.find(e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace');
+  if (!traceExt?.valueString) return null;
+  try {
+    return JSON.parse(traceExt.valueString);
+  } catch {
+    return { parseError: 'Unable to parse trace JSON', raw: traceExt.valueString };
+  }
+}
+
+async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE) {
+  const params = buildExpandParameters(vsJson, opts, engine, forceTrace);
+  const requestBody = { resourceType: 'Parameters', parameter: params };
   const t0 = performance.now();
   const resp = await fetch(EXPAND, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resourceType: 'Parameters', parameter: params }),
+    body: JSON.stringify(requestBody),
   });
   const ms = performance.now() - t0;
-  const body = await resp.json();
+  const responseText = await resp.text();
+  let responseJson = null;
+  try {
+    responseJson = responseText ? JSON.parse(responseText) : null;
+  } catch {
+    responseJson = null;
+  }
+  const traceJson = extractTracePayload(responseJson);
+  return {
+    ms,
+    request: {
+      method: 'POST',
+      url: EXPAND,
+      headers: { 'Content-Type': 'application/json' },
+      body: requestBody,
+    },
+    response: {
+      ok: resp.ok,
+      status: resp.status,
+      statusText: resp.statusText,
+      headers: Object.fromEntries(resp.headers.entries()),
+      body: responseJson ?? responseText,
+    },
+    responseText,
+    responseJson,
+    traceJson,
+  };
+}
+
+async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
+  lastExpandCall = { vsJson, opts };
+  const { responseJson: body, ms } = await executeExpandRequest(vsJson, opts, engine, WANT_TRACE);
+  if (!body) {
+    throw new Error('Non-JSON response from terminology server');
+  }
   if (body.resourceType === 'OperationOutcome') {
     throw new Error(body.issue?.[0]?.details?.text || JSON.stringify(body));
   }
@@ -118,10 +198,29 @@ async function test(name, fn) {
       const { vsJson, opts } = lastExpandCall;
       const ir = await timeEngine(vsJson, opts, 'ir', PERF_RUNS);
       const leg = await timeEngine(vsJson, opts, 'legacy', PERF_RUNS);
-      perfRows.push({ name, category: currentCategory, irMs: ir.ms, legMs: leg.ms, irErr: ir.err, legErr: leg.err });
+      const rowIndex = perfRows.length + 1;
+      let detailHref = null;
+      let detailError = null;
+      try {
+        const detail = await capturePerfDetails(rowIndex, name, currentCategory, vsJson, opts, ir, leg);
+        detailHref = detail.href;
+      } catch (e) {
+        detailError = e.message || String(e);
+      }
+      perfRows.push({
+        name,
+        category: currentCategory,
+        irMs: ir.ms,
+        legMs: leg.ms,
+        irErr: ir.err,
+        legErr: leg.err,
+        detailHref,
+        detailError,
+      });
       const irStr = ir.err ? '❌' : `${ir.ms}ms`;
       const legStr = leg.err ? '❌' : `${leg.ms}ms`;
       console.log(`    perf: IR=${irStr}  Legacy=${legStr}`);
+      if (detailError) console.log(`    details: ❌ ${detailError}`);
     }
   } catch (e) {
     console.log(`  \x1b[31m✗\x1b[0m ${name}`);
@@ -159,8 +258,159 @@ async function timeEngine(vsJson, opts, engine, runs) {
   return { ms: Math.round(median(times)), err: false };
 }
 
+function safeSlug(name) {
+  return String(name || 'test')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'test';
+}
+
+function stringifyForLog(value) {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function captureEngineDebug(vsJson, opts, engine) {
+  const requestBody = {
+    resourceType: 'Parameters',
+    parameter: buildExpandParameters(vsJson, opts, engine, true),
+  };
+  const request = {
+    method: 'POST',
+    url: EXPAND,
+    headers: { 'Content-Type': 'application/json' },
+    body: requestBody,
+  };
+  try {
+    const details = await executeExpandRequest(vsJson, opts, engine, true);
+    return {
+      ok: true,
+      ms: Math.round(details.ms),
+      request,
+      response: details.response,
+      trace: details.traceJson,
+      traceAvailable: !!details.traceJson,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e.message || String(e),
+      request,
+      response: null,
+      trace: null,
+      traceAvailable: false,
+    };
+  }
+}
+
+function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebug, legacyDebug }) {
+  const irStr = irPerf.err ? '❌' : `${irPerf.ms}ms`;
+  const legStr = legPerf.err ? '❌' : `${legPerf.ms}ms`;
+  const legacyTiming = legacyDebug?.ok ? `${legacyDebug.ms}ms capture call` : 'capture failed';
+  const legacyStatus = legacyDebug?.response ? `${legacyDebug.response.status} ${legacyDebug.response.statusText || ''}`.trim() : 'n/a';
+  const legacyRequestLog = stringifyForLog(legacyDebug?.request || {});
+  const legacyTraceLog = legacyDebug?.traceAvailable ? stringifyForLog(legacyDebug.trace) : 'No structured trace payload returned.';
+  const legacyResponseLog = stringifyForLog(legacyDebug?.response || { error: legacyDebug?.error || 'No response captured' });
+
+  const irTiming = irDebug?.ok ? `${irDebug.ms}ms capture call` : 'capture failed';
+  const irStatus = irDebug?.response ? `${irDebug.response.status} ${irDebug.response.statusText || ''}`.trim() : 'n/a';
+  const irRequestLog = stringifyForLog(irDebug?.request || {});
+  const irTraceLog = irDebug?.traceAvailable ? stringifyForLog(irDebug.trace) : 'No structured trace payload returned.';
+  const irResponseLog = stringifyForLog(irDebug?.response || { error: irDebug?.error || 'No response captured' });
+
+  const sectionCell = (prefix, section, label, content) => `<section class="cell">
+    <details id="${prefix}-${section}" open>
+      <summary>${escHtml(label)}</summary>
+      <pre>${escHtml(content)}</pre>
+    </details>
+  </section>`;
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: ${escHtml(name)}</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#${rowIndex} ${escHtml(name)}</h1>
+  <div class="meta">Category: ${escHtml(category)} · Median perf: Legacy=${escHtml(legStr)} | IR=${escHtml(irStr)}</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: ${escHtml(legacyTiming)} · response: ${escHtml(legacyStatus)}</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: ${escHtml(irTiming)} · response: ${escHtml(irStatus)}</p>
+  </section>
+  ${sectionCell('legacy', 'query', 'Query / HTTP Request', legacyRequestLog)}
+  ${sectionCell('ir', 'query', 'Query / HTTP Request', irRequestLog)}
+  ${sectionCell('legacy', 'trace', 'Structured Trace', legacyTraceLog)}
+  ${sectionCell('ir', 'trace', 'Structured Trace', irTraceLog)}
+  ${sectionCell('legacy', 'http', 'HTTP Response', legacyResponseLog)}
+  ${sectionCell('ir', 'http', 'HTTP Response', irResponseLog)}
+</main>
+</body></html>`;
+}
+
+async function capturePerfDetails(rowIndex, name, category, vsJson, opts, irPerf, legPerf) {
+  const slug = `${String(rowIndex).padStart(3, '0')}-${safeSlug(name)}`;
+  const filename = `${slug}.html`;
+  const absPath = join(PERF_DETAILS_DIR, filename);
+  const relPath = `${PERF_OUT_BASE}.details/${filename}`;
+  const [legacyDebug, irDebug] = await Promise.all([
+    captureEngineDebug(vsJson, opts, 'legacy'),
+    captureEngineDebug(vsJson, opts, 'ir'),
+  ]);
+  writeFileSync(absPath, buildPerfDetailHtml({
+    rowIndex,
+    name,
+    category,
+    irPerf,
+    legPerf,
+    irDebug,
+    legacyDebug,
+  }));
+  return { href: relPath };
+}
+
 // ── tests ──────────────────────────────────────────────────────────────
 async function run() {
+  if (PERF_MODE) {
+    mkdirSync(PERF_DETAILS_DIR, { recursive: true });
+  }
+
   // Check server is up
   try {
     const r = await fetch(`${EXPAND}?url=${SYS.SCT}?fhir_vs=isa/73211009&count=1&_engine=ir`);
@@ -464,16 +714,26 @@ async function run() {
   });
 
   await test('Multi-system stride pagination', async () => {
-    // SNOMED is-a Diabetes (124) + LOINC CLASSTYPE=1 (66K)
-    // offset=120 should get tail of SNOMED + start of LOINC
-    const query = vs([
-      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
-      { system: SYS.LOINC, filter: [{ property: 'CLASSTYPE', op: '=', value: '1' }] },
-    ]);
-    const { result } = await expand(query, { count: 10, offset: 120, activeOnly: true });
+    // Pick an offset that straddles the true canonical boundary between the 2 systems.
+    const sctBranch = { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] };
+    const loincBranch = { system: SYS.LOINC, filter: [{ property: 'CLASSTYPE', op: '=', value: '1' }] };
+    const { result: sctCountRes } = await expand(vs(sctBranch), { count: 0, activeOnly: true });
+    const { result: loincCountRes } = await expand(vs(loincBranch), { count: 0, activeOnly: true });
+    const counts = {
+      [SYS.SCT]: sctCountRes.expansion.total,
+      [SYS.LOINC]: loincCountRes.expansion.total,
+    };
+    const ordered = [SYS.SCT, SYS.LOINC].sort();
+    const firstCount = counts[ordered[0]];
+    // Window of 10 crossing the boundary: 4 from first system + 6 from second.
+    const offset = Math.max(firstCount - 4, 0);
+
+    const query = vs([sctBranch, loincBranch]);
+    const { result } = await expand(query, { count: 10, offset, activeOnly: true });
     eq(codes(result).length, 10, 'page size');
     const systems = new Set(codes(result).map(c => c.system));
     // Should span the boundary between the two systems
+    eq(systems.size, 2, 'page spans both systems');
     assert(result.expansion.total > 60000, `total ${result.expansion.total}`);
   });
 
@@ -1620,8 +1880,8 @@ async function run() {
     assert(c1.length === 30, `page 1 should have 30, got ${c1.length}`);
     assert(c2.length === 30, `page 2 should have 30, got ${c2.length}`);
     assert(c3.length === 2, `page 3 should have 2, got ${c3.length}`);
-    const all = [...c1, ...c2, ...c3];
-    assert(new Set(all).size === 62, `pages should be disjoint (got ${new Set(all).size} unique)`);
+    const allKeys = [...c1, ...c2, ...c3].map(c => `${c.system}|${c.code}`);
+    assert(new Set(allKeys).size === 62, `pages should be disjoint (got ${new Set(allKeys).size} unique)`);
   });
 
   await test('pagination: US states last page partial', async () => {
@@ -2431,11 +2691,10 @@ async function run() {
   console.log('='.repeat(50));
 
   if (PERF_MODE && perfRows.length > 0) {
-    const { writeFileSync, mkdirSync } = await import('node:fs');
-    const { join } = await import('node:path');
-    mkdirSync('tmp', { recursive: true });
-    writeFileSync(join('tmp', 'perf-table.html'), buildPerfHtml(perfRows));
-    console.log(`\nPerf table written to tmp/perf-table.html (${perfRows.length} rows)`);
+    mkdirSync(dirname(PERF_OUT_PATH), { recursive: true });
+    writeFileSync(PERF_OUT_PATH, buildPerfHtml(perfRows));
+    console.log(`\nPerf table written to ${PERF_OUT_PATH} (${perfRows.length} rows)`);
+    console.log(`Perf detail pages written to ${PERF_DETAILS_DIR}`);
   }
 
   process.exit(failed > 0 ? 1 : 0);
@@ -2443,7 +2702,6 @@ async function run() {
 
 // ── perf HTML builder ──────────────────────────────────────────────────
 function buildPerfHtml(rows) {
-  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const ts = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
 
   const tableRows = rows.map(r => {
@@ -2451,7 +2709,11 @@ function buildPerfHtml(rows) {
     const legStr = r.legErr ? '<span class="err">❌</span>' : `${r.legMs}ms`;
     let ratio = '', cls = 'even';
     if (!r.irErr && !r.legErr && r.irMs > 0 && r.legMs > 0) {
-      if (r.irMs <= r.legMs) {
+      const deltaMs = Math.abs(r.irMs - r.legMs);
+      if (deltaMs <= 5) {
+        ratio = '≈';
+        cls = 'even';
+      } else if (r.irMs < r.legMs) {
         const x = (r.legMs / r.irMs).toFixed(1);
         ratio = x === '1.0' ? '≈' : `IR ×${x}`;
         cls = x === '1.0' ? 'even' : 'ir-win';
@@ -2463,7 +2725,14 @@ function buildPerfHtml(rows) {
     } else if (r.legErr && !r.irErr) {
       ratio = 'IR only'; cls = 'ir-only';
     }
-    return `<tr class="${cls}"><td>${esc(r.category)}</td><td>${esc(r.name)}</td><td class="num">${irStr}</td><td class="num">${legStr}</td><td>${ratio}</td></tr>`;
+    let action = '<span class="muted">n/a</span>';
+    if (r.detailHref) {
+      const href = escHtml(r.detailHref);
+      action = `<a href="${href}" target="_blank" rel="noopener">Execution details</a>`;
+    } else if (r.detailError) {
+      action = `<span class="err">${escHtml(r.detailError)}</span>`;
+    }
+    return `<tr class="${cls}"><td>${escHtml(r.category)}</td><td>${escHtml(r.name)}</td><td class="num">${irStr}</td><td class="num">${legStr}</td><td>${ratio}</td><td>${action}</td></tr>`;
   }).join('\n');
 
   return `<!DOCTYPE html>
@@ -2481,11 +2750,12 @@ function buildPerfHtml(rows) {
   .ir-only { background: #e3f2fd; }
   .even { }
   .err { color: #c62828; }
+  .muted { color: #777; }
 </style></head><body>
 <h1>IR vs Legacy Engine — Performance Comparison</h1>
-<p class="meta">Generated ${ts} &middot; median of ${PERF_RUNS} runs &middot; _nocache=true</p>
+<p class="meta">Generated ${ts} &middot; median of ${PERF_RUNS} runs &middot; _nocache=true &middot; details in ${escHtml(PERF_OUT_BASE)}.details/</p>
 <table>
-<thead><tr><th>Category</th><th>Test</th><th>IR</th><th>Legacy</th><th>Winner</th></tr></thead>
+<thead><tr><th>Category</th><th>Test</th><th>IR</th><th>Legacy</th><th>Winner</th><th>Details</th></tr></thead>
 <tbody>
 ${tableRows}
 </tbody></table>

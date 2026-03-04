@@ -569,7 +569,9 @@ The trace/pushdown-toggle infrastructure doesn't exist in our engine.
 | ✅ Phase 4+6 fixture+grammar | 18 | 128+8=136 | YAML + adapter changes |
 | Phase 5 inline supplements | ~11 | ~147 | Inline CS plumbing (9 codex-2 + 2 new v0) |
 | Phase 7 limit/too-costly | 3 | 150 | ✅ |
-| Phase 8 high-value | 4 | 154 | ✅ (146 harness + 9 rewrite = 155 total) |
+| Phase 8 high-value | 4 | 154 | ✅ (146 harness + 8 rewrite = 154 total at that stage) |
+| ✅ Phase 9 hierarchy parity | 15 | 169 | IR nested output parity + pagination flattening checks |
+| Current state (Mar 2026) | — | 174 | 166 harness + 8 rewrite tests |
 | Phase 5-adv supplement filters | ~13 | ~167 | Deferred: SQLite fixtures, property filter pushdown |
 | **N/A** | | | 6 codex-2-internal / v3-only |
 

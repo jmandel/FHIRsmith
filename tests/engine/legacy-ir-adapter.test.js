@@ -1,17 +1,13 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
 const { wrapWithLegacyIR } = require('../../tx/engine/legacy-ir-adapter');
 const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
 const { OperationContext } = require('../../tx/operation-context');
 const { TestUtilities } = require('../test-utilities');
 const IR = require('../../tx/engine/ir');
+const { SNOMED_DB, hasSnomed } = require('../v0-db-config');
 
-const DB_DIR = '/home/exedev/tx-data';
-const SNOMED_DB = path.join(DB_DIR, 'sct_intl_20250201.v0.db');
-
-const hasDBs = fs.existsSync(SNOMED_DB);
+const hasDBs = hasSnomed;
 const describeIfDBs = hasDBs ? describe : describe.skip;
 
 let i18n, langDefs;

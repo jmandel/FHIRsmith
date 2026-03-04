@@ -1,17 +1,12 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
 const { canHandleValueSet, expandViaIR, buildExpandedValueSet } = require('../../tx/engine/orchestrator');
 const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
 const { OperationContext } = require('../../tx/operation-context');
 const { TestUtilities } = require('../test-utilities');
+const { SNOMED_DB, LOINC_DB, hasSnomed, hasLoinc } = require('../v0-db-config');
 
-const DB_DIR = '/home/exedev/tx-data';
-const SNOMED_DB = path.join(DB_DIR, 'sct_intl_20250201.v0.db');
-const LOINC_DB = path.join(DB_DIR, 'loinc_281_full.v0.db');
-
-const hasDBs = fs.existsSync(SNOMED_DB) && fs.existsSync(LOINC_DB);
+const hasDBs = hasSnomed && hasLoinc;
 const describeIfDBs = hasDBs ? describe : describe.skip;
 
 let i18n, langDefs;
@@ -21,12 +16,6 @@ let providers = new Map(); // system -> provider
 beforeAll(async () => {
   langDefs = await TestUtilities.loadLanguageDefinitions();
   i18n = await TestUtilities.loadTranslations(langDefs);
-
-  sctFactory = new SqliteV0FactoryProvider(i18n, SNOMED_DB);
-  await sctFactory.load();
-
-  loincFactory = new SqliteV0FactoryProvider(i18n, LOINC_DB);
-  await loincFactory.load();
 });
 
 function makeOpContext() {
@@ -58,10 +47,11 @@ describe('canHandleValueSet', () => {
     })).toBe(true);
   });
 
-  test('rejects empty compose', () => {
-    expect(canHandleValueSet({})).toBe(false);
-    expect(canHandleValueSet({ compose: {} })).toBe(false);
-    expect(canHandleValueSet({ compose: { include: [] } })).toBe(false);
+  test('accepts empty/degenerate shapes (expands to empty)', () => {
+    expect(canHandleValueSet({})).toBe(true);
+    expect(canHandleValueSet({ compose: {} })).toBe(true);
+    expect(canHandleValueSet({ compose: { include: [] } })).toBe(true);
+    expect(canHandleValueSet({ compose: { include: [{}] } })).toBe(true);
   });
 
   test('handles include with exclude', () => {
@@ -74,7 +64,35 @@ describe('canHandleValueSet', () => {
   });
 });
 
+describe('expandViaIR trivial empties', () => {
+  test('no compose returns empty expansion', async () => {
+    const result = await expandViaIR({ resourceType: 'ValueSet', url: 'test:empty-no-compose' }, {});
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(0);
+    expect(result.expansion.contains).toEqual([]);
+  });
+
+  test('empty include returns empty expansion', async () => {
+    const result = await expandViaIR({
+      resourceType: 'ValueSet',
+      url: 'test:empty-include',
+      compose: { include: [] },
+    }, {});
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(0);
+    expect(result.expansion.contains).toEqual([]);
+  });
+});
+
 describeIfDBs('expandViaIR', () => {
+  beforeAll(async () => {
+    sctFactory = new SqliteV0FactoryProvider(i18n, SNOMED_DB);
+    await sctFactory.load();
+
+    loincFactory = new SqliteV0FactoryProvider(i18n, LOINC_DB);
+    await loincFactory.load();
+  });
+
   test('simple is-a expansion', async () => {
     const vs = {
       resourceType: 'ValueSet',

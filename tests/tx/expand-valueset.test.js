@@ -1486,5 +1486,87 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(codes).toContain('banana');
       expect(codes).toContain('cherry');
     });
+
+    test('should resolve nested tx-resource ValueSet imports with IR engine', async () => {
+      const importedVsUrl = 'http://example.org/txr/imported';
+      const rootVsUrl = 'http://example.org/txr/root';
+      const csUrl = 'http://example.org/txr/colors';
+
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: '_engine', valueCode: 'ir' },
+            { name: '_trace', valueBoolean: true },
+            {
+              name: 'tx-resource',
+              resource: {
+                resourceType: 'CodeSystem',
+                url: csUrl,
+                version: '1',
+                status: 'active',
+                content: 'complete',
+                concept: [
+                  { code: 'red', display: 'Red' },
+                  { code: 'green', display: 'Green' },
+                  { code: 'blue', display: 'Blue' },
+                ],
+              },
+            },
+            {
+              name: 'tx-resource',
+              resource: {
+                resourceType: 'ValueSet',
+                url: importedVsUrl,
+                status: 'active',
+                compose: {
+                  include: [{
+                    system: csUrl,
+                    concept: [{ code: 'red' }, { code: 'green' }],
+                  }],
+                },
+              },
+            },
+            {
+              name: 'valueSet',
+              resource: {
+                resourceType: 'ValueSet',
+                url: rootVsUrl,
+                status: 'active',
+                compose: {
+                  include: [
+                    { valueSet: [importedVsUrl] },
+                    { system: csUrl, concept: [{ code: 'blue' }] },
+                  ],
+                  exclude: [{
+                    system: csUrl,
+                    concept: [{ code: 'green' }],
+                  }],
+                },
+              },
+            },
+          ],
+        });
+
+      expect(res.status).toBe(200);
+      const expansion = res.body.expansion;
+      expect(expansion).toBeDefined();
+      expect(expansion.total).toBe(2);
+      const codes = (expansion.contains || []).map(c => c.code).sort();
+      expect(codes).toEqual(['blue', 'red']);
+
+      const usedVS = (expansion.parameter || [])
+        .filter(p => p.name === 'used-valueset')
+        .map(p => p.valueUri);
+      expect(usedVS).toContain(importedVsUrl);
+
+      const traceExt = (expansion.extension || []).find(
+        e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace'
+      );
+      expect(traceExt).toBeDefined();
+    });
   });
 });

@@ -10,22 +10,27 @@ const { buildIRFromValueSet } = require('./build-ir');
  *   async function resolveValueSet(url, version) -> vsJson (plain JSON or wrapper with jsonObj)
  *
  * Options:
- * - maxDepth (default 20)
+ * - maxDepth (default 50): maximum import-chain depth (legacy option name)
+ * - maxNodes (default 200000): maximum IR nodes visited during resolution
  * - cache (Map) shared between calls
  * - preferComposeOverExpansion (default true): when both are present, compile compose IR
  *   so imported content can still participate in provider pushdown.
  */
 async function resolveImports(expr, resolveValueSet, opts = {}) {
-  const maxDepth = Number.isInteger(opts.maxDepth) ? opts.maxDepth : 20;
+  const maxDepth = Number.isInteger(opts.maxDepth) ? opts.maxDepth : 50;
+  const maxNodes = Number.isInteger(opts.maxNodes) ? opts.maxNodes : 200000;
   const cache = opts.cache instanceof Map ? opts.cache : new Map();
   const preferComposeOverExpansion = opts.preferComposeOverExpansion !== false;
   const usedValueSets = new Set(); // Tracks resolved import URLs for metadata
+  let visitedNodes = 0;
 
-  const stack = [];
-
-  async function resolveNode(node, depth) {
+  async function resolveNode(node, importDepth, stack = []) {
     if (!node || typeof node !== 'object') return node;
-    if (depth > maxDepth) {
+    visitedNodes += 1;
+    if (visitedNodes > maxNodes) {
+      throw new Error(`Import resolution exceeded maxNodes=${maxNodes}`);
+    }
+    if (importDepth > maxDepth) {
       throw new Error(`Import resolution exceeded maxDepth=${maxDepth} at ${node?.meta?.path || '?'}`);
     }
 
@@ -37,16 +42,16 @@ async function resolveImports(expr, resolveValueSet, opts = {}) {
       return node;
 
     case 'union':
-      return { ...node, items: await Promise.all((node.items || []).map(n => resolveNode(n, depth + 1))) };
+      return { ...node, items: await Promise.all((node.items || []).map(n => resolveNode(n, importDepth, stack))) };
 
     case 'intersect':
-      return { ...node, items: await Promise.all((node.items || []).map(n => resolveNode(n, depth + 1))) };
+      return { ...node, items: await Promise.all((node.items || []).map(n => resolveNode(n, importDepth, stack))) };
 
     case 'diff':
-      return { ...node, left: await resolveNode(node.left, depth + 1), right: await resolveNode(node.right, depth + 1) };
+      return { ...node, left: await resolveNode(node.left, importDepth, stack), right: await resolveNode(node.right, importDepth, stack) };
 
     case 'import':
-      return await resolveImport(node, depth + 1);
+      return await resolveImport(node, importDepth + 1, stack);
 
     default:
       return node;
@@ -60,7 +65,7 @@ async function resolveImports(expr, resolveValueSet, opts = {}) {
     return { url: u, version: v || null };
   }
 
-  async function resolveImport(node, depth) {
+  async function resolveImport(node, depth, stack) {
     if (node.resolved) return node;
 
     const parsed = parseRef(node.url);
@@ -68,48 +73,43 @@ async function resolveImports(expr, resolveValueSet, opts = {}) {
     const version = node.version || parsed.version || null;
     const key = version ? `${url}|${version}` : url;
 
+    if (cache.has(key)) {
+      return { ...node, resolved: cache.get(key) };
+    }
+
     if (stack.includes(key)) {
       const cycle = [...stack, key].join(' -> ');
       throw new Error(`ValueSet import cycle detected: ${cycle}`);
     }
 
-    if (cache.has(key)) {
-      return { ...node, resolved: cache.get(key) };
+    const vs = await resolveValueSet(url, version);
+    if (!vs) {
+      throw new Error(`Imported ValueSet not found: ${key}`);
     }
 
-    stack.push(key);
-    try {
-      const vs = await resolveValueSet(url, version);
-      if (!vs) {
-        throw new Error(`Imported ValueSet not found: ${key}`);
-      }
+    const vsJson = vs.jsonObj || vs;
+    // Track the resolved URL (with version if available) for used-valueset metadata
+    const resolvedVersion = vsJson.version || version;
+    usedValueSets.add(resolvedVersion ? `${url}|${resolvedVersion}` : url);
+    let importedExpr;
 
-      const vsJson = vs.jsonObj || vs;
-      // Track the resolved URL (with version if available) for used-valueset metadata
-      const resolvedVersion = vsJson.version || version;
-      usedValueSets.add(resolvedVersion ? `${url}|${resolvedVersion}` : url);
-      let importedExpr;
-
-      // Prefer compose-based IR when available. This preserves set semantics and enables
-      // provider pushdown on imported content. Fall back to pre-expanded membership only
-      // when compose is absent or explicitly not preferred.
-      if (preferComposeOverExpansion && vsJson?.compose) {
-        importedExpr = buildIRFromValueSet(vsJson);
-      } else if (vsJson.expansion?.contains) {
-        importedExpr = buildIRFromExpansion(vsJson);
-      } else {
-        importedExpr = buildIRFromValueSet(vsJson);
-      }
-
-      importedExpr = await resolveNode(importedExpr, depth + 1);
-      cache.set(key, importedExpr);
-      return { ...node, resolved: importedExpr };
-    } finally {
-      stack.pop();
+    // Prefer compose-based IR when available. This preserves set semantics and enables
+    // provider pushdown on imported content. Fall back to pre-expanded membership only
+    // when compose is absent or explicitly not preferred.
+    if (preferComposeOverExpansion && vsJson?.compose) {
+      importedExpr = buildIRFromValueSet(vsJson);
+    } else if (vsJson.expansion?.contains) {
+      importedExpr = buildIRFromExpansion(vsJson);
+    } else {
+      importedExpr = buildIRFromValueSet(vsJson);
     }
+
+    importedExpr = await resolveNode(importedExpr, depth + 1, [...stack, key]);
+    cache.set(key, importedExpr);
+    return { ...node, resolved: importedExpr };
   }
 
-  const resolved = await resolveNode(expr, 0);
+  const resolved = await resolveNode(expr, 0, []);
   resolved._usedValueSets = usedValueSets;
   return resolved;
 }

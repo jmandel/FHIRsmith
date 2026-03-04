@@ -281,12 +281,28 @@ function filterSignature(sel) {
     op: c?.op ?? null,
     value: c?.value ?? null,
   })));
+  const intersectCodes = normalizeIntersectCodes(sel?.intersectCodes);
   return JSON.stringify([
     String(sel?.system || ''),
     sel?.version || null,
     normalizeText(sel?.text),
     clauses,
+    intersectCodes,
   ]);
+}
+
+function normalizeIntersectCodes(codes) {
+  if (!Array.isArray(codes)) return null;
+  const out = [];
+  const seen = new Set();
+  for (const c of codes) {
+    const code = String(c || '').trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    out.push(code);
+  }
+  out.sort();
+  return out;
 }
 
 function dedupeFilterClauses(clauses) {
@@ -382,8 +398,11 @@ function projectToSystem(expr, system, version = null) {
     return expr;
   case 'selector': {
     if (String(expr.system) !== String(system)) return IR.empty();
-    if (version != null && (expr.version || null) !== version) {
-      // Version-specific projection (optional)
+    // Always project by exact (system, version) bucket.
+    // `null` version is a distinct bucket from any explicit version.
+    const exprVersion = expr.version || null;
+    const targetVersion = version || null;
+    if (exprVersion !== targetVersion) {
       return IR.empty();
     }
     return expr;
@@ -411,6 +430,78 @@ function splitDiffRoot(expr) {
   return { include: expr || IR.empty(), exclude: IR.empty() };
 }
 
+function analyzePartitionSafety(expr) {
+  const problems = [];
+
+  function walk(node, path) {
+    if (!node || typeof node !== 'object') {
+      problems.push(`${path}: invalid node`);
+      return;
+    }
+
+    switch (node.kind) {
+    case 'empty':
+      return;
+    case 'selector':
+      if (!node.system || String(node.system).trim() === '') {
+        problems.push(`${path}: selector missing system`);
+      }
+      return;
+    case 'import':
+      if (!node.resolved) {
+        const url = node.url ? ` (${node.url})` : '';
+        problems.push(`${path}: unresolved import${url}`);
+        return;
+      }
+      walk(node.resolved, `${path}.resolved`);
+      return;
+    case 'union':
+    case 'intersect':
+      for (let i = 0; i < (node.items || []).length; i++) {
+        walk(node.items[i], `${path}.items[${i}]`);
+      }
+      return;
+    case 'diff':
+      walk(node.left, `${path}.left`);
+      walk(node.right, `${path}.right`);
+      return;
+    default:
+      problems.push(`${path}: unknown node kind "${node.kind}"`);
+    }
+  }
+
+  walk(expr, 'root');
+  return {
+    ok: problems.length === 0,
+    reason: problems[0] || null,
+    problems,
+  };
+}
+
+function analyzeProjectedSubtree(expr, expectedSystem, expectedVersion = null) {
+  const base = analyzePartitionSafety(expr);
+  if (!base.ok) return base;
+
+  const expectedKey = `${String(expectedSystem || '')}|${expectedVersion || ''}`;
+  const foundSystems = [...collectSystems(expr).values()];
+  const mismatches = [];
+  for (const s of foundSystems) {
+    const key = `${String(s.system || '')}|${s.version || ''}`;
+    if (key !== expectedKey) {
+      mismatches.push(`expected ${expectedKey}, found ${key}`);
+    }
+  }
+
+  if (mismatches.length > 0) {
+    return {
+      ok: false,
+      reason: `projected subtree leaks outside target system/version: ${mismatches[0]}`,
+      problems: mismatches,
+    };
+  }
+  return { ok: true, reason: null, problems: [] };
+}
+
 function flattenUnionToList(expr) {
   const out = [];
   function walk(e) {
@@ -430,6 +521,8 @@ module.exports = {
   optimize,
   collectSystems,
   projectToSystem,
+  analyzePartitionSafety,
+  analyzeProjectedSubtree,
   splitDiffRoot,
   flattenUnionToList,
 };

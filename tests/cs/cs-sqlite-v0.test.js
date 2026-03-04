@@ -1,20 +1,14 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
 const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
 const { OperationContext } = require('../../tx/operation-context');
 const { Designations } = require('../../tx/library/designations');
 const { TestUtilities } = require('../test-utilities');
 const IR = require('../../tx/engine/ir');
-
-const DB_DIR = '/home/exedev/tx-data';
-const SNOMED_DB = path.join(DB_DIR, 'sct_intl_20250201.v0.db');
-const LOINC_DB = path.join(DB_DIR, 'loinc_281_full.v0.db');
-const RXNORM_DB = path.join(DB_DIR, 'rxnorm_02022026.v0.db');
+const { SNOMED_DB, LOINC_DB, RXNORM_DB, hasSnomed, hasLoinc, hasRxnorm } = require('../v0-db-config');
 
 // Skip all tests if v0 databases are not available
-const hasDBs = fs.existsSync(SNOMED_DB) && fs.existsSync(LOINC_DB) && fs.existsSync(RXNORM_DB);
+const hasDBs = hasSnomed && hasLoinc && hasRxnorm;
 const describeIfDBs = hasDBs ? describe : describe.skip;
 
 let i18n;

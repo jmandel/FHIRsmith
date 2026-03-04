@@ -433,6 +433,8 @@ node scripts/ir-harness.mjs              # all tests, IR engine
 node scripts/ir-harness.mjs --legacy     # all tests, original expander
 node scripts/ir-harness.mjs "SNOMED"     # filter by name
 node scripts/ir-harness.mjs --perf       # performance comparison table
+scripts/run-ir-harness.sh --all --db-dir /home/jmandel/hobby/sct/cache
+# one-command start/wait/run/teardown wrapper; writes logs + perf artifacts under tmp/ir-harness-runs/
 ```
 
 ### Simplification unit tests — 8 tests (`scripts/ir-rewrite-tests.mjs`)
@@ -453,6 +455,17 @@ splitting, cross-system empty elimination.
 | `hierarchy-regressions.test.js` | 2 | Edge cases: pagination window order, cross-system identity |
 | `partition-safety.test.js` | 6 | Validates expansion plan before execution (rejects unsafe partitions) |
 | `library-error-handling.test.js` | 6 | Library config loading, error reporting, env var substitution |
+
+### IR Fuzz + Direct Oracle
+
+Property-based and direct-oracle guidance lives in:
+`docs/ir-fuzzing.md`.
+
+Use it for:
+1. run commands and env vars (`IR_FUZZ_SEEDS`, `IR_FUZZ_SEED_ONLY`, `IR_FUZZ_STRICT_DIRECT`)
+2. what each fuzz mode proves
+3. failure triage (partitioning vs lowering vs execution vs oracle mismatch)
+4. generator limits and expected coverage boundaries
 
 ---
 
@@ -493,6 +506,7 @@ splitting, cross-system empty elimination.
 
 - `docs/ir-engine-gap-plan.md` — Phase-by-phase implementation history
   and test cross-reference
+- `docs/ir-fuzzing.md` — Detailed fuzz/direct-oracle workflow and diagnostics
 - `docs/legacy-expansion-gap.md` — Hierarchical vs flat expansion
   differences
 - `scripts/ir-harness.mjs` — HTTP test harness (source of truth)

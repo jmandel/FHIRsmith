@@ -33,6 +33,29 @@ const {I18nSupport} = require("../library/i18nsupport");
 const folders = require('../library/folder-setup');
 const {VSACValueSetProvider} = require("./vs/vs-vsac");
 
+function resolveEnvTemplates(value, context = 'config') {
+  if (typeof value === 'string') {
+    return value.replace(/\$\{([A-Z0-9_]+)\}/g, (match, name) => {
+      const resolved = process.env[name];
+      if (resolved == null || resolved === '') {
+        throw new Error(`Missing environment variable '${name}' required by library config at ${context}`);
+      }
+      return resolved;
+    });
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, i) => resolveEnvTemplates(item, `${context}[${i}]`));
+  }
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = resolveEnvTemplates(v, `${context}.${k}`);
+    }
+    return out;
+  }
+  return value;
+}
+
 /**
  * This class holds all the loaded content ready for processing
  *
@@ -153,7 +176,7 @@ class Library {
     // Read and parse YAML configuration
     const yamlPath = this.configFile ? this.configFile :  path.join(__dirname, '..', 'tx', 'tx.fhir.org.yml');
     const yamlContent = await fs.readFile(yamlPath, 'utf8');
-    const config = yaml.parse(yamlContent);
+    const config = resolveEnvTemplates(yaml.parse(yamlContent));
     this.baseUrl = config.base.url;
 
     this.log.info('Fetching Data from '+this.baseUrl);

@@ -13,6 +13,8 @@ describe('Library error handling', () => {
   });
 
   afterEach(async () => {
+    delete process.env.TEST_LIB_SRC;
+    delete process.env.V0_DB_DIR;
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -94,5 +96,32 @@ describe('Library error handling', () => {
     await library.load();
 
     expect(library.codeSystemFactories.size).toBeGreaterThanOrEqual(2);
+  }, 30000);
+
+  test('supports ${ENV_VAR} substitution in YAML sources', async () => {
+    process.env.TEST_LIB_SRC = 'lang';
+    await fs.writeFile(yamlPath, [
+      'base:',
+      '  url: https://storage.googleapis.com/tx-fhir-org',
+      'sources:',
+      '  - internal:${TEST_LIB_SRC}',
+    ].join('\n'));
+
+    const { library } = createLibrary(yamlPath);
+    await library.load();
+
+    expect(library.codeSystemFactories.has('urn:ietf:bcp:47')).toBe(true);
+  }, 30000);
+
+  test('fails fast on missing ${ENV_VAR} in YAML', async () => {
+    await fs.writeFile(yamlPath, [
+      'base:',
+      '  url: https://storage.googleapis.com/tx-fhir-org',
+      'sources:',
+      '  - internal:${MISSING_TEST_VAR}',
+    ].join('\n'));
+
+    const { library } = createLibrary(yamlPath);
+    await expect(library.load()).rejects.toThrow("Missing environment variable 'MISSING_TEST_VAR'");
   }, 30000);
 });
