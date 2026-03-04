@@ -32,7 +32,8 @@ function vs(include, exclude) {
   return { resourceType: 'ValueSet', compose: { include: inc, ...(exc ? { exclude: exc } : {}) } };
 }
 
-async function expand(vsJson, opts = {}, engine = 'ir') {
+const DEFAULT_ENGINE = RUN_LEGACY ? 'legacy' : 'ir';
+async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   lastExpandCall = { vsJson, opts };
   const params = [{ name: 'valueSet', resource: vsJson }];
   params.push({ name: '_engine', valueString: engine });
