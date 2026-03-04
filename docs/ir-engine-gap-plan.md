@@ -877,7 +877,7 @@ Phase 5 also adds ~2 new tests (v0 supplement path) not from codex-2.
 
 ## Known gaps discovered during implementation
 
-### Concept-valued property filters: code-or-display matching
+### Concept-valued property filters: code-or-display matching (won't fix)
 
 The legacy v0 provider supports `linkMatch: "code-or-display"` for
 concept-valued property filters (e.g. LOINC CLASS, COMPONENT, etc.).
@@ -885,14 +885,26 @@ When filtering `CLASS = CHEM`, the legacy provider matches against
 both the target concept's code (`LP7786-9`) AND its display (`CHEM`).
 
 The IR SQL builder (`sqlite-v0-sql.js`) only matches against `code IN (...)`,
-missing the display match. This means filters like `CLASS = CHEM` return 0
-results via IR but work via legacy.
+which is the correct FHIR behavior — the `=` operator on a Coding-valued
+property should match by code, not display text.
 
-**Fix**: In `buildFilterClause` for concept-valued properties, when the
-runtime config specifies `linkMatch: "code-or-display"`, the SQL should
-also match against `concept.display`. This requires passing the runtime
-filter config into the SQL builder.
+**The legacy `code-or-display` behavior is probably wrong.** FHIR R4
+§5.8.2 defines property filter `=` as matching the property value,
+which for a Coding-typed property means the code. Matching on display
+text conflates two distinct axes (code identity vs. human label) and
+produces fragile results that break when displays change.
 
-**Impact**: LOINC CLASS, COMPONENT, PROPERTY, TIME_ASPCT, SYSTEM,
-SCALE_TYP, METHOD_TYP filters all use `code-or-display`. These work
-via the LegacyIRAdapter fallback but not via native IR SQL pushdown.
+**Disposition: intentionally deferred / won't replicate in IR engine.**
+The IR engine's code-only matching is the correct behavior. If backward
+compatibility with old ValueSets that assumed display matching is ever
+needed, the right approach would be to register a small number of
+value aliases in the CodeSystem's runtime metadata (e.g. mapping the
+string `"CHEM"` → `"LP7786-9"` for LOINC CLASS). This keeps the
+matching semantics clean while accommodating legacy content.
+
+**Current impact**: LOINC CLASS, COMPONENT, PROPERTY, TIME_ASPCT,
+SYSTEM, SCALE_TYP, METHOD_TYP filters using display-text values
+return 0 results via native IR SQL pushdown but still work via the
+LegacyIRAdapter fallback path (which delegates to the legacy provider).
+No tests depend on this behavior — all existing LOINC property filter
+tests use correct code values or literal-valued properties like STATUS.
