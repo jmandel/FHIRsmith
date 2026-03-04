@@ -552,12 +552,15 @@ The trace/pushdown-toggle infrastructure doesn't exist in our engine.
 
 ## Execution order
 
-1. **Write tests for 1.1–1.4** (already committed in dfedbd0) +
-   port Phase 2 tests that already work
-2. **Implement 1.5** (designation filter) + test
-3. **Implement 1.6** (displayLanguage) + test
-4. **Implement 1.7** (redundant designation suppression) + test
-5. **Implement 1.8** (property regex in SQL) + test
+1. ✅ **Phase 1.1–1.4** (dfedbd0): compose display/designation overrides,
+   used-valueset, count≥0 guard. Tests: 1508e12.
+2. ✅ **Phase 1.5** (991ed82): designation parameter filter +
+   comprehensive param echoing (designations, displayLanguage, properties).
+3. ✅ **Phase 1.6–1.8** (99be2ca): displayLanguage echoed, redundant
+   designation test (passes as-is), property regex in sqlite-v0-sql.
+4. ✅ **Phase 2 batches 1-3** (7c1c316, 6f5516c, 67d8fe0): 40 ported
+   tests covering shape-A/B, infra, filters, logic, pagination,
+   multi-system, coverage, pagination-safety. 109 total tests.
 6. **Create `scripts/ir-rewrite-tests.mjs`** for Phase 3 unit tests
 7. **Add e2e rewrite parity tests** to the harness
 8. **Phase 4**: Add missing providers to fixture YAML (usstates,
