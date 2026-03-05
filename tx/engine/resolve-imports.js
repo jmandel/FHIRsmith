@@ -104,7 +104,7 @@ async function resolveImports(expr, resolveValueSet, opts = {}) {
       importedExpr = buildIRFromValueSet(vsJson);
     }
 
-    importedExpr = await resolveNode(importedExpr, depth + 1, [...stack, key]);
+    importedExpr = await resolveNode(importedExpr, depth, [...stack, key]);
     cache.set(key, importedExpr);
     return { ...node, resolved: importedExpr };
   }

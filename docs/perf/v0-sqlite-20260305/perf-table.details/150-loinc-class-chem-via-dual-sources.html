@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: LOINC CLASS=CHEM via dual sources</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#150 LOINC CLASS=CHEM via dual sources</h1>
+  <div class="meta">Category: Filter Semantics · Median perf: IR Branch + New Expander=36ms | IR Branch + Upstream Expander=1027ms | Upstream Providers + Upstream Expander=❌</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/150-loinc-class-chem-via-dual-sources.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 39ms capture wall · trace: 34.59ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 1211ms capture wall · trace: 1205.82ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: capture failed · response: n/a</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "CLASS",
+                    "op": "=",
+                    "value": "CHEM"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "CLASS",
+                    "op": "=",
+                    "value": "CHEM"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "CLASS",
+                    "op": "=",
+                    "value": "CHEM"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://loinc.org
+runtime-constraints:
+  pagination: offset=0 count=5
+optimized-ir:
+  selector filter http://loinc.org CLASS = CHEM</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 34.59,
+  "sqlCount": 2,
+  "sqlMs": 32.36,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 5
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 5,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://loinc.org",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 5
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0.01,
+                        "buildMs": 0.07,
+                        "prepMs": 0.18,
+                        "execMs": 17.81
+                      },
+                      "t": 19.58
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0) UNION SELECT l.source_concept_id FROM concept_link l JOIN concept tgt ON tgt.concept_id = l.target_concept_id WHERE l.property_id = @_xf0_prop AND l.edge_set_id …",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_prop": 8,
+                        "_xf0_vl0": "CHEM",
+                        "_xf0_eset": 1,
+                        "_xf0_val_cs": 1,
+                        "_xf0_vc0": "CHEM",
+                        "_limit": 5
+                      },
+                      "rows": 5,
+                      "ms": 17.81,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 18.16,
+                  "result": {
+                    "candidates": 5
+                  }
+                }
+              ],
+              "ms": 18.22,
+              "result": {
+                "candidates": 5
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://loinc.org"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0) UNION SELECT l.source_concept_id FROM concept_link l JOIN concept tgt ON tgt.concept_id = l.target_concept_id WHERE l.property_id = @_cntf0_prop AND l.edge_set_id = @_cntf0_eset AND l.act…",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_prop": 8,
+                        "_cntf0_vl0": "CHEM",
+                        "_cntf0_eset": 1,
+                        "_cntf0_val_cs": 1,
+                        "_cntf0_vc0": "CHEM"
+                      },
+                      "rows": 10841,
+                      "ms": 14.55,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 14.7,
+                  "result": {
+                    "count": 10841
+                  }
+                }
+              ],
+              "ms": 14.73,
+              "result": {
+                "count": 10841
+              }
+            }
+          ],
+          "ms": 32.98,
+          "result": {
+            "paged": 5
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 5,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 34.45,
+      "result": {
+        "total": 10841,
+        "contains": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 1205.82,
+  "sqlCount": 1,
+  "sqlMs": 816.54,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.02
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 5,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://loinc.org",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeSetIntersection",
+              "data": {
+                "filters": 1,
+                "after": 10841
+              },
+              "t": 926.75
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+              "params": {
+                "cs": 1
+              },
+              "rows": 248426,
+              "ms": 816.54,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 923.76,
+          "result": {
+            "rows": 10841
+          }
+        }
+      ],
+      "ms": 1205.75,
+      "result": {
+        "ms": 1205.72,
+        "returned": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>No structured trace payload returned.</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3892",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:26:00 GMT",
+    "etag": "W/\"f34-R39bFrJgj6LjodYbDZUYAgG/g3o\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1357"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:26:00.777Z",
+      "identifier": "urn:uuid:4bb0f139-ba48-4401-9c36-d1955aa7c830",
+      "total": 10841,
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "100150-2",
+          "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate [Moles/volume] in Plasma"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100151-0",
+          "display": "6-oxo-piperidine-2-carboxylate [Moles/volume] in Plasma"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100152-8",
+          "display": "6-oxo-piperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100153-6",
+          "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100359-9",
+          "display": "Gliadin 33 mer peptide [Mass/volume] in Stool by Immunoassay"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|2.81"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://loinc.org\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://loinc.org CLASS = CHEM"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":34.59,\"sqlCount\":2,\"sqlMs\":32.36,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.01,\"buildMs\":0.07,\"prepMs\":0.18,\"execMs\":17.81},\"t\":19.58}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0) UNION SELECT l.source_concept_id FROM concept_link l JOIN concept tgt ON tgt.concept_id = l.target_concept_id WHERE l.property_id = @_xf0_prop AND l.edge_set_id …\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":8,\"_xf0_vl0\":\"CHEM\",\"_xf0_eset\":1,\"_xf0_val_cs\":1,\"_xf0_vc0\":\"CHEM\",\"_limit\":5},\"rows\":5,\"ms\":17.81,\"label\":\"executeIR\"}],\"ms\":18.16,\"result\":{\"candidates\":5}}],\"ms\":18.22,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0) UNION SELECT l.source_concept_id FROM concept_link l JOIN concept tgt ON tgt.concept_id = l.target_concept_id WHERE l.property_id = @_cntf0_prop AND l.edge_set_id = @_cntf0_eset AND l.act…\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":8,\"_cntf0_vl0\":\"CHEM\",\"_cntf0_eset\":1,\"_cntf0_val_cs\":1,\"_cntf0_vc0\":\"CHEM\"},\"rows\":10841,\"ms\":14.55,\"label\":\"countForIR\"}],\"ms\":14.7,\"result\":{\"count\":10841}}],\"ms\":14.73,\"result\":{\"count\":10841}}],\"ms\":32.98,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":34.45,\"result\":{\"total\":10841,\"contains\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2234",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:26:00 GMT",
+    "etag": "W/\"8ba-NIEsGqpivOT2EFiPdTl7w0oB7u0\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1356"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:25:59.532Z",
+      "identifier": "urn:uuid:cb606d67-9881-457e-88a2-6664e1e43e77",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|2.81"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "100150-2",
+          "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate [Moles/volume] in Plasma"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100151-0",
+          "display": "6-oxo-piperidine-2-carboxylate [Moles/volume] in Plasma"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100152-8",
+          "display": "6-oxo-piperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100153-6",
+          "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100359-9",
+          "display": "Gliadin 33 mer peptide [Mass/volume] in Stool by Immunoassay"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1205.82,\"sqlCount\":1,\"sqlMs\":816.54,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.02},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":10841},\"t\":926.75}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":816.54,\"label\":\"legacy:executeFilters\"}],\"ms\":923.76,\"result\":{\"rows\":10841}}],\"ms\":1205.75,\"result\":{\"ms\":1205.72,\"returned\":5}}]}"
+        },
+        {
+          "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+          "extension": [
+            {
+              "url": "code",
+              "valueCode": "status"
+            },
+            {
+              "url": "uri",
+              "valueUri": "http://hl7.org/fhir/concept-properties#status"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "error": "This operation was aborted"
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

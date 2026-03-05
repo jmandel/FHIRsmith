@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: SQLite v0 filter + preloaded whole + single-system enumerated</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#97 SQLite v0 filter + preloaded whole + single-system enumerated</h1>
+  <div class="meta">Category: Multi-System Composition · Median perf: IR Branch + New Expander=4ms | IR Branch + Upstream Expander=17ms | Upstream Providers + Upstream Expander=11ms</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/097-sqlite-v0-filter-preloaded-whole-single-system-enumerated.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 4ms capture wall · trace: 2.55ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 17ms capture wall · trace: 14.87ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 9ms capture wall · trace: 7.35ms · response: 200 OK</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              },
+              {
+                "system": "urn:iso:std:iso:4217"
+              },
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "male"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              },
+              {
+                "system": "urn:iso:std:iso:4217"
+              },
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "male"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              },
+              {
+                "system": "urn:iso:std:iso:4217"
+              },
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "male"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://hl7.org/fhir/administrative-gender, http://snomed.info/sct, urn:iso:std:iso:4217
+runtime-constraints:
+  pagination: offset=0 count=5
+optimized-ir:
+  union [3]
+    selector filter http://snomed.info/sct concept is-a 73211009
+    selector whole urn:iso:std:iso:4217
+    selector concept http://hl7.org/fhir/administrative-gender [1] male</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 2.55,
+  "sqlCount": 2,
+  "sqlMs": 0.61,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 3,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 5
+      },
+      "children": [
+        {
+          "name": "note",
+          "message": "count:static",
+          "data": {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "count": 1
+          },
+          "t": 0.2
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://snomed.info/sct"
+          },
+          "children": [
+            {
+              "name": "countForIR:sql",
+              "args": {
+                "system": "http://snomed.info/sct"
+              },
+              "children": [],
+              "sql": [
+                {
+                  "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1",
+                  "params": {
+                    "_cnt_csId": 1,
+                    "_cntf0_anc_code": "73211009",
+                    "_cntf0_cs": 1
+                  },
+                  "rows": 124,
+                  "ms": 0.42,
+                  "label": "countForIR"
+                }
+              ],
+              "ms": 0.56,
+              "result": {
+                "count": 124
+              }
+            }
+          ],
+          "ms": 0.58,
+          "result": {
+            "count": 124
+          }
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "urn:iso:std:iso:4217"
+          },
+          "children": [],
+          "ms": 0.84,
+          "result": {
+            "count": 182
+          }
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 307,
+            "offset": 0,
+            "count": 5,
+            "systems": 3
+          },
+          "children": [
+            {
+              "name": "system:http://hl7.org/fhir/administrative-gender",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 1
+              },
+              "children": [],
+              "ms": 0.03,
+              "result": {
+                "candidates": 1
+              }
+            },
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 4
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "standard path chosen (EXISTS rewrite skipped)",
+                      "data": {
+                        "closureCount": 124,
+                        "conceptCount": 519624,
+                        "hasText": false
+                      },
+                      "t": 2.19
+                    },
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0.03,
+                        "buildMs": 0.03,
+                        "prepMs": 0.08,
+                        "execMs": 0.19
+                      },
+                      "t": 2.49
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_anc_code": "73211009",
+                        "_xf0_cs": 1,
+                        "_limit": 4
+                      },
+                      "rows": 4,
+                      "ms": 0.19,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 0.35,
+                  "result": {
+                    "candidates": 4
+                  }
+                }
+              ],
+              "ms": 0.36,
+              "result": {
+                "candidates": 4
+              }
+            }
+          ],
+          "ms": 0.39,
+          "result": {
+            "paged": 5
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 5,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 2.5,
+      "result": {
+        "total": 307,
+        "contains": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 14.87,
+  "sqlCount": 1,
+  "sqlMs": 0.57,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 5,
+        "offset": 0,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://snomed.info/sct",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+              "params": {
+                "cs": 1,
+                "f0_anc_code": "73211009",
+                "f0_cs": 1
+              },
+              "rows": 124,
+              "ms": 0.57,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 0.6,
+          "result": {
+            "rows": 124
+          }
+        }
+      ],
+      "ms": 14.85,
+      "result": {
+        "ms": 14.84,
+        "total": 307,
+        "returned": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 7.35,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 5,
+        "offset": 0,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 7.33,
+      "result": {
+        "ms": 7.32,
+        "total": 307,
+        "returned": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4545",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:37 GMT",
+    "etag": "W/\"11c1-sxbJtnCXhOXbMqBT8YDCTa4bJS4\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-889"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:37.077Z",
+      "identifier": "urn:uuid:6ea0f5bc-b45a-4c7e-a943-b37cf8f9ef2c",
+      "total": 307,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "male",
+          "display": "Male"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "105401000119101",
+          "display": "Diabetes mellitus due to pancreatic injury (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "106281000119103",
+          "display": "Pre-existing diabetes mellitus in mother complicating childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10753491000119101",
+          "display": "Gestational diabetes mellitus in childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10754881000119104",
+          "display": "Diabetes mellitus in mother complicating childbirth (disorder)"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "urn:iso:std:iso:4217"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://hl7.org/fhir/administrative-gender, http://snomed.info/sct, urn:iso:std:iso:4217\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  union [3]\n    selector filter http://snomed.info/sct concept is-a 73211009\n    selector whole urn:iso:std:iso:4217\n    selector concept http://hl7.org/fhir/administrative-gender [1] male"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":2.55,\"sqlCount\":2,\"sqlMs\":0.61,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":3,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.2},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_anc_code\":\"73211009\",\"_cntf0_cs\":1},\"rows\":124,\"ms\":0.42,\"label\":\"countForIR\"}],\"ms\":0.56,\"result\":{\"count\":124}}],\"ms\":0.58,\"result\":{\"count\":124}},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:4217\"},\"children\":[],\"ms\":0.84,\"result\":{\"count\":182}},{\"name\":\"pagination\",\"args\":{\"total\":307,\"offset\":0,\"count\":5,\"systems\":3},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.03,\"result\":{\"candidates\":1}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"standard path chosen (EXISTS rewrite skipped)\",\"data\":{\"closureCount\":124,\"conceptCount\":519624,\"hasText\":false},\"t\":2.19},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.03,\"buildMs\":0.03,\"prepMs\":0.08,\"execMs\":0.19},\"t\":2.49}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"73211009\",\"_xf0_cs\":1,\"_limit\":4},\"rows\":4,\"ms\":0.19,\"label\":\"executeIR\"}],\"ms\":0.35,\"result\":{\"candidates\":4}}],\"ms\":0.36,\"result\":{\"candidates\":4}}],\"ms\":0.39,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":2.5,\"result\":{\"total\":307,\"contains\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2387",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:37 GMT",
+    "etag": "W/\"953-Dvw3uOk++fXGwpnU2JL27Xs5YL4\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-888"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:37.058Z",
+      "identifier": "urn:uuid:e4cdcb0a-8250-4d7a-b1a2-55d17867a01f",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 0
+        },
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "urn:iso:std:iso:4217"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        }
+      ],
+      "offset": 0,
+      "total": 307,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "105401000119101",
+          "display": "Diabetes mellitus due to pancreatic injury (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "106281000119103",
+          "display": "Pre-existing diabetes mellitus in mother complicating childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10753491000119101",
+          "display": "Gestational diabetes mellitus in childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10754881000119104",
+          "display": "Diabetes mellitus in mother complicating childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "111307005",
+          "display": "Leprechaunism syndrome"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":14.87,\"sqlCount\":1,\"sqlMs\":0.57,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.57,\"label\":\"legacy:executeFilters\"}],\"ms\":0.6,\"result\":{\"rows\":124}}],\"ms\":14.85,\"result\":{\"ms\":14.84,\"total\":307,\"returned\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1729",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:37 GMT",
+    "etag": "W/\"6c1-FnFQ1aVhZVLy7wnRzv6aqU9wpU4\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-351"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:37.080Z",
+      "identifier": "urn:uuid:77e8c1a6-b41e-4676-8b19-d0e5cb4f72ae",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 0
+        },
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "urn:iso:std:iso:4217"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        }
+      ],
+      "offset": 0,
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+          "valueBoolean": true
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":7.35,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":7.33,\"result\":{\"ms\":7.32,\"total\":307,\"returned\":5}}]}"
+        }
+      ],
+      "total": 307,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "73211009",
+          "display": "Diabetes mellitus"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "2751001",
+          "display": "Fibrocalculous pancreatic diabetes"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "4783006",
+          "display": "Maternal diabetes mellitus with hypoglycemia affecting fetus OR newborn"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "5368009",
+          "display": "Drug-induced diabetes mellitus"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "5969009",
+          "display": "Diabetes mellitus associated with genetic syndrome"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

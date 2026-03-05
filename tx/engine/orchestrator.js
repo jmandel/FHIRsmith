@@ -242,12 +242,45 @@ function nestContains(contains, candidates) {
 }
 
 function canHandleValueSet(vsJson) {
+  if (!vsJson || typeof vsJson !== 'object') return false;
   // Expansion-only ValueSets should preserve their existing expansion
   // (legacy short-circuits these). Let legacy handle this shape.
   if (vsJson?.expansion && !vsJson?.compose) return false;
-  // Be permissive: IR can trivially represent/execute empty or degenerate compose
-  // as an empty expansion, and runtime safety checks still fail-closed when needed.
-  return !!vsJson && typeof vsJson === 'object';
+  const compose = vsJson.compose;
+  if (!compose) return true;
+  const include = compose.include;
+  const exclude = compose.exclude;
+  if (include != null && !Array.isArray(include)) return false;
+  if (exclude != null && !Array.isArray(exclude)) return false;
+
+  const components = [...(include || []), ...(exclude || [])];
+  for (const cset of components) {
+    if (!cset || typeof cset !== 'object') return false;
+
+    const hasSystem = cset.system != null && String(cset.system) !== '';
+    const hasVersion = cset.version != null && String(cset.version) !== '';
+    const hasConceptField = cset.concept != null;
+    const hasFilterField = cset.filter != null;
+    const hasValueSetField = cset.valueSet != null;
+    const hasConcept = Array.isArray(cset.concept) && cset.concept.length > 0;
+    const hasFilter = Array.isArray(cset.filter) && cset.filter.length > 0;
+    const hasValueSet = Array.isArray(cset.valueSet) && cset.valueSet.length > 0;
+
+    if (hasConceptField && !Array.isArray(cset.concept)) return false;
+    if (hasFilterField && !Array.isArray(cset.filter)) return false;
+    if (hasValueSetField && !Array.isArray(cset.valueSet)) return false;
+
+    // vsd-1
+    if (hasConcept && hasFilter) return false;
+    // vsd-2
+    if ((hasConcept || hasFilter) && !hasSystem) return false;
+    // vsd-3
+    if (hasVersion && !hasSystem) return false;
+
+    // Strict mode: reject empty components that cannot contribute semantics.
+    if (!hasSystem && !hasValueSet && !hasConcept && !hasFilter) return false;
+  }
+  return true;
 }
 
 /**

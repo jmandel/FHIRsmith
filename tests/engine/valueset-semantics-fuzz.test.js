@@ -13,6 +13,10 @@ const { expandViaIR } = require('../../tx/engine/orchestrator');
 jest.setTimeout(60000);
 
 const SYSTEMS = ['urn:sys:A', 'urn:sys:B'];
+const SYSTEM_VERSIONS = {
+  'urn:sys:A': ['A.v1', 'A.v2'],
+  'urn:sys:B': ['B.v1', 'B.v2'],
+};
 const KINDS = ['lab', 'diag', 'rx', 'root'];
 
 class RNG {
@@ -91,8 +95,16 @@ function makeCatalog() {
 
 const CATALOG = makeCatalog();
 
-function tokenOf(system, code) {
-  return `${system}|${code}`;
+function tokenOf(system, code, version = null) {
+  return `${system}|${version || ''}|${code}`;
+}
+
+function parseToken(token) {
+  const parts = String(token || '').split('|');
+  const code = parts.pop() || '';
+  const version = parts.pop() || null;
+  const system = parts.join('|');
+  return { system, version, code };
 }
 
 function parseRef(ref) {
@@ -116,13 +128,13 @@ function descendants(system, code, includeSelf) {
   return out;
 }
 
-function allTokensForSystem(system) {
+function allTokensForSystem(system, version = null) {
   const sys = CATALOG.get(system);
   if (!sys) return new Set();
-  return new Set([...sys.byCode.keys()].map(code => tokenOf(system, code)));
+  return new Set([...sys.byCode.keys()].map(code => tokenOf(system, code, version)));
 }
 
-function tokensForClause(system, clause) {
+function tokensForClause(system, clause, version = null) {
   const sys = CATALOG.get(system);
   if (!sys) return new Set();
   const p = String(clause.property || '');
@@ -131,17 +143,17 @@ function tokensForClause(system, clause) {
 
   if (p === 'concept' && op === 'is-a') {
     const set = descendants(system, v, true);
-    return new Set([...set].map(code => tokenOf(system, code)));
+    return new Set([...set].map(code => tokenOf(system, code, version)));
   }
   if (p === 'concept' && op === 'descendent-of') {
     const set = descendants(system, v, false);
-    return new Set([...set].map(code => tokenOf(system, code)));
+    return new Set([...set].map(code => tokenOf(system, code, version)));
   }
   if (p === 'kind' && op === '=') {
     return new Set(
       [...sys.byCode.values()]
         .filter(c => c.kind === v)
-        .map(c => tokenOf(system, c.code))
+        .map(c => tokenOf(system, c.code, version))
     );
   }
   if (p === 'code' && op === 'regex') {
@@ -150,7 +162,7 @@ function tokensForClause(system, clause) {
     return new Set(
       [...sys.byCode.values()]
         .filter(c => re.test(c.code))
-        .map(c => tokenOf(system, c.code))
+        .map(c => tokenOf(system, c.code, version))
     );
   }
   return new Set();
@@ -212,6 +224,9 @@ function buildRandomComponent(rng, prevUrls) {
   const system = rng.pick(SYSTEMS);
   const mode = rng.pick(['concept', 'filter', 'whole']);
   const comp = { system };
+  if (rng.chance(0.35)) {
+    comp.version = rng.pick(SYSTEM_VERSIONS[system]);
+  }
 
   if (mode === 'concept') {
     const codes = pickDistinct(rng, allCodes(system), rng.int(1, 4));
@@ -250,7 +265,7 @@ function buildRandomComponent(rng, prevUrls) {
     comp.filter = clauses;
   }
 
-  if (canImport && rng.chance(0.35)) {
+  if (!comp.version && canImport && rng.chance(0.35)) {
     comp.valueSet = pickDistinct(rng, prevUrls, rng.int(1, Math.min(2, prevUrls.length)));
   }
 
@@ -304,30 +319,46 @@ function buildRandomLibrary(seed) {
   };
 }
 
+function countVersionedComponents(byUrl) {
+  let n = 0;
+  for (const vs of byUrl.values()) {
+    const include = Array.isArray(vs?.compose?.include) ? vs.compose.include : [];
+    const exclude = Array.isArray(vs?.compose?.exclude) ? vs.compose.exclude : [];
+    for (const c of [...include, ...exclude]) {
+      if (c?.version) n += 1;
+    }
+  }
+  return n;
+}
+
 function evalComponentDirect(cset, evalRef) {
   if (!cset.system) {
-    const out = new Set();
-    for (const ref of cset.valueSet || []) {
-      unionInto(out, evalRef(ref));
+    const refs = cset.valueSet || [];
+    if (refs.length === 0) return new Set();
+    let out = new Set(evalRef(refs[0]));
+    for (const ref of refs.slice(1)) {
+      out = intersect(out, evalRef(ref));
+      if (out.size === 0) break;
     }
     return out;
   }
 
   const system = String(cset.system);
+  const version = cset.version ? String(cset.version) : null;
   let set;
   if (Array.isArray(cset.concept) && cset.concept.length > 0) {
     set = new Set();
     for (const cc of cset.concept) {
       const code = String(cc.code || '');
-      if (CATALOG.get(system).byCode.has(code)) set.add(tokenOf(system, code));
+      if (CATALOG.get(system).byCode.has(code)) set.add(tokenOf(system, code, version));
     }
   } else if (Array.isArray(cset.filter) && cset.filter.length > 0) {
-    set = allTokensForSystem(system);
+    set = allTokensForSystem(system, version);
     for (const clause of cset.filter) {
-      set = intersect(set, tokensForClause(system, clause));
+      set = intersect(set, tokensForClause(system, clause, version));
     }
   } else {
-    set = allTokensForSystem(system);
+    set = allTokensForSystem(system, version);
   }
 
   if (Array.isArray(cset.valueSet) && cset.valueSet.length > 0) {
@@ -382,27 +413,28 @@ function evaluateIR(node) {
     return new Set();
   case 'selector': {
     const system = String(node.system || '');
+    const version = node.version ? String(node.version) : null;
     if (!CATALOG.has(system)) return new Set();
     if (node.shape === 'concept') {
       const out = new Set();
       for (const cc of node.conceptCodes || []) {
         const code = String(cc.code || '');
-        if (CATALOG.get(system).byCode.has(code)) out.add(tokenOf(system, code));
+        if (CATALOG.get(system).byCode.has(code)) out.add(tokenOf(system, code, version));
       }
       return out;
     }
     if (node.shape === 'filter') {
-      let out = allTokensForSystem(system);
+      let out = allTokensForSystem(system, version);
       for (const clause of node.filterClauses || []) {
-        out = intersect(out, tokensForClause(system, clause));
+        out = intersect(out, tokensForClause(system, clause, version));
       }
       if (Array.isArray(node.intersectCodes) && node.intersectCodes.length > 0) {
-        const allow = new Set(node.intersectCodes.map(code => tokenOf(system, String(code))));
+        const allow = new Set(node.intersectCodes.map(code => tokenOf(system, String(code), version)));
         out = intersect(out, allow);
       }
       return out;
     }
-    return allTokensForSystem(system);
+    return allTokensForSystem(system, version);
   }
   case 'import':
     return node.resolved ? evaluateIR(node.resolved) : new Set();
@@ -424,7 +456,10 @@ function buildTokenMeta() {
   const map = new Map();
   for (const [system, data] of CATALOG.entries()) {
     for (const c of data.byCode.values()) {
-      map.set(tokenOf(system, c.code), c);
+      map.set(tokenOf(system, c.code, null), c);
+      for (const version of SYSTEM_VERSIONS[system] || []) {
+        map.set(tokenOf(system, c.code, version), c);
+      }
     }
   }
   return map;
@@ -440,7 +475,7 @@ function applyRequestFilters(tokens, opts) {
   if (opts.text) {
     const q = String(opts.text).toLowerCase();
     out = new Set([...out].filter(t => {
-      const [system, code] = t.split('|');
+      const { system, code } = parseToken(t);
       const meta = TOKEN_META.get(t);
       if (!meta) return false;
       return code.toLowerCase().includes(q)
@@ -453,9 +488,16 @@ function applyRequestFilters(tokens, opts) {
 
 function pageTokens(tokens, offset, count) {
   const ordered = sorted(tokens).sort((a, b) => {
-    const [sa, ca] = a.split('|');
-    const [sb, cb] = b.split('|');
+    const ta = parseToken(a);
+    const tb = parseToken(b);
+    const sa = ta.system;
+    const sb = tb.system;
+    const va = ta.version || '';
+    const vb = tb.version || '';
+    const ca = ta.code;
+    const cb = tb.code;
     if (sa !== sb) return sa < sb ? -1 : 1;
+    if (va !== vb) return va < vb ? -1 : 1;
     return ca < cb ? -1 : ca > cb ? 1 : 0;
   });
   if (count === 0) return [];
@@ -466,7 +508,7 @@ function pageTokens(tokens, offset, count) {
 
 function flattenContains(contains, out = []) {
   for (const c of contains || []) {
-    if (c.system && c.code) out.push(tokenOf(c.system, c.code));
+    if (c.system && c.code) out.push(tokenOf(c.system, c.code, c.version || null));
     flattenContains(c.contains, out);
   }
   return out;
@@ -526,7 +568,7 @@ class ToyProvider {
     const sets = [];
     for (const clause of prep.clauses || []) {
       const tokSet = tokensForClause(this._system, clause);
-      const codeSet = new Set([...tokSet].map(t => t.split('|')[1]));
+      const codeSet = new Set([...tokSet].map(t => parseToken(t).code));
       sets.push({ codes: sorted(codeSet), index: 0, codeSet });
     }
     return sets;
@@ -546,10 +588,47 @@ class ToyProvider {
   }
 }
 
+describe('direct oracle semantics', () => {
+  test('systemless include with multiple imports is conjunctive', () => {
+    const a = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/a',
+      compose: { include: [{ system: 'urn:sys:A', concept: [{ code: 'A-110' }, { code: 'A-120' }] }] },
+    };
+    const b = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/b',
+      compose: { include: [{ system: 'urn:sys:A', concept: [{ code: 'A-120' }, { code: 'A-121' }] }] },
+    };
+    const root = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/root',
+      compose: { include: [{ valueSet: [a.url, b.url] }] },
+    };
+    const byUrl = new Map([
+      [a.url, a],
+      [b.url, b],
+      [root.url, root],
+    ]);
+
+    const out = sorted(evaluateValueSetDirect(root, byUrl));
+    expect(out).toEqual([tokenOf('urn:sys:A', 'A-120', null)]);
+  });
+});
+
 describe('IR semantic fuzz (recursive compositional ValueSets)', () => {
   const seedCount = Math.max(10, parseInt(process.env.IR_FUZZ_SEEDS || '120', 10));
   const seedOnly = process.env.IR_FUZZ_SEED_ONLY ? parseInt(process.env.IR_FUZZ_SEED_ONLY, 10) : null;
   const strictDirectOracle = process.env.IR_FUZZ_STRICT_DIRECT === '1';
+
+  test('random corpus generation includes versioned include/exclude components', () => {
+    let versioned = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const { byUrl } = buildRandomLibrary(seed);
+      versioned += countVersionedComponents(byUrl);
+    }
+    expect(versioned).toBeGreaterThan(0);
+  });
 
   test(`fuzzes ${seedCount} random seeds with independent reference semantics`, async () => {
     const start = Number.isInteger(seedOnly) ? seedOnly : 1;

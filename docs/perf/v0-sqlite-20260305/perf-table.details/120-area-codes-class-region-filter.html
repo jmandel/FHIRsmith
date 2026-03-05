@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Area codes class=region filter</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#120 Area codes class=region filter</h1>
+  <div class="meta">Category: Filter Semantics · Median perf: IR Branch + New Expander=3ms | IR Branch + Upstream Expander=4ms | Upstream Providers + Upstream Expander=3ms</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/120-area-codes-class-region-filter.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 3ms capture wall · trace: 0.8ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 4ms capture wall · trace: 1.71ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 4ms capture wall · trace: 1.62ms · response: 200 OK</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                "filter": [
+                  {
+                    "property": "class",
+                    "op": "=",
+                    "value": "region"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                "filter": [
+                  {
+                    "property": "class",
+                    "op": "=",
+                    "value": "region"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                "filter": [
+                  {
+                    "property": "class",
+                    "op": "=",
+                    "value": "region"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://unstats.un.org/unsd/methods/m49/m49.htm
+runtime-constraints:
+  pagination: offset=0 count=1000
+optimized-ir:
+  selector filter http://unstats.un.org/unsd/methods/m49/m49.htm class = region</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.8,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 1000
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 1000,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://unstats.un.org/unsd/methods/m49/m49.htm",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 1000
+              },
+              "children": [],
+              "ms": 0.49,
+              "result": {
+                "candidates": 29
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 0,
+                "returned": 29,
+                "total": 29
+              },
+              "t": 0.72
+            }
+          ],
+          "ms": 0.51,
+          "result": {
+            "paged": 29
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 29,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 0.73,
+      "result": {
+        "total": 29,
+        "contains": 29
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 1.71,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 1.68,
+      "result": {
+        "ms": 1.67,
+        "total": 29,
+        "returned": 29
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 1.62,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 1.58,
+      "result": {
+        "ms": 1.57,
+        "total": 29,
+        "returned": 29
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4369",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:53 GMT",
+    "etag": "W/\"1111-x+S0l7a7VA5MtqECQpeUVqmKo2M\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1108"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:53.618Z",
+      "identifier": "urn:uuid:e0d74414-838f-48c8-8e52-8975f2bf893f",
+      "total": 29,
+      "contains": [
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "001",
+          "display": "World"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "002",
+          "display": "Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "005",
+          "display": "South America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "009",
+          "display": "Oceania"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "011",
+          "display": "Western Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "013",
+          "display": "Central America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "014",
+          "display": "Eastern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "015",
+          "display": "Northern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "017",
+          "display": "Middle Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "018",
+          "display": "Southern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "019",
+          "display": "Americas"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "021",
+          "display": "Northern America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "029",
+          "display": "Caribbean"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "030",
+          "display": "Eastern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "034",
+          "display": "Southern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "035",
+          "display": "South-Eastern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "039",
+          "display": "Southern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "053",
+          "display": "Australia and New Zealand"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "054",
+          "display": "Melanesia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "057",
+          "display": "Micronesia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "061",
+          "display": "Polynesia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "142",
+          "display": "Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "143",
+          "display": "Central Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "145",
+          "display": "Western Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "150",
+          "display": "Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "151",
+          "display": "Eastern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "154",
+          "display": "Northern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "155",
+          "display": "Western Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "419",
+          "display": "Latin America and the Caribbean"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://unstats.un.org/unsd/methods/m49/m49.htm\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://unstats.un.org/unsd/methods/m49/m49.htm class = region"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.8,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://unstats.un.org/unsd/methods/m49/m49.htm\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.49,\"result\":{\"candidates\":29}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":29,\"total\":29},\"t\":0.72}],\"ms\":0.51,\"result\":{\"paged\":29}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":29,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":0.73,\"result\":{\"total\":29,\"contains\":29}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3708",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:53 GMT",
+    "etag": "W/\"e7c-Pe6s2VJvYP8BLiNtTYyOENU39R8\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1107"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:53.614Z",
+      "identifier": "urn:uuid:4aa40f80-3dc8-4701-b71f-95f1e47db396",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+        }
+      ],
+      "total": 29,
+      "contains": [
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "001",
+          "display": "World"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "002",
+          "display": "Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "014",
+          "display": "Eastern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "017",
+          "display": "Middle Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "015",
+          "display": "Northern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "018",
+          "display": "Southern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "011",
+          "display": "Western Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "019",
+          "display": "Americas"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "419",
+          "display": "Latin America and the Caribbean"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "029",
+          "display": "Caribbean"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "013",
+          "display": "Central America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "005",
+          "display": "South America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "021",
+          "display": "Northern America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "142",
+          "display": "Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "143",
+          "display": "Central Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "030",
+          "display": "Eastern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "034",
+          "display": "Southern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "035",
+          "display": "South-Eastern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "145",
+          "display": "Western Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "150",
+          "display": "Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "151",
+          "display": "Eastern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "154",
+          "display": "Northern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "039",
+          "display": "Southern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "155",
+          "display": "Western Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "009",
+          "display": "Oceania"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "053",
+          "display": "Australia and New Zealand"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "054",
+          "display": "Melanesia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "057",
+          "display": "Micronesia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "061",
+          "display": "Polynesia"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.71,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.68,\"result\":{\"ms\":1.67,\"total\":29,\"returned\":29}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3708",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:53 GMT",
+    "etag": "W/\"e7c-3Sl0KgLEV05Bi8+HJDv93wQuSBY\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-437"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:53.621Z",
+      "identifier": "urn:uuid:64c10108-6045-4b9b-9254-eec7fe610c32",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+        }
+      ],
+      "total": 29,
+      "contains": [
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "001",
+          "display": "World"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "002",
+          "display": "Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "014",
+          "display": "Eastern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "017",
+          "display": "Middle Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "015",
+          "display": "Northern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "018",
+          "display": "Southern Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "011",
+          "display": "Western Africa"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "019",
+          "display": "Americas"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "419",
+          "display": "Latin America and the Caribbean"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "029",
+          "display": "Caribbean"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "013",
+          "display": "Central America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "005",
+          "display": "South America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "021",
+          "display": "Northern America"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "142",
+          "display": "Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "143",
+          "display": "Central Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "030",
+          "display": "Eastern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "034",
+          "display": "Southern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "035",
+          "display": "South-Eastern Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "145",
+          "display": "Western Asia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "150",
+          "display": "Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "151",
+          "display": "Eastern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "154",
+          "display": "Northern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "039",
+          "display": "Southern Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "155",
+          "display": "Western Europe"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "009",
+          "display": "Oceania"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "053",
+          "display": "Australia and New Zealand"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "054",
+          "display": "Melanesia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "057",
+          "display": "Micronesia"
+        },
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "061",
+          "display": "Polynesia"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.62,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.58,\"result\":{\"ms\":1.57,\"total\":29,\"returned\":29}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

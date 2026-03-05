@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Multi-system expansion with exclude remains pagination-safe</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#48 Multi-system expansion with exclude remains pagination-safe</h1>
+  <div class="meta">Category: Composition Semantics · Median perf: IR Branch + New Expander=1ms | IR Branch + Upstream Expander=2ms | Upstream Providers + Upstream Expander=2ms</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/048-multi-system-expansion-with-exclude-remains-pagination-safe.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 2ms capture wall · trace: 0.69ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 3ms capture wall · trace: 0.9ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 2ms capture wall · trace: 0.57ms · response: 200 OK</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "system": "http://hl7.org/fhir/publication-status"
+              }
+            ],
+            "exclude": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              },
+              {
+                "system": "http://hl7.org/fhir/publication-status",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 2
+      },
+      {
+        "name": "offset",
+        "valueInteger": 4
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "system": "http://hl7.org/fhir/publication-status"
+              }
+            ],
+            "exclude": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              },
+              {
+                "system": "http://hl7.org/fhir/publication-status",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 2
+      },
+      {
+        "name": "offset",
+        "valueInteger": 4
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "system": "http://hl7.org/fhir/publication-status"
+              }
+            ],
+            "exclude": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              },
+              {
+                "system": "http://hl7.org/fhir/publication-status",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 2
+      },
+      {
+        "name": "offset",
+        "valueInteger": 4
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://hl7.org/fhir/administrative-gender, http://hl7.org/fhir/publication-status
+runtime-constraints:
+  pagination: offset=4 count=2
+optimized-ir:
+  union [2]
+    diff
+      selector whole http://hl7.org/fhir/administrative-gender
+      selector concept http://hl7.org/fhir/administrative-gender [1] unknown
+    diff
+      selector whole http://hl7.org/fhir/publication-status
+      selector concept http://hl7.org/fhir/publication-status [1] unknown</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.69,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 2,
+        "activeOnly": false,
+        "text": null,
+        "offset": 4,
+        "count": 2
+      },
+      "children": [
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          },
+          "children": [],
+          "ms": 0.1,
+          "result": {
+            "count": 3
+          }
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://hl7.org/fhir/publication-status"
+          },
+          "children": [],
+          "ms": 0.09,
+          "result": {
+            "count": 3
+          }
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 6,
+            "offset": 4,
+            "count": 2,
+            "systems": 2
+          },
+          "children": [
+            {
+              "name": "system:http://hl7.org/fhir/publication-status",
+              "args": {
+                "sysOffset": 1,
+                "sysCount": 2
+              },
+              "children": [],
+              "ms": 0.09,
+              "result": {
+                "candidates": 2
+              }
+            }
+          ],
+          "ms": 0.1,
+          "result": {
+            "paged": 2
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 2,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 0.63,
+      "result": {
+        "total": 6,
+        "contains": 2
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.9,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 2,
+        "offset": 4,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.87,
+      "result": {
+        "ms": 0.86,
+        "total": 6,
+        "returned": 2
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.57,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 2,
+        "offset": 4,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.55,
+      "result": {
+        "ms": 0.55,
+        "total": 6,
+        "returned": 2
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2254",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:24 GMT",
+    "etag": "W/\"8ce-+nQF56QvcFSYl3Kl/oXNB8b+oAI\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-446"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:24.394Z",
+      "identifier": "urn:uuid:37f24fce-0fb3-484e-a49b-3aea22d1f784",
+      "total": 6,
+      "offset": 4,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/publication-status",
+          "code": "draft",
+          "display": "Draft"
+        },
+        {
+          "system": "http://hl7.org/fhir/publication-status",
+          "code": "retired",
+          "display": "Retired"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "offset",
+          "valueInteger": 4
+        },
+        {
+          "name": "count",
+          "valueInteger": 2
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/publication-status|4.0.1"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://hl7.org/fhir/administrative-gender, http://hl7.org/fhir/publication-status\nruntime-constraints:\n  pagination: offset=4 count=2\noptimized-ir:\n  union [2]\n    diff\n      selector whole http://hl7.org/fhir/administrative-gender\n      selector concept http://hl7.org/fhir/administrative-gender [1] unknown\n    diff\n      selector whole http://hl7.org/fhir/publication-status\n      selector concept http://hl7.org/fhir/publication-status [1] unknown"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.69,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":4,\"count\":2},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.1,\"result\":{\"count\":3}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/publication-status\"},\"children\":[],\"ms\":0.09,\"result\":{\"count\":3}},{\"name\":\"pagination\",\"args\":{\"total\":6,\"offset\":4,\"count\":2,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/publication-status\",\"args\":{\"sysOffset\":1,\"sysCount\":2},\"children\":[],\"ms\":0.09,\"result\":{\"candidates\":2}}],\"ms\":0.1,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.63,\"result\":{\"total\":6,\"contains\":2}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1181",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:24 GMT",
+    "etag": "W/\"49d-MrsgRQhwzOsAB7alby6SbkQEnOg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-445"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:24.391Z",
+      "identifier": "urn:uuid:2b867825-b092-4fac-b709-d5f0867e98bd",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 4
+        },
+        {
+          "name": "count",
+          "valueInteger": 2
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/publication-status|4.0.1"
+        }
+      ],
+      "offset": 4,
+      "total": 6,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/publication-status",
+          "code": "active",
+          "display": "Active"
+        },
+        {
+          "system": "http://hl7.org/fhir/publication-status",
+          "code": "retired",
+          "display": "Retired"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.9,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":2,\"offset\":4,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.87,\"result\":{\"ms\":0.86,\"total\":6,\"returned\":2}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1182",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:24 GMT",
+    "etag": "W/\"49e-JW3nWn9sJgPENiNjdqDGOPy3U9A\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-167"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:24.396Z",
+      "identifier": "urn:uuid:ce19468c-7c56-464b-b9c1-a8a99ae104e6",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 4
+        },
+        {
+          "name": "count",
+          "valueInteger": 2
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/publication-status|4.0.1"
+        }
+      ],
+      "offset": 4,
+      "total": 6,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/publication-status",
+          "code": "active",
+          "display": "Active"
+        },
+        {
+          "system": "http://hl7.org/fhir/publication-status",
+          "code": "retired",
+          "display": "Retired"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.57,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":2,\"offset\":4,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.55,\"result\":{\"ms\":0.55,\"total\":6,\"returned\":2}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

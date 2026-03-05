@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: itemWeight supplement extension is projected</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#134 itemWeight supplement extension is projected</h1>
+  <div class="meta">Category: Supplements · Median perf: IR Branch + New Expander=2ms | IR Branch + Upstream Expander=2ms | Upstream Providers + Upstream Expander=2ms</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/134-itemweight-supplement-extension-is-projected.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 2ms capture wall · trace: 0.41ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 3ms capture wall · trace: 0.51ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 2ms capture wall · trace: 0.47ms · response: 200 OK</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs-s9",
+                "concept": [
+                  {
+                    "code": "W"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s9",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "W",
+              "display": "Whiskey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s9",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s9",
+          "concept": [
+            {
+              "code": "W",
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                  "valueDecimal": 3.5
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "useSupplement",
+        "valueString": "http://example.org/supp-s9"
+      },
+      {
+        "name": "property",
+        "valueString": "http://hl7.org/fhir/StructureDefinition/itemWeight"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs-s9",
+                "concept": [
+                  {
+                    "code": "W"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s9",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "W",
+              "display": "Whiskey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s9",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s9",
+          "concept": [
+            {
+              "code": "W",
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                  "valueDecimal": 3.5
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "useSupplement",
+        "valueString": "http://example.org/supp-s9"
+      },
+      {
+        "name": "property",
+        "valueString": "http://hl7.org/fhir/StructureDefinition/itemWeight"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs-s9",
+                "concept": [
+                  {
+                    "code": "W"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s9",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "W",
+              "display": "Whiskey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s9",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s9",
+          "concept": [
+            {
+              "code": "W",
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                  "valueDecimal": 3.5
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "useSupplement",
+        "valueString": "http://example.org/supp-s9"
+      },
+      {
+        "name": "property",
+        "valueString": "http://hl7.org/fhir/StructureDefinition/itemWeight"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://example.org/cs-s9
+runtime-constraints:
+  pagination: offset=0 count=1000
+optimized-ir:
+  selector concept http://example.org/cs-s9 [1] W</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.41,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 1000
+      },
+      "children": [
+        {
+          "name": "note",
+          "message": "count:static",
+          "data": {
+            "system": "http://example.org/cs-s9",
+            "count": 1
+          },
+          "t": 0.23
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 1,
+            "offset": 0,
+            "count": 1000,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://example.org/cs-s9",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 1000
+              },
+              "children": [],
+              "ms": 0.05,
+              "result": {
+                "candidates": 1
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 0,
+                "returned": 1,
+                "total": 1
+              },
+              "t": 0.3
+            }
+          ],
+          "ms": 0.07,
+          "result": {
+            "paged": 1
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 1,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.03
+        }
+      ],
+      "ms": 0.33,
+      "result": {
+        "total": 1,
+        "contains": 1
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.51,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.48,
+      "result": {
+        "ms": 0.46,
+        "total": 1,
+        "returned": 1
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.47,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.44,
+      "result": {
+        "ms": 0.43,
+        "total": 1,
+        "returned": 1
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1839",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:54 GMT",
+    "etag": "W/\"72f-Fmkh1iZ1f90Vt0gSgSI9PsGOPAw\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1226"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:54.169Z",
+      "identifier": "urn:uuid:91f0c12f-60eb-4312-ac89-d02f79cdb843",
+      "total": 1,
+      "contains": [
+        {
+          "system": "http://example.org/cs-s9",
+          "code": "W",
+          "display": "Whiskey",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+              "valueDecimal": 3.5
+            }
+          ]
+        }
+      ],
+      "parameter": [
+        {
+          "name": "property",
+          "valueString": "http://hl7.org/fhir/StructureDefinition/itemWeight"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://example.org/cs-s9"
+        },
+        {
+          "name": "used-supplement",
+          "valueUri": "http://example.org/supp-s9"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://example.org/cs-s9\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs-s9 [1] W"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.41,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs-s9\",\"count\":1},\"t\":0.23},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs-s9\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.3}],\"ms\":0.07,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0.03}],\"ms\":0.33,\"result\":{\"total\":1,\"contains\":1}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1375",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:54 GMT",
+    "etag": "W/\"55f-bW7WKDY12WSETNh1hYVOUu8XpCg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1225"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:54.166Z",
+      "identifier": "urn:uuid:dd8460cf-f7d8-4894-84ce-df8d7db1b075",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://example.org/cs-s9"
+        },
+        {
+          "name": "used-supplement",
+          "valueUri": "http://example.org/supp-s9"
+        }
+      ],
+      "total": 1,
+      "contains": [
+        {
+          "system": "http://example.org/cs-s9",
+          "code": "W",
+          "display": "Whiskey",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "weight"
+                },
+                {
+                  "url": "value",
+                  "valueDecimal": 3.5
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.51,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.48,\"result\":{\"ms\":0.46,\"total\":1,\"returned\":1}}]}"
+        },
+        {
+          "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+          "extension": [
+            {
+              "url": "code",
+              "valueCode": "weight"
+            },
+            {
+              "url": "uri",
+              "valueUri": "http://hl7.org/fhir/concept-properties#itemWeight"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1375",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:54 GMT",
+    "etag": "W/\"55f-FSjZH0dtGVADf0QmiDKyTMYp3bo\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-489"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:54.171Z",
+      "identifier": "urn:uuid:384910e3-7f4c-4f18-96c6-7a12015ca5cd",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://example.org/cs-s9"
+        },
+        {
+          "name": "used-supplement",
+          "valueUri": "http://example.org/supp-s9"
+        }
+      ],
+      "total": 1,
+      "contains": [
+        {
+          "system": "http://example.org/cs-s9",
+          "code": "W",
+          "display": "Whiskey",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "weight"
+                },
+                {
+                  "url": "value",
+                  "valueDecimal": 3.5
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.47,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.44,\"result\":{\"ms\":0.43,\"total\":1,\"returned\":1}}]}"
+        },
+        {
+          "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+          "extension": [
+            {
+              "url": "code",
+              "valueCode": "weight"
+            },
+            {
+              "url": "uri",
+              "valueUri": "http://hl7.org/fhir/concept-properties#itemWeight"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

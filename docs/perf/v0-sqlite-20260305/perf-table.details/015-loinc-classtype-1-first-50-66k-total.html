@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: LOINC CLASSTYPE=1 first 50: ~66K total</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#15 LOINC CLASSTYPE=1 first 50: ~66K total</h1>
+  <div class="meta">Category: Property Filters · Median perf: IR Branch + New Expander=96ms | IR Branch + Upstream Expander=817ms | Upstream Providers + Upstream Expander=❌</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/015-loinc-classtype-1-first-50-66k-total.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 57ms capture wall · trace: 54.91ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 946ms capture wall · trace: 943.36ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 159ms capture wall · response: 500 Internal Server Error</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "CLASSTYPE",
+                    "op": "=",
+                    "value": "1"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "CLASSTYPE",
+                    "op": "=",
+                    "value": "1"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "CLASSTYPE",
+                    "op": "=",
+                    "value": "1"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://loinc.org
+runtime-constraints:
+  pagination: offset=0 count=50
+optimized-ir:
+  selector filter http://loinc.org CLASSTYPE = 1</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 54.91,
+  "sqlCount": 2,
+  "sqlMs": 53.39,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 50
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 50,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://loinc.org",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 50
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0,
+                        "buildMs": 0.05,
+                        "prepMs": 0.08,
+                        "execMs": 30.55
+                      },
+                      "t": 31.77
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_prop": 36,
+                        "_xf0_vl0": "1",
+                        "_limit": 50
+                      },
+                      "rows": 50,
+                      "ms": 30.55,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 30.76,
+                  "result": {
+                    "candidates": 50
+                  }
+                }
+              ],
+              "ms": 30.8,
+              "result": {
+                "candidates": 50
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://loinc.org"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_prop": 36,
+                        "_cntf0_vl0": "1"
+                      },
+                      "rows": 66497,
+                      "ms": 22.84,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 22.92,
+                  "result": {
+                    "count": 66497
+                  }
+                }
+              ],
+              "ms": 22.94,
+              "result": {
+                "count": 66497
+              }
+            }
+          ],
+          "ms": 53.77,
+          "result": {
+            "paged": 50
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 50,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 54.83,
+      "result": {
+        "total": 66497,
+        "contains": 50
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 943.36,
+  "sqlCount": 1,
+  "sqlMs": 551.43,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 50,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://loinc.org",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeSetIntersection",
+              "data": {
+                "filters": 1,
+                "after": 66497
+              },
+              "t": 740.58
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+              "params": {
+                "cs": 1
+              },
+              "rows": 248426,
+              "ms": 551.43,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 738.87,
+          "result": {
+            "rows": 66497
+          }
+        }
+      ],
+      "ms": 943.33,
+      "result": {
+        "ms": 943.32,
+        "returned": 50
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>No structured trace payload returned.</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "8639",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:04 GMT",
+    "etag": "W/\"21bf-3vS1uTJzrKRUGIML1CWX+LhzTXo\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-139"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:04.172Z",
+      "identifier": "urn:uuid:ddad9458-bd0a-42af-920d-264649b3c29c",
+      "total": 66497,
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "1-8",
+          "display": "Acyclovir [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10-9",
+          "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100-8",
+          "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1000-9",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100019-9",
+          "display": "ALK gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100020-7",
+          "display": "GNA11 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100021-5",
+          "display": "GNAQ gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100022-3",
+          "display": "IDH1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100023-1",
+          "display": "IDH2 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100024-9",
+          "display": "SETBP1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100025-6",
+          "display": "SRSF2 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100026-4",
+          "display": "MET gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100027-2",
+          "display": "SMAD4 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100028-0",
+          "display": "FBXW7 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100029-8",
+          "display": "Cancer related multigene analysis in Plasma cell-free DNA by Molecular genetics method"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100041-3",
+          "display": "Aminoglycoside [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100042-1",
+          "display": "Atovaquone [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100043-9",
+          "display": "Azithromycin+Ethambutol [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100044-7",
+          "display": "Cefcapene [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100045-4",
+          "display": "Cefozopran [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100046-2",
+          "display": "Cefquinome [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100047-0",
+          "display": "Cefteram [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100048-8",
+          "display": "Clarithromycin+Ethambutol [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100049-6",
+          "display": "Eravacycline [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100050-4",
+          "display": "Erythromycin+Ethambutol [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100051-2",
+          "display": "Ethambutol+rifAMPin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100052-0",
+          "display": "Flomoxef [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100053-8",
+          "display": "Fluoroquinolone [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100054-6",
+          "display": "Gamithromycin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100055-3",
+          "display": "Optochin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100056-1",
+          "display": "Panipenem [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100057-9",
+          "display": "Prothionamide [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100058-7",
+          "display": "Prulifloxacin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100059-5",
+          "display": "Rifapentine [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100060-3",
+          "display": "Tildipirosin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100061-1",
+          "display": "Tosufloxacin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100087-6",
+          "display": "Toxocara canis 24-35kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100088-4",
+          "display": "Taenia solium larva Ab bands panel - Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100089-2",
+          "display": "Taenia solium larva 6-8kD Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100090-0",
+          "display": "Taenia solium larva 45kD Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100091-8",
+          "display": "Trypanosoma cruzi Ab [Units/volume] in Serum by Immunoassay"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100092-6",
+          "display": "Trypanosoma cruzi Ab bands panel - Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100093-4",
+          "display": "Trypanosoma cruzi 15-16kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100094-2",
+          "display": "Trypanosoma cruzi 21-22kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100095-9",
+          "display": "Trypanosoma cruzi 27-28kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100096-7",
+          "display": "Trypanosoma cruzi 42kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100097-5",
+          "display": "Trypanosoma cruzi 45-47kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100098-3",
+          "display": "Trypanosoma cruzi 120-200kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100099-1",
+          "display": "Trypanosoma cruzi 160kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1001-7",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Donor"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 50
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|2.81"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://loinc.org\nruntime-constraints:\n  pagination: offset=0 count=50\noptimized-ir:\n  selector filter http://loinc.org CLASSTYPE = 1"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":54.91,\"sqlCount\":2,\"sqlMs\":53.39,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":50},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.05,\"prepMs\":0.08,\"execMs\":30.55},\"t\":31.77}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":36,\"_xf0_vl0\":\"1\",\"_limit\":50},\"rows\":50,\"ms\":30.55,\"label\":\"executeIR\"}],\"ms\":30.76,\"result\":{\"candidates\":50}}],\"ms\":30.8,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":36,\"_cntf0_vl0\":\"1\"},\"rows\":66497,\"ms\":22.84,\"label\":\"countForIR\"}],\"ms\":22.92,\"result\":{\"count\":66497}}],\"ms\":22.94,\"result\":{\"count\":66497}}],\"ms\":53.77,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":54.83,\"result\":{\"total\":66497,\"contains\":50}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "7382",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:04 GMT",
+    "etag": "W/\"1cd6-I3AyfuO3g3a5b5IeH3onsA0saMc\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-138"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:03.171Z",
+      "identifier": "urn:uuid:04ce6c8c-b221-4b1a-bdd7-f24b1ece4725",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 50
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|2.81"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "1-8",
+          "display": "Acyclovir [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10-9",
+          "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100-8",
+          "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1000-9",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100019-9",
+          "display": "ALK gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100020-7",
+          "display": "GNA11 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100021-5",
+          "display": "GNAQ gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100022-3",
+          "display": "IDH1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100023-1",
+          "display": "IDH2 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100024-9",
+          "display": "SETBP1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100025-6",
+          "display": "SRSF2 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100026-4",
+          "display": "MET gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100027-2",
+          "display": "SMAD4 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100028-0",
+          "display": "FBXW7 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100029-8",
+          "display": "Cancer related multigene analysis in Plasma cell-free DNA by Molecular genetics method"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100041-3",
+          "display": "Aminoglycoside [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100042-1",
+          "display": "Atovaquone [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100043-9",
+          "display": "Azithromycin+Ethambutol [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100044-7",
+          "display": "Cefcapene [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100045-4",
+          "display": "Cefozopran [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100046-2",
+          "display": "Cefquinome [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100047-0",
+          "display": "Cefteram [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100048-8",
+          "display": "Clarithromycin+Ethambutol [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100049-6",
+          "display": "Eravacycline [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100050-4",
+          "display": "Erythromycin+Ethambutol [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100051-2",
+          "display": "Ethambutol+rifAMPin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100052-0",
+          "display": "Flomoxef [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100053-8",
+          "display": "Fluoroquinolone [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100054-6",
+          "display": "Gamithromycin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100055-3",
+          "display": "Optochin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100056-1",
+          "display": "Panipenem [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100057-9",
+          "display": "Prothionamide [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100058-7",
+          "display": "Prulifloxacin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100059-5",
+          "display": "Rifapentine [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100060-3",
+          "display": "Tildipirosin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100061-1",
+          "display": "Tosufloxacin [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100087-6",
+          "display": "Toxocara canis 24-35kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100088-4",
+          "display": "Taenia solium larva Ab bands panel - Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100089-2",
+          "display": "Taenia solium larva 6-8kD Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100090-0",
+          "display": "Taenia solium larva 45kD Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100091-8",
+          "display": "Trypanosoma cruzi Ab [Units/volume] in Serum by Immunoassay"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100092-6",
+          "display": "Trypanosoma cruzi Ab bands panel - Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100093-4",
+          "display": "Trypanosoma cruzi 15-16kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100094-2",
+          "display": "Trypanosoma cruzi 21-22kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100095-9",
+          "display": "Trypanosoma cruzi 27-28kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100096-7",
+          "display": "Trypanosoma cruzi 42kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100097-5",
+          "display": "Trypanosoma cruzi 45-47kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100098-3",
+          "display": "Trypanosoma cruzi 120-200kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100099-1",
+          "display": "Trypanosoma cruzi 160kD IgG Ab [Presence] in Serum by Immunoblot"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1001-7",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Donor"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":943.36,\"sqlCount\":1,\"sqlMs\":551.43,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":66497},\"t\":740.58}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":551.43,\"label\":\"legacy:executeFilters\"}],\"ms\":738.87,\"result\":{\"rows\":66497}}],\"ms\":943.33,\"result\":{\"ms\":943.32,\"returned\":50}}]}"
+        },
+        {
+          "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+          "extension": [
+            {
+              "url": "code",
+              "valueCode": "status"
+            },
+            {
+              "url": "uri",
+              "valueUri": "http://hl7.org/fhir/concept-properties#status"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": false,
+  "status": 500,
+  "statusText": "Internal Server Error",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "208",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:04 GMT",
+    "etag": "W/\"d0-csOs8wp1+NhoArC3aoOrPbagclg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-49"
+  },
+  "body": {
+    "resourceType": "OperationOutcome",
+    "issue": [
+      {
+        "severity": "error",
+        "code": "exception",
+        "details": {
+          "text": "this.opContext.langs.langs is not iterable"
+        },
+        "diagnostics": "this.opContext.langs.langs is not iterable"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

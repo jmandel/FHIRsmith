@@ -49,8 +49,16 @@ function intersect(items, meta = null) {
   const flat = [];
   for (const it of items || []) {
     if (!it) continue;
-    if (it.kind === 'intersect') flat.push(...(it.items || []));
-    else if (it.kind !== 'empty') flat.push(it);
+    if (it.kind === 'empty') return empty();
+    if (it.kind === 'intersect') {
+      for (const sub of it.items || []) {
+        if (!sub) continue;
+        if (sub.kind === 'empty') return empty();
+        flat.push(sub);
+      }
+    } else {
+      flat.push(it);
+    }
   }
   if (flat.length === 0) return empty();
   if (flat.length === 1) return flat[0];

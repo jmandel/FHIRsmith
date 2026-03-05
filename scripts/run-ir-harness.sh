@@ -22,6 +22,12 @@ Options:
   --port <n>              Server port (default: 8000)
   --db-dir <path>         V0 DB directory (or env FHIRSMITH_V0_DB_DIR / V0_DB_DIR)
   --library-source <path> Library YAML (default: tests/tx/fixtures/v0-test-library.yaml)
+  --perf-third-upstream   In --perf mode, add third timing column from a second server
+  --third-port <n>        Second server port (default: 8001)
+  --third-library-source <path>
+                          Second server YAML (default: tests/tx/fixtures/upstream-provider-test-library.yaml)
+  --upstream-db-dir <path>
+                          Upstream DB/cache dir (or env FHIRSMITH_UPSTREAM_DB_DIR / UPSTREAM_DB_DIR)
   --out-root <path>       Root output dir (default: tmp/ir-harness-runs)
   --out-dir <path>        Exact output dir (overrides --out-root timestamp)
   --perf-out <path>       Perf HTML output path (default: <out-dir>/perf-table.html)
@@ -40,6 +46,7 @@ Examples:
   scripts/run-ir-harness.sh --ir --filter SNOMED --filter pagination
   scripts/run-ir-harness.sh --ir SNOMED pagination
   scripts/run-ir-harness.sh --db-dir /home/jmandel/hobby/sct/cache --all
+  scripts/run-ir-harness.sh --perf --perf-third-upstream --db-dir /home/jmandel/hobby/sct/cache --upstream-db-dir /home/jmandel/hobby/FHIRsmith/data/terminology-cache
 EOF
 }
 
@@ -53,6 +60,7 @@ abspath() {
 }
 
 PORT=8000
+THIRD_PORT=8001
 OUT_ROOT="tmp/ir-harness-runs"
 OUT_DIR=""
 PERF_OUT=""
@@ -67,10 +75,14 @@ MODE_SET=0
 RUN_IR=1
 RUN_LEGACY=0
 RUN_PERF=0
+PERF_THIRD_UPSTREAM=0
 
 DEFAULT_LIBRARY="$ROOT_DIR/tests/tx/fixtures/v0-test-library.yaml"
 LIBRARY_SOURCE="${FHIRSMITH_LIBRARY_SOURCE:-$DEFAULT_LIBRARY}"
 DB_DIR="${FHIRSMITH_V0_DB_DIR:-${V0_DB_DIR:-}}"
+DEFAULT_THIRD_LIBRARY="$ROOT_DIR/tests/tx/fixtures/upstream-provider-test-library.yaml"
+THIRD_LIBRARY_SOURCE="${FHIRSMITH_THIRD_LIBRARY_SOURCE:-$DEFAULT_THIRD_LIBRARY}"
+UPSTREAM_DB_DIR="${FHIRSMITH_UPSTREAM_DB_DIR:-${UPSTREAM_DB_DIR:-}}"
 
 select_mode() {
   if [[ "$MODE_SET" -eq 0 ]]; then
@@ -111,6 +123,21 @@ while [[ $# -gt 0 ]]; do
       ;;
     --library-source)
       LIBRARY_SOURCE="$2"
+      shift
+      ;;
+    --perf-third-upstream)
+      PERF_THIRD_UPSTREAM=1
+      ;;
+    --third-port)
+      THIRD_PORT="$2"
+      shift
+      ;;
+    --third-library-source)
+      THIRD_LIBRARY_SOURCE="$2"
+      shift
+      ;;
+    --upstream-db-dir)
+      UPSTREAM_DB_DIR="$2"
       shift
       ;;
     --out-root)
@@ -171,6 +198,12 @@ if [[ ! -f "$LIBRARY_SOURCE" ]]; then
   exit 2
 fi
 
+THIRD_LIBRARY_SOURCE="$(abspath "$THIRD_LIBRARY_SOURCE")"
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 && ! -f "$THIRD_LIBRARY_SOURCE" ]]; then
+  echo "Third-library source not found: $THIRD_LIBRARY_SOURCE" >&2
+  exit 2
+fi
+
 if [[ -z "$DB_DIR" ]]; then
   echo "Missing DB dir. Set --db-dir or FHIRSMITH_V0_DB_DIR (or V0_DB_DIR)." >&2
   exit 2
@@ -188,6 +221,28 @@ for db in sct_intl_20250201.v0.db loinc_281_full.v0.db rxnorm_02022026.v0.db; do
   fi
 done
 
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+  if [[ "$RUN_PERF" -ne 1 ]]; then
+    echo "--perf-third-upstream is only valid with --perf (or --all)." >&2
+    exit 2
+  fi
+  if [[ -z "$UPSTREAM_DB_DIR" ]]; then
+    echo "Missing upstream DB dir. Set --upstream-db-dir or FHIRSMITH_UPSTREAM_DB_DIR (or UPSTREAM_DB_DIR)." >&2
+    exit 2
+  fi
+  UPSTREAM_DB_DIR="$(abspath "$UPSTREAM_DB_DIR")"
+  if [[ ! -d "$UPSTREAM_DB_DIR" ]]; then
+    echo "Upstream DB dir does not exist: $UPSTREAM_DB_DIR" >&2
+    exit 2
+  fi
+  for db in sct_intl_20250201.cache loinc-2.81-b.db rxnorm_02032025-a.db; do
+    if [[ ! -f "$UPSTREAM_DB_DIR/$db" ]]; then
+      echo "Missing required upstream file: $UPSTREAM_DB_DIR/$db" >&2
+      exit 2
+    fi
+  done
+fi
+
 if [[ -z "$OUT_DIR" ]]; then
   STAMP="$(date +%Y%m%d-%H%M%S)"
   OUT_DIR="$OUT_ROOT/$STAMP"
@@ -201,10 +256,20 @@ PERF_OUT="$(abspath "$PERF_OUT")"
 
 DATA_DIR="$OUT_DIR/data"
 mkdir -p "$DATA_DIR"
+THIRD_DATA_DIR="$OUT_DIR/data-third"
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+  mkdir -p "$THIRD_DATA_DIR"
+  ln -sfn "$UPSTREAM_DB_DIR" "$THIRD_DATA_DIR/terminology-cache"
+fi
 
 if curl -fsS "http://localhost:${PORT}/r4/metadata" >/dev/null 2>&1; then
   echo "Port ${PORT} already appears to have a running FHIR endpoint." >&2
   echo "Use --port to avoid clobbering an existing server." >&2
+  exit 1
+fi
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]] && curl -fsS "http://localhost:${THIRD_PORT}/r4/metadata" >/dev/null 2>&1; then
+  echo "Third port ${THIRD_PORT} already appears to have a running FHIR endpoint." >&2
+  echo "Use --third-port to avoid clobbering an existing server." >&2
   exit 1
 fi
 
@@ -241,11 +306,51 @@ cat > "$DATA_DIR/config.json" <<JSON
 }
 JSON
 
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+cat > "$THIRD_DATA_DIR/config.json" <<JSON
+{
+  "hostName": "FHIRsmith IR Harness Runner (Third Backend)",
+  "server": {
+    "port": ${THIRD_PORT},
+    "cors": { "origin": "*", "credentials": true }
+  },
+  "modules": {
+    "shl": { "enabled": false },
+    "vcl": { "enabled": false },
+    "xig": { "enabled": false },
+    "packages": { "enabled": false },
+    "registry": { "enabled": false },
+    "publisher": { "enabled": false },
+    "token": { "enabled": false },
+    "npmprojector": { "enabled": false },
+    "tx": {
+      "enabled": true,
+      "host": "localhost:${THIRD_PORT}",
+      "baseUrl": "http://localhost:${THIRD_PORT}",
+      "name": "IR Harness TX (Third Backend)",
+      "title": "IR Harness Terminology Service (Third Backend)",
+      "librarySource": "$THIRD_LIBRARY_SOURCE",
+      "cacheTimeout": 30,
+      "expansionCacheSize": 1000,
+      "endpoints": [
+        { "path": "/r4", "fhirVersion": "4.0", "context": null }
+      ]
+    }
+  }
+}
+JSON
+fi
+
 SERVER_PID=""
+THIRD_SERVER_PID=""
 cleanup() {
   if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
+  fi
+  if [[ -n "$THIRD_SERVER_PID" ]] && kill -0 "$THIRD_SERVER_PID" 2>/dev/null; then
+    kill "$THIRD_SERVER_PID" 2>/dev/null || true
+    wait "$THIRD_SERVER_PID" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -255,6 +360,12 @@ echo "Starting server on :$PORT ..."
 
 FHIRSMITH_DATA_DIR="$DATA_DIR" V0_DB_DIR="$DB_DIR" node "$ROOT_DIR/server.js" > "$OUT_DIR/server.log" 2>&1 &
 SERVER_PID=$!
+
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+  echo "Starting third-backend server on :$THIRD_PORT ..."
+  FHIRSMITH_DATA_DIR="$THIRD_DATA_DIR" node "$ROOT_DIR/server.js" > "$OUT_DIR/server-third.log" 2>&1 &
+  THIRD_SERVER_PID=$!
+fi
 
 READY=0
 for _ in $(seq 1 240); do
@@ -274,6 +385,28 @@ if [[ "$READY" -ne 1 ]]; then
   echo "Timed out waiting for server readiness (/r4/metadata)." >&2
   tail -n 120 "$OUT_DIR/server.log" >&2 || true
   exit 1
+fi
+
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+  THIRD_READY=0
+  for _ in $(seq 1 240); do
+    if curl -fsS "http://localhost:${THIRD_PORT}/r4/metadata" >/dev/null 2>&1; then
+      THIRD_READY=1
+      break
+    fi
+    if ! kill -0 "$THIRD_SERVER_PID" 2>/dev/null; then
+      echo "Third server exited before becoming ready." >&2
+      tail -n 120 "$OUT_DIR/server-third.log" >&2 || true
+      exit 1
+    fi
+    sleep 1
+  done
+
+  if [[ "$THIRD_READY" -ne 1 ]]; then
+    echo "Timed out waiting for third server readiness (/r4/metadata)." >&2
+    tail -n 120 "$OUT_DIR/server-third.log" >&2 || true
+    exit 1
+  fi
 fi
 
 HARNESS_ARGS=()
@@ -311,13 +444,24 @@ fi
 
 if [[ "$RUN_PERF" -eq 1 ]]; then
   mkdir -p "$(dirname "$PERF_OUT")"
-  run_harness "perf" env PERF_RUNS="$PERF_RUNS_VALUE" node "$ROOT_DIR/scripts/ir-harness.mjs" "${HARNESS_ARGS[@]}" --perf --perf-out "$PERF_OUT"
+  PERF_ENV=(env PERF_RUNS="$PERF_RUNS_VALUE")
+  PERF_ENV+=(PERF_PRIMARY_LABEL="IR Branch + New Expander")
+  PERF_ENV+=(PERF_SECONDARY_LABEL="IR Branch + Upstream Expander")
+  if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+    PERF_ENV+=(PERF_THIRD_BASE_URL="http://localhost:${THIRD_PORT}")
+    PERF_ENV+=(PERF_THIRD_ENGINE="legacy")
+    PERF_ENV+=(PERF_THIRD_LABEL="Upstream Providers + Upstream Expander")
+  fi
+  run_harness "perf" "${PERF_ENV[@]}" node "$ROOT_DIR/scripts/ir-harness.mjs" "${HARNESS_ARGS[@]}" --perf --perf-out "$PERF_OUT"
 fi
 
 echo
 echo "Completed."
 echo "Run directory: $OUT_DIR"
 echo "Server log: $OUT_DIR/server.log"
+if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+  echo "Third server log: $OUT_DIR/server-third.log"
+fi
 if [[ "$RUN_IR" -eq 1 ]]; then
   echo "IR log: $OUT_DIR/harness-ir.log"
 fi

@@ -1,0 +1,242 @@
+{
+  "id": 58,
+  "slug": "058-no-experimental-warning-when-valueset-is-also-experimental",
+  "name": "No experimental warning when ValueSet is also experimental",
+  "category": "Expansion Metadata",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://example.org/test-vs-experimental",
+      "status": "active",
+      "experimental": true,
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/experimental-2"
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": {
+        "resourceType": "CodeSystem",
+        "url": "http://example.org/cs/experimental-2",
+        "version": "1.0.0",
+        "status": "active",
+        "content": "complete",
+        "concept": [
+          {
+            "code": "A",
+            "display": "Alpha"
+          },
+          {
+            "code": "B",
+            "display": "Bravo"
+          },
+          {
+            "code": "C",
+            "display": "Charlie"
+          }
+        ],
+        "experimental": true
+      }
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs-experimental",
+              "status": "active",
+              "experimental": true,
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/experimental-2"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/experimental-2",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "experimental": true
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs-experimental",
+              "status": "active",
+              "experimental": true,
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/experimental-2"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/experimental-2",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "experimental": true
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs-experimental",
+              "status": "active",
+              "experimental": true,
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/experimental-2"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/experimental-2",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "experimental": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}

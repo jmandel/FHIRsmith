@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Code regex is handled in SQLite v0</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#109 Code regex is handled in SQLite v0</h1>
+  <div class="meta">Category: Composition Semantics · Median perf: IR Branch + New Expander=784ms | IR Branch + Upstream Expander=2319ms | Upstream Providers + Upstream Expander=❌</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/109-code-regex-is-handled-in-sqlite-v0.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 795ms capture wall · trace: 791.12ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 2092ms capture wall · trace: 2087.96ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 3ms capture wall · response: 500 Internal Server Error</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "code",
+                    "op": "regex",
+                    "value": "^7[0-9]{4,}"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "code",
+                    "op": "regex",
+                    "value": "^7[0-9]{4,}"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "code",
+                    "op": "regex",
+                    "value": "^7[0-9]{4,}"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://snomed.info/sct
+runtime-constraints:
+  pagination: offset=0 count=20
+optimized-ir:
+  selector filter http://snomed.info/sct code regex ^7[0-9]{4,}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 791.12,
+  "sqlCount": 2,
+  "sqlMs": 789.43,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 20
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 20,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 20
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0.01,
+                        "buildMs": 0.04,
+                        "prepMs": 0.09,
+                        "execMs": 363.89
+                      },
+                      "t": 365.06
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code REGEXP @_xf0_re) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_re": "^7[0-9]{4,}",
+                        "_limit": 20
+                      },
+                      "rows": 20,
+                      "ms": 363.89,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 364.16,
+                  "result": {
+                    "candidates": 20
+                  }
+                }
+              ],
+              "ms": 364.23,
+              "result": {
+                "candidates": 20
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://snomed.info/sct"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.code REGEXP @_cntf0_re) AS _cnt WHERE 1=1",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_re": "^7[0-9]{4,}"
+                      },
+                      "rows": 66456,
+                      "ms": 425.54,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 425.66,
+                  "result": {
+                    "count": 66456
+                  }
+                }
+              ],
+              "ms": 425.7,
+              "result": {
+                "count": 66456
+              }
+            }
+          ],
+          "ms": 789.97,
+          "result": {
+            "paged": 20
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 20,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 790.97,
+      "result": {
+        "total": 66456,
+        "contains": 20
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 2087.96,
+  "sqlCount": 1,
+  "sqlMs": 1908.08,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.03
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 20,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://snomed.info/sct",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeRegex",
+              "data": {
+                "pattern": "^7[0-9]{4,}",
+                "before": 519624,
+                "after": 66456,
+                "ms": 60.21
+              },
+              "t": 1969.99
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+              "params": {
+                "cs": 1
+              },
+              "rows": 519624,
+              "ms": 1908.08,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 1968.47,
+          "result": {
+            "rows": 66456
+          }
+        }
+      ],
+      "ms": 2087.87,
+      "result": {
+        "ms": 2087.83,
+        "returned": 20
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>No structured trace payload returned.</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4910",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:51 GMT",
+    "etag": "W/\"132e-t0MfxAZnV9A8t5HMUTxB8Aosez0\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1009"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:52.206Z",
+      "identifier": "urn:uuid:244ae0c0-dbbe-4636-888b-dfea31e91687",
+      "total": 66456,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700000006",
+          "display": "Vaginal delivery of fetus"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "70000009",
+          "display": "Crushing injury of multiple sites of lower limb"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "7000009",
+          "display": "Fetal demise from spontaneous abortion"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700001005",
+          "display": "Gastrocnemius muscle and/or tendon structure"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700002",
+          "display": "Salmonella III arizonae 50:z4,z23,z32:--",
+          "inactive": true
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700002003",
+          "display": "Partial division of short head of biceps brachii tendon"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700003008",
+          "display": "Structure of lateral collateral ligament complex of elbow (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700004002",
+          "display": "Structure of lateral ulnar collateral ligament of elbow"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700005001",
+          "display": "Structure of accessory lateral collateral ligament of elbow (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700006000",
+          "display": "Pelvic organ finding (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700007009",
+          "display": "Structure of lateral pelvic girdle",
+          "inactive": true
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700008004",
+          "display": "Structure of joint of pelvic wall"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700009007",
+          "display": "Injury of pelvic girdle (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700010002",
+          "display": "Injury of free lower limb"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "70001008",
+          "display": "Piperacetazine"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700011003",
+          "display": "Disorder of pelvic girdle (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700012005",
+          "display": "Disorder of free lower limb (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700013000",
+          "display": "Entire skin of right half of neck (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700014006",
+          "display": "Open reduction of fracture without internal fixation"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700015007",
+          "display": "Eslicarbazepine acetate"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 20
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct\nruntime-constraints:\n  pagination: offset=0 count=20\noptimized-ir:\n  selector filter http://snomed.info/sct code regex ^7[0-9]{4,}"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":791.12,\"sqlCount\":2,\"sqlMs\":789.43,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":20},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":20},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.01,\"buildMs\":0.04,\"prepMs\":0.09,\"execMs\":363.89},\"t\":365.06}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code REGEXP @_xf0_re) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_re\":\"^7[0-9]{4,}\",\"_limit\":20},\"rows\":20,\"ms\":363.89,\"label\":\"executeIR\"}],\"ms\":364.16,\"result\":{\"candidates\":20}}],\"ms\":364.23,\"result\":{\"candidates\":20}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.code REGEXP @_cntf0_re) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_re\":\"^7[0-9]{4,}\"},\"rows\":66456,\"ms\":425.54,\"label\":\"countForIR\"}],\"ms\":425.66,\"result\":{\"count\":66456}}],\"ms\":425.7,\"result\":{\"count\":66456}}],\"ms\":789.97,\"result\":{\"paged\":20}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":20,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":790.97,\"result\":{\"total\":66456,\"contains\":20}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4333",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:51 GMT",
+    "etag": "W/\"10ed-D+5M4sH3xw7DvKY5o3s/u2jjFjk\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1008"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:49.323Z",
+      "identifier": "urn:uuid:a441c13a-2fb6-48cd-9aad-f9097a149060",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 20
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700000006",
+          "display": "Vaginal delivery of fetus"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "70000009",
+          "display": "Crushing injury of multiple sites of lower limb"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "7000009",
+          "display": "Fetal demise from spontaneous abortion"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700001005",
+          "display": "Gastrocnemius muscle and/or tendon structure"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700002",
+          "inactive": true,
+          "display": "Salmonella III arizonae 50:z4,z23,z32:--",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "status"
+                },
+                {
+                  "url": "value",
+                  "valueCode": "inactive"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700002003",
+          "display": "Partial division of short head of biceps brachii tendon"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700003008",
+          "display": "Structure of lateral collateral ligament complex of elbow (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700004002",
+          "display": "Structure of lateral ulnar collateral ligament of elbow"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700005001",
+          "display": "Structure of accessory lateral collateral ligament of elbow (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700006000",
+          "display": "Pelvic organ finding (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700007009",
+          "inactive": true,
+          "display": "Structure of lateral pelvic girdle",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "status"
+                },
+                {
+                  "url": "value",
+                  "valueCode": "inactive"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700008004",
+          "display": "Structure of joint of pelvic wall"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700009007",
+          "display": "Injury of pelvic girdle (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700010002",
+          "display": "Injury of free lower limb"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "70001008",
+          "display": "Piperacetazine"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700011003",
+          "display": "Disorder of pelvic girdle (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700012005",
+          "display": "Disorder of free lower limb (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700013000",
+          "display": "Entire skin of right half of neck (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700014006",
+          "display": "Open reduction of fracture without internal fixation"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "700015007",
+          "display": "Eslicarbazepine acetate"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":2087.96,\"sqlCount\":1,\"sqlMs\":1908.08,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.03},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeRegex\",\"data\":{\"pattern\":\"^7[0-9]{4,}\",\"before\":519624,\"after\":66456,\"ms\":60.21},\"t\":1969.99}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":519624,\"ms\":1908.08,\"label\":\"legacy:executeFilters\"}],\"ms\":1968.47,\"result\":{\"rows\":66456}}],\"ms\":2087.87,\"result\":{\"ms\":2087.83,\"returned\":20}}]}"
+        },
+        {
+          "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+          "extension": [
+            {
+              "url": "code",
+              "valueCode": "status"
+            },
+            {
+              "url": "uri",
+              "valueUri": "http://hl7.org/fhir/concept-properties#status"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": false,
+  "status": 500,
+  "statusText": "Internal Server Error",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "190",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:52 GMT",
+    "etag": "W/\"be-fNUyeXw5w4A6VtnDrcoSpjuYfuE\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-395"
+  },
+  "body": {
+    "resourceType": "OperationOutcome",
+    "issue": [
+      {
+        "severity": "error",
+        "code": "exception",
+        "details": {
+          "text": "Unsupported filter property: code"
+        },
+        "diagnostics": "Unsupported filter property: code"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

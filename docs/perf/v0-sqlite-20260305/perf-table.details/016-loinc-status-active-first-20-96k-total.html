@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: LOINC STATUS=ACTIVE first 20: ~96K total</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#16 LOINC STATUS=ACTIVE first 20: ~96K total</h1>
+  <div class="meta">Category: Property Filters · Median perf: IR Branch + New Expander=78ms | IR Branch + Upstream Expander=828ms | Upstream Providers + Upstream Expander=❌</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/016-loinc-status-active-first-20-96k-total.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 81ms capture wall · trace: 78.67ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 754ms capture wall · trace: 751.9ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 200ms capture wall · response: 500 Internal Server Error</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "STATUS",
+                    "op": "=",
+                    "value": "ACTIVE"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "STATUS",
+                    "op": "=",
+                    "value": "ACTIVE"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "STATUS",
+                    "op": "=",
+                    "value": "ACTIVE"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://loinc.org
+runtime-constraints:
+  pagination: offset=0 count=20
+optimized-ir:
+  selector filter http://loinc.org STATUS = ACTIVE</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 78.67,
+  "sqlCount": 2,
+  "sqlMs": 77.33,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 20
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 20,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://loinc.org",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 20
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0,
+                        "buildMs": 0.02,
+                        "prepMs": 0.08,
+                        "execMs": 40.48
+                      },
+                      "t": 41.54
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_prop": 37,
+                        "_xf0_vl0": "ACTIVE",
+                        "_limit": 20
+                      },
+                      "rows": 20,
+                      "ms": 40.48,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 40.64,
+                  "result": {
+                    "candidates": 20
+                  }
+                }
+              ],
+              "ms": 40.66,
+              "result": {
+                "candidates": 20
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://loinc.org"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_prop": 37,
+                        "_cntf0_vl0": "ACTIVE"
+                      },
+                      "rows": 96241,
+                      "ms": 36.85,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 36.93,
+                  "result": {
+                    "count": 96241
+                  }
+                }
+              ],
+              "ms": 36.96,
+              "result": {
+                "count": 96241
+              }
+            }
+          ],
+          "ms": 77.64,
+          "result": {
+            "paged": 20
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 20,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 78.59,
+      "result": {
+        "total": 96241,
+        "contains": 20
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 751.9,
+  "sqlCount": 1,
+  "sqlMs": 371.02,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 20,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://loinc.org",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeSetIntersection",
+              "data": {
+                "filters": 1,
+                "after": 96241
+              },
+              "t": 582.82
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+              "params": {
+                "cs": 1
+              },
+              "rows": 248426,
+              "ms": 371.02,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 581.03,
+          "result": {
+            "rows": 96241
+          }
+        }
+      ],
+      "ms": 751.87,
+      "result": {
+        "ms": 751.85,
+        "returned": 20
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>No structured trace payload returned.</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "5082",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:08 GMT",
+    "etag": "W/\"13da-juIsLefoFT9xFPOExZcMAk9ioOk\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-148"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:08.335Z",
+      "identifier": "urn:uuid:15d867ac-9ce2-48cd-aba4-6610da220fd4",
+      "total": 96241,
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "1-8",
+          "display": "Acyclovir [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10-9",
+          "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100-8",
+          "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1000-9",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10000-8",
+          "display": "R wave duration in lead AVR"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100000-9",
+          "display": "Health informatics pioneer and the father of LOINC"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100001-7",
+          "display": "Health informatics pioneer and cofounder of LOINC"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100002-5",
+          "display": "Specimen care is maintained"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100003-3",
+          "display": "Team communication is maintained throughout care"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100004-1",
+          "display": "Demonstrates knowledge of the expected psychosocial responses to the procedure"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100005-8",
+          "display": "Demonstrates knowledge of nutritional management related to the procedure"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100006-6",
+          "display": "Demonstrates knowledge of medication management"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100007-4",
+          "display": "Demonstrates knowledge of pain management"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100008-2",
+          "display": "Demonstrates knowledge of wound management"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100009-0",
+          "display": "Demonstrates knowledge of the procedure and expected results"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10001-6",
+          "display": "R wave duration in lead I"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100010-8",
+          "display": "No injury related to procedure equipment, medical supplies, or instrumentation"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100011-6",
+          "display": "No injury related to an electrical source"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100012-4",
+          "display": "Participates in decisions affecting the patient's plan of care"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100013-2",
+          "display": "Participates in the discharge process"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 20
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|2.81"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://loinc.org\nruntime-constraints:\n  pagination: offset=0 count=20\noptimized-ir:\n  selector filter http://loinc.org STATUS = ACTIVE"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":78.67,\"sqlCount\":2,\"sqlMs\":77.33,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":20},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":20},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.08,\"execMs\":40.48},\"t\":41.54}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":37,\"_xf0_vl0\":\"ACTIVE\",\"_limit\":20},\"rows\":20,\"ms\":40.48,\"label\":\"executeIR\"}],\"ms\":40.64,\"result\":{\"candidates\":20}}],\"ms\":40.66,\"result\":{\"candidates\":20}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":37,\"_cntf0_vl0\":\"ACTIVE\"},\"rows\":96241,\"ms\":36.85,\"label\":\"countForIR\"}],\"ms\":36.93,\"result\":{\"count\":96241}}],\"ms\":36.96,\"result\":{\"count\":96241}}],\"ms\":77.64,\"result\":{\"paged\":20}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":20,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":78.59,\"result\":{\"total\":96241,\"contains\":20}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3596",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:08 GMT",
+    "etag": "W/\"e0c-nfrJuqYkpCgL9cgnnWkLzRahGwg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-147"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:18:07.502Z",
+      "identifier": "urn:uuid:26dd6a7f-f69f-4a50-8ce5-aca732304d01",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 20
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|2.81"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "1-8",
+          "display": "Acyclovir [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10-9",
+          "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100-8",
+          "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1000-9",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10000-8",
+          "display": "R wave duration in lead AVR"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100000-9",
+          "display": "Health informatics pioneer and the father of LOINC"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100001-7",
+          "display": "Health informatics pioneer and cofounder of LOINC"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100002-5",
+          "display": "Specimen care is maintained"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100003-3",
+          "display": "Team communication is maintained throughout care"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100004-1",
+          "display": "Demonstrates knowledge of the expected psychosocial responses to the procedure"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100005-8",
+          "display": "Demonstrates knowledge of nutritional management related to the procedure"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100006-6",
+          "display": "Demonstrates knowledge of medication management"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100007-4",
+          "display": "Demonstrates knowledge of pain management"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100008-2",
+          "display": "Demonstrates knowledge of wound management"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100009-0",
+          "display": "Demonstrates knowledge of the procedure and expected results"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10001-6",
+          "display": "R wave duration in lead I"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100010-8",
+          "display": "No injury related to procedure equipment, medical supplies, or instrumentation"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100011-6",
+          "display": "No injury related to an electrical source"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100012-4",
+          "display": "Participates in decisions affecting the patient's plan of care"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100013-2",
+          "display": "Participates in the discharge process"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":751.9,\"sqlCount\":1,\"sqlMs\":371.02,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":96241},\"t\":582.82}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":371.02,\"label\":\"legacy:executeFilters\"}],\"ms\":581.03,\"result\":{\"rows\":96241}}],\"ms\":751.87,\"result\":{\"ms\":751.85,\"returned\":20}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": false,
+  "status": 500,
+  "statusText": "Internal Server Error",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "208",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:18:08 GMT",
+    "etag": "W/\"d0-csOs8wp1+NhoArC3aoOrPbagclg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-51"
+  },
+  "body": {
+    "resourceType": "OperationOutcome",
+    "issue": [
+      {
+        "severity": "error",
+        "code": "exception",
+        "details": {
+          "text": "this.opContext.langs.langs is not iterable"
+        },
+        "diagnostics": "this.opContext.langs.langs is not iterable"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

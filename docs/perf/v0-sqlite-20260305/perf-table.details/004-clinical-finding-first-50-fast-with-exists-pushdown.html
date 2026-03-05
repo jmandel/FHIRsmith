@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Clinical finding first 50: fast with EXISTS pushdown</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#4 Clinical finding first 50: fast with EXISTS pushdown</h1>
+  <div class="meta">Category: Subsumption · Median perf: IR Branch + New Expander=95ms | IR Branch + Upstream Expander=196ms | Upstream Providers + Upstream Expander=32ms</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/004-clinical-finding-first-50-fast-with-exists-pushdown.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 97ms capture wall · trace: 94.77ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 198ms capture wall · trace: 196ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 29ms capture wall · trace: 26.42ms · response: 200 OK</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "404684003"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "activeOnly",
+        "valueBoolean": true
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "404684003"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "activeOnly",
+        "valueBoolean": true
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "404684003"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "activeOnly",
+        "valueBoolean": true
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://snomed.info/sct
+runtime-constraints:
+  active-only: true
+  pagination: offset=0 count=50
+optimized-ir:
+  selector filter http://snomed.info/sct concept is-a 404684003</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 94.77,
+  "sqlCount": 2,
+  "sqlMs": 88.14,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": true,
+        "text": null,
+        "offset": 0,
+        "count": 50
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 50,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 50
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "EXISTS rewrite chosen",
+                      "data": {
+                        "closureCount": 124412,
+                        "conceptCount": 519624,
+                        "ratio": 23.94
+                      },
+                      "t": 3.43
+                    },
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 2.97,
+                        "buildMs": 0.04,
+                        "prepMs": 0.06,
+                        "execMs": 0.19
+                      },
+                      "t": 3.7
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND EXISTS (SELECT 1 FROM closure cl__xf0 WHERE cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs)) AND c.active = 1 ORDER BY c.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_anc_code": "404684003",
+                        "_xf0_cs": 1,
+                        "_limit": 50
+                      },
+                      "rows": 50,
+                      "ms": 0.19,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 3.29,
+                  "result": {
+                    "candidates": 50
+                  }
+                }
+              ],
+              "ms": 3.31,
+              "result": {
+                "candidates": 50
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://snomed.info/sct"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(*) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND EXISTS (SELECT 1 FROM closure cl__cntf0 WHERE cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs)) AND c.active = 1)",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_anc_code": "404684003",
+                        "_cntf0_cs": 1
+                      },
+                      "rows": 124412,
+                      "ms": 87.95,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 90.91,
+                  "result": {
+                    "count": 124412
+                  }
+                }
+              ],
+              "ms": 90.93,
+              "result": {
+                "count": 124412
+              }
+            }
+          ],
+          "ms": 94.26,
+          "result": {
+            "paged": 50
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 50,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 94.7,
+      "result": {
+        "total": 124412,
+        "contains": 50
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 196,
+  "sqlCount": 1,
+  "sqlMs": 149.52,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.02
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 50,
+        "offset": -1,
+        "activeOnly": true,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://snomed.info/sct",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+              "params": {
+                "cs": 1,
+                "f0_anc_code": "404684003",
+                "f0_cs": 1
+              },
+              "rows": 124412,
+              "ms": 149.52,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 149.6,
+          "result": {
+            "rows": 124412
+          }
+        }
+      ],
+      "ms": 195.96,
+      "result": {
+        "ms": 195.93,
+        "returned": 50
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 26.42,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.03
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 50,
+        "offset": -1,
+        "activeOnly": true,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 26.31,
+      "result": {
+        "ms": 26.26,
+        "returned": 50
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "8800",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:16:45 GMT",
+    "etag": "W/\"2260-mNUda3j5BnJLpgWHsEiJ4Am0Mck\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-36"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:16:45.809Z",
+      "identifier": "urn:uuid:20943446-69ed-4abe-b191-1bc14dfb7352",
+      "total": 124412,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10000006",
+          "display": "Radiating chest pain"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10001005",
+          "display": "Bacterial septicemia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10007009",
+          "display": "Coffin-Siris syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1001000119102",
+          "display": "Pulmonary embolism with pulmonary infarction"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10017004",
+          "display": "Occlusal wear of teeth"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100171000119109",
+          "display": "Eosinophilic mucinous rhinosinusitis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100191000119105",
+          "display": "Acquired asymmetry of prostate"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100211000119106",
+          "display": "Muscle spasm of thoracic back"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002191006",
+          "display": "Increased amino acid level in urine due to decreased renal function"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002194003",
+          "display": "Transient increase in amino acid level in urine"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002203008",
+          "display": "Increased 4-hydroxyphenylpyruvic acid level in urine (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002204002",
+          "display": "Increased 4-hydroxyphenylacetic acid level in urine (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002229008",
+          "display": "Apocrine miliaria of areola (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002253002",
+          "display": "Immunization series incomplete (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100231000119101",
+          "display": "Acquired pericardial cyst (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003002",
+          "display": "Religious discrimination"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003322006",
+          "display": "Distal deletion of short arm of chromosome 3 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003324007",
+          "display": "Congenital synostosis of both tibias and fibulas"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003330007",
+          "display": "Simple syndactyly of toes of first web space of bilateral feet"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003337005",
+          "display": "Bilateral split foot"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003339008",
+          "display": "Congenital split of bilateral hands (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003358004",
+          "display": "Distal deletion of short arm of chromosome 8 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003364006",
+          "display": "Distal deletion of chromosome 13 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003367004",
+          "display": "Molybdenum cofactor deficiency complementation group A"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003368009",
+          "display": "Molybdenum cofactor deficiency complementation group B"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003369001",
+          "display": "Microphthalmos due to Delleman syndrome (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003370000",
+          "display": "Microphthalmos due to Fryns syndrome (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003371001",
+          "display": "Micromelic dwarfism Fryn type"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003372008",
+          "display": "Microphthalmos due to branchio-oculo-facial syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003373003",
+          "display": "Microcephaly with simplified gyral pattern"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003374009",
+          "display": "Microlissencephaly"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003375005",
+          "display": "Metachromatic leukodystrophy due to sphingolipid activator protein I deficiency (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003376006",
+          "display": "Medial duplication of long arm of chromosome 9"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003377002",
+          "display": "Medial duplication of short arm of chromosome 1"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003378007",
+          "display": "Optic nerve hypoplasia due to endocrine deficiency"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003379004",
+          "display": "Osteogenesis imperfecta type V"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003380001",
+          "display": "Prader-Willi-like syndrome due to microdeletion 6q16"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003381002",
+          "display": "Onycho-tricho-dysplasia neutropenia syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003384005",
+          "display": "Multiple congenital defects of vertebral segmentation"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003385006",
+          "display": "Neurodevelopmental disorder due to maternal use of alcohol (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003387003",
+          "display": "Molybdenum cofactor deficiency complementation group C"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003388008",
+          "display": "X-linked oligodontia (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003389000",
+          "display": "Mosaic 1q duplication"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003390009",
+          "display": "X-linked hypodontia (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003391008",
+          "display": "Medial deletion of long arm of chromosome 4 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003392001",
+          "display": "Medial deletion of long arm of chromosome 5 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003393006",
+          "display": "Medial deletion of chromosome 14"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003394000",
+          "display": "Medial deletion of long arm of chromosome 2"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003395004",
+          "display": "Maternal uniparental disomy of chromosome 7 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003396003",
+          "display": "Medial deletion of chromosome 13"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 50
+        },
+        {
+          "name": "activeOnly",
+          "valueBoolean": true
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=50\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 404684003"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":94.77,\"sqlCount\":2,\"sqlMs\":88.14,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":null,\"offset\":0,\"count\":50},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"EXISTS rewrite chosen\",\"data\":{\"closureCount\":124412,\"conceptCount\":519624,\"ratio\":23.94},\"t\":3.43},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":2.97,\"buildMs\":0.04,\"prepMs\":0.06,\"execMs\":0.19},\"t\":3.7}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND EXISTS (SELECT 1 FROM closure cl__xf0 WHERE cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs)) AND c.active = 1 ORDER BY c.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"404684003\",\"_xf0_cs\":1,\"_limit\":50},\"rows\":50,\"ms\":0.19,\"label\":\"executeIR\"}],\"ms\":3.29,\"result\":{\"candidates\":50}}],\"ms\":3.31,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND EXISTS (SELECT 1 FROM closure cl__cntf0 WHERE cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs)) AND c.active = 1)\",\"params\":{\"_cnt_csId\":1,\"_cntf0_anc_code\":\"404684003\",\"_cntf0_cs\":1},\"rows\":124412,\"ms\":87.95,\"label\":\"countForIR\"}],\"ms\":90.91,\"result\":{\"count\":124412}}],\"ms\":90.93,\"result\":{\"count\":124412}}],\"ms\":94.26,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":94.7,\"result\":{\"total\":124412,\"contains\":50}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "7210",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:16:45 GMT",
+    "etag": "W/\"1c2a-yq8MmdF0dAZNnO4N8QiIkWe0MXw\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-35"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:16:45.515Z",
+      "identifier": "urn:uuid:9ca6e800-e081-4c0f-b4e6-cdef4ed7933e",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "activeOnly",
+          "valueBoolean": true
+        },
+        {
+          "name": "count",
+          "valueInteger": 50
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10000006",
+          "display": "Radiating chest pain"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10001005",
+          "display": "Bacterial septicemia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10007009",
+          "display": "Coffin-Siris syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1001000119102",
+          "display": "Pulmonary embolism with pulmonary infarction"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10017004",
+          "display": "Occlusal wear of teeth"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100171000119109",
+          "display": "Eosinophilic mucinous rhinosinusitis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100191000119105",
+          "display": "Acquired asymmetry of prostate"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100211000119106",
+          "display": "Muscle spasm of thoracic back"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002191006",
+          "display": "Increased amino acid level in urine due to decreased renal function"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002194003",
+          "display": "Transient increase in amino acid level in urine"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002203008",
+          "display": "Increased 4-hydroxyphenylpyruvic acid level in urine (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002204002",
+          "display": "Increased 4-hydroxyphenylacetic acid level in urine (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002229008",
+          "display": "Apocrine miliaria of areola (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1002253002",
+          "display": "Immunization series incomplete (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "100231000119101",
+          "display": "Acquired pericardial cyst (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003002",
+          "display": "Religious discrimination"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003322006",
+          "display": "Distal deletion of short arm of chromosome 3 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003324007",
+          "display": "Congenital synostosis of both tibias and fibulas"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003330007",
+          "display": "Simple syndactyly of toes of first web space of bilateral feet"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003337005",
+          "display": "Bilateral split foot"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003339008",
+          "display": "Congenital split of bilateral hands (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003358004",
+          "display": "Distal deletion of short arm of chromosome 8 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003364006",
+          "display": "Distal deletion of chromosome 13 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003367004",
+          "display": "Molybdenum cofactor deficiency complementation group A"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003368009",
+          "display": "Molybdenum cofactor deficiency complementation group B"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003369001",
+          "display": "Microphthalmos due to Delleman syndrome (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003370000",
+          "display": "Microphthalmos due to Fryns syndrome (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003371001",
+          "display": "Micromelic dwarfism Fryn type"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003372008",
+          "display": "Microphthalmos due to branchio-oculo-facial syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003373003",
+          "display": "Microcephaly with simplified gyral pattern"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003374009",
+          "display": "Microlissencephaly"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003375005",
+          "display": "Metachromatic leukodystrophy due to sphingolipid activator protein I deficiency (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003376006",
+          "display": "Medial duplication of long arm of chromosome 9"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003377002",
+          "display": "Medial duplication of short arm of chromosome 1"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003378007",
+          "display": "Optic nerve hypoplasia due to endocrine deficiency"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003379004",
+          "display": "Osteogenesis imperfecta type V"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003380001",
+          "display": "Prader-Willi-like syndrome due to microdeletion 6q16"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003381002",
+          "display": "Onycho-tricho-dysplasia neutropenia syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003384005",
+          "display": "Multiple congenital defects of vertebral segmentation"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003385006",
+          "display": "Neurodevelopmental disorder due to maternal use of alcohol (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003387003",
+          "display": "Molybdenum cofactor deficiency complementation group C"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003388008",
+          "display": "X-linked oligodontia (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003389000",
+          "display": "Mosaic 1q duplication"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003390009",
+          "display": "X-linked hypodontia (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003391008",
+          "display": "Medial deletion of long arm of chromosome 4 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003392001",
+          "display": "Medial deletion of long arm of chromosome 5 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003393006",
+          "display": "Medial deletion of chromosome 14"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003394000",
+          "display": "Medial deletion of long arm of chromosome 2"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003395004",
+          "display": "Maternal uniparental disomy of chromosome 7 (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003396003",
+          "display": "Medial deletion of chromosome 13"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":196,\"sqlCount\":1,\"sqlMs\":149.52,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.02},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"404684003\",\"f0_cs\":1},\"rows\":124412,\"ms\":149.52,\"label\":\"legacy:executeFilters\"}],\"ms\":149.6,\"result\":{\"rows\":124412}}],\"ms\":195.96,\"result\":{\"ms\":195.93,\"returned\":50}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "5529",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:16:45 GMT",
+    "etag": "W/\"1599-bRPrk2nGqxYrAKdUeXZCpZFg+5g\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-15"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:16:45.811Z",
+      "identifier": "urn:uuid:98fccbf7-37e0-4007-86fd-147ab995e343",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "activeOnly",
+          "valueBoolean": true
+        },
+        {
+          "name": "count",
+          "valueInteger": 50
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+          "valueBoolean": true
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":26.42,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.03},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[],\"ms\":26.31,\"result\":{\"ms\":26.26,\"returned\":50}}]}"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "404684003",
+          "display": "Clinical finding (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "109006",
+          "display": "Anxiety disorder of childhood OR adolescence"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "122003",
+          "display": "Choroidal hemorrhage"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "127009",
+          "display": "Spontaneous abortion with laceration of cervix"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "129007",
+          "display": "Homoiothermia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "134006",
+          "display": "Decreased hair growth"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "140004",
+          "display": "Chronic pharyngitis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "144008",
+          "display": "Normal peripheral vision"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "150003",
+          "display": "Abnormal bladder continence"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "151004",
+          "display": "Gonococcal meningitis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "162004",
+          "display": "Severe manic bipolar I disorder without psychotic features"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "165002",
+          "display": "Accident-prone"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "168000",
+          "display": "Typhlolithiasis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "171008",
+          "display": "Injury of ascending right colon without open wound into abdominal cavity"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "175004",
+          "display": "Supraorbital neuralgia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "177007",
+          "display": "Poisoning by sawfly larvae"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "179005",
+          "display": "Apraxia of dressing"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "181007",
+          "display": "Hemorrhagic bronchopneumonia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "183005",
+          "display": "Autoimmune pancytopenia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "184004",
+          "display": "Withdrawal arrhythmia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "188001",
+          "display": "Injury of intercostal artery"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "192008",
+          "display": "Congenital syphilitic hepatomegaly"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "193003",
+          "display": "Benign hypertensive renal disease"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "198007",
+          "display": "Disease caused by Filoviridae (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "199004",
+          "display": "Decreased lactation"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "216004",
+          "display": "Delusion of persecution"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "219006",
+          "display": "Alcohol user"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "222008",
+          "display": "Acute epiglottitis with obstruction"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "223003",
+          "display": "Tumor of body of uterus affecting pregnancy"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "228007",
+          "display": "Lucio phenomenon"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "241006",
+          "display": "Epilepsia partialis continua"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "242004",
+          "display": "Noninfectious jejunitis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "253005",
+          "display": "Sycosis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "257006",
+          "display": "Acne rosacea, erythematous telangiectatic type"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "264008",
+          "display": "Blind hypertensive eye"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "276008",
+          "display": "Poisoning by oxytocin"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "279001",
+          "display": "Senile myocarditis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "281004",
+          "display": "Dementia associated with alcoholism"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "290006",
+          "display": "Melnick-Fraser syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "292003",
+          "display": "EEG finding"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "297009",
+          "display": "Acute myringitis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "299007",
+          "display": "Paraffinoma of skin"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "303002",
+          "display": "Apoplectic pancreatitis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "308006",
+          "display": "Pearly penile papules"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "310008",
+          "display": "Boil of penis"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "313005",
+          "display": "Déjà vu"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "317006",
+          "display": "Reactive hypoglycemia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "320003",
+          "display": "Cervical dilatation, 1cm"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "324007",
+          "display": "Plaster ulcer"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "330007",
+          "display": "Occipital headache"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

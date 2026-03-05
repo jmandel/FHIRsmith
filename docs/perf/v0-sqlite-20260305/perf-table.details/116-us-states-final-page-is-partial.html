@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: US states final page is partial</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#116 US states final page is partial</h1>
+  <div class="meta">Category: Pagination · Median perf: IR Branch + New Expander=3ms | IR Branch + Upstream Expander=4ms | Upstream Providers + Upstream Expander=5ms</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/116-us-states-final-page-is-partial.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 3ms capture wall · trace: 1.12ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 5ms capture wall · trace: 2.95ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 5ms capture wall · trace: 2.84ms · response: 200 OK</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "https://www.usps.com/"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "offset",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "https://www.usps.com/"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "offset",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "https://www.usps.com/"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 20
+      },
+      {
+        "name": "offset",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: https://www.usps.com/
+runtime-constraints:
+  pagination: offset=50 count=20
+optimized-ir:
+  selector whole https://www.usps.com/</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 1.12,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 50,
+        "count": 20
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 50,
+            "count": 20,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:https://www.usps.com/",
+              "args": {
+                "sysOffset": 50,
+                "sysCount": 20
+              },
+              "children": [],
+              "ms": 0.82,
+              "result": {
+                "candidates": 12
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 50,
+                "returned": 12,
+                "total": 62
+              },
+              "t": 1.05
+            }
+          ],
+          "ms": 0.84,
+          "result": {
+            "paged": 12
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 12,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 1.06,
+      "result": {
+        "total": 62,
+        "contains": 12
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 2.95,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 20,
+        "offset": 50,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 2.91,
+      "result": {
+        "ms": 2.9,
+        "total": 62,
+        "returned": 12
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 2.84,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 20,
+        "offset": 50,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 2.81,
+      "result": {
+        "ms": 2.8,
+        "total": 62,
+        "returned": 12
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2303",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:53 GMT",
+    "etag": "W/\"8ff-SusBRMWVO1/DkAn3+yHsqDEHIg0\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1072"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:53.257Z",
+      "identifier": "urn:uuid:1a71ae65-d6e5-413d-b7b2-e1347817170e",
+      "total": 62,
+      "offset": 50,
+      "contains": [
+        {
+          "system": "https://www.usps.com/",
+          "code": "SC",
+          "display": "South Carolina"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "SD",
+          "display": "South Dakota"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "TN",
+          "display": "Tennessee"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "TX",
+          "display": "Texas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "UT",
+          "display": "Utah"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VA",
+          "display": "Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VI",
+          "display": "Virgin Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VT",
+          "display": "Vermont"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WA",
+          "display": "Washington"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WI",
+          "display": "Wisconsin"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WV",
+          "display": "West Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WY",
+          "display": "Wyoming"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "offset",
+          "valueInteger": 50
+        },
+        {
+          "name": "count",
+          "valueInteger": 20
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "https://www.usps.com/"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: https://www.usps.com/\nruntime-constraints:\n  pagination: offset=50 count=20\noptimized-ir:\n  selector whole https://www.usps.com/"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.12,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":50,\"count\":20},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":50,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":50,\"sysCount\":20},\"children\":[],\"ms\":0.82,\"result\":{\"candidates\":12}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":50,\"returned\":12,\"total\":62},\"t\":1.05}],\"ms\":0.84,\"result\":{\"paged\":12}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":12,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":1.06,\"result\":{\"total\":62,\"contains\":12}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1804",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:53 GMT",
+    "etag": "W/\"70c-7F+waiOlVCywlJC1IP4wB89hALg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1071"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:53.251Z",
+      "identifier": "urn:uuid:59b50d63-a6b4-4a8d-8a1e-0c206259972b",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 50
+        },
+        {
+          "name": "count",
+          "valueInteger": 20
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "https://www.usps.com/"
+        }
+      ],
+      "offset": 50,
+      "total": 62,
+      "contains": [
+        {
+          "system": "https://www.usps.com/",
+          "code": "TX",
+          "display": "Texas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "UT",
+          "display": "Utah"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VT",
+          "display": "Vermont"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VI",
+          "display": "Virgin Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VA",
+          "display": "Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WA",
+          "display": "Washington"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WV",
+          "display": "West Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WI",
+          "display": "Wisconsin"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WY",
+          "display": "Wyoming"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AE",
+          "display": "Armed Forces Europe, the Middle East, and Canada"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AP",
+          "display": "Armed Forces Pacific"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AA",
+          "display": "Armed Forces Americas (except Canada)"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":2.95,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":50,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":2.91,\"result\":{\"ms\":2.9,\"total\":62,\"returned\":12}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1804",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:19:53 GMT",
+    "etag": "W/\"70c-62d+8z3YJn5XN+sFJ05QBaH9pUI\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-421"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:19:53.260Z",
+      "identifier": "urn:uuid:e198b156-6896-4f68-b076-941a9fc6c97b",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 50
+        },
+        {
+          "name": "count",
+          "valueInteger": 20
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "https://www.usps.com/"
+        }
+      ],
+      "offset": 50,
+      "total": 62,
+      "contains": [
+        {
+          "system": "https://www.usps.com/",
+          "code": "TX",
+          "display": "Texas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "UT",
+          "display": "Utah"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VT",
+          "display": "Vermont"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VI",
+          "display": "Virgin Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VA",
+          "display": "Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WA",
+          "display": "Washington"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WV",
+          "display": "West Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WI",
+          "display": "Wisconsin"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WY",
+          "display": "Wyoming"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AE",
+          "display": "Armed Forces Europe, the Middle East, and Canada"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AP",
+          "display": "Armed Forces Pacific"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AA",
+          "display": "Armed Forces Americas (except Canada)"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":2.84,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":50,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":2.81,\"result\":{\"ms\":2.8,\"total\":62,\"returned\":12}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

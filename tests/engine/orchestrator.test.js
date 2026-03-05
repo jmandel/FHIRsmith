@@ -51,7 +51,29 @@ describe('canHandleValueSet', () => {
     expect(canHandleValueSet({})).toBe(true);
     expect(canHandleValueSet({ compose: {} })).toBe(true);
     expect(canHandleValueSet({ compose: { include: [] } })).toBe(true);
-    expect(canHandleValueSet({ compose: { include: [{}] } })).toBe(true);
+  });
+
+  test('rejects invalid include/exclude components', () => {
+    // vsd-1: cannot have both concept and filter
+    expect(canHandleValueSet({
+      compose: { include: [{ system: 'http://snomed.info/sct', concept: [{ code: '73211009' }], filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }] }
+    })).toBe(false);
+
+    // vsd-2: system is required when concept/filter is present
+    expect(canHandleValueSet({
+      compose: { include: [{ concept: [{ code: '73211009' }] }] }
+    })).toBe(false);
+    expect(canHandleValueSet({
+      compose: { include: [{ filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }] }
+    })).toBe(false);
+
+    // vsd-3: version cannot appear without system
+    expect(canHandleValueSet({
+      compose: { include: [{ version: '2025-01', valueSet: ['http://example.org/vs/a'] }] }
+    })).toBe(false);
+
+    // Empty component is invalid in strict mode
+    expect(canHandleValueSet({ compose: { include: [{}] } })).toBe(false);
   });
 
   test('handles include with exclude', () => {

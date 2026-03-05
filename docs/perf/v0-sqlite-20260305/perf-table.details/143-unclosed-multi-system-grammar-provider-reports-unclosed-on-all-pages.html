@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Unclosed multi-system grammar provider reports unclosed on all pages</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#143 Unclosed multi-system grammar provider reports unclosed on all pages</h1>
+  <div class="meta">Category: Unclosed Expansion · Median perf: IR Branch + New Expander=14ms | IR Branch + Upstream Expander=60ms | Upstream Providers + Upstream Expander=82ms</div>
+  <div class="links">
+    <a href="#primary-query">IR Branch + New Expander query</a> <a href="#primary-plan">IR Branch + New Expander plan</a> <a href="#primary-trace">IR Branch + New Expander trace</a> <a href="#primary-http">IR Branch + New Expander response</a> <a href="#secondary-query">IR Branch + Upstream Expander query</a> <a href="#secondary-plan">IR Branch + Upstream Expander plan</a> <a href="#secondary-trace">IR Branch + Upstream Expander trace</a> <a href="#secondary-http">IR Branch + Upstream Expander response</a> <a href="#third-query">Upstream Providers + Upstream Expander query</a> <a href="#third-plan">Upstream Providers + Upstream Expander plan</a> <a href="#third-trace">Upstream Providers + Upstream Expander trace</a> <a href="#third-http">Upstream Providers + Upstream Expander response</a>
+    <a href="../perf-table.inputs/143-unclosed-multi-system-grammar-provider-reports-unclosed-on-all-pages.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+      <h3>IR Branch + New Expander</h3>
+      <p class="meta-mini">capture: 22ms capture wall · trace: 20.04ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>IR Branch + Upstream Expander</h3>
+      <p class="meta-mini">capture: 96ms capture wall · trace: 93.68ms · response: 200 OK</p>
+    </section>
+<section class="engine-card">
+      <h3>Upstream Providers + Upstream Expander</h3>
+      <p class="meta-mini">capture: 83ms capture wall · trace: 78.48ms · response: 200 OK</p>
+    </section>
+  <section class="cell">
+    <details id="primary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unitsofmeasure.org"
+              },
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "85562004"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 10
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unitsofmeasure.org"
+              },
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "85562004"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 10
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8001/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unitsofmeasure.org"
+              },
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "85562004"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 10
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://snomed.info/sct, http://unitsofmeasure.org
+runtime-constraints:
+  pagination: offset=0 count=10
+optimized-ir:
+  union [2]
+    selector whole http://unitsofmeasure.org
+    selector filter http://snomed.info/sct concept is-a 85562004</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (upstream expander)</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 20.04,
+  "sqlCount": 2,
+  "sqlMs": 6.23,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 2,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 10
+      },
+      "children": [
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://snomed.info/sct"
+          },
+          "children": [
+            {
+              "name": "countForIR:sql",
+              "args": {
+                "system": "http://snomed.info/sct"
+              },
+              "children": [],
+              "sql": [
+                {
+                  "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1",
+                  "params": {
+                    "_cnt_csId": 1,
+                    "_cntf0_anc_code": "85562004",
+                    "_cntf0_cs": 1
+                  },
+                  "rows": 2366,
+                  "ms": 2.81,
+                  "label": "countForIR"
+                }
+              ],
+              "ms": 3.13,
+              "result": {
+                "count": 2366
+              }
+            }
+          ],
+          "ms": 3.15,
+          "result": {
+            "count": 2366
+          }
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://unitsofmeasure.org"
+          },
+          "children": [],
+          "ms": 11.81,
+          "result": {
+            "count": 1357
+          }
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 3723,
+            "offset": 0,
+            "count": 10,
+            "systems": 2
+          },
+          "children": [
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 10
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "standard path chosen (EXISTS rewrite skipped)",
+                      "data": {
+                        "closureCount": 2366,
+                        "conceptCount": 519624,
+                        "hasText": false
+                      },
+                      "t": 16.04
+                    },
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0.23,
+                        "buildMs": 0.07,
+                        "prepMs": 0.33,
+                        "execMs": 3.42
+                      },
+                      "t": 19.85
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_anc_code": "85562004",
+                        "_xf0_cs": 1,
+                        "_limit": 10
+                      },
+                      "rows": 10,
+                      "ms": 3.42,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 4.12,
+                  "result": {
+                    "candidates": 10
+                  }
+                }
+              ],
+              "ms": 4.17,
+              "result": {
+                "candidates": 10
+              }
+            }
+          ],
+          "ms": 4.19,
+          "result": {
+            "paged": 10
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 10,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 19.94,
+      "result": {
+        "total": 3723,
+        "contains": 10
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 93.68,
+  "sqlCount": 1,
+  "sqlMs": 4.13,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 10,
+        "offset": 0,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://snomed.info/sct",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+              "params": {
+                "cs": 1,
+                "f0_anc_code": "85562004",
+                "f0_cs": 1
+              },
+              "rows": 2366,
+              "ms": 4.13,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 4.2,
+          "result": {
+            "rows": 2366
+          }
+        }
+      ],
+      "ms": 93.65,
+      "result": {
+        "ms": 93.63,
+        "returned": 10
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 78.48,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 10,
+        "offset": 0,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 78.43,
+      "result": {
+        "ms": 78.42,
+        "returned": 10
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="primary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4854",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:21:06 GMT",
+    "etag": "W/\"12f6-Y2TyMeRdyZDt3D8aRBcdKfhJlpo\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1295"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:21:06.123Z",
+      "identifier": "urn:uuid:799657bc-8ee7-42b7-ab52-57d4be8e3352",
+      "total": 3723,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10025002",
+          "display": "Base of phalanx of index finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003609005",
+          "display": "Periarticular bone structure of metacarpophalangeal joint"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003610000",
+          "display": "Entire periarticular bone of metacarpophalangeal joint (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003698006",
+          "display": "Entire left finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003699003",
+          "display": "Entire right finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003760000",
+          "display": "Structure of epiphysis of first metacarpal bone"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003761001",
+          "display": "Entire epiphysis of first metacarpal bone (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003762008",
+          "display": "Structure of epiphysis of distal phalanx of index finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003763003",
+          "display": "Entire epiphysis of distal phalanx of index finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003764009",
+          "display": "Structure of epiphysis of distal phalanx of middle finger"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 10
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unitsofmeasure.org|2.2"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+          "valueString": "The code System \"http://unitsofmeasure.org\" has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct, http://unitsofmeasure.org\nruntime-constraints:\n  pagination: offset=0 count=10\noptimized-ir:\n  union [2]\n    selector whole http://unitsofmeasure.org\n    selector filter http://snomed.info/sct concept is-a 85562004"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":20.04,\"sqlCount\":2,\"sqlMs\":6.23,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":10},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_anc_code\":\"85562004\",\"_cntf0_cs\":1},\"rows\":2366,\"ms\":2.81,\"label\":\"countForIR\"}],\"ms\":3.13,\"result\":{\"count\":2366}}],\"ms\":3.15,\"result\":{\"count\":2366}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://unitsofmeasure.org\"},\"children\":[],\"ms\":11.81,\"result\":{\"count\":1357}},{\"name\":\"pagination\",\"args\":{\"total\":3723,\"offset\":0,\"count\":10,\"systems\":2},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":10},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"standard path chosen (EXISTS rewrite skipped)\",\"data\":{\"closureCount\":2366,\"conceptCount\":519624,\"hasText\":false},\"t\":16.04},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.23,\"buildMs\":0.07,\"prepMs\":0.33,\"execMs\":3.42},\"t\":19.85}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"85562004\",\"_xf0_cs\":1,\"_limit\":10},\"rows\":10,\"ms\":3.42,\"label\":\"executeIR\"}],\"ms\":4.12,\"result\":{\"candidates\":10}}],\"ms\":4.17,\"result\":{\"candidates\":10}}],\"ms\":4.19,\"result\":{\"paged\":10}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":10,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":19.94,\"result\":{\"total\":3723,\"contains\":10}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="secondary-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2880",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:21:06 GMT",
+    "etag": "W/\"b40-fEjOeeYRyozXsYlagnBFCVwqwqQ\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1294"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:21:06.007Z",
+      "identifier": "urn:uuid:bc5c0ebe-10a8-496f-b3b2-b4f088eb0e7e",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 0
+        },
+        {
+          "name": "count",
+          "valueInteger": 10
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unitsofmeasure.org|2.2"
+        },
+        {
+          "name": "warning-draft",
+          "valueUri": "http://hl7.org/fhir/ValueSet/ucum-common|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "offset": 0,
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+          "valueString": "The code System \"http://unitsofmeasure.org has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":93.68,\"sqlCount\":1,\"sqlMs\":4.13,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"85562004\",\"f0_cs\":1},\"rows\":2366,\"ms\":4.13,\"label\":\"legacy:executeFilters\"}],\"ms\":4.2,\"result\":{\"rows\":2366}}],\"ms\":93.65,\"result\":{\"ms\":93.63,\"returned\":10}}]}"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%",
+          "display": "percent"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%/100{WBC}",
+          "display": "percent / 100 WBC"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{0to3Hours}",
+          "display": "percent 0to3Hours"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Abnormal}",
+          "display": "percent Abnormal"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Activity}",
+          "display": "percent Activity"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{BasalActivity}",
+          "display": "percent BasalActivity"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Binding}",
+          "display": "percent Binding"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Blockade}",
+          "display": "percent Blockade"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Carboxyhemoglobin}",
+          "display": "percent Carboxyhemoglobin"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Conversion}",
+          "display": "percent Conversion"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+<section class="cell">
+    <details id="third-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2236",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 16:21:06 GMT",
+    "etag": "W/\"8bc-vUw21mK0BbESN01C8tJRoLEm3PM\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-515"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T16:21:06.128Z",
+      "identifier": "urn:uuid:3fe2bb9a-16bd-41ef-96f3-f8eda85b16c0",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 0
+        },
+        {
+          "name": "count",
+          "valueInteger": 10
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unitsofmeasure.org|2.2"
+        },
+        {
+          "name": "warning-draft",
+          "valueUri": "http://hl7.org/fhir/ValueSet/ucum-common|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "offset": 0,
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+          "valueString": "The code System \"http://unitsofmeasure.org has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":78.48,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":78.43,\"result\":{\"ms\":78.42,\"returned\":10}}]}"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%",
+          "display": "percent"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%/100{WBC}",
+          "display": "percent / 100 WBC"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{0to3Hours}",
+          "display": "percent 0to3Hours"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Abnormal}",
+          "display": "percent Abnormal"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Activity}",
+          "display": "percent Activity"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{BasalActivity}",
+          "display": "percent BasalActivity"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Binding}",
+          "display": "percent Binding"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Blockade}",
+          "display": "percent Blockade"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Carboxyhemoglobin}",
+          "display": "percent Carboxyhemoglobin"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Conversion}",
+          "display": "percent Conversion"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

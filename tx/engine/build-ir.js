@@ -32,7 +32,7 @@ function buildComponentExpr(cset, path, opts = {}) {
   // Pure import component (no system)
   if (!cset?.system) {
     const refs = (cset?.valueSet || []).map((u, j) => IR.importRef({ url: String(u), version: null, meta: { path: `${path}.valueSet[${j}]` } }));
-    return IR.union(refs, meta);
+    return IR.intersect(refs, meta);
   }
 
   const system = String(cset.system);

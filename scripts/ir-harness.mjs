@@ -72,6 +72,13 @@ const STRICT_TOTAL_CONSISTENCY = argv.includes('--strict-total-consistency')
 const CHECK_PARENT_PARITY = process.env.SEMANTIC_PARITY_CHECK_PARENT === '1';
 const RUNS = parseInt(process.env.PERF_RUNS || '3', 10);
 const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
+const PERF_PRIMARY_LABEL = process.env.PERF_PRIMARY_LABEL || 'IR Branch + New Expander';
+const PERF_SECONDARY_LABEL = process.env.PERF_SECONDARY_LABEL || 'IR Branch + Upstream Expander';
+const PERF_THIRD_BASE_URL = (process.env.PERF_THIRD_BASE_URL || '').trim();
+const PERF_THIRD_ENGINE = process.env.PERF_THIRD_ENGINE || 'legacy';
+const PERF_THIRD_LABEL = process.env.PERF_THIRD_LABEL || 'Upstream Providers + Upstream Expander';
+const PERF_THIRD_ENABLED = PERF_MODE && PERF_THIRD_BASE_URL.length > 0;
+const PERF_HTTP_TIMEOUT_MS = parseInt(process.env.PERF_HTTP_TIMEOUT_MS || '30000', 10);
 const PERF_OUT_PATH = resolve(PERF_OUT);
 const PERF_OUT_BASE = basename(PERF_OUT_PATH, extname(PERF_OUT_PATH));
 const PERF_DETAILS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.details`);
@@ -443,14 +450,23 @@ async function assertSemanticParity(vsJson, opts = {}, irResult) {
   throw new Error(`SEMANTIC_PARITY mismatch: ${formatSemanticParityMismatch(cmp)}`);
 }
 
-async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE) {
+async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE, baseUrl = BASE) {
+  const expandUrl = baseUrl === BASE ? EXPAND : expandUrlForBase(baseUrl);
   const params = buildExpandParameters(vsJson, opts, engine, forceTrace);
   const requestBody = { resourceType: 'Parameters', parameter: params };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PERF_HTTP_TIMEOUT_MS);
   const t0 = performance.now();
-  const resp = await fetch(EXPAND, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-  });
+  let resp;
+  try {
+    resp = await fetch(expandUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const ms = performance.now() - t0;
   const responseText = await resp.text();
   let responseJson = null;
@@ -465,7 +481,7 @@ async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, 
     ms,
     request: {
       method: 'POST',
-      url: EXPAND,
+      url: expandUrl,
       headers: { 'Content-Type': 'application/json' },
       body: requestBody,
     },
@@ -613,17 +629,20 @@ async function test(def, fn) {
     console.log(`  \x1b[32m✓\x1b[0m ${meta.name} (${ms}ms)`);
     passed++;
 
-    // In perf mode, re-run the last expand() call with both engines
+    // In perf mode, re-run the last expand() call with configured targets.
     if (PERF_MODE && lastExpandCall) {
       const { vsJson, opts } = lastExpandCall;
       const ir = await timeEngine(vsJson, opts, 'ir', PERF_RUNS);
-      const leg = await timeEngine(vsJson, opts, 'legacy', PERF_RUNS);
+      const upstream = await timeEngine(vsJson, opts, 'legacy', PERF_RUNS);
+      const third = PERF_THIRD_ENABLED
+        ? await timeEngineAtBase(vsJson, opts, PERF_THIRD_ENGINE, PERF_RUNS, PERF_THIRD_BASE_URL)
+        : null;
       const rowIndex = meta.id ?? (perfRows.length + 1);
       let detailHref = null;
       let inputHref = null;
       let detailError = null;
       try {
-        const detail = await capturePerfDetails(rowIndex, meta.name, meta.category, vsJson, opts, ir, leg);
+        const detail = await capturePerfDetails(rowIndex, meta.name, meta.category, vsJson, opts, ir, upstream, third);
         detailHref = detail.href;
         inputHref = detail.inputHref;
       } catch (e) {
@@ -635,16 +654,19 @@ async function test(def, fn) {
         name: meta.name,
         category: meta.category,
         irMs: ir.ms,
-        legMs: leg.ms,
+        upstreamMs: upstream.ms,
+        thirdMs: third?.ms ?? null,
         irErr: ir.err,
-        legErr: leg.err,
+        upstreamErr: upstream.err,
+        thirdErr: third?.err ?? null,
         detailHref,
         inputHref,
         detailError,
       });
       const irStr = ir.err ? '❌' : `${ir.ms}ms`;
-      const legStr = leg.err ? '❌' : `${leg.ms}ms`;
-      console.log(`    perf: IR=${irStr}  Legacy=${legStr}`);
+      const upstreamStr = upstream.err ? '❌' : `${upstream.ms}ms`;
+      const thirdStr = third == null ? 'n/a' : (third.err ? '❌' : `${third.ms}ms`);
+      console.log(`    perf: ${PERF_PRIMARY_LABEL}=${irStr}  ${PERF_SECONDARY_LABEL}=${upstreamStr}  ${PERF_THIRD_LABEL}=${thirdStr}`);
       if (detailError) console.log(`    details: ❌ ${detailError}`);
     }
   } catch (e) {
@@ -663,7 +685,7 @@ function findParams(result, name) {
 }
 
 // ── perf collection ────────────────────────────────────────────────────
-const perfRows = [];  // { name, category, irMs, legMs, irErr, legErr, detailHref, inputHref }
+const perfRows = [];  // { name, category, irMs, upstreamMs, thirdMs, irErr, upstreamErr, thirdErr, detailHref, inputHref }
 let currentCategory = '';
 let lastExpandCall = null;  // { vsJson, opts } from most recent expand()
 
@@ -680,6 +702,52 @@ async function timeEngine(vsJson, opts, engine, runs) {
       times.push(ms);
     } catch (e) {
       if (STRICT_IR_NO_FALLBACK && engine === 'ir') throw e;
+      return { ms: null, err: true };
+    }
+  }
+  return { ms: Math.round(median(times)), err: false };
+}
+
+function expandUrlForBase(baseUrl) {
+  return `${String(baseUrl).replace(/\/+$/, '')}/r4/ValueSet/$expand`;
+}
+
+async function timeEngineAtBase(vsJson, opts, engine, runs, baseUrl) {
+  const times = [];
+  const expandUrl = expandUrlForBase(baseUrl);
+  for (let i = 0; i < runs; i++) {
+    try {
+      const requestBody = {
+        resourceType: 'Parameters',
+        parameter: buildExpandParameters(vsJson, opts, engine, WANT_TRACE),
+      };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), PERF_HTTP_TIMEOUT_MS);
+      const t0 = performance.now();
+      let resp;
+      try {
+        resp = await fetch(expandUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      const ms = performance.now() - t0;
+      const text = await resp.text();
+      let json = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        json = null;
+      }
+      if (!resp.ok || !json || json.resourceType === 'OperationOutcome') {
+        return { ms: null, err: true };
+      }
+      times.push(ms);
+    } catch {
       return { ms: null, err: true };
     }
   }
@@ -707,19 +775,20 @@ function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-async function captureEngineDebug(vsJson, opts, engine) {
+async function captureEngineDebug(vsJson, opts, engine, baseUrl = BASE) {
+  const expandUrl = baseUrl === BASE ? EXPAND : expandUrlForBase(baseUrl);
   const requestBody = {
     resourceType: 'Parameters',
     parameter: buildExpandParameters(vsJson, opts, engine, true),
   };
   const request = {
     method: 'POST',
-    url: EXPAND,
+    url: expandUrl,
     headers: { 'Content-Type': 'application/json' },
     body: requestBody,
   };
   try {
-    const details = await executeExpandRequest(vsJson, opts, engine, true);
+    const details = await executeExpandRequest(vsJson, opts, engine, true, baseUrl);
     return {
       ok: true,
       ms: Math.round(details.ms),
@@ -742,33 +811,67 @@ async function captureEngineDebug(vsJson, opts, engine) {
   }
 }
 
-function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebug, legacyDebug }) {
-  const irStr = irPerf.err ? '❌' : `${irPerf.ms}ms`;
-  const legStr = legPerf.err ? '❌' : `${legPerf.ms}ms`;
-  const legacyTraceMs = legacyDebug?.trace?.totalMs;
-  const irTraceMs = irDebug?.trace?.totalMs;
-  const legacyTiming = legacyDebug?.ok
-    ? `${legacyDebug.ms}ms capture wall`
-    : 'capture failed';
-  const legacyStatus = legacyDebug?.response ? `${legacyDebug.response.status} ${legacyDebug.response.statusText || ''}`.trim() : 'n/a';
-  const legacyRequestLog = stringifyForLog(legacyDebug?.request || {});
-  const legacyPlanLog = 'N/A (legacy engine)';
-  const legacyTraceLog = legacyDebug?.traceAvailable ? stringifyForLog(legacyDebug.trace) : 'No structured trace payload returned.';
-  const legacyResponseLog = stringifyForLog(legacyDebug?.response || { error: legacyDebug?.error || 'No response captured' });
+function buildPerfDetailHtml({ rowIndex, name, category, primaryPerf, secondaryPerf, thirdPerf, primaryDebug, secondaryDebug, thirdDebug, inputHref }) {
+  const toPerfStr = (p) => {
+    if (!p) return 'n/a';
+    return p.err ? '❌' : `${p.ms}ms`;
+  };
+  const targets = [
+    { key: 'primary', label: PERF_PRIMARY_LABEL, perf: primaryPerf, debug: primaryDebug, hasPlan: true },
+    { key: 'secondary', label: PERF_SECONDARY_LABEL, perf: secondaryPerf, debug: secondaryDebug, hasPlan: false },
+  ];
+  if (thirdPerf && thirdDebug) {
+    targets.push({ key: 'third', label: PERF_THIRD_LABEL, perf: thirdPerf, debug: thirdDebug, hasPlan: false });
+  }
 
-  const irTiming = irDebug?.ok ? `${irDebug.ms}ms capture wall` : 'capture failed';
-  const irStatus = irDebug?.response ? `${irDebug.response.status} ${irDebug.response.statusText || ''}`.trim() : 'n/a';
-  const irRequestLog = stringifyForLog(irDebug?.request || {});
-  const irPlanLog = irDebug?.irPlanText || 'No IR plan payload returned.';
-  const irTraceLog = irDebug?.traceAvailable ? stringifyForLog(irDebug.trace) : 'No structured trace payload returned.';
-  const irResponseLog = stringifyForLog(irDebug?.response || { error: irDebug?.error || 'No response captured' });
-
+  const summaryPerf = targets.map(t => `${t.label}=${toPerfStr(t.perf)}`).join(' | ');
   const sectionCell = (prefix, section, label, content) => `<section class="cell">
     <details id="${prefix}-${section}" open>
       <summary>${escHtml(label)}</summary>
       <pre>${escHtml(content)}</pre>
     </details>
   </section>`;
+  const nav = targets.map(t => [
+    `<a href="#${t.key}-query">${escHtml(t.label)} query</a>`,
+    `<a href="#${t.key}-plan">${escHtml(t.label)} plan</a>`,
+    `<a href="#${t.key}-trace">${escHtml(t.label)} trace</a>`,
+    `<a href="#${t.key}-http">${escHtml(t.label)} response</a>`,
+  ].join(' ')).join(' ');
+
+  const cards = targets.map(t => {
+    const d = t.debug || {};
+    const traceMs = d?.trace?.totalMs;
+    const timing = d?.ok ? `${d.ms}ms capture wall` : 'capture failed';
+    const status = d?.response ? `${d.response.status} ${d.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${escHtml(t.label)}</h3>
+      <p class="meta-mini">capture: ${escHtml(timing)}${traceMs != null ? ` · trace: ${escHtml(String(traceMs))}ms` : ''} · response: ${escHtml(status)}</p>
+    </section>`;
+  }).join('\n');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((t) => {
+      const d = t.debug || {};
+      let content = '';
+      let label = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringifyForLog(d?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = t.hasPlan ? (d?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = d?.traceAvailable ? stringifyForLog(d.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringifyForLog(d?.response || { error: d?.error || 'No response captured' });
+      }
+      return sectionCell(t.key, section, label, content);
+    }).join('\n');
+  }).join('\n');
+
+  const columns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Perf Detail: ${escHtml(name)}</title>
@@ -779,7 +882,7 @@ function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebu
   .meta { color: #555; font-size: 0.9rem; }
   .links { margin-top: 6px; font-size: 0.9rem; }
   .links a { margin-right: 10px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .grid { display: grid; grid-template-columns: ${columns}; gap: 10px; padding: 10px; align-items: stretch; }
   .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
   .engine-card h3 { margin: 0 0 4px 0; }
   .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
@@ -787,45 +890,24 @@ function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebu
   details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
   summary { cursor: pointer; font-weight: 600; }
   pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
-  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
 </style></head><body>
 <header>
   <h1>#${rowIndex} ${escHtml(name)}</h1>
-  <div class="meta">Category: ${escHtml(category)} · Median perf: Legacy=${escHtml(legStr)} | IR=${escHtml(irStr)}</div>
+  <div class="meta">Category: ${escHtml(category)} · Median perf: ${escHtml(summaryPerf)}</div>
   <div class="links">
-    <a href="#legacy-query">Legacy query</a>
-    <a href="#legacy-plan">Legacy plan</a>
-    <a href="#legacy-trace">Legacy trace</a>
-    <a href="#legacy-http">Legacy response</a>
-    <a href="#ir-query">IR query</a>
-    <a href="#ir-plan">IR plan</a>
-    <a href="#ir-trace">IR trace</a>
-    <a href="#ir-http">IR response</a>
-    ${irDebug?.inputHref ? `<a href="${escHtml(irDebug.inputHref)}" target="_blank" rel="noopener">Input payload</a>` : ''}
+    ${nav}
+    ${inputHref ? `<a href="${escHtml(inputHref)}" target="_blank" rel="noopener">Input payload</a>` : ''}
   </div>
 </header>
 <main class="grid">
-  <section class="engine-card">
-    <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: ${escHtml(legacyTiming)}${legacyTraceMs != null ? ` · trace: ${escHtml(String(legacyTraceMs))}ms` : ''} · response: ${escHtml(legacyStatus)}</p>
-  </section>
-  <section class="engine-card">
-    <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: ${escHtml(irTiming)}${irTraceMs != null ? ` · trace: ${escHtml(String(irTraceMs))}ms` : ''} · response: ${escHtml(irStatus)}</p>
-  </section>
-  ${sectionCell('legacy', 'query', 'Query / HTTP Request', legacyRequestLog)}
-  ${sectionCell('ir', 'query', 'Query / HTTP Request', irRequestLog)}
-  ${sectionCell('legacy', 'plan', 'IR Plan', legacyPlanLog)}
-  ${sectionCell('ir', 'plan', 'IR Plan', irPlanLog)}
-  ${sectionCell('legacy', 'trace', 'Structured Trace', legacyTraceLog)}
-  ${sectionCell('ir', 'trace', 'Structured Trace', irTraceLog)}
-  ${sectionCell('legacy', 'http', 'HTTP Response', legacyResponseLog)}
-  ${sectionCell('ir', 'http', 'HTTP Response', irResponseLog)}
+  ${cards}
+  ${sectionRows}
 </main>
 </body></html>`;
 }
 
-async function capturePerfDetails(rowIndex, name, category, vsJson, opts, irPerf, legPerf) {
+async function capturePerfDetails(rowIndex, name, category, vsJson, opts, primaryPerf, secondaryPerf, thirdPerf = null) {
   const slug = `${String(rowIndex).padStart(3, '0')}-${safeSlug(name)}`;
   const filename = `${slug}.html`;
   const absPath = join(PERF_DETAILS_DIR, filename);
@@ -835,8 +917,11 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, irPerf
   const inputRelPath = `${PERF_OUT_BASE}.inputs/${inputFilename}`;
   // Capture sequentially so one engine's heavy request does not inflate the
   // other engine's wall-time due server-side request queueing.
-  const legacyDebug = await captureEngineDebug(vsJson, opts, 'legacy');
-  const irDebug = await captureEngineDebug(vsJson, opts, 'ir');
+  const secondaryDebug = await captureEngineDebug(vsJson, opts, 'legacy');
+  const primaryDebug = await captureEngineDebug(vsJson, opts, 'ir');
+  const thirdDebug = thirdPerf
+    ? await captureEngineDebug(vsJson, opts, PERF_THIRD_ENGINE, PERF_THIRD_BASE_URL)
+    : null;
   const payloadDoc = {
     id: rowIndex,
     slug,
@@ -847,8 +932,9 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, irPerf
       options: opts,
     },
     requests: {
-      legacy: legacyDebug.request || null,
-      ir: irDebug.request || null,
+      primary: primaryDebug.request || null,
+      secondary: secondaryDebug.request || null,
+      third: thirdDebug?.request || null,
     },
   };
   writeFileSync(inputAbsPath, JSON.stringify(payloadDoc, null, 2));
@@ -856,10 +942,13 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, irPerf
     rowIndex,
     name,
     category,
-    irPerf,
-    legPerf,
-    irDebug: { ...irDebug, inputHref: `../${PERF_OUT_BASE}.inputs/${inputFilename}` },
-    legacyDebug,
+    primaryPerf,
+    secondaryPerf,
+    thirdPerf,
+    primaryDebug,
+    secondaryDebug,
+    thirdDebug,
+    inputHref: `../${PERF_OUT_BASE}.inputs/${inputFilename}`,
   }));
   return { href: relPath, inputHref: inputRelPath };
 }
@@ -3200,9 +3289,11 @@ async function run() {
         name: r.name,
         rawName: r.rawName,
         irMs: r.irMs,
-        legacyMs: r.legMs,
+        upstreamMs: r.upstreamMs,
+        thirdMs: r.thirdMs,
         irError: !!r.irErr,
-        legacyError: !!r.legErr,
+        upstreamError: !!r.upstreamErr,
+        thirdError: r.thirdErr == null ? null : !!r.thirdErr,
         detailHref: r.detailHref || null,
         inputHref: r.inputHref || null,
       })),
@@ -3220,26 +3311,30 @@ async function run() {
 // ── perf HTML builder ──────────────────────────────────────────────────
 function buildPerfHtml(rows) {
   const ts = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
+  const hasThird = rows.some(r => r.thirdMs != null || r.thirdErr != null);
 
   const tableRows = rows.map(r => {
     const irStr = r.irErr ? '<span class="err">❌</span>' : `${r.irMs}ms`;
-    const legStr = r.legErr ? '<span class="err">❌</span>' : `${r.legMs}ms`;
+    const upstreamStr = r.upstreamErr ? '<span class="err">❌</span>' : `${r.upstreamMs}ms`;
+    const thirdStr = hasThird
+      ? (r.thirdErr == null ? '<span class="muted">n/a</span>' : (r.thirdErr ? '<span class="err">❌</span>' : `${r.thirdMs}ms`))
+      : '';
     let ratio = '', cls = 'even';
-    if (!r.irErr && !r.legErr && r.irMs > 0 && r.legMs > 0) {
-      const deltaMs = Math.abs(r.irMs - r.legMs);
+    if (!r.irErr && !r.upstreamErr && r.irMs > 0 && r.upstreamMs > 0) {
+      const deltaMs = Math.abs(r.irMs - r.upstreamMs);
       if (deltaMs <= 5) {
         ratio = '≈';
         cls = 'even';
-      } else if (r.irMs < r.legMs) {
-        const x = (r.legMs / r.irMs).toFixed(1);
+      } else if (r.irMs < r.upstreamMs) {
+        const x = (r.upstreamMs / r.irMs).toFixed(1);
         ratio = x === '1.0' ? '≈' : `IR ×${x}`;
         cls = x === '1.0' ? 'even' : 'ir-win';
       } else {
-        const x = (r.irMs / r.legMs).toFixed(1);
-        ratio = x === '1.0' ? '≈' : `Leg ×${x}`;
+        const x = (r.irMs / r.upstreamMs).toFixed(1);
+        ratio = x === '1.0' ? '≈' : `Upstream ×${x}`;
         cls = x === '1.0' ? 'even' : 'leg-win';
       }
-    } else if (r.legErr && !r.irErr) {
+    } else if (r.upstreamErr && !r.irErr) {
       ratio = 'IR only'; cls = 'ir-only';
     }
     let action = '<span class="muted">n/a</span>';
@@ -3254,13 +3349,13 @@ function buildPerfHtml(rows) {
       const inputHref = escHtml(r.inputHref);
       inputAction = `<a href="${inputHref}" target="_blank" rel="noopener">Input JSON</a>`;
     }
-    return `<tr class="${cls}"><td>${escHtml(r.category)}</td><td>${escHtml(r.name)}</td><td class="num">${irStr}</td><td class="num">${legStr}</td><td>${ratio}</td><td>${action}</td><td>${inputAction}</td></tr>`;
+    return `<tr class="${cls}"><td>${escHtml(r.category)}</td><td>${escHtml(r.name)}</td><td class="num">${irStr}</td><td class="num">${upstreamStr}</td>${hasThird ? `<td class="num">${thirdStr}</td>` : ''}<td>${ratio}</td><td>${action}</td><td>${inputAction}</td></tr>`;
   }).join('\n');
 
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>IR vs Legacy Perf</title>
+<html><head><meta charset="utf-8"><title>Perf Comparison Matrix</title>
 <style>
-  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; }
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 1300px; margin: 2em auto; padding: 0 1em; }
   h1 { font-size: 1.3em; }
   .meta { color: #666; font-size: 0.85em; margin-bottom: 1em; }
   table { border-collapse: collapse; width: 100%; }
@@ -3274,10 +3369,10 @@ function buildPerfHtml(rows) {
   .err { color: #c62828; }
   .muted { color: #777; }
 </style></head><body>
-<h1>IR vs Legacy Engine — Performance Comparison</h1>
+<h1>Performance Comparison Matrix</h1>
 <p class="meta">Generated ${ts} &middot; median of ${PERF_RUNS} runs &middot; _nocache=true &middot; details in ${escHtml(PERF_OUT_BASE)}.details/ &middot; inputs in ${escHtml(PERF_OUT_BASE)}.inputs/</p>
 <table>
-<thead><tr><th>Category</th><th>Test</th><th>IR</th><th>Legacy</th><th>Winner</th><th>Details</th><th>Inputs</th></tr></thead>
+<thead><tr><th>Category</th><th>Test</th><th>${escHtml(PERF_PRIMARY_LABEL)}</th><th>${escHtml(PERF_SECONDARY_LABEL)}</th>${hasThird ? `<th>${escHtml(PERF_THIRD_LABEL)}</th>` : ''}<th>Winner (${escHtml(PERF_PRIMARY_LABEL)} vs ${escHtml(PERF_SECONDARY_LABEL)})</th><th>Details</th><th>Inputs</th></tr></thead>
 <tbody>
 ${tableRows}
 </tbody></table>
