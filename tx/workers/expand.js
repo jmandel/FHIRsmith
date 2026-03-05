@@ -38,6 +38,8 @@ const EXTERNAL_DEFAULT_LIMIT = 1000;
 const INTERNAL_DEFAULT_LIMIT = 10000;
 const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
+const TRACE_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace';
+const IR_PLAN_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan';
 
 /**
  * Total status for expansion
@@ -2066,7 +2068,7 @@ class ExpandWorker extends TerminologyWorker {
           const traceJson = traceObj.toJSON();
           legacyResult.expansion.extension = legacyResult.expansion.extension || [];
           legacyResult.expansion.extension.push({
-            url: 'http://fhirsmith.org/StructureDefinition/expand-trace',
+            url: TRACE_EXTENSION_URL,
             valueString: JSON.stringify(traceJson),
           });
           const summary = formatTraceSummary(traceJson);
@@ -2180,7 +2182,7 @@ class ExpandWorker extends TerminologyWorker {
       if (wantTrace && result?.debug?.planText && expansion?.expansion) {
         expansion.expansion.extension = expansion.expansion.extension || [];
         expansion.expansion.extension.push({
-          url: 'http://fhirsmith.org/StructureDefinition/ir-plan',
+          url: IR_PLAN_EXTENSION_URL,
           valueString: String(result.debug.planText),
         });
       }
@@ -2190,7 +2192,7 @@ class ExpandWorker extends TerminologyWorker {
         const traceJson = traceObj.toJSON();
         expansion.expansion.extension = expansion.expansion.extension || [];
         expansion.expansion.extension.push({
-          url: 'http://fhirsmith.org/StructureDefinition/expand-trace',
+          url: TRACE_EXTENSION_URL,
           valueString: JSON.stringify(traceJson),
         });
         const summary = formatTraceSummary(traceJson);

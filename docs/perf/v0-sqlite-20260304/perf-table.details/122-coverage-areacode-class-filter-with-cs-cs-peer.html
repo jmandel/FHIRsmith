@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 3ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -164,6 +164,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: http://hl7.org/fhir/administrative-gender, http://unstats.un.org/unsd/methods/m49/m49.htm
+runtime-constraints:
+  pagination: offset=0 count=1000
 optimized-ir:
   union [2]
     selector filter http://unstats.un.org/unsd/methods/m49/m49.htm class = region
@@ -174,7 +176,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.5,
+  "totalMs": 0.6,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -187,7 +189,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0
+      "t": 0.01
     },
     {
       "name": "legacy-expand",
@@ -198,9 +200,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.48,
+      "ms": 0.59,
       "result": {
-        "ms": 0.47,
+        "ms": 0.58,
         "total": 30,
         "returned": 30
       }
@@ -213,7 +215,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.42,
+  "totalMs": 0.49,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -235,7 +237,7 @@ optimized-ir:
             "system": "http://hl7.org/fhir/administrative-gender",
             "count": 1
           },
-          "t": 0.1
+          "t": 0.13
         },
         {
           "name": "countForIR",
@@ -243,7 +245,7 @@ optimized-ir:
             "system": "http://unstats.un.org/unsd/methods/m49/m49.htm"
           },
           "children": [],
-          "ms": 0.13,
+          "ms": 0.15,
           "result": {
             "count": 29
           }
@@ -264,7 +266,7 @@ optimized-ir:
                 "sysCount": 1
               },
               "children": [],
-              "ms": 0.01,
+              "ms": 0.02,
               "result": {
                 "candidates": 1
               }
@@ -276,13 +278,13 @@ optimized-ir:
                 "sysCount": 29
               },
               "children": [],
-              "ms": 0.12,
+              "ms": 0.14,
               "result": {
                 "candidates": 29
               }
             }
           ],
-          "ms": 0.14,
+          "ms": 0.16,
           "result": {
             "paged": 30
           }
@@ -297,7 +299,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.39,
+      "ms": 0.46,
       "result": {
         "total": 30,
         "contains": 30
@@ -319,10 +321,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "3850",
+    "content-length": "3881",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"f0a-s/3dRr1/cQSIHVdKz2PCcatJGh8\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"f29-H8kkrRZYxoTt42Vqs8pTgtLLeTU\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1123"
@@ -330,8 +332,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.129Z",
-      "identifier": "urn:uuid:7618d719-8550-4ba9-87c2-a5d38eaffc6c",
+      "timestamp": "2026-03-05T02:56:36.881Z",
+      "identifier": "urn:uuid:a63e5c42-9d11-4069-bc85-54bc0aeb4b56",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -501,8 +503,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.5,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.48,\"result\":{\"ms\":0.47,\"total\":30,\"returned\":30}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.6,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.59,\"result\":{\"ms\":0.58,\"total\":30,\"returned\":30}}]}"
         }
       ]
     }
@@ -522,10 +524,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4896",
+    "content-length": "5010",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"1320-BMldFG56zhZZemFAga6fdvCUieg\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"1392-CoucYDdZw9YF8iDLjFpuaB4Ny6M\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1124"
@@ -533,8 +535,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.130Z",
-      "identifier": "urn:uuid:c609e201-f895-434f-bbe7-63a69c602359",
+      "timestamp": "2026-03-05T02:56:36.883Z",
+      "identifier": "urn:uuid:94f1f93c-cae3-4600-b820-77c1a7b2ae5b",
       "total": 30,
       "contains": [
         {
@@ -700,12 +702,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: http://hl7.org/fhir/administrative-gender, http://unstats.un.org/unsd/methods/m49/m49.htm\noptimized-ir:\n  union [2]\n    selector filter http://unstats.un.org/unsd/methods/m49/m49.htm class = region\n    selector concept http://hl7.org/fhir/administrative-gender [1] male"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://hl7.org/fhir/administrative-gender, http://unstats.un.org/unsd/methods/m49/m49.htm\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2]\n    selector filter http://unstats.un.org/unsd/methods/m49/m49.htm class = region\n    selector concept http://hl7.org/fhir/administrative-gender [1] male"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.42,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.1},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://unstats.un.org/unsd/methods/m49/m49.htm\"},\"children\":[],\"ms\":0.13,\"result\":{\"count\":29}},{\"name\":\"pagination\",\"args\":{\"total\":30,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.01,\"result\":{\"candidates\":1}},{\"name\":\"system:http://unstats.un.org/unsd/methods/m49/m49.htm\",\"args\":{\"sysOffset\":0,\"sysCount\":29},\"children\":[],\"ms\":0.12,\"result\":{\"candidates\":29}}],\"ms\":0.14,\"result\":{\"paged\":30}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":30,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.39,\"result\":{\"total\":30,\"contains\":30}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.49,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.13},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://unstats.un.org/unsd/methods/m49/m49.htm\"},\"children\":[],\"ms\":0.15,\"result\":{\"count\":29}},{\"name\":\"pagination\",\"args\":{\"total\":30,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}},{\"name\":\"system:http://unstats.un.org/unsd/methods/m49/m49.htm\",\"args\":{\"sysOffset\":0,\"sysCount\":29},\"children\":[],\"ms\":0.14,\"result\":{\"candidates\":29}}],\"ms\":0.16,\"result\":{\"paged\":30}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":30,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.46,\"result\":{\"total\":30,\"contains\":30}}]}"
         }
       ]
     }

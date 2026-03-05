@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#137 notClosed: UCUM expansion reports valueset-unclosed</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=33ms | IR=9ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=36ms | IR=10ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 28ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 31ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 37ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 41ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -142,6 +142,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: http://unitsofmeasure.org
+runtime-constraints:
+  pagination: offset=0 count=5
 optimized-ir:
   selector whole http://unitsofmeasure.org</pre>
     </details>
@@ -150,7 +152,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 26.79,
+  "totalMs": 29.81,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -174,9 +176,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 26.77,
+      "ms": 29.79,
       "result": {
-        "ms": 26.76,
+        "ms": 29.78,
         "total": 1357,
         "returned": 5
       }
@@ -189,7 +191,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 7.9,
+  "totalMs": 9.2,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -220,7 +222,7 @@ optimized-ir:
                 "sysCount": 5
               },
               "children": [],
-              "ms": 3.26,
+              "ms": 3.89,
               "result": {
                 "candidates": 5
               }
@@ -231,13 +233,13 @@ optimized-ir:
                 "system": "http://unitsofmeasure.org"
               },
               "children": [],
-              "ms": 4.46,
+              "ms": 5.11,
               "result": {
                 "count": 1357
               }
             }
           ],
-          "ms": 7.74,
+          "ms": 9.02,
           "result": {
             "paged": 5
           }
@@ -252,7 +254,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 7.85,
+      "ms": 9.14,
       "result": {
         "total": 1357,
         "contains": 5
@@ -274,10 +276,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1591",
+    "content-length": "1619",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"637-eMpLMTOfYvlNJA2Q6Wldc6yyiOA\"",
+    "date": "Thu, 05 Mar 2026 02:56:37 GMT",
+    "etag": "W/\"653-Z6NJWA0PY/SAALv32AIMobItQho\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1250"
@@ -285,8 +287,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.401Z",
-      "identifier": "urn:uuid:23d036c5-f760-4ecd-8690-b46490fa5052",
+      "timestamp": "2026-03-05T02:56:37.175Z",
+      "identifier": "urn:uuid:095ae080-ce16-491f-83cc-f195b0711880",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -311,8 +313,8 @@ optimized-ir:
           "valueString": "The code System \"http://unitsofmeasure.org has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":26.79,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":26.77,\"result\":{\"ms\":26.76,\"total\":1357,\"returned\":5}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":29.81,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":29.79,\"result\":{\"ms\":29.78,\"total\":1357,\"returned\":5}}]}"
         }
       ],
       "total": 1357,
@@ -360,10 +362,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1957",
+    "content-length": "2067",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"7a5-n/KknbkYBvfJ1vZPZR5J5TWs86w\"",
+    "date": "Thu, 05 Mar 2026 02:56:37 GMT",
+    "etag": "W/\"813-uX37emPKQJ66lLJE9Q28y7FvaOs\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1251"
@@ -371,8 +373,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.436Z",
-      "identifier": "urn:uuid:91458fe4-0558-444d-b3a5-3745a2a484b7",
+      "timestamp": "2026-03-05T02:56:37.215Z",
+      "identifier": "urn:uuid:bb1f06b6-b764-4d53-ab80-c168ea676a7a",
       "total": 1357,
       "contains": [
         {
@@ -417,12 +419,12 @@ optimized-ir:
           "valueString": "The code System \"http://unitsofmeasure.org\" has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: http://unitsofmeasure.org\noptimized-ir:\n  selector whole http://unitsofmeasure.org"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://unitsofmeasure.org\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector whole http://unitsofmeasure.org"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":7.9,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://unitsofmeasure.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[],\"ms\":3.26,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://unitsofmeasure.org\"},\"children\":[],\"ms\":4.46,\"result\":{\"count\":1357}}],\"ms\":7.74,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":7.85,\"result\":{\"total\":1357,\"contains\":5}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":9.2,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://unitsofmeasure.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[],\"ms\":3.89,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://unitsofmeasure.org\"},\"children\":[],\"ms\":5.11,\"result\":{\"count\":1357}}],\"ms\":9.02,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":9.14,\"result\":{\"total\":1357,\"contains\":5}}]}"
         }
       ]
     }

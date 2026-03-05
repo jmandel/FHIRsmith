@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#105 pagination-safety: mixed v0 + preloaded reconstruct full set</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=4ms | IR=3ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=4ms | IR=5ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 6ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 7ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 8ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 9ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -178,6 +178,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: http://snomed.info/sct, urn:iso:std:iso:4217
+runtime-constraints:
+  pagination: offset=150 count=50
 optimized-ir:
   union [2]
     selector concept http://snomed.info/sct [3] 73211009, 44054006, 46635009
@@ -188,7 +190,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 2.89,
+  "totalMs": 3.39,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -212,9 +214,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 2.87,
+      "ms": 3.36,
       "result": {
-        "ms": 2.87,
+        "ms": 3.35,
         "total": 185,
         "returned": 35
       }
@@ -227,7 +229,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.61,
+  "totalMs": 1.7,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -249,7 +251,7 @@ optimized-ir:
             "system": "http://snomed.info/sct",
             "count": 3
           },
-          "t": 0.35
+          "t": 0.43
         },
         {
           "name": "countForIR",
@@ -257,7 +259,7 @@ optimized-ir:
             "system": "urn:iso:std:iso:4217"
           },
           "children": [],
-          "ms": 0.61,
+          "ms": 0.58,
           "result": {
             "count": 182
           }
@@ -278,13 +280,13 @@ optimized-ir:
                 "sysCount": 35
               },
               "children": [],
-              "ms": 0.56,
+              "ms": 0.57,
               "result": {
                 "candidates": 35
               }
             }
           ],
-          "ms": 0.57,
+          "ms": 0.58,
           "result": {
             "paged": 35
           }
@@ -299,7 +301,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 1.57,
+      "ms": 1.66,
       "result": {
         "total": 185,
         "contains": 35
@@ -321,10 +323,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "3936",
+    "content-length": "3964",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:45 GMT",
-    "etag": "W/\"f60-0FdRPUS8lindVjOdym+DZsYWjfE\"",
+    "date": "Thu, 05 Mar 2026 02:56:32 GMT",
+    "etag": "W/\"f7c-7d9ofC0M1zblyHV4/uIng9vesV8\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-963"
@@ -332,8 +334,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:45.412Z",
-      "identifier": "urn:uuid:ea3780da-39b9-4a92-9674-721a73a5b99c",
+      "timestamp": "2026-03-05T02:56:32.058Z",
+      "identifier": "urn:uuid:c495f92e-792f-4cb3-a8ec-a60af7ccc0d5",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -537,8 +539,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":2.89,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":150,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":2.87,\"result\":{\"ms\":2.87,\"total\":185,\"returned\":35}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":3.39,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":150,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.36,\"result\":{\"ms\":3.35,\"total\":185,\"returned\":35}}]}"
         }
       ]
     }
@@ -558,10 +560,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4665",
+    "content-length": "4777",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:45 GMT",
-    "etag": "W/\"1239-UP52QFDErAWrtHNJLBUQpCjlfeU\"",
+    "date": "Thu, 05 Mar 2026 02:56:32 GMT",
+    "etag": "W/\"12a9-qLVhXYIq0jVbodzbnGkkrKCSgpA\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-964"
@@ -569,8 +571,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:45.417Z",
-      "identifier": "urn:uuid:2715c65c-a80a-4b1e-81aa-6301d852d81f",
+      "timestamp": "2026-03-05T02:56:32.064Z",
+      "identifier": "urn:uuid:1c4027a2-9fde-4c54-b8c3-947fed9a7d46",
       "total": 185,
       "offset": 150,
       "contains": [
@@ -770,12 +772,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: http://snomed.info/sct, urn:iso:std:iso:4217\noptimized-ir:\n  union [2]\n    selector concept http://snomed.info/sct [3] 73211009, 44054006, 46635009\n    selector whole urn:iso:std:iso:4217"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct, urn:iso:std:iso:4217\nruntime-constraints:\n  pagination: offset=150 count=50\noptimized-ir:\n  union [2]\n    selector concept http://snomed.info/sct [3] 73211009, 44054006, 46635009\n    selector whole urn:iso:std:iso:4217"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.61,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":150,\"count\":50},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":3},\"t\":0.35},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:4217\"},\"children\":[],\"ms\":0.61,\"result\":{\"count\":182}},{\"name\":\"pagination\",\"args\":{\"total\":185,\"offset\":150,\"count\":50,\"systems\":2},\"children\":[{\"name\":\"system:urn:iso:std:iso:4217\",\"args\":{\"sysOffset\":147,\"sysCount\":35},\"children\":[],\"ms\":0.56,\"result\":{\"candidates\":35}}],\"ms\":0.57,\"result\":{\"paged\":35}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":35,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.57,\"result\":{\"total\":185,\"contains\":35}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.7,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":150,\"count\":50},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":3},\"t\":0.43},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:4217\"},\"children\":[],\"ms\":0.58,\"result\":{\"count\":182}},{\"name\":\"pagination\",\"args\":{\"total\":185,\"offset\":150,\"count\":50,\"systems\":2},\"children\":[{\"name\":\"system:urn:iso:std:iso:4217\",\"args\":{\"sysOffset\":147,\"sysCount\":35},\"children\":[],\"ms\":0.57,\"result\":{\"candidates\":35}}],\"ms\":0.58,\"result\":{\"paged\":35}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":35,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.66,\"result\":{\"total\":185,\"contains\":35}}]}"
         }
       ]
     }

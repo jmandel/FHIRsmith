@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#15 LOINC CLASSTYPE=1 first 50: ~66K total</h1>
-  <div class="meta">Category: Property filters · Median perf: Legacy=489ms | IR=38ms</div>
+  <div class="meta">Category: Property filters · Median perf: Legacy=522ms | IR=45ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 481ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 506ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 519ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 546ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -156,6 +156,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: http://loinc.org
+runtime-constraints:
+  pagination: offset=0 count=50
 optimized-ir:
   selector filter http://loinc.org CLASSTYPE = 1</pre>
     </details>
@@ -164,9 +166,9 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 479.32,
+  "totalMs": 504.35,
   "sqlCount": 1,
-  "sqlMs": 247.19,
+  "sqlMs": 257.59,
   "counters": {},
   "spans": [
     {
@@ -203,7 +205,7 @@ optimized-ir:
                 "filters": 1,
                 "after": 66497
               },
-              "t": 364.92
+              "t": 379.7
             }
           ],
           "sql": [
@@ -213,19 +215,19 @@ optimized-ir:
                 "cs": 1
               },
               "rows": 248426,
-              "ms": 247.19,
+              "ms": 257.59,
               "label": "legacy:executeFilters"
             }
           ],
-          "ms": 363.69,
+          "ms": 378.39,
           "result": {
             "rows": 66497
           }
         }
       ],
-      "ms": 479.28,
+      "ms": 504.31,
       "result": {
-        "ms": 479.26,
+        "ms": 504.29,
         "returned": 50
       }
     }
@@ -237,9 +239,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 36.25,
+  "totalMs": 38.48,
   "sqlCount": 2,
-  "sqlMs": 35.2,
+  "sqlMs": 37.32,
   "counters": {},
   "spans": [
     {
@@ -279,11 +281,11 @@ optimized-ir:
                       "message": "executeIR:breakdown",
                       "data": {
                         "hintsMs": 0,
-                        "buildMs": 0.03,
+                        "buildMs": 0.04,
                         "prepMs": 0.06,
-                        "execMs": 19.88
+                        "execMs": 21.16
                       },
-                      "t": 20.71
+                      "t": 22.04
                     }
                   ],
                   "sql": [
@@ -296,17 +298,17 @@ optimized-ir:
                         "_limit": 50
                       },
                       "rows": 50,
-                      "ms": 19.88,
+                      "ms": 21.16,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 20.02,
+                  "ms": 21.32,
                   "result": {
                     "candidates": 50
                   }
                 }
               ],
-              "ms": 20.04,
+              "ms": 21.36,
               "result": {
                 "candidates": 50
               }
@@ -332,23 +334,23 @@ optimized-ir:
                         "_cntf0_vl0": "1"
                       },
                       "rows": 66497,
-                      "ms": 15.32,
+                      "ms": 16.16,
                       "label": "countForIR"
                     }
                   ],
-                  "ms": 15.37,
+                  "ms": 16.24,
                   "result": {
                     "count": 66497
                   }
                 }
               ],
-              "ms": 15.39,
+              "ms": 16.26,
               "result": {
                 "count": 66497
               }
             }
           ],
-          "ms": 35.46,
+          "ms": 37.66,
           "result": {
             "paged": 50
           }
@@ -363,7 +365,7 @@ optimized-ir:
           "ms": 0.01
         }
       ],
-      "ms": 36.17,
+      "ms": 38.4,
       "result": {
         "total": 66497,
         "contains": 50
@@ -385,10 +387,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "7371",
+    "content-length": "7398",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:29 GMT",
-    "etag": "W/\"1ccb-++eBBLlzDF04MkHCu8xxof094FE\"",
+    "date": "Thu, 05 Mar 2026 02:56:15 GMT",
+    "etag": "W/\"1ce6-JXLrZd9NAmtqY9VWMegShh51SwU\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-138"
@@ -396,8 +398,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:29.138Z",
-      "identifier": "urn:uuid:1f6b809d-90ed-4552-90dc-e160b9d7df6a",
+      "timestamp": "2026-03-05T02:56:15.615Z",
+      "identifier": "urn:uuid:b7fc767e-88a6-404b-891f-71d8fa3741ee",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -666,8 +668,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":479.32,\"sqlCount\":1,\"sqlMs\":247.19,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":66497},\"t\":364.92}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":247.19,\"label\":\"legacy:executeFilters\"}],\"ms\":363.69,\"result\":{\"rows\":66497}}],\"ms\":479.28,\"result\":{\"ms\":479.26,\"returned\":50}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":504.35,\"sqlCount\":1,\"sqlMs\":257.59,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":66497},\"t\":379.7}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":257.59,\"label\":\"legacy:executeFilters\"}],\"ms\":378.39,\"result\":{\"rows\":66497}}],\"ms\":504.31,\"result\":{\"ms\":504.29,\"returned\":50}}]}"
         },
         {
           "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
@@ -700,10 +702,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "8545",
+    "content-length": "8656",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:29 GMT",
-    "etag": "W/\"2161-abFB/exiFC/yHQFKSICezaH5F0Q\"",
+    "date": "Thu, 05 Mar 2026 02:56:16 GMT",
+    "etag": "W/\"21d0-wwzFbnO8pXRco56naGp3gnYoVqc\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-139"
@@ -711,8 +713,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:29.654Z",
-      "identifier": "urn:uuid:378a76ea-ad32-4bd5-b30c-5a863034fa7a",
+      "timestamp": "2026-03-05T02:56:16.159Z",
+      "identifier": "urn:uuid:30031d6d-0251-42dd-909c-238cabb86bbd",
       "total": 66497,
       "contains": [
         {
@@ -978,12 +980,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: http://loinc.org\noptimized-ir:\n  selector filter http://loinc.org CLASSTYPE = 1"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://loinc.org\nruntime-constraints:\n  pagination: offset=0 count=50\noptimized-ir:\n  selector filter http://loinc.org CLASSTYPE = 1"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":36.25,\"sqlCount\":2,\"sqlMs\":35.2,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":50},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.03,\"prepMs\":0.06,\"execMs\":19.88},\"t\":20.71}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":36,\"_xf0_vl0\":\"1\",\"_limit\":50},\"rows\":50,\"ms\":19.88,\"label\":\"executeIR\"}],\"ms\":20.02,\"result\":{\"candidates\":50}}],\"ms\":20.04,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":36,\"_cntf0_vl0\":\"1\"},\"rows\":66497,\"ms\":15.32,\"label\":\"countForIR\"}],\"ms\":15.37,\"result\":{\"count\":66497}}],\"ms\":15.39,\"result\":{\"count\":66497}}],\"ms\":35.46,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":36.17,\"result\":{\"total\":66497,\"contains\":50}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":38.48,\"sqlCount\":2,\"sqlMs\":37.32,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":50},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.04,\"prepMs\":0.06,\"execMs\":21.16},\"t\":22.04}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":36,\"_xf0_vl0\":\"1\",\"_limit\":50},\"rows\":50,\"ms\":21.16,\"label\":\"executeIR\"}],\"ms\":21.32,\"result\":{\"candidates\":50}}],\"ms\":21.36,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":36,\"_cntf0_vl0\":\"1\"},\"rows\":66497,\"ms\":16.16,\"label\":\"countForIR\"}],\"ms\":16.24,\"result\":{\"count\":66497}}],\"ms\":16.26,\"result\":{\"count\":66497}}],\"ms\":37.66,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":38.4,\"result\":{\"total\":66497,\"contains\":50}}]}"
         }
       ]
     }

@@ -38,7 +38,7 @@
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -156,6 +156,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: urn:ietf:bcp:13
+runtime-constraints:
+  pagination: offset=0 count=1000
 optimized-ir:
   selector concept urn:ietf:bcp:13 [3] text/html, application/json, image/png</pre>
     </details>
@@ -164,7 +166,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.2,
+  "totalMs": 0.23,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -188,9 +190,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.19,
+      "ms": 0.22,
       "result": {
-        "ms": 0.18,
+        "ms": 0.21,
         "total": 3,
         "returned": 3
       }
@@ -203,7 +205,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.13,
+  "totalMs": 0.14,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -225,7 +227,7 @@ optimized-ir:
             "system": "urn:ietf:bcp:13",
             "count": 3
           },
-          "t": 0.07
+          "t": 0.08
         },
         {
           "name": "pagination",
@@ -243,7 +245,7 @@ optimized-ir:
                 "sysCount": 1000
               },
               "children": [],
-              "ms": 0.02,
+              "ms": 0.03,
               "result": {
                 "candidates": 3
               }
@@ -256,10 +258,10 @@ optimized-ir:
                 "returned": 3,
                 "total": 3
               },
-              "t": 0.1
+              "t": 0.12
             }
           ],
-          "ms": 0.03,
+          "ms": 0.04,
           "result": {
             "paged": 3
           }
@@ -274,7 +276,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.1,
+      "ms": 0.12,
       "result": {
         "total": 3,
         "contains": 3
@@ -296,10 +298,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1003",
+    "content-length": "1032",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"3eb-cMysDImlrVz7kTnWCDHLvbyqg2g\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"408-XM8A7XmWDxFkjxU9ToKZE+31f5U\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1132"
@@ -307,8 +309,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.138Z",
-      "identifier": "urn:uuid:1c3183a2-e7a3-4803-825b-6095b47a4e73",
+      "timestamp": "2026-03-05T02:56:36.891Z",
+      "identifier": "urn:uuid:693ced8f-fe66-4309-9d74-bf4ce3af3d5e",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -339,8 +341,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.2,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.19,\"result\":{\"ms\":0.18,\"total\":3,\"returned\":3}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.23,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.22,\"result\":{\"ms\":0.21,\"total\":3,\"returned\":3}}]}"
         }
       ]
     }
@@ -360,10 +362,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1621",
+    "content-length": "1736",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"655-ArHk1e+mXWu1FK187teGhyS87R4\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"6c8-MbulAsiRwLW+z2MQNd9KM4bgrYA\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1133"
@@ -371,8 +373,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.139Z",
-      "identifier": "urn:uuid:427c2eca-5a06-412b-bb71-90f380d03538",
+      "timestamp": "2026-03-05T02:56:36.892Z",
+      "identifier": "urn:uuid:403c6958-9144-430b-bdca-8fa0d878490f",
       "total": 3,
       "contains": [
         {
@@ -399,12 +401,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: urn:ietf:bcp:13\noptimized-ir:\n  selector concept urn:ietf:bcp:13 [3] text/html, application/json, image/png"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: urn:ietf:bcp:13\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept urn:ietf:bcp:13 [3] text/html, application/json, image/png"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.13,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"urn:ietf:bcp:13\",\"count\":3},\"t\":0.07},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:urn:ietf:bcp:13\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.1}],\"ms\":0.03,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.1,\"result\":{\"total\":3,\"contains\":3}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.14,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"urn:ietf:bcp:13\",\"count\":3},\"t\":0.08},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:urn:ietf:bcp:13\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.03,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.12}],\"ms\":0.04,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.12,\"result\":{\"total\":3,\"contains\":3}}]}"
         }
       ]
     }

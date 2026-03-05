@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 3ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -150,6 +150,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: https://www.usps.com/
+runtime-constraints:
+  pagination: offset=60 count=30
 optimized-ir:
   selector whole https://www.usps.com/</pre>
     </details>
@@ -158,7 +160,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.75,
+  "totalMs": 0.91,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -171,7 +173,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0
+      "t": 0.01
     },
     {
       "name": "legacy-expand",
@@ -182,9 +184,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.73,
+      "ms": 0.89,
       "result": {
-        "ms": 0.72,
+        "ms": 0.88,
         "total": 62,
         "returned": 2
       }
@@ -197,7 +199,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.35,
+  "totalMs": 0.48,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -228,7 +230,7 @@ optimized-ir:
                 "sysCount": 30
               },
               "children": [],
-              "ms": 0.22,
+              "ms": 0.31,
               "result": {
                 "candidates": 2
               }
@@ -241,10 +243,10 @@ optimized-ir:
                 "returned": 2,
                 "total": 62
               },
-              "t": 0.32
+              "t": 0.44
             }
           ],
-          "ms": 0.22,
+          "ms": 0.33,
           "result": {
             "paged": 2
           }
@@ -259,7 +261,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.32,
+      "ms": 0.43,
       "result": {
         "total": 62,
         "contains": 2
@@ -281,10 +283,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1048",
+    "content-length": "1079",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"418-SQ8Q0nX2fBOHWRUDm1YQ4Rfvor4\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"437-QGpvrE1Qm9eZxY3gRtizDjC5vB8\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1060"
@@ -292,8 +294,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.002Z",
-      "identifier": "urn:uuid:66536bc3-62f9-40de-bdb8-484d901c66bc",
+      "timestamp": "2026-03-05T02:56:36.739Z",
+      "identifier": "urn:uuid:1ff6e6b9-9020-4e87-8c14-5833932be6a6",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -328,8 +330,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.75,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":30,\"offset\":60,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.73,\"result\":{\"ms\":0.72,\"total\":62,\"returned\":2}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.91,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":30,\"offset\":60,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.89,\"result\":{\"ms\":0.88,\"total\":62,\"returned\":2}}]}"
         }
       ]
     }
@@ -349,10 +351,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1491",
+    "content-length": "1603",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"5d3-g8CcaBvmeHU0r5uGMXMsZR1Z7e8\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"643-e5E3w4RJuQn9V41KTqJHYj7xb6k\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1061"
@@ -360,8 +362,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.004Z",
-      "identifier": "urn:uuid:2f43046b-a6ed-417e-b665-ba59cb90014e",
+      "timestamp": "2026-03-05T02:56:36.741Z",
+      "identifier": "urn:uuid:4792bf22-4346-4985-b337-ebb70e6d22ed",
       "total": 62,
       "offset": 60,
       "contains": [
@@ -392,12 +394,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: https://www.usps.com/\noptimized-ir:\n  selector whole https://www.usps.com/"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: https://www.usps.com/\nruntime-constraints:\n  pagination: offset=60 count=30\noptimized-ir:\n  selector whole https://www.usps.com/"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.35,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":60,\"count\":30},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":60,\"count\":30,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":60,\"sysCount\":30},\"children\":[],\"ms\":0.22,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":60,\"returned\":2,\"total\":62},\"t\":0.32}],\"ms\":0.22,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.32,\"result\":{\"total\":62,\"contains\":2}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.48,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":60,\"count\":30},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":60,\"count\":30,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":60,\"sysCount\":30},\"children\":[],\"ms\":0.31,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":60,\"returned\":2,\"total\":62},\"t\":0.44}],\"ms\":0.33,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.43,\"result\":{\"total\":62,\"contains\":2}}]}"
         }
       ]
     }

@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 4ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 3ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 5ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -156,6 +156,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: http://snomed.info/sct
+runtime-constraints:
+  pagination: offset=0 count=1000
 optimized-ir:
   selector concept http://snomed.info/sct [3] 73211009, 44054006, 46635009</pre>
     </details>
@@ -164,7 +166,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.9,
+  "totalMs": 1.05,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -188,9 +190,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.88,
+      "ms": 1.03,
       "result": {
-        "ms": 0.87,
+        "ms": 1.02,
         "total": 3,
         "returned": 3
       }
@@ -203,9 +205,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.58,
+  "totalMs": 0.57,
   "sqlCount": 1,
-  "sqlMs": 0.08,
+  "sqlMs": 0.09,
   "counters": {},
   "spans": [
     {
@@ -225,7 +227,7 @@ optimized-ir:
             "system": "http://snomed.info/sct",
             "count": 3
           },
-          "t": 0.37
+          "t": 0.35
         },
         {
           "name": "pagination",
@@ -256,9 +258,9 @@ optimized-ir:
                         "hintsMs": 0,
                         "buildMs": 0.01,
                         "prepMs": 0.04,
-                        "execMs": 0.08
+                        "execMs": 0.09
                       },
-                      "t": 0.53
+                      "t": 0.51
                     }
                   ],
                   "sql": [
@@ -272,17 +274,17 @@ optimized-ir:
                         "_limit": 1000
                       },
                       "rows": 3,
-                      "ms": 0.08,
+                      "ms": 0.09,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.15,
+                  "ms": 0.16,
                   "result": {
                     "candidates": 3
                   }
                 }
               ],
-              "ms": 0.16,
+              "ms": 0.17,
               "result": {
                 "candidates": 3
               }
@@ -295,10 +297,10 @@ optimized-ir:
                 "returned": 3,
                 "total": 3
               },
-              "t": 0.55
+              "t": 0.54
             }
           ],
-          "ms": 0.17,
+          "ms": 0.18,
           "result": {
             "paged": 3
           }
@@ -313,7 +315,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.53,
+      "ms": 0.54,
       "result": {
         "total": 3,
         "contains": 3
@@ -335,10 +337,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1115",
+    "content-length": "1144",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:32 GMT",
-    "etag": "W/\"45b-LkwrQ3h+6p707+gXLe6Onli6fws\"",
+    "date": "Thu, 05 Mar 2026 02:56:18 GMT",
+    "etag": "W/\"478-F3xF2CXtR0o77rQnxDpgJGdM3nU\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-156"
@@ -346,8 +348,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:32.026Z",
-      "identifier": "urn:uuid:00ffd73a-7df8-47b9-9eee-ba3c4e0cc31b",
+      "timestamp": "2026-03-05T02:56:18.668Z",
+      "identifier": "urn:uuid:acf0e3cb-d224-4ee0-91b9-0cc3cd8563c0",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -378,8 +380,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.9,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.88,\"result\":{\"ms\":0.87,\"total\":3,\"returned\":3}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.05,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.03,\"result\":{\"ms\":1.02,\"total\":3,\"returned\":3}}]}"
         }
       ]
     }
@@ -399,10 +401,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "2475",
+    "content-length": "2588",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:32 GMT",
-    "etag": "W/\"9ab-4cOt50kCa2TFHptjyq+zCgbp5Bg\"",
+    "date": "Thu, 05 Mar 2026 02:56:18 GMT",
+    "etag": "W/\"a1c-hBFUtTrUfjQ/BTI3lSqXtIacW/E\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-157"
@@ -410,8 +412,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:32.028Z",
-      "identifier": "urn:uuid:31d195af-1258-40dd-9187-b74088e57ecd",
+      "timestamp": "2026-03-05T02:56:18.671Z",
+      "identifier": "urn:uuid:061b91bd-b6a5-4955-b599-6220ca74a016",
       "total": 3,
       "contains": [
         {
@@ -438,12 +440,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: http://snomed.info/sct\noptimized-ir:\n  selector concept http://snomed.info/sct [3] 73211009, 44054006, 46635009"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://snomed.info/sct [3] 73211009, 44054006, 46635009"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.58,\"sqlCount\":1,\"sqlMs\":0.08,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":3},\"t\":0.37},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.04,\"execMs\":0.08},\"t\":0.53}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0,@_x_c1,@_x_c2)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_x_c1\":\"44054006\",\"_x_c2\":\"46635009\",\"_limit\":1000},\"rows\":3,\"ms\":0.08,\"label\":\"executeIR\"}],\"ms\":0.15,\"result\":{\"candidates\":3}}],\"ms\":0.16,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.55}],\"ms\":0.17,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.53,\"result\":{\"total\":3,\"contains\":3}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.57,\"sqlCount\":1,\"sqlMs\":0.09,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":3},\"t\":0.35},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.04,\"execMs\":0.09},\"t\":0.51}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0,@_x_c1,@_x_c2)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_x_c1\":\"44054006\",\"_x_c2\":\"46635009\",\"_limit\":1000},\"rows\":3,\"ms\":0.09,\"label\":\"executeIR\"}],\"ms\":0.16,\"result\":{\"candidates\":3}}],\"ms\":0.17,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.54}],\"ms\":0.18,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.54,\"result\":{\"total\":3,\"contains\":3}}]}"
         }
       ]
     }

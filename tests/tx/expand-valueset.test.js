@@ -1564,7 +1564,7 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(usedVS).toContain(importedVsUrl);
 
       const traceExt = (expansion.extension || []).find(
-        e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace'
+        e => e.url === 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace'
       );
       expect(traceExt).toBeDefined();
     });
@@ -1830,7 +1830,7 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(expansion.contains).toHaveLength(1);
 
       const traceExt = (expansion.extension || []).find(
-        e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace'
+        e => e.url === 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace'
       );
       expect(traceExt).toBeDefined();
       const traceJson = JSON.parse(traceExt.valueString);
@@ -1884,7 +1884,7 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(expansion.total).toBe(4);
 
       const traceExt = (expansion.extension || []).find(
-        e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace'
+        e => e.url === 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace'
       );
       expect(traceExt).toBeDefined();
       const traceJson = JSON.parse(traceExt.valueString);

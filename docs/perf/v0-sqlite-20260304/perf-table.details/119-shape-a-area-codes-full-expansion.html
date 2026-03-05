@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#119 shape-A: area codes full expansion</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=4ms | IR=2ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=5ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 4ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 5ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 6ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 7ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -134,6 +134,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: http://unstats.un.org/unsd/methods/m49/m49.htm
+runtime-constraints:
+  pagination: offset=0 count=1000
 optimized-ir:
   selector whole http://unstats.un.org/unsd/methods/m49/m49.htm</pre>
     </details>
@@ -142,7 +144,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 3.06,
+  "totalMs": 3.65,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -155,7 +157,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0
+      "t": 0.01
     },
     {
       "name": "legacy-expand",
@@ -166,9 +168,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 3.04,
+      "ms": 3.63,
       "result": {
-        "ms": 3.04,
+        "ms": 3.63,
         "total": 270,
         "returned": 270
       }
@@ -181,7 +183,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1,
+  "totalMs": 1.21,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -212,7 +214,7 @@ optimized-ir:
                 "sysCount": 1000
               },
               "children": [],
-              "ms": 0.86,
+              "ms": 1.04,
               "result": {
                 "candidates": 270
               }
@@ -225,10 +227,10 @@ optimized-ir:
                 "returned": 270,
                 "total": 270
               },
-              "t": 0.96
+              "t": 1.17
             }
           ],
-          "ms": 0.87,
+          "ms": 1.06,
           "result": {
             "paged": 270
           }
@@ -243,7 +245,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.97,
+      "ms": 1.18,
       "result": {
         "total": 270,
         "contains": 270
@@ -265,10 +267,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "28521",
+    "content-length": "28552",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"6f69-xbkM854DeLIoXQLpWJCPqa30+fc\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"6f88-I4MM3NeeHz6vziR+Wjj9C9jLIGg\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1096"
@@ -276,8 +278,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.071Z",
-      "identifier": "urn:uuid:7a7711e5-556f-48de-9ace-c7a9c9e383f5",
+      "timestamp": "2026-03-05T02:56:36.815Z",
+      "identifier": "urn:uuid:0dbfc2a7-9729-4ad4-b25e-5010adbe2cf1",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -1643,8 +1645,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":3.06,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.04,\"result\":{\"ms\":3.04,\"total\":270,\"returned\":270}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":3.65,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.63,\"result\":{\"ms\":3.63,\"total\":270,\"returned\":270}}]}"
         }
       ]
     }
@@ -1664,10 +1666,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "29084",
+    "content-length": "29200",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
-    "etag": "W/\"719c-mdIZ9O/OI+MsJLSbDJPnxcso0Lc\"",
+    "date": "Thu, 05 Mar 2026 02:56:36 GMT",
+    "etag": "W/\"7210-92hEF+SBQ41vES3rUfGbU6Iy5r4\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1097"
@@ -1675,8 +1677,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:50.076Z",
-      "identifier": "urn:uuid:ff267d0d-498f-40b5-be92-1126d4198d6b",
+      "timestamp": "2026-03-05T02:56:36.821Z",
+      "identifier": "urn:uuid:5c3282c2-6839-449c-828e-21f5f22e2d72",
       "total": 270,
       "contains": [
         {
@@ -3038,12 +3040,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: http://unstats.un.org/unsd/methods/m49/m49.htm\noptimized-ir:\n  selector whole http://unstats.un.org/unsd/methods/m49/m49.htm"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://unstats.un.org/unsd/methods/m49/m49.htm\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://unstats.un.org/unsd/methods/m49/m49.htm"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://unstats.un.org/unsd/methods/m49/m49.htm\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.86,\"result\":{\"candidates\":270}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":270,\"total\":270},\"t\":0.96}],\"ms\":0.87,\"result\":{\"paged\":270}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":270,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.97,\"result\":{\"total\":270,\"contains\":270}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.21,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://unstats.un.org/unsd/methods/m49/m49.htm\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":1.04,\"result\":{\"candidates\":270}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":270,\"total\":270},\"t\":1.17}],\"ms\":1.06,\"result\":{\"paged\":270}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":270,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.18,\"result\":{\"total\":270,\"contains\":270}}]}"
         }
       ]
     }

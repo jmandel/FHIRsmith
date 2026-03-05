@@ -75,6 +75,14 @@ const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
 const PERF_OUT_PATH = resolve(PERF_OUT);
 const PERF_OUT_BASE = basename(PERF_OUT_PATH, extname(PERF_OUT_PATH));
 const PERF_DETAILS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.details`);
+const TRACE_EXTENSION_URLS = new Set([
+  'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace',
+  'http://fhirsmith.org/StructureDefinition/expand-trace', // backwards compatibility
+]);
+const IR_PLAN_EXTENSION_URLS = new Set([
+  'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan',
+  'http://fhirsmith.org/StructureDefinition/ir-plan', // backwards compatibility
+]);
 
 const SYS = {
   SCT: 'http://snomed.info/sct',
@@ -166,7 +174,7 @@ function buildExpandParameters(vsJson, opts = {}, engine = DEFAULT_ENGINE, force
 
 function extractTracePayload(responseJson) {
   const ext = responseJson?.expansion?.extension || [];
-  const traceExt = ext.find(e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace');
+  const traceExt = ext.find(e => TRACE_EXTENSION_URLS.has(e.url));
   if (!traceExt?.valueString) return null;
   try {
     return JSON.parse(traceExt.valueString);
@@ -177,7 +185,7 @@ function extractTracePayload(responseJson) {
 
 function extractIRPlanPayload(responseJson) {
   const ext = responseJson?.expansion?.extension || [];
-  const planExt = ext.find(e => e.url === 'http://fhirsmith.org/StructureDefinition/ir-plan');
+  const planExt = ext.find(e => IR_PLAN_EXTENSION_URLS.has(e.url));
   if (!planExt?.valueString) return null;
   return String(planExt.valueString);
 }

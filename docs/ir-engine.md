@@ -391,7 +391,7 @@ Add `_trace=true` to any `$expand` request to get a structured execution
 trace as an extension on the response:
 
 ```
-expansion.extension[].url = "http://fhirsmith.org/StructureDefinition/expand-trace"
+expansion.extension[].url = "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace"
 expansion.extension[].valueString = <JSON>
 ```
 

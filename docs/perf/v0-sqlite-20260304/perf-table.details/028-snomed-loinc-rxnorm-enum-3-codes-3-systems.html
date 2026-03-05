@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#28 SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems</h1>
-  <div class="meta">Category: Multi-system · Median perf: Legacy=5ms | IR=2ms</div>
+  <div class="meta">Category: Multi-system · Median perf: Legacy=5ms | IR=3ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 5ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 11ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 7ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 13ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -176,6 +176,8 @@
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
       <pre>systems: http://loinc.org, http://snomed.info/sct, http://www.nlm.nih.gov/research/umls/rxnorm
+runtime-constraints:
+  pagination: offset=0 count=1000
 optimized-ir:
   union [3]
     selector concept http://snomed.info/sct [1] 73211009
@@ -187,7 +189,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 3.67,
+  "totalMs": 4.17,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -211,9 +213,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 3.65,
+      "ms": 4.14,
       "result": {
-        "ms": 3.65,
+        "ms": 4.14,
         "total": 3,
         "returned": 3
       }
@@ -226,9 +228,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.38,
+  "totalMs": 1.59,
   "sqlCount": 3,
-  "sqlMs": 0.14,
+  "sqlMs": 0.16,
   "counters": {},
   "spans": [
     {
@@ -248,7 +250,7 @@ optimized-ir:
             "system": "http://loinc.org",
             "count": 1
           },
-          "t": 0.62
+          "t": 0.69
         },
         {
           "name": "note",
@@ -257,7 +259,7 @@ optimized-ir:
             "system": "http://snomed.info/sct",
             "count": 1
           },
-          "t": 0.82
+          "t": 0.95
         },
         {
           "name": "note",
@@ -266,7 +268,7 @@ optimized-ir:
             "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
             "count": 1
           },
-          "t": 1.05
+          "t": 1.19
         },
         {
           "name": "pagination",
@@ -296,10 +298,10 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.01,
-                        "prepMs": 0.03,
+                        "prepMs": 0.04,
                         "execMs": 0.06
                       },
-                      "t": 1.18
+                      "t": 1.34
                     }
                   ],
                   "sql": [
@@ -315,13 +317,13 @@ optimized-ir:
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.12,
+                  "ms": 0.13,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.12,
+              "ms": 0.14,
               "result": {
                 "candidates": 1
               }
@@ -344,11 +346,11 @@ optimized-ir:
                       "message": "executeIR:breakdown",
                       "data": {
                         "hintsMs": 0,
-                        "buildMs": 0,
-                        "prepMs": 0.02,
-                        "execMs": 0.04
+                        "buildMs": 0.01,
+                        "prepMs": 0.03,
+                        "execMs": 0.05
                       },
-                      "t": 1.27
+                      "t": 1.45
                     }
                   ],
                   "sql": [
@@ -360,17 +362,17 @@ optimized-ir:
                         "_limit": 1
                       },
                       "rows": 1,
-                      "ms": 0.04,
+                      "ms": 0.05,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.08,
+                  "ms": 0.09,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.08,
+              "ms": 0.1,
               "result": {
                 "candidates": 1
               }
@@ -395,9 +397,9 @@ optimized-ir:
                         "hintsMs": 0,
                         "buildMs": 0,
                         "prepMs": 0.02,
-                        "execMs": 0.04
+                        "execMs": 0.05
                       },
-                      "t": 1.34
+                      "t": 1.54
                     }
                   ],
                   "sql": [
@@ -409,23 +411,23 @@ optimized-ir:
                         "_limit": 1
                       },
                       "rows": 1,
-                      "ms": 0.04,
+                      "ms": 0.05,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.07,
+                  "ms": 0.08,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.07,
+              "ms": 0.09,
               "result": {
                 "candidates": 1
               }
             }
           ],
-          "ms": 0.29,
+          "ms": 0.35,
           "result": {
             "paged": 3
           }
@@ -440,7 +442,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 1.35,
+      "ms": 1.55,
       "result": {
         "total": 3,
         "contains": 3
@@ -462,10 +464,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1342",
+    "content-length": "1370",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:32 GMT",
-    "etag": "W/\"53e-EZbbkGNKrPupZ9qRFRXaHya5ccI\"",
+    "date": "Thu, 05 Mar 2026 02:56:18 GMT",
+    "etag": "W/\"55a-qd/OrPC37QILnmVqcOTBc7W2x0U\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-255"
@@ -473,8 +475,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:32.212Z",
-      "identifier": "urn:uuid:f0bd5dc7-b2a5-488b-b480-fb6ec09021a6",
+      "timestamp": "2026-03-05T02:56:18.866Z",
+      "identifier": "urn:uuid:1c92bb5e-6b60-4646-96c9-073d87a7bf62",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -513,8 +515,8 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":3.67,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.65,\"result\":{\"ms\":3.65,\"total\":3,\"returned\":3}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":4.17,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":4.14,\"result\":{\"ms\":4.14,\"total\":3,\"returned\":3}}]}"
         }
       ]
     }
@@ -534,10 +536,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4588",
+    "content-length": "4703",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:32 GMT",
-    "etag": "W/\"11ec-HHI7wHCP8c06lA48zY2s+pKxaGk\"",
+    "date": "Thu, 05 Mar 2026 02:56:18 GMT",
+    "etag": "W/\"125f-X+j8+UhALVM5FUSpcgKDOtpuoZc\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-256"
@@ -545,8 +547,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:32.218Z",
-      "identifier": "urn:uuid:1d81e8d7-e074-4c01-b667-aab9798438e9",
+      "timestamp": "2026-03-05T02:56:18.872Z",
+      "identifier": "urn:uuid:3a29bf50-de33-4271-a605-090586953786",
       "total": 3,
       "contains": [
         {
@@ -581,12 +583,12 @@ optimized-ir:
       ],
       "extension": [
         {
-          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
-          "valueString": "systems: http://loinc.org, http://snomed.info/sct, http://www.nlm.nih.gov/research/umls/rxnorm\noptimized-ir:\n  union [3]\n    selector concept http://snomed.info/sct [1] 73211009\n    selector concept http://loinc.org [1] 2160-0\n    selector concept http://www.nlm.nih.gov/research/umls/rxnorm [1] 1191"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://loinc.org, http://snomed.info/sct, http://www.nlm.nih.gov/research/umls/rxnorm\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [3]\n    selector concept http://snomed.info/sct [1] 73211009\n    selector concept http://loinc.org [1] 2160-0\n    selector concept http://www.nlm.nih.gov/research/umls/rxnorm [1] 1191"
         },
         {
-          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.38,\"sqlCount\":3,\"sqlMs\":0.14,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":3,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://loinc.org\",\"count\":1},\"t\":0.62},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":0.82},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"count\":1},\"t\":1.05},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":3},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.03,\"execMs\":0.06},\"t\":1.18}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"2160-0\",\"_limit\":1},\"rows\":1,\"ms\":0.06,\"label\":\"executeIR\"}],\"ms\":0.12,\"result\":{\"candidates\":1}}],\"ms\":0.12,\"result\":{\"candidates\":1}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0,\"prepMs\":0.02,\"execMs\":0.04},\"t\":1.27}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1},\"rows\":1,\"ms\":0.04,\"label\":\"executeIR\"}],\"ms\":0.08,\"result\":{\"candidates\":1}}],\"ms\":0.08,\"result\":{\"candidates\":1}},{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0,\"prepMs\":0.02,\"execMs\":0.04},\"t\":1.34}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"1191\",\"_limit\":1},\"rows\":1,\"ms\":0.04,\"label\":\"executeIR\"}],\"ms\":0.07,\"result\":{\"candidates\":1}}],\"ms\":0.07,\"result\":{\"candidates\":1}}],\"ms\":0.29,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.35,\"result\":{\"total\":3,\"contains\":3}}]}"
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.59,\"sqlCount\":3,\"sqlMs\":0.16,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":3,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://loinc.org\",\"count\":1},\"t\":0.69},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":0.95},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"count\":1},\"t\":1.19},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":3},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.04,\"execMs\":0.06},\"t\":1.34}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"2160-0\",\"_limit\":1},\"rows\":1,\"ms\":0.06,\"label\":\"executeIR\"}],\"ms\":0.13,\"result\":{\"candidates\":1}}],\"ms\":0.14,\"result\":{\"candidates\":1}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.03,\"execMs\":0.05},\"t\":1.45}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.09,\"result\":{\"candidates\":1}}],\"ms\":0.1,\"result\":{\"candidates\":1}},{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0,\"prepMs\":0.02,\"execMs\":0.05},\"t\":1.54}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"1191\",\"_limit\":1},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.08,\"result\":{\"candidates\":1}}],\"ms\":0.09,\"result\":{\"candidates\":1}}],\"ms\":0.35,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.55,\"result\":{\"total\":3,\"contains\":3}}]}"
         }
       ]
     }

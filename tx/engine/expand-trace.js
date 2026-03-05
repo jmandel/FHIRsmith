@@ -26,6 +26,7 @@
 const { AsyncLocalStorage } = require('async_hooks');
 
 const traceStore = new AsyncLocalStorage();
+const TRACE_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace';
 
 // ── Ambient accessors (call from anywhere) ─────────────────────────────────
 
@@ -118,7 +119,7 @@ class ExpandTrace {
     const json = this.toJSON();
     expansion.extension = expansion.extension || [];
     expansion.extension.push({
-      url: 'http://fhirsmith.org/StructureDefinition/expand-trace',
+      url: TRACE_EXTENSION_URL,
       valueString: JSON.stringify(json),
     });
   }
