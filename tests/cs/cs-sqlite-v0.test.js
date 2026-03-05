@@ -407,6 +407,35 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       provider.close();
     });
 
+    test('executeIR text search matches legacy filter semantics', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'filter',
+        filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+      });
+
+      const irResult = provider.executeIR(subtree, { activeOnly: true, text: 'insulin', count: 500 });
+      const irCodes = [...new Set(irResult.candidates.map(c => c.code))].sort();
+
+      const prep = await provider.getPrepContext(true);
+      await provider.filter(prep, 'concept', 'is-a', '73211009');
+      await provider.searchFilter(prep, { filter: 'insulin' }, true);
+      const sets = await provider.executeFilters(prep);
+      const legacyCodes = new Set();
+      while (await provider.filterMore(prep, sets[0])) {
+        const concept = await provider.filterConcept(prep, sets[0]);
+        if (!await provider.isInactive(concept)) {
+          legacyCodes.add(await provider.code(concept));
+        }
+      }
+      const legacySortedCodes = [...legacyCodes].sort();
+
+      expect(irCodes).toEqual(legacySortedCodes);
+      expect(irResult.candidates.length).toBe(legacySortedCodes.length);
+      provider.close();
+    });
+
     test('executeIR with code regex filter uses sqlite regexp function', async () => {
       const provider = await sctFactory.build(makeOpContext(), null);
       const subtree = IR.selector({

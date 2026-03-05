@@ -309,7 +309,7 @@ class ValueSetExpander {
     }
   }
 
-  includeCode(cs, parent, system, version, code, isAbstract, isInactive, deprecated, status, displays, definition, itemWeight, expansion, imports, csExtList, vsExtList, csProps, expProps, excludeInactive, srcURL) {
+  includeCode(cs, parent, system, version, code, isAbstract, isInactive, deprecated, status, displays, definition, itemWeight, expansion, imports, csExtList, vsExtList, csProps, expProps, excludeInactive, srcURL, explicitDisplay = null) {
     let result = null;
     this.worker.deadCheck('processCode');
 
@@ -427,9 +427,14 @@ class ValueSetExpander {
       }
 
       // display and designations
-      const pref = displays.preferredDesignation(this.params.workingLanguages());
-      if (pref && pref.value) {
-        n.display = pref.value;
+      let pref = null;
+      if (explicitDisplay != null) {
+        n.display = explicitDisplay;
+      } else {
+        pref = displays.preferredDesignation(this.params.workingLanguages());
+        if (pref && pref.value) {
+          n.display = pref.value;
+        }
       }
 
       if (this.params.includeDesignations) {
@@ -577,7 +582,8 @@ class ValueSetExpander {
   async importValueSetItem(p, c, imports, offset) {
     this.worker.deadCheck('importValueSetItem');
     const s = this.keyC(c);
-    if (this.passesImports(imports, c.system, c.code, offset) && !this.map.has(s)) {
+    let nextParent = p;
+    if (this.passesImports(imports, c.system, c.code, offset) && !this.isExcluded(c.system, c.version, c.code) && !this.map.has(s)) {
       this.fullList.push(c);
       if (p != null) {
         if (!p.contains) {p.contains = [] }
@@ -586,10 +592,14 @@ class ValueSetExpander {
         this.rootList.push(c);
       }
       this.map.set(s, c);
+      this.addToTotal();
+      nextParent = c;
+    } else if (this.map.has(s)) {
+      this.canBeHierarchy = false;
     }
     for (const cc of c.contains || []) {
       this.worker.deadCheck('importValueSetItem');
-      await this.importValueSetItem(c, cc, imports, offset);
+      await this.importValueSetItem(nextParent, cc, imports, offset);
     }
   }
 
@@ -778,7 +788,7 @@ class ValueSetExpander {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
                 await this.listDisplaysFromProvider(cds, cs, c);
                 let added = await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.isDeprecated(c), await cs.getStatus(c),
-                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url, await cs.display(c));
                 if (added) {
                   this.addToTotal();
                 }
@@ -806,7 +816,7 @@ class ValueSetExpander {
                   ov = await cs.itemWeight(cctxt.context);
                 }
                 let added = await this.includeCode(cs, null, cs.system(), cs.version(), cc.code, await cs.isAbstract(cctxt.context), await cs.isInactive(cctxt.context), await cs.isDeprecated(cctxt.context), await cs.getStatus(cctxt.context), cds,
-                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await cs.properties(cctxt.context), null, excludeInactive, vsSrc.url);
+                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await cs.properties(cctxt.context), null, excludeInactive, vsSrc.url, cc.display || await cs.display(cctxt.context));
                 if (added) {
                   this.addToTotal();
                 }
@@ -865,7 +875,7 @@ class ValueSetExpander {
                 }
                 let added = await this.includeCode(cs, parent, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
                   await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
-                  expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+                  expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url, await cs.display(c));
                 if (added) {
                   this.addToTotal();
                 }
@@ -1040,7 +1050,7 @@ class ValueSetExpander {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       await this.listDisplaysFromProvider(cds, cs, context);
       const t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
-        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl);
+        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl, await cs.display(context));
       if (t != null) {
         result++;
       }
@@ -1484,10 +1494,22 @@ class ValueSetExpander {
     if (this.excludedSystems.has(system)) {
       return true;
     }
-    if (this.excludedSystems.has(system+'|'+version)) {
+    if (version != null && this.excludedSystems.has(system+'|'+version)) {
       return true;
     }
-    return this.excluded.has(system+'|'+version+'#'+code);
+    if (this.excluded.has(system+'|'+version+'#'+code)) {
+      return true;
+    }
+    if (!this.doingVersion) {
+      const suffix = '#' + code;
+      const prefix = system + '|';
+      for (const key of this.excluded) {
+        if (key.startsWith(prefix) && key.endsWith(suffix)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   keyS(system, version, code) {

@@ -43,6 +43,7 @@ function wrapWithLegacyIR(provider) {
      */
     async executeIR(subtree, opts = {}) {
       let candidates = await executeNode(provider, subtree, opts);
+      candidates = dedupeCandidatesForResult(candidates);
       // Capture unclosed signal from grammar-based providers
       const unclosed = candidates._unclosed || null;
       // Apply text filter (legacy providers don't handle FTS natively)
@@ -83,6 +84,7 @@ function wrapWithLegacyIR(provider) {
      */
     async countForIR(subtree, opts = {}) {
       let candidates = await executeNode(provider, subtree, opts);
+      candidates = dedupeCandidatesForResult(candidates);
       // Stash unclosed signal discovered during counting (before executeIR runs)
       if (candidates._unclosed) {
         wrapper._discoveredUnclosed.push(candidates._unclosed);
@@ -105,6 +107,46 @@ function countWithChildren(candidates) {
 
 function hasHierarchyCandidates(candidates) {
   return candidates.some(c => c._children && c._children.length > 0);
+}
+
+function dedupeCandidatesByCode(candidates) {
+  const out = [];
+  const seen = new Set();
+  for (const c of candidates || []) {
+    const code = c?.code;
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    out.push(c);
+  }
+  return out;
+}
+
+function dedupeHierarchyByCode(nodes, seen = new Set()) {
+  const out = [];
+  for (const node of nodes || []) {
+    const children = node?._children ? dedupeHierarchyByCode(node._children, seen) : [];
+    const code = node?.code;
+    if (!code || seen.has(code)) {
+      // Keep unique descendants even if the parent code is a duplicate.
+      out.push(...children);
+      continue;
+    }
+    seen.add(code);
+    const entry = { ...node };
+    if (children.length > 0) entry._children = children;
+    else delete entry._children;
+    out.push(entry);
+  }
+  return out;
+}
+
+function dedupeCandidatesForResult(candidates) {
+  const unclosed = candidates?._unclosed || null;
+  const deduped = hasHierarchyCandidates(candidates)
+    ? dedupeHierarchyByCode(candidates)
+    : dedupeCandidatesByCode(candidates);
+  if (unclosed) deduped._unclosed = unclosed;
+  return deduped;
 }
 
 /**
@@ -246,7 +288,7 @@ async function executeSelector(provider, sel, opts) {
       };
       results.push(entry);
     }
-    return results;
+    return dedupeCandidatesByCode(results);
   }
 
   if (sel.shape === 'filter') {
@@ -290,13 +332,14 @@ async function executeSelector(provider, sel, opts) {
       if (wantParent) entry._parentCode = await provider.parent(ctx);
       results.push(entry);
     }
-    return results;
+    return dedupeCandidatesByCode(results);
   }
 
   if (sel.shape === 'whole' || sel.shape === 'all') {
     // Hierarchical provider — walk the tree via iterator(null) → children
     if (wantParent && typeof provider.iterator === 'function') {
-      return await iterateHierarchy(provider, null, activeOnly);
+      const tree = await iterateHierarchy(provider, null, activeOnly);
+      return dedupeHierarchyByCode(tree);
     }
 
     // Flat provider or no hierarchy — iterate all concepts
@@ -356,7 +399,7 @@ async function executeSelector(provider, sel, opts) {
       }
       ctx = await provider.nextContext(iter);
     }
-    return results;
+    return dedupeCandidatesByCode(results);
   }
 
   return [];

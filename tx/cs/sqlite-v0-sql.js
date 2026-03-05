@@ -589,18 +589,23 @@ function buildFtsSearchSql(csId, text, params, runtime) {
   for (const source of searchCfg.sources) {
     if (source === 'display') {
       const table = sqlIdentifier(searchCfg.ftsTables?.display, 'search_fts_display');
+      const conceptActiveClause = searchCfg.activeOnly ? ' AND c2.active = 1' : '';
       ftsParts.push(
-        `SELECT c2.concept_id FROM ${table} f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch`
+        `SELECT c2.concept_id FROM ${table} f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId${conceptActiveClause} AND f2.term MATCH @_searchMatch`
       );
     } else if (source === 'designation') {
       const table = sqlIdentifier(searchCfg.ftsTables?.designation, 'search_fts_designation');
+      const conceptActiveClause = searchCfg.activeOnly ? ' AND c2.active = 1' : '';
+      const designationActiveClause = searchCfg.designationActiveOnly ? ' AND d2.active = 1' : '';
       ftsParts.push(
-        `SELECT d2.concept_id FROM ${table} f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch`
+        `SELECT d2.concept_id FROM ${table} f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.concept_id = d2.concept_id WHERE c2.cs_id = @_searchCsId${conceptActiveClause}${designationActiveClause} AND f2.term MATCH @_searchMatch`
       );
     } else if (source === 'literal') {
       const table = sqlIdentifier(searchCfg.ftsTables?.literal, 'search_fts_literal');
+      const conceptActiveClause = searchCfg.activeOnly ? ' AND c2.active = 1' : '';
+      const literalActiveClause = searchCfg.literalActiveOnly ? ' AND cl2.active = 1' : '';
       ftsParts.push(
-        `SELECT cl2.source_concept_id FROM ${table} f2 JOIN concept_literal cl2 ON cl2.literal_id = f2.rowid WHERE f2.term MATCH @_searchMatch`
+        `SELECT cl2.source_concept_id FROM ${table} f2 JOIN concept_literal cl2 ON cl2.literal_id = f2.rowid JOIN concept c2 ON c2.concept_id = cl2.source_concept_id WHERE c2.cs_id = @_searchCsId${conceptActiveClause}${literalActiveClause} AND f2.term MATCH @_searchMatch`
       );
     }
   }
@@ -609,7 +614,8 @@ function buildFtsSearchSql(csId, text, params, runtime) {
 
   // LIKE fallback
   params._searchLike = `%${text}%`;
-  return `SELECT c2.concept_id FROM concept c2 WHERE c2.cs_id = @_searchCsId AND c2.display LIKE @_searchLike`;
+  const conceptActiveClause = searchCfg.activeOnly ? ' AND c2.active = 1' : '';
+  return `SELECT c2.concept_id FROM concept c2 WHERE c2.cs_id = @_searchCsId${conceptActiveClause} AND c2.display LIKE @_searchLike`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -640,11 +646,20 @@ function resolveInValueSetUrl(runtime, value) {
 
 function normalizedSearchConfig(cfg) {
   if (!cfg || typeof cfg !== 'object') {
-    return { sources: ['display', 'designation'], ftsTables: {} };
+    return {
+      sources: ['display', 'designation'],
+      ftsTables: {},
+      activeOnly: true,
+      designationActiveOnly: true,
+      literalActiveOnly: true,
+    };
   }
   return {
     sources: Array.isArray(cfg.sources) ? cfg.sources : ['display', 'designation'],
     ftsTables: cfg.ftsTables || {},
+    activeOnly: cfg.activeOnly !== false,
+    designationActiveOnly: cfg.designationActiveOnly !== false,
+    literalActiveOnly: cfg.literalActiveOnly !== false,
   };
 }
 

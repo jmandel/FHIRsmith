@@ -5,6 +5,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path';
  * IR engine test harness — hits the running server, asserts concrete expectations.
  * Usage: node scripts/ir-harness.mjs [filter] [--legacy] [--trace] [--perf] [--perf-out <file>]
  *                                   [--strict-ir-no-fallback|--strict-ir]
+ *                                   [--semantic-parity] [--strict-total-consistency]
  *
  * --perf   Run each test with both engines (5 runs each), collect median
  *          timings, write tmp/perf-table.html at the end (or --perf-out path).
@@ -44,6 +45,12 @@ const PERF_MODE = argv.includes('--perf');
 const STRICT_IR_NO_FALLBACK = argv.includes('--strict-ir-no-fallback')
   || argv.includes('--strict-ir')
   || process.env.STRICT_IR_NO_FALLBACK === '1';
+const SEMANTIC_PARITY = argv.includes('--semantic-parity')
+  || process.env.SEMANTIC_PARITY === '1';
+const STRICT_TOTAL_CONSISTENCY = argv.includes('--strict-total-consistency')
+  || SEMANTIC_PARITY
+  || process.env.STRICT_TOTAL_CONSISTENCY === '1';
+const CHECK_PARENT_PARITY = process.env.SEMANTIC_PARITY_CHECK_PARENT === '1';
 const RUNS = parseInt(process.env.PERF_RUNS || '3', 10);
 const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
 const PERF_OUT_PATH = resolve(PERF_OUT);
@@ -69,6 +76,43 @@ const SYS = {
 
 // ── helpers ────────────────────────────────────────────────────────────
 let passed = 0, failed = 0, skipped = 0;
+let currentTestName = null;
+const semanticParityWaivedTests = new Set();
+
+const KNOWN_SEMANTIC_PARITY_EXCEPTIONS = new Map([
+  ['Clinical finding first 50: fast with EXISTS pushdown', 'legacy-drain-non-result'],
+  ['LOINC STATUS=ACTIVE high offset (1000,20)', 'legacy-drain-non-result'],
+  ['LOINC text creatinine first 20', 'legacy-drain-non-result'],
+  ['RxNorm TTY=IN first 50', 'legacy-drain-non-result'],
+  ['LOINC CLASSTYPE=1 first 50: ~66K total', 'legacy-drain-non-result'],
+  ['LOINC STATUS=ACTIVE first 20: ~96K total', 'legacy-drain-non-result'],
+  ['Multi-system stride pagination', 'legacy-drain-non-result'],
+  ['pagination-safety: deep offset 110K into 124K set returns 10K codes', 'legacy-drain-non-result'],
+  ['pagination-safety: last page of 124K set is partial', 'legacy-drain-non-result'],
+  ['logic: property regex on literal-valued property (LOINC STATUS regex ^ACT)', 'legacy-drain-non-result'],
+  ['logic: total reflects imported excludes without mutating accumulated list', 'legacy-drain-non-result'],
+  ['logic: mixed import+peer inc/exc paginates without gaps or duplicates', 'legacy-drain-non-result'],
+  ['logic: code regex handled in sqlite-v0', 'legacy-drain-non-result'],
+  ['coverage: UCUM whole-system with gender peer include', 'legacy-drain-non-result'],
+  ['limit: pagination bypasses limit for large system', 'legacy-drain-non-result'],
+  ['unclosed: multi-system with grammar provider reports unclosed on all pages', 'legacy-drain-non-result'],
+  ['stress: deep SNOMED is-a pagination stable across adjacent pages', 'legacy-drain-non-result'],
+  ['stress: mixed-system text filter with limit boundary', 'legacy-drain-non-result'],
+  ['filter: LOINC SCALE_TYP=Doc uses concept_literal + code-or-display', 'legacy-drain-non-result'],
+  ['filter: LOINC ORDER_OBS=Observation uses literal source with alias', 'legacy-drain-non-result'],
+  ['filter: LOINC CLASS=CHEM via dual sources', 'legacy-drain-non-result'],
+  ['filter: RxNorm TTY=SCD uses literal source', 'legacy-drain-non-result'],
+]);
+
+function shouldWaiveSemanticParity(testName, err) {
+  const expected = KNOWN_SEMANTIC_PARITY_EXCEPTIONS.get(testName);
+  if (!expected) return false;
+  const msg = String(err?.message || '');
+  if (expected === 'legacy-drain-non-result') {
+    return msg.includes('SEMANTIC_PARITY drain failed (legacy): non-result response');
+  }
+  return false;
+}
 
 function vs(include, exclude) {
   const inc = Array.isArray(include) ? include : [include];
@@ -153,6 +197,223 @@ function strictIRTraceCheck(traceJson) {
   return { ok: true };
 }
 
+function flatContainsSemantic(contains, parentKey = null, out = []) {
+  for (const c of contains || []) {
+    const key = `${c.system || ''}\x00${c.version || ''}\x00${c.code || ''}`;
+    out.push({
+      key,
+      parentKey: parentKey || null,
+      display: c.display || null,
+      inactive: !!c.inactive,
+    });
+    flatContainsSemantic(c.contains, key, out);
+  }
+  return out;
+}
+
+const semanticUniverseCache = new Map();
+
+function stripPaginationOpts(opts = {}) {
+  const out = { ...opts };
+  delete out.offset;
+  delete out.count;
+  return out;
+}
+
+function semanticUniverseCacheKey(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
+  const baseOpts = stripPaginationOpts(opts);
+  return `${engine}\n${JSON.stringify({ vsJson, opts: baseOpts })}`;
+}
+
+function semanticConceptFromFlatEntry(entry) {
+  const [system, version, code] = String(entry.key || '').split('\x00');
+  const concept = { system: system || undefined, code: code || undefined };
+  if (version) concept.version = version;
+  if (entry.display != null) concept.display = entry.display;
+  if (entry.inactive) concept.inactive = true;
+  return concept;
+}
+
+function compareSemanticUniverse(irUniverse, legacyUniverse) {
+  const irContains = [...irUniverse.entryByKey.values()].map(semanticConceptFromFlatEntry);
+  const legacyContains = [...legacyUniverse.entryByKey.values()].map(semanticConceptFromFlatEntry);
+  const cmp = compareSemanticExpansions(
+    { expansion: { total: irUniverse.total, contains: irContains } },
+    { expansion: { total: legacyUniverse.total, contains: legacyContains } }
+  );
+  cmp.irDuplicateCount = irUniverse.duplicates.size;
+  cmp.legacyDuplicateCount = legacyUniverse.duplicates.size;
+  cmp.anyMismatch = cmp.anyMismatch || cmp.irDuplicateCount > 0 || cmp.legacyDuplicateCount > 0;
+  return cmp;
+}
+
+async function collectSemanticUniverse(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
+  const pageSizeRaw = parseInt(process.env.SEMANTIC_PARITY_DRAIN_COUNT || '1000', 10);
+  const maxPagesRaw = parseInt(process.env.SEMANTIC_PARITY_MAX_PAGES || '1000', 10);
+  const pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 1000;
+  const maxPages = Number.isFinite(maxPagesRaw) && maxPagesRaw > 0 ? maxPagesRaw : 1000;
+  const baseOpts = stripPaginationOpts(opts);
+  const entryByKey = new Map();
+  const duplicates = new Set();
+  let total = null;
+  let completed = false;
+
+  for (let page = 0; page < maxPages; page++) {
+    const pageOpts = { ...baseOpts, offset: page * pageSize, count: pageSize };
+    const { responseJson: body } = await executeExpandRequest(vsJson, pageOpts, engine, false);
+    if (!body || body.resourceType === 'OperationOutcome') {
+      throw new Error(`SEMANTIC_PARITY drain failed (${engine}): non-result response`);
+    }
+    const exp = body.expansion || {};
+    if (exp.total != null && total == null) total = exp.total;
+    const flat = flatContainsSemantic(exp.contains);
+    if (flat.length === 0) {
+      completed = true;
+      break;
+    }
+    for (const entry of flat) {
+      if (entryByKey.has(entry.key)) duplicates.add(entry.key);
+      entryByKey.set(entry.key, entry);
+    }
+    if (exp.total != null && (page + 1) * pageSize >= exp.total) {
+      completed = true;
+      break;
+    }
+  }
+
+  if (!completed) {
+    throw new Error(`SEMANTIC_PARITY drain exceeded max pages (${maxPages})`);
+  }
+  if (total == null) total = entryByKey.size;
+
+  return { total, entryByKey, duplicates };
+}
+
+async function collectSemanticUniverseCached(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
+  const key = semanticUniverseCacheKey(vsJson, opts, engine);
+  if (semanticUniverseCache.has(key)) return semanticUniverseCache.get(key);
+  const universe = await collectSemanticUniverse(vsJson, opts, engine);
+  semanticUniverseCache.set(key, universe);
+  return universe;
+}
+
+function compareSemanticExpansions(irResult, legacyResult, opts = {}) {
+  const ignoreContains = !!opts.ignoreContains;
+  const irExp = irResult?.expansion || {};
+  const legacyExp = legacyResult?.expansion || {};
+
+  let irOnly = [];
+  let legacyOnly = [];
+  let displayDiff = [];
+  let parentDiff = [];
+  let inactiveDiff = [];
+  if (!ignoreContains) {
+    const irFlat = flatContainsSemantic(irExp.contains);
+    const legacyFlat = flatContainsSemantic(legacyExp.contains);
+    const irByKey = new Map(irFlat.map(c => [c.key, c]));
+    const legacyByKey = new Map(legacyFlat.map(c => [c.key, c]));
+
+    irOnly = [...irByKey.keys()].filter(k => !legacyByKey.has(k));
+    legacyOnly = [...legacyByKey.keys()].filter(k => !irByKey.has(k));
+
+    for (const [key, irEntry] of irByKey.entries()) {
+      const legacyEntry = legacyByKey.get(key);
+      if (!legacyEntry) continue;
+      if (irEntry.display !== legacyEntry.display) {
+        displayDiff.push({ key, ir: irEntry.display, legacy: legacyEntry.display });
+      }
+      if (irEntry.parentKey !== legacyEntry.parentKey) {
+        parentDiff.push({ key, ir: irEntry.parentKey, legacy: legacyEntry.parentKey });
+      }
+      if (irEntry.inactive !== legacyEntry.inactive) {
+        inactiveDiff.push({ key, ir: irEntry.inactive, legacy: legacyEntry.inactive });
+      }
+    }
+  }
+
+  const totalMismatch = irExp.total != null && legacyExp.total != null && irExp.total !== legacyExp.total;
+  const membershipMismatch = !ignoreContains && (irOnly.length > 0 || legacyOnly.length > 0);
+  const parentMismatch = CHECK_PARENT_PARITY && parentDiff.length > 0;
+  const anyMismatch = totalMismatch || membershipMismatch || displayDiff.length > 0 || parentMismatch || inactiveDiff.length > 0;
+
+  return {
+    anyMismatch,
+    totalMismatch,
+    membershipMismatch,
+    displayDiff,
+    parentDiff,
+    inactiveDiff,
+    irOnly,
+    legacyOnly,
+    irTotal: irExp.total,
+    legacyTotal: legacyExp.total,
+  };
+}
+
+function formatSemanticParityMismatch(cmp) {
+  const details = [];
+  if (cmp.totalMismatch) details.push(`total legacy=${cmp.legacyTotal} ir=${cmp.irTotal}`);
+  if (cmp.membershipMismatch) {
+    details.push(`membership legacyOnly=${cmp.legacyOnly.slice(0, 3).join(', ') || '-'} irOnly=${cmp.irOnly.slice(0, 3).join(', ') || '-'}`);
+  }
+  if (cmp.displayDiff.length > 0) {
+    const d = cmp.displayDiff[0];
+    details.push(`display sample ${d.key} legacy=${JSON.stringify(d.legacy)} ir=${JSON.stringify(d.ir)}`);
+  }
+  if (cmp.parentDiff.length > 0) {
+    const d = cmp.parentDiff[0];
+    details.push(`parent sample ${d.key} legacy=${d.legacy || '-'} ir=${d.ir || '-'}`);
+  }
+  if (cmp.inactiveDiff.length > 0) {
+    const d = cmp.inactiveDiff[0];
+    details.push(`inactive sample ${d.key} legacy=${d.legacy} ir=${d.ir}`);
+  }
+  if (cmp.legacyDuplicateCount > 0 || cmp.irDuplicateCount > 0) {
+    details.push(`duplicates legacy=${cmp.legacyDuplicateCount || 0} ir=${cmp.irDuplicateCount || 0}`);
+  }
+  return details.join(' | ');
+}
+
+function assertTotalConsistency(result, opts = {}, engine = DEFAULT_ENGINE) {
+  const total = result?.expansion?.total;
+  if (total == null) return;
+  const flatCount = codes(result).length;
+  if (flatCount > total) {
+    throw new Error(
+      `TOTAL_CONSISTENCY(${engine}): contains(${flatCount}) > total(${total})`
+    );
+  }
+
+  const offsetRaw = opts.offset;
+  const offset = (offsetRaw == null || offsetRaw < 0) ? 0 : offsetRaw;
+  const count = opts.count;
+  if (typeof count === 'number' && count >= 0 && offset === 0 && total <= count && flatCount !== total) {
+    throw new Error(
+      `TOTAL_CONSISTENCY(${engine}): expected full-page equality (count=${count}, total=${total}) but contains=${flatCount}`
+    );
+  }
+}
+
+async function assertSemanticParity(vsJson, opts = {}, irResult) {
+  const hasExplicitPagination = (opts.offset != null && opts.offset >= 0)
+    || (typeof opts.count === 'number' && opts.count >= 0);
+  if (hasExplicitPagination && !(typeof opts.count === 'number' && opts.count === 0)) {
+    // For paginated queries, compare full semantics by draining all pages
+    // with a fixed page size to avoid order-dependent page-window noise.
+    const irUniverse = await collectSemanticUniverseCached(vsJson, opts, 'ir');
+    const legacyUniverse = await collectSemanticUniverseCached(vsJson, opts, 'legacy');
+    const cmp = compareSemanticUniverse(irUniverse, legacyUniverse);
+    if (!cmp.anyMismatch) return;
+    throw new Error(`SEMANTIC_PARITY mismatch: ${formatSemanticParityMismatch(cmp)}`);
+  }
+
+  const { responseJson: legacyBody } = await executeExpandRequest(vsJson, opts, 'legacy', false);
+  if (!legacyBody || legacyBody.resourceType === 'OperationOutcome') return;
+  const cmp = compareSemanticExpansions(irResult, legacyBody, { ignoreContains: hasExplicitPagination });
+  if (!cmp.anyMismatch) return;
+  throw new Error(`SEMANTIC_PARITY mismatch: ${formatSemanticParityMismatch(cmp)}`);
+}
+
 async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE) {
   const params = buildExpandParameters(vsJson, opts, engine, forceTrace);
   const requestBody = { resourceType: 'Parameters', parameter: params };
@@ -203,9 +464,20 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   if (body.resourceType === 'OperationOutcome') {
     throw new Error(body.issue?.[0]?.details?.text || JSON.stringify(body));
   }
+  if (STRICT_TOTAL_CONSISTENCY) {
+    assertTotalConsistency(body, opts, engine);
+  }
   if (STRICT_IR_NO_FALLBACK && engine === 'ir') {
     const strictCheck = strictIRTraceCheck(traceJson);
     if (!strictCheck.ok) throw new Error(strictCheck.message);
+  }
+  if (SEMANTIC_PARITY && engine === 'ir') {
+    try {
+      await assertSemanticParity(vsJson, opts, body);
+    } catch (e) {
+      if (!shouldWaiveSemanticParity(currentTestName, e)) throw e;
+      semanticParityWaivedTests.add(currentTestName);
+    }
   }
   return { result: body, ms };
 }
@@ -238,6 +510,7 @@ function expansionExtensions(result, url) {
 async function test(name, fn) {
   if (FILTER && !name.toLowerCase().includes(FILTER.toLowerCase())) { skipped++; return; }
   lastExpandCall = null;
+  currentTestName = name;
   try {
     const t0 = performance.now();
     await fn();
@@ -278,6 +551,8 @@ async function test(name, fn) {
     console.log(`  \x1b[31m✗\x1b[0m ${name}`);
     console.log(`    ${e.message}`);
     failed++;
+  } finally {
+    currentTestName = null;
   }
 }
 
@@ -2749,6 +3024,9 @@ async function run() {
   console.log(`\n${'='.repeat(50)}`);
 
   console.log(`  \x1b[32m${passed} passed\x1b[0m, \x1b[31m${failed} failed\x1b[0m, ${skipped} skipped`);
+  if (SEMANTIC_PARITY && semanticParityWaivedTests.size > 0) {
+    console.log(`  semantic parity waived for ${semanticParityWaivedTests.size} known legacy-drain cases`);
+  }
   console.log('='.repeat(50));
 
   if (PERF_MODE && perfRows.length > 0) {

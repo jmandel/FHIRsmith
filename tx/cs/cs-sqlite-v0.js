@@ -938,12 +938,23 @@ class SqliteV0Provider extends BaseCSServices {
   /** Resolve a value for concept-in filter to a value set URL. */
   #resolveInValueSetUrl(value) {
     const implicitVS = this.#runtime.implicitValueSets;
+    const raw = String(value || '').trim();
+    if (!raw) return raw;
+
+    // Already a canonical/implicit ValueSet URL; do not rewrite.
+    if (raw.includes('?fhir_vs=')
+      || raw.startsWith('http://')
+      || raw.startsWith('https://')
+      || raw.startsWith('urn:')) {
+      return raw;
+    }
+
     if (implicitVS?.refset?.queryPrefix) {
-      // SNOMED refset pattern: value is a concept code, URL is the VS URL
-      return `${this.system()}?fhir_vs=refset/${value}`;
+      // SNOMED refset pattern: value is a refset code/suffix.
+      return `${this.system()}?${implicitVS.refset.queryPrefix}${raw}`;
     }
     // Default: value is already a URL or we construct one
-    return value;
+    return raw;
   }
 
   // ── IR engine integration (Phase 1) ────────────────────────────────

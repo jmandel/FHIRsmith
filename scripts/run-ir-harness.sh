@@ -29,6 +29,9 @@ Options:
   --filter <text>         Harness name filter (or provide as positional arg)
   --trace                 Pass --trace to harness
   --strict-ir-no-fallback (or --strict-ir) Fail if IR requests fall back to legacy
+  --semantic-parity       Fail if IR and legacy semantic outputs disagree (when both succeed)
+  --strict-total-consistency
+                          Fail when total is inconsistent with returned contains
   -h, --help              Show this help
 
 Examples:
@@ -55,6 +58,8 @@ PERF_OUT=""
 PERF_RUNS_VALUE="${PERF_RUNS:-3}"
 TRACE=0
 STRICT_IR_NO_FALLBACK=0
+SEMANTIC_PARITY=0
+STRICT_TOTAL_CONSISTENCY=0
 FILTER=""
 
 MODE_SET=0
@@ -132,6 +137,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     --strict-ir-no-fallback|--strict-ir)
       STRICT_IR_NO_FALLBACK=1
+      ;;
+    --semantic-parity)
+      SEMANTIC_PARITY=1
+      ;;
+    --strict-total-consistency)
+      STRICT_TOTAL_CONSISTENCY=1
       ;;
     -h|--help)
       usage
@@ -279,6 +290,12 @@ if [[ "$TRACE" -eq 1 ]]; then
 fi
 if [[ "$STRICT_IR_NO_FALLBACK" -eq 1 ]]; then
   HARNESS_ARGS+=(--strict-ir-no-fallback)
+fi
+if [[ "$SEMANTIC_PARITY" -eq 1 ]]; then
+  HARNESS_ARGS+=(--semantic-parity)
+fi
+if [[ "$STRICT_TOTAL_CONSISTENCY" -eq 1 ]]; then
+  HARNESS_ARGS+=(--strict-total-consistency)
 fi
 
 run_harness() {
