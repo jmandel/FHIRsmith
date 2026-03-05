@@ -28,6 +28,7 @@ Options:
   --perf-runs <n>         PERF_RUNS value for --perf (default: 3)
   --filter <text>         Harness name filter (or provide as positional arg)
   --trace                 Pass --trace to harness
+  --strict-ir-no-fallback (or --strict-ir) Fail if IR requests fall back to legacy
   -h, --help              Show this help
 
 Examples:
@@ -53,6 +54,7 @@ OUT_DIR=""
 PERF_OUT=""
 PERF_RUNS_VALUE="${PERF_RUNS:-3}"
 TRACE=0
+STRICT_IR_NO_FALLBACK=0
 FILTER=""
 
 MODE_SET=0
@@ -127,6 +129,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --trace)
       TRACE=1
+      ;;
+    --strict-ir-no-fallback|--strict-ir)
+      STRICT_IR_NO_FALLBACK=1
       ;;
     -h|--help)
       usage
@@ -271,6 +276,9 @@ if [[ -n "$FILTER" ]]; then
 fi
 if [[ "$TRACE" -eq 1 ]]; then
   HARNESS_ARGS+=(--trace)
+fi
+if [[ "$STRICT_IR_NO_FALLBACK" -eq 1 ]]; then
+  HARNESS_ARGS+=(--strict-ir-no-fallback)
 fi
 
 run_harness() {

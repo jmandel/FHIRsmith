@@ -1568,5 +1568,105 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       );
       expect(traceExt).toBeDefined();
     });
+
+    test('should include explicit fallback details in trace when IR cannot handle shape', async () => {
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: '_engine', valueCode: 'ir' },
+            { name: '_trace', valueBoolean: true },
+            {
+              name: 'valueSet',
+              resource: {
+                resourceType: 'ValueSet',
+                expansion: {
+                  contains: [{ system: 'http://example.org/cs', code: 'x', display: 'X' }]
+                }
+              }
+            }
+          ]
+        });
+
+      expect(res.status).toBe(200);
+      const expansion = res.body.expansion;
+      expect(expansion).toBeDefined();
+      expect(expansion.contains).toHaveLength(1);
+
+      const traceExt = (expansion.extension || []).find(
+        e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace'
+      );
+      expect(traceExt).toBeDefined();
+      const traceJson = JSON.parse(traceExt.valueString);
+      expect(traceJson).toBeDefined();
+      expect(Array.isArray(traceJson.spans)).toBe(true);
+
+      const notes = [];
+      const collectNotes = (spans) => {
+        for (const s of spans || []) {
+          if (!s) continue;
+          if (s.name === 'note' && s.message) notes.push(s);
+          if (Array.isArray(s.children)) collectNotes(s.children);
+        }
+      };
+      collectNotes(traceJson.spans);
+
+      const selection = notes.find(n => n.message === 'engine-selection');
+      expect(selection).toBeDefined();
+      expect(selection.data.selected).toBe('legacy');
+      expect(selection.data.irAttempted).toBe(true);
+      expect(selection.data.irAttempt.reason).toBe('canHandleValueSet=false');
+    });
+
+    test('should emit structured trace for explicit legacy execution', async () => {
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: '_engine', valueCode: 'legacy' },
+            { name: '_trace', valueBoolean: true },
+            {
+              name: 'valueSet',
+              resource: {
+                resourceType: 'ValueSet',
+                status: 'active',
+                compose: {
+                  include: [{
+                    system: 'http://hl7.org/fhir/administrative-gender'
+                  }]
+                }
+              }
+            }
+          ]
+        });
+
+      expect(res.status).toBe(200);
+      const expansion = res.body.expansion;
+      expect(expansion.total).toBe(4);
+
+      const traceExt = (expansion.extension || []).find(
+        e => e.url === 'http://fhirsmith.org/StructureDefinition/expand-trace'
+      );
+      expect(traceExt).toBeDefined();
+      const traceJson = JSON.parse(traceExt.valueString);
+      expect(traceJson.totalMs).toBeGreaterThan(0);
+
+      const spanNames = [];
+      const collectSpanNames = (spans) => {
+        for (const s of spans || []) {
+          if (!s) continue;
+          spanNames.push(s.name);
+          if (Array.isArray(s.children)) collectSpanNames(s.children);
+        }
+      };
+      collectSpanNames(traceJson.spans);
+      expect(spanNames).toContain('legacy-expand');
+    });
   });
 });

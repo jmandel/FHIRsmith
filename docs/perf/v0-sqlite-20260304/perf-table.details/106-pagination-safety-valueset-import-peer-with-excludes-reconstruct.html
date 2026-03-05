@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: pagination-safety: valueset-import peer with excludes reconstruct</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#106 pagination-safety: valueset-import peer with excludes reconstruct</h1>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=1ms | IR=1ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "valueSet": [
+                  "http://example.org/vs/pgsafe-1772671639808"
+                ]
+              },
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              }
+            ],
+            "exclude": [
+              {
+                "system": "http://example.org/cs/pgsafe-1772671639808",
+                "concept": [
+                  {
+                    "code": "b"
+                  }
+                ]
+              },
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 1
+      },
+      {
+        "name": "offset",
+        "valueInteger": 6
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/pgsafe-1772671639808",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "a",
+              "display": "A"
+            },
+            {
+              "code": "b",
+              "display": "B"
+            },
+            {
+              "code": "c",
+              "display": "C"
+            },
+            {
+              "code": "d",
+              "display": "D"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/pgsafe-1772671639808",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/pgsafe-1772671639808"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "valueSet": [
+                  "http://example.org/vs/pgsafe-1772671639808"
+                ]
+              },
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              }
+            ],
+            "exclude": [
+              {
+                "system": "http://example.org/cs/pgsafe-1772671639808",
+                "concept": [
+                  {
+                    "code": "b"
+                  }
+                ]
+              },
+              {
+                "system": "http://hl7.org/fhir/administrative-gender",
+                "concept": [
+                  {
+                    "code": "unknown"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 1
+      },
+      {
+        "name": "offset",
+        "valueInteger": 6
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/pgsafe-1772671639808",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "a",
+              "display": "A"
+            },
+            {
+              "code": "b",
+              "display": "B"
+            },
+            {
+              "code": "c",
+              "display": "C"
+            },
+            {
+              "code": "d",
+              "display": "D"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/pgsafe-1772671639808",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/pgsafe-1772671639808"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://example.org/cs/pgsafe-1772671639808, http://hl7.org/fhir/administrative-gender
+optimized-ir:
+  union [2]
+    diff
+      selector whole http://example.org/cs/pgsafe-1772671639808
+      selector concept http://example.org/cs/pgsafe-1772671639808 [1] b
+    diff
+      selector whole http://hl7.org/fhir/administrative-gender
+      selector concept http://hl7.org/fhir/administrative-gender [1] unknown</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.47,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 1,
+        "offset": 6,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.45,
+      "result": {
+        "ms": 0.45,
+        "total": 3,
+        "returned": 1
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.33,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 2,
+        "activeOnly": false,
+        "text": null,
+        "offset": 6,
+        "count": 1
+      },
+      "children": [
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://example.org/cs/pgsafe-1772671639808"
+          },
+          "children": [],
+          "ms": 0.05,
+          "result": {
+            "count": 3
+          }
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          },
+          "children": [],
+          "ms": 0.03,
+          "result": {
+            "count": 3
+          }
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 6,
+            "offset": 6,
+            "count": 1,
+            "systems": 2
+          },
+          "children": [],
+          "ms": 0,
+          "result": {
+            "paged": 0
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 0,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 0.29,
+      "result": {
+        "total": 6,
+        "contains": 0
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1145",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:19 GMT",
+    "etag": "W/\"479-PaT/9rF1V2eIa38qVZxYb0cNSVo\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-979"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:19.827Z",
+      "identifier": "urn:uuid:5aa5a821-4e6d-4f9b-b822-aa71448464f0",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 6
+        },
+        {
+          "name": "count",
+          "valueInteger": 1
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://example.org/cs/pgsafe-1772671639808"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-valueset",
+          "valueUri": "http://example.org/vs/pgsafe-1772671639808"
+        }
+      ],
+      "offset": 6,
+      "total": 3,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "other",
+          "display": "Other"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.47,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":1,\"offset\":6,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.45,\"result\":{\"ms\":0.45,\"total\":3,\"returned\":1}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1885",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:19 GMT",
+    "etag": "W/\"75d-i56kYV1YhfuBOEuZiiodm7t16/4\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-980"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:19.828Z",
+      "identifier": "urn:uuid:008300a2-509f-497d-a55e-e8d351cd3c4c",
+      "total": 6,
+      "offset": 6,
+      "parameter": [
+        {
+          "name": "offset",
+          "valueInteger": 6
+        },
+        {
+          "name": "count",
+          "valueInteger": 1
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://example.org/cs/pgsafe-1772671639808"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-valueset",
+          "valueUri": "http://example.org/vs/pgsafe-1772671639808"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
+          "valueString": "systems: http://example.org/cs/pgsafe-1772671639808, http://hl7.org/fhir/administrative-gender\noptimized-ir:\n  union [2]\n    diff\n      selector whole http://example.org/cs/pgsafe-1772671639808\n      selector concept http://example.org/cs/pgsafe-1772671639808 [1] b\n    diff\n      selector whole http://hl7.org/fhir/administrative-gender\n      selector concept http://hl7.org/fhir/administrative-gender [1] unknown"
+        },
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.33,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":6,\"count\":1},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://example.org/cs/pgsafe-1772671639808\"},\"children\":[],\"ms\":0.05,\"result\":{\"count\":3}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.03,\"result\":{\"count\":3}},{\"name\":\"pagination\",\"args\":{\"total\":6,\"offset\":6,\"count\":1,\"systems\":2},\"children\":[],\"ms\":0,\"result\":{\"paged\":0}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":0,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.29,\"result\":{\"total\":6,\"contains\":0}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

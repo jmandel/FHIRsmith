@@ -406,5 +406,34 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       expect(hasType2).toBe(true);
       provider.close();
     });
+
+    test('executeIR with code regex filter uses sqlite regexp function', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'filter',
+        filterClauses: [{ property: 'code', op: 'regex', value: '^7[0-9]{4,}$' }],
+      });
+      const result = provider.executeIR(subtree, { count: 25 });
+      expect(result.candidates.length).toBe(25);
+      for (const c of result.candidates) {
+        expect(c.code.startsWith('7')).toBe(true);
+      }
+      provider.close();
+    });
+
+    test('countForIR with code regex filter', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'filter',
+        filterClauses: [{ property: 'code', op: 'regex', value: '^7[0-9]{4,}$' }],
+      });
+      const total = provider.countForIR(subtree, {});
+      expect(total).toBeGreaterThan(1000);
+      const sample = provider.executeIR(subtree, { count: 50 });
+      expect(total).toBeGreaterThanOrEqual(sample.candidates.length);
+      provider.close();
+    });
   });
 });

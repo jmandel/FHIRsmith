@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: RxNorm TTY=IN first 50</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#14 RxNorm TTY=IN first 50</h1>
+  <div class="meta">Category: Property filters · Median perf: Legacy=280ms | IR=11ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 281ms capture call · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 291ms capture call · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                "filter": [
+                  {
+                    "property": "TTY",
+                    "op": "=",
+                    "value": "IN"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                "filter": [
+                  {
+                    "property": "TTY",
+                    "op": "=",
+                    "value": "IN"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 50
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://www.nlm.nih.gov/research/umls/rxnorm
+optimized-ir:
+  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = IN</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 279.02,
+  "sqlCount": 1,
+  "sqlMs": 194.54,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 50,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeSetIntersection",
+              "data": {
+                "filters": 1,
+                "after": 14616
+              },
+              "t": 230.3
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+              "params": {
+                "cs": 1
+              },
+              "rows": 227845,
+              "ms": 194.54,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 229.71,
+          "result": {
+            "rows": 14616
+          }
+        }
+      ],
+      "ms": 278.99,
+      "result": {
+        "ms": 278.98,
+        "returned": 50
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 9.19,
+  "sqlCount": 2,
+  "sqlMs": 8.57,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 50
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 50,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://www.nlm.nih.gov/research/umls/rxnorm",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 50
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0,
+                        "buildMs": 0.02,
+                        "prepMs": 0.05,
+                        "execMs": 4.92
+                      },
+                      "t": 5.39
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_prop": 2,
+                        "_xf0_vl0": "IN",
+                        "_limit": 50
+                      },
+                      "rows": 50,
+                      "ms": 4.92,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 5.02,
+                  "result": {
+                    "candidates": 50
+                  }
+                }
+              ],
+              "ms": 5.03,
+              "result": {
+                "candidates": 50
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_prop": 2,
+                        "_cntf0_vl0": "IN"
+                      },
+                      "rows": 14616,
+                      "ms": 3.65,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 3.68,
+                  "result": {
+                    "count": 14616
+                  }
+                }
+              ],
+              "ms": 3.69,
+              "result": {
+                "count": 14616
+              }
+            }
+          ],
+          "ms": 8.74,
+          "result": {
+            "paged": 50
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 50,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 9.11,
+      "result": {
+        "total": 14616,
+        "contains": 50
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "6918",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:02 GMT",
+    "etag": "W/\"1b06-G6ENFDXEdFbzU6YWUk+xQk3XkIU\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-129"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:02.119Z",
+      "identifier": "urn:uuid:45a4ac09-6be8-4f44-90d5-1ef2c3b33998",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 50
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000082",
+          "display": "alcaftadine"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000492",
+          "display": "resveratrol"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000577",
+          "display": "microcrystalline cellulose"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000581",
+          "display": "trichlorfon"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1001",
+          "display": "antipyrine"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10014",
+          "display": "squalene"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "100213",
+          "display": "Bifidobacterium infantis"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "100272",
+          "display": "Lactobacillus delbrueckii subsp. bulgaricus"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "100278",
+          "display": "Lacticaseibacillus rhamnosus"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10030",
+          "display": "stannous fluoride"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10032",
+          "display": "stanozolol"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10046",
+          "display": "starch"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1005921",
+          "display": "ulipristal"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006258",
+          "display": "Apiospora montagnei allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006297",
+          "display": "Aspergillus niger var. niger allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006310",
+          "display": "Aspergillus repens allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006340",
+          "display": "cayenne pepper allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006371",
+          "display": "mango blossom pollen extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006397",
+          "display": "aminopentamide"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006469",
+          "display": "doconexent"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006495",
+          "display": "Indian wormwood sage pollen extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006506",
+          "display": "tall oat grass pollen extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006510",
+          "display": "barley malt allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006619",
+          "display": "eprinomectin"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006654",
+          "display": "amprolium"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10079",
+          "display": "stigmasterol"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009",
+          "display": "antithrombin III"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009342",
+          "display": "oxibendazole"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009447",
+          "display": "wasabi preparation"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009451",
+          "display": "coffee fruit preparation"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10098",
+          "display": "Enterococcus faecalis"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10104",
+          "display": "streptodornase"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10106",
+          "display": "streptokinase"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010879",
+          "display": "bay leaf allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10109",
+          "display": "streptomycin"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010915",
+          "display": "chocolate allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010926",
+          "display": "kiwi fruit allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010932",
+          "display": "leek allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010954",
+          "display": "licorice allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010965",
+          "display": "oregano allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010971",
+          "display": "peppermint allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010999",
+          "display": "nectarine allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011",
+          "display": "lymphocyte immune globulin, anti-thymocyte globulin"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011017",
+          "display": "poppy seed allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011021",
+          "display": "okra allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011027",
+          "display": "parsnip allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011033",
+          "display": "rhubarb allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011043",
+          "display": "horseradish allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011049",
+          "display": "chickpea allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011060",
+          "display": "lime allergenic extract"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":279.02,\"sqlCount\":1,\"sqlMs\":194.54,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":14616},\"t\":230.3}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":227845,\"ms\":194.54,\"label\":\"legacy:executeFilters\"}],\"ms\":229.71,\"result\":{\"rows\":14616}}],\"ms\":278.99,\"result\":{\"ms\":278.98,\"returned\":50}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "8424",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:02 GMT",
+    "etag": "W/\"20e8-S7tEpBy2gpcGe6tzfL8ZCh5RoeM\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-130"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:02.408Z",
+      "identifier": "urn:uuid:e7af3f33-ae21-48df-98c7-eb401d421e52",
+      "total": 14616,
+      "contains": [
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000082",
+          "display": "alcaftadine"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000492",
+          "display": "resveratrol"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000577",
+          "display": "microcrystalline cellulose"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1000581",
+          "display": "trichlorfon"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1001",
+          "display": "antipyrine"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10014",
+          "display": "squalene"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "100213",
+          "display": "Bifidobacterium infantis"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "100272",
+          "display": "Lactobacillus delbrueckii subsp. bulgaricus"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "100278",
+          "display": "Lacticaseibacillus rhamnosus"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10030",
+          "display": "stannous fluoride"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10032",
+          "display": "stanozolol"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10046",
+          "display": "starch"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1005921",
+          "display": "ulipristal"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006258",
+          "display": "Apiospora montagnei allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006297",
+          "display": "Aspergillus niger var. niger allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006310",
+          "display": "Aspergillus repens allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006340",
+          "display": "cayenne pepper allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006371",
+          "display": "mango blossom pollen extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006397",
+          "display": "aminopentamide"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006469",
+          "display": "doconexent"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006495",
+          "display": "Indian wormwood sage pollen extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006506",
+          "display": "tall oat grass pollen extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006510",
+          "display": "barley malt allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006619",
+          "display": "eprinomectin"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1006654",
+          "display": "amprolium"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10079",
+          "display": "stigmasterol"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009",
+          "display": "antithrombin III"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009342",
+          "display": "oxibendazole"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009447",
+          "display": "wasabi preparation"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1009451",
+          "display": "coffee fruit preparation"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10098",
+          "display": "Enterococcus faecalis"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10104",
+          "display": "streptodornase"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10106",
+          "display": "streptokinase"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010879",
+          "display": "bay leaf allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "10109",
+          "display": "streptomycin"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010915",
+          "display": "chocolate allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010926",
+          "display": "kiwi fruit allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010932",
+          "display": "leek allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010954",
+          "display": "licorice allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010965",
+          "display": "oregano allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010971",
+          "display": "peppermint allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1010999",
+          "display": "nectarine allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011",
+          "display": "lymphocyte immune globulin, anti-thymocyte globulin"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011017",
+          "display": "poppy seed allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011021",
+          "display": "okra allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011027",
+          "display": "parsnip allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011033",
+          "display": "rhubarb allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011043",
+          "display": "horseradish allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011049",
+          "display": "chickpea allergenic extract"
+        },
+        {
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1011060",
+          "display": "lime allergenic extract"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 50
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
+          "valueString": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\noptimized-ir:\n  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = IN"
+        },
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":9.19,\"sqlCount\":2,\"sqlMs\":8.57,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":50},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.05,\"execMs\":4.92},\"t\":5.39}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":2,\"_xf0_vl0\":\"IN\",\"_limit\":50},\"rows\":50,\"ms\":4.92,\"label\":\"executeIR\"}],\"ms\":5.02,\"result\":{\"candidates\":50}}],\"ms\":5.03,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":2,\"_cntf0_vl0\":\"IN\"},\"rows\":14616,\"ms\":3.65,\"label\":\"countForIR\"}],\"ms\":3.68,\"result\":{\"count\":14616}}],\"ms\":3.69,\"result\":{\"count\":14616}}],\"ms\":8.74,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":9.11,\"result\":{\"total\":14616,\"contains\":50}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

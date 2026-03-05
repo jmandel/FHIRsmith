@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: meta: text filter is echoed in expansion parameters</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#36 meta: text filter is echoed in expansion parameters</h1>
+  <div class="meta">Category: Meta · Median perf: Legacy=14ms | IR=11ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 23ms capture call · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 33ms capture call · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "activeOnly",
+        "valueBoolean": true
+      },
+      {
+        "name": "filter",
+        "valueString": "mell"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "activeOnly",
+        "valueBoolean": true
+      },
+      {
+        "name": "filter",
+        "valueString": "mell"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://snomed.info/sct
+optimized-ir:
+  selector filter http://snomed.info/sct concept is-a 73211009</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 13.11,
+  "sqlCount": 1,
+  "sqlMs": 0.17,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 5,
+        "offset": -1,
+        "activeOnly": true,
+        "hasTextFilter": true
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://snomed.info/sct",
+            "filterCount": 1,
+            "hasTextSearch": true
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeSetIntersection",
+              "data": {
+                "filters": 1,
+                "after": 104
+              },
+              "t": 8.25
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+              "params": {
+                "cs": 1,
+                "f0_anc_code": "73211009",
+                "f0_cs": 1
+              },
+              "rows": 124,
+              "ms": 0.17,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 7.41,
+          "result": {
+            "rows": 104
+          }
+        }
+      ],
+      "ms": 13.09,
+      "result": {
+        "ms": 13.08,
+        "total": 104,
+        "returned": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 9.76,
+  "sqlCount": 2,
+  "sqlMs": 9,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": true,
+        "text": "mell",
+        "offset": 0,
+        "count": 5
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 5,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 5
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "standard path chosen (EXISTS rewrite skipped)",
+                      "data": {
+                        "hasText": true
+                      },
+                      "t": 0.45
+                    },
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0.07,
+                        "buildMs": 0.03,
+                        "prepMs": 0.13,
+                        "execMs": 5.68
+                      },
+                      "t": 6.3
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.active = 1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHER…",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_anc_code": "73211009",
+                        "_xf0_cs": 1,
+                        "_searchMatch": "\"mell\"",
+                        "_searchCsId": 1,
+                        "_limit": 5
+                      },
+                      "rows": 5,
+                      "ms": 5.68,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 5.94,
+                  "result": {
+                    "candidates": 5
+                  }
+                }
+              ],
+              "ms": 5.95,
+              "result": {
+                "candidates": 5
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://snomed.info/sct"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.active = 1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id …",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_anc_code": "73211009",
+                        "_cntf0_cs": 1,
+                        "_searchMatch": "\"mell\"",
+                        "_searchCsId": 1
+                      },
+                      "rows": 104,
+                      "ms": 3.32,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 3.37,
+                  "result": {
+                    "count": 104
+                  }
+                }
+              ],
+              "ms": 3.38,
+              "result": {
+                "count": 104
+              }
+            }
+          ],
+          "ms": 9.35,
+          "result": {
+            "paged": 5
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 5,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 9.72,
+      "result": {
+        "total": 104,
+        "contains": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2399",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:08 GMT",
+    "etag": "W/\"95f-Eo9OS9yZeWVkSgGGzXM5WjWPgYM\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-327"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:08.601Z",
+      "identifier": "urn:uuid:e6da45f5-83d9-420d-a269-54644cc312a0",
+      "parameter": [
+        {
+          "name": "filter",
+          "valueString": "mell"
+        },
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "activeOnly",
+          "valueBoolean": true
+        },
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "total": 104,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "105401000119101",
+          "display": "Diabetes mellitus due to pancreatic injury (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "106281000119103",
+          "display": "Pre-existing diabetes mellitus in mother complicating childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10753491000119101",
+          "display": "Gestational diabetes mellitus in childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10754881000119104",
+          "display": "Diabetes mellitus in mother complicating childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1142044000",
+          "display": "Pre-existing malnutrition-related diabetes mellitus in pregnancy"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":13.11,\"sqlCount\":1,\"sqlMs\":0.17,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":104},\"t\":8.25}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.17,\"label\":\"legacy:executeFilters\"}],\"ms\":7.41,\"result\":{\"rows\":104}}],\"ms\":13.09,\"result\":{\"ms\":13.08,\"total\":104,\"returned\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4116",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:08 GMT",
+    "etag": "W/\"1014-GveKTodkiDUqQuyMYddA0yaKGWM\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-328"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:08.624Z",
+      "identifier": "urn:uuid:041580a1-357d-4f6e-9f19-84ba31da7610",
+      "total": 104,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "105401000119101",
+          "display": "Diabetes mellitus due to pancreatic injury (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "106281000119103",
+          "display": "Pre-existing diabetes mellitus in mother complicating childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10753491000119101",
+          "display": "Gestational diabetes mellitus in childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10754881000119104",
+          "display": "Diabetes mellitus in mother complicating childbirth (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1142044000",
+          "display": "Pre-existing malnutrition-related diabetes mellitus in pregnancy"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "activeOnly",
+          "valueBoolean": true
+        },
+        {
+          "name": "filter",
+          "valueString": "mell"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 73211009"
+        },
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":9.76,\"sqlCount\":2,\"sqlMs\":9,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":\"mell\",\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"standard path chosen (EXISTS rewrite skipped)\",\"data\":{\"hasText\":true},\"t\":0.45},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.07,\"buildMs\":0.03,\"prepMs\":0.13,\"execMs\":5.68},\"t\":6.3}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.active = 1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHER…\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"73211009\",\"_xf0_cs\":1,\"_searchMatch\":\"\\\"mell\\\"\",\"_searchCsId\":1,\"_limit\":5},\"rows\":5,\"ms\":5.68,\"label\":\"executeIR\"}],\"ms\":5.94,\"result\":{\"candidates\":5}}],\"ms\":5.95,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.active = 1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id …\",\"params\":{\"_cnt_csId\":1,\"_cntf0_anc_code\":\"73211009\",\"_cntf0_cs\":1,\"_searchMatch\":\"\\\"mell\\\"\",\"_searchCsId\":1},\"rows\":104,\"ms\":3.32,\"label\":\"countForIR\"}],\"ms\":3.37,\"result\":{\"count\":104}}],\"ms\":3.38,\"result\":{\"count\":104}}],\"ms\":9.35,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":9.72,\"result\":{\"total\":104,\"contains\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

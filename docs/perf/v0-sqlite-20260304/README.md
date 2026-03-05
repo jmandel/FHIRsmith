@@ -9,10 +9,11 @@ use the same v0 SQLite providers.
 scripts/run-ir-harness.sh \
   --perf \
   --db-dir /home/jmandel/hobby/sct/cache \
-  --filter v0 \
   --out-dir tmp/ir-harness-runs/20260304-v0-perf \
   --perf-out tmp/ir-harness-runs/20260304-v0-perf/perf-table.html
 ```
+
+This snapshot is generated from the full IR harness suite (166 tests).
 
 ## Included artifacts
 

@@ -65,6 +65,34 @@ function sanitizeName(system) {
   return (system || 'CS').replace(/[^A-Za-z0-9]/g, '').slice(0, 40) || 'CS';
 }
 
+function registerRegexpFunction(db) {
+  const regexCache = new Map();
+  db.function('regexp', (pattern, value) => {
+    if (pattern == null || value == null) return 0;
+    const source = String(pattern);
+    let re = regexCache.get(source);
+    if (!re) {
+      try {
+        re = new RegExp(source);
+      } catch (e) {
+        throw new Error(`Invalid regex '${source}': ${e.message}`);
+      }
+      regexCache.set(source, re);
+    }
+    re.lastIndex = 0;
+    return re.test(String(value)) ? 1 : 0;
+  });
+}
+
+function openV0Database(dbPath) {
+  const db = new BetterSqlite3(dbPath, { readonly: true });
+  db.pragma('cache_size = 10000');
+  db.pragma('temp_store = MEMORY');
+  db.pragma('mmap_size = 268435456');
+  registerRegexpFunction(db);
+  return db;
+}
+
 function buildRuntimeConfig(rawCfg, system) {
   const cfg = rawCfg || {};
   const searchRaw = cfg['search'] || {};
@@ -405,74 +433,100 @@ class SqliteV0Provider extends BaseCSServices {
   }
 
   async executeFilters(filterContext) {
-    const { filters, search } = filterContext._v0;
-    const params = { cs: this.#meta.csId };
-    const joins = [];
-    const wheres = [`c.cs_id = @cs`];
-    let idx = 0;
-    const codeSetFilters = [];  // property filters that produce code sets
-    let codeRegex = null;
+    const span = trace.begin('legacy:executeFilters', {
+      system: this.#meta.baseUri,
+      filterCount: filterContext?._v0?.filters?.length || 0,
+      hasTextSearch: !!filterContext?._v0?.search,
+    });
+    let rowsForSpan = 0;
+    try {
+      const { filters, search } = filterContext._v0;
+      const params = { cs: this.#meta.csId };
+      const joins = [];
+      const wheres = [`c.cs_id = @cs`];
+      let idx = 0;
+      const codeSetFilters = [];  // property filters that produce code sets
+      let codeRegex = null;
 
-    for (const f of filters) {
-      const frag = this.#buildFilterFragment(f, `f${idx}`, 'c', params);
-      if (frag) {
-        if (frag._codeSet) { codeSetFilters.push(frag._codeSet); }
-        else if (frag._codeRegex) { codeRegex = frag._codeRegex; }
-        else {
-          if (frag.joins) joins.push(frag.joins);
-          if (frag.sql) wheres.push(frag.sql);
+      for (const f of filters) {
+        const frag = this.#buildFilterFragment(f, `f${idx}`, 'c', params);
+        if (frag) {
+          if (frag._codeSet) { codeSetFilters.push(frag._codeSet); }
+          else if (frag._codeRegex) { codeRegex = frag._codeRegex; }
+          else {
+            if (frag.joins) joins.push(frag.joins);
+            if (frag.sql) wheres.push(frag.sql);
+          }
+        }
+        idx++;
+      }
+
+      // Multi-source text search (display + designation + literal FTS)
+      if (search) {
+        const searchCfg = this.#runtime.search;
+        if (searchCfg?.mode?.startsWith('fts')) {
+          const matchText = toFtsMatchText(search);
+          const searchCodes = this.#searchCodesWithFts(matchText, searchCfg);
+          if (searchCodes.length === 0) {
+            filterContext._v0.resultSet = new V0FilterSet([]);
+            return [filterContext._v0.resultSet];
+          }
+          codeSetFilters.push(searchCodes);
+        } else {
+          // LIKE fallback on display only
+          params.search_like = `%${search}%`;
+          wheres.push(`c.display LIKE @search_like`);
         }
       }
-      idx++;
-    }
 
-    // Multi-source text search (display + designation + literal FTS)
-    if (search) {
-      const searchCfg = this.#runtime.search;
-      if (searchCfg?.mode?.startsWith('fts')) {
-        const matchText = toFtsMatchText(search);
-        const searchCodes = this.#searchCodesWithFts(matchText, searchCfg);
-        if (searchCodes.length === 0) {
-          filterContext._v0.resultSet = new V0FilterSet([]);
-          return [filterContext._v0.resultSet];
+      const sql = `SELECT c.concept_id, c.code, c.display, c.definition, c.active
+        FROM concept c ${joins.join(' ')}
+        WHERE ${wheres.join(' AND ')}
+        ORDER BY c.code`;
+
+      const sqlStartedAt = performance.now();
+      let rows = this.#db.prepare(sql).all(params);
+      const sqlMs = performance.now() - sqlStartedAt;
+      trace.sql(sql, params, rows.length, sqlMs, 'legacy:executeFilters');
+
+      // Apply code regex filter (JS-side)
+      if (codeRegex) {
+        const regexStartedAt = performance.now();
+        const before = rows.length;
+        try {
+          const re = new RegExp(codeRegex);
+          rows = rows.filter(r => re.test(r.code));
+        } catch (e) {
+          throw new Error(`Invalid code regex '${codeRegex}': ${e.message}`);
         }
-        codeSetFilters.push(searchCodes);
-      } else {
-        // LIKE fallback on display only
-        params.search_like = `%${search}%`;
-        wheres.push(`c.display LIKE @search_like`);
+        trace.note('legacy:codeRegex', {
+          pattern: codeRegex,
+          before,
+          after: rows.length,
+          ms: Math.round((performance.now() - regexStartedAt) * 100) / 100,
+        });
       }
-    }
 
-    const sql = `SELECT c.concept_id, c.code, c.display, c.definition, c.active
-      FROM concept c ${joins.join(' ')}
-      WHERE ${wheres.join(' AND ')}
-      ORDER BY c.code`;
-
-    let rows = this.#db.prepare(sql).all(params);
-
-    // Apply code regex filter (JS-side)
-    if (codeRegex) {
-      try {
-        const re = new RegExp(codeRegex);
-        rows = rows.filter(r => re.test(r.code));
-      } catch (e) {
-        throw new Error(`Invalid code regex '${codeRegex}': ${e.message}`);
+      // Intersect with all code-set filters
+      if (codeSetFilters.length > 0) {
+        let allowed = new Set(codeSetFilters[0]);
+        for (let i = 1; i < codeSetFilters.length; i++) {
+          const next = new Set(codeSetFilters[i]);
+          allowed = new Set([...allowed].filter(c => next.has(c)));
+        }
+        rows = rows.filter(r => allowed.has(r.code));
+        trace.note('legacy:codeSetIntersection', {
+          filters: codeSetFilters.length,
+          after: rows.length,
+        });
       }
-    }
 
-    // Intersect with all code-set filters
-    if (codeSetFilters.length > 0) {
-      let allowed = new Set(codeSetFilters[0]);
-      for (let i = 1; i < codeSetFilters.length; i++) {
-        const next = new Set(codeSetFilters[i]);
-        allowed = new Set([...allowed].filter(c => next.has(c)));
-      }
-      rows = rows.filter(r => allowed.has(r.code));
+      filterContext._v0.resultSet = new V0FilterSet(rows);
+      rowsForSpan = rows.length;
+      return [filterContext._v0.resultSet];
+    } finally {
+      span.end({ rows: rowsForSpan });
     }
-
-    filterContext._v0.resultSet = new V0FilterSet(rows);
-    return [filterContext._v0.resultSet];
   }
 
   /** Multi-source FTS search across display/designation/literal tables. */
@@ -1289,13 +1343,8 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
   }
 
   async load() {
-    const db = new BetterSqlite3(this._dbPath, { readonly: true });
+    const db = openV0Database(this._dbPath);
     try {
-      // Apply perf pragmas
-      db.pragma('cache_size = 10000');
-      db.pragma('temp_store = MEMORY');
-      db.pragma('mmap_size = 268435456');
-
       // Load code_system metadata
       const cs = db.prepare('SELECT * FROM code_system LIMIT 1').get();
       if (!cs) throw new Error(`No code_system row in ${this._dbPath}`);
@@ -1368,10 +1417,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
 
   async build(opContext, supplements) {
     this.recordUse();
-    const db = new BetterSqlite3(this._dbPath, { readonly: true });
-    db.pragma('cache_size = 10000');
-    db.pragma('temp_store = MEMORY');
-    db.pragma('mmap_size = 268435456');
+    const db = openV0Database(this._dbPath);
     return new SqliteV0Provider(opContext, supplements, db, this._meta, this._runtime, this._propDefs, this._conceptCount);
   }
 
@@ -1420,7 +1466,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
     }
 
     // Check value_set table for explicit value sets
-    const db = new BetterSqlite3(this._dbPath, { readonly: true });
+    const db = openV0Database(this._dbPath);
     try {
       const row = db.prepare('SELECT * FROM value_set WHERE url = @url AND cs_id = @cs').get({ url, cs: this._meta.csId });
       if (row) {

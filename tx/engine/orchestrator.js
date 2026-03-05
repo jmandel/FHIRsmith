@@ -100,10 +100,79 @@ function staticConceptSetFromIR(node) {
   }
 }
 
+function fmtSelector(sel) {
+  const system = sel.system || '?';
+  const version = sel.version ? `|${sel.version}` : '';
+  if (sel.shape === 'whole' || sel.shape === 'all') return `selector whole ${system}${version}`;
+  if (sel.shape === 'concept') {
+    const codes = (sel.conceptCodes || []).map(c => c?.code).filter(Boolean);
+    const head = codes.slice(0, 5).join(', ');
+    const more = codes.length > 5 ? ` …(+${codes.length - 5})` : '';
+    return `selector concept ${system}${version} [${codes.length}] ${head}${more}`.trim();
+  }
+  if (sel.shape === 'filter') {
+    const clauses = (sel.filterClauses || []).map(f => `${f.property} ${f.op} ${f.value}`).join(' ; ');
+    return `selector filter ${system}${version} ${clauses}`.trim();
+  }
+  return `selector ${sel.shape || '?'} ${system}${version}`;
+}
+
+function renderIRNodeLines(node, depth = 0, out = []) {
+  const pad = '  '.repeat(depth);
+  if (!node) {
+    out.push(`${pad}(null)`);
+    return out;
+  }
+  switch (node.kind) {
+    case 'empty':
+      out.push(`${pad}empty`);
+      return out;
+    case 'selector':
+      out.push(`${pad}${fmtSelector(node)}`);
+      return out;
+    case 'import': {
+      const v = node.version ? `|${node.version}` : '';
+      out.push(`${pad}import ${node.url || '?'}${v}`);
+      if (node.resolved) renderIRNodeLines(node.resolved, depth + 1, out);
+      return out;
+    }
+    case 'union':
+    case 'intersect': {
+      const items = node.items || [];
+      out.push(`${pad}${node.kind} [${items.length}]`);
+      for (const item of items) renderIRNodeLines(item, depth + 1, out);
+      return out;
+    }
+    case 'diff':
+      out.push(`${pad}diff`);
+      renderIRNodeLines(node.left, depth + 1, out);
+      renderIRNodeLines(node.right, depth + 1, out);
+      return out;
+    default:
+      out.push(`${pad}${node.kind || 'unknown'}`);
+      return out;
+  }
+}
+
+function renderIRPlanText(root, systemsMap) {
+  const systems = [...(systemsMap?.entries?.() || [])]
+    .map(([, s]) => `${s.system}${s.version ? `|${s.version}` : ''}`)
+    .sort();
+  const lines = [];
+  lines.push(`systems: ${systems.length > 0 ? systems.join(', ') : '(none)'}`);
+  lines.push('optimized-ir:');
+  renderIRNodeLines(root, 1, lines);
+  return lines.join('\n');
+}
+
 /** Enrich a raw candidate with system metadata. */
 function enrichCandidate(c, resolved) {
+  // Align with legacy behavior: only emit contains.version when the query
+  // was version-pinned for this system branch.
+  const emitVersion = !!resolved.version;
+  const containsVersion = emitVersion ? (resolved.provVersion || resolved.version) : null;
   const entry = {
-    system: resolved.system, version: resolved.provVersion,
+    system: resolved.system, version: containsVersion,
     code: c.code, display: c.display, definition: c.definition,
     active: c.active, conceptId: c.conceptId, _provider: resolved.provider,
   };
@@ -198,6 +267,7 @@ async function expandViaIR(vsJson, opts = {}) {
     designations = [],
     excludeNested = false,
     limit = 0,
+    debugPlan = false,
   } = opts;
 
   const warnings = [];
@@ -240,11 +310,13 @@ async function expandViaIR(vsJson, opts = {}) {
 
   // 4. Collect systems and partition
   const systems = collectSystems(optimizedIR);
+  const planText = debugPlan ? renderIRPlanText(optimizedIR, systems) : null;
 
   if (systems.size === 0) {
     return {
       expansion: { contains: [], total: 0 },
       warnings,
+      debug: planText ? { planText } : undefined,
     };
   }
 
@@ -352,6 +424,7 @@ async function expandViaIR(vsJson, opts = {}) {
         providerMeta,
       },
       warnings,
+      debug: planText ? { planText } : undefined,
     };
   }
 
@@ -541,6 +614,7 @@ async function expandViaIR(vsJson, opts = {}) {
       unclosedMessages,
     },
     warnings,
+    debug: planText ? { planText } : undefined,
   };
   orchestrateSpan.end({ total, contains: contains.length });
   return finalResult;

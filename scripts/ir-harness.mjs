@@ -4,6 +4,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path';
 /**
  * IR engine test harness — hits the running server, asserts concrete expectations.
  * Usage: node scripts/ir-harness.mjs [filter] [--legacy] [--trace] [--perf] [--perf-out <file>]
+ *                                   [--strict-ir-no-fallback|--strict-ir]
  *
  * --perf   Run each test with both engines (5 runs each), collect median
  *          timings, write tmp/perf-table.html at the end (or --perf-out path).
@@ -40,6 +41,9 @@ if (!PERF_OUT.trim()) {
 const RUN_LEGACY = argv.includes('--legacy');
 const WANT_TRACE = argv.includes('--trace');
 const PERF_MODE = argv.includes('--perf');
+const STRICT_IR_NO_FALLBACK = argv.includes('--strict-ir-no-fallback')
+  || argv.includes('--strict-ir')
+  || process.env.STRICT_IR_NO_FALLBACK === '1';
 const RUNS = parseInt(process.env.PERF_RUNS || '3', 10);
 const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
 const PERF_OUT_PATH = resolve(PERF_OUT);
@@ -108,6 +112,47 @@ function extractTracePayload(responseJson) {
   }
 }
 
+function extractIRPlanPayload(responseJson) {
+  const ext = responseJson?.expansion?.extension || [];
+  const planExt = ext.find(e => e.url === 'http://fhirsmith.org/StructureDefinition/ir-plan');
+  if (!planExt?.valueString) return null;
+  return String(planExt.valueString);
+}
+
+function collectTraceNotes(spans, out = []) {
+  for (const span of spans || []) {
+    if (!span) continue;
+    if (span.name === 'note' && span.message) out.push(span);
+    collectTraceNotes(span.children, out);
+  }
+  return out;
+}
+
+function strictIRTraceCheck(traceJson) {
+  if (!traceJson) {
+    return { ok: false, message: 'STRICT IR mode: missing structured trace payload for IR request' };
+  }
+  if (traceJson.parseError) {
+    return { ok: false, message: `STRICT IR mode: invalid trace payload (${traceJson.parseError})` };
+  }
+  const notes = collectTraceNotes(traceJson.spans);
+  const selection = notes.find(n => n.message === 'engine-selection');
+  if (!selection?.data) {
+    // No engine-selection note means IR executed directly (no fallback path).
+    return { ok: true };
+  }
+  const selected = selection.data.selected;
+  if (selected === 'legacy') {
+    const reason = selection.data.irAttempt?.reason || 'fallback';
+    const error = selection.data.irAttempt?.error ? ` (${selection.data.irAttempt.error})` : '';
+    return {
+      ok: false,
+      message: `STRICT IR mode: fallback to legacy detected [${reason}]${error}`,
+    };
+  }
+  return { ok: true };
+}
+
 async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE) {
   const params = buildExpandParameters(vsJson, opts, engine, forceTrace);
   const requestBody = { resourceType: 'Parameters', parameter: params };
@@ -125,6 +170,7 @@ async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, 
     responseJson = null;
   }
   const traceJson = extractTracePayload(responseJson);
+  const irPlanText = extractIRPlanPayload(responseJson);
   return {
     ms,
     request: {
@@ -143,17 +189,23 @@ async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, 
     responseText,
     responseJson,
     traceJson,
+    irPlanText,
   };
 }
 
 async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   lastExpandCall = { vsJson, opts };
-  const { responseJson: body, ms } = await executeExpandRequest(vsJson, opts, engine, WANT_TRACE);
+  const forceTrace = WANT_TRACE || (STRICT_IR_NO_FALLBACK && engine === 'ir');
+  const { responseJson: body, ms, traceJson } = await executeExpandRequest(vsJson, opts, engine, forceTrace);
   if (!body) {
     throw new Error('Non-JSON response from terminology server');
   }
   if (body.resourceType === 'OperationOutcome') {
     throw new Error(body.issue?.[0]?.details?.text || JSON.stringify(body));
+  }
+  if (STRICT_IR_NO_FALLBACK && engine === 'ir') {
+    const strictCheck = strictIRTraceCheck(traceJson);
+    if (!strictCheck.ok) throw new Error(strictCheck.message);
   }
   return { result: body, ms };
 }
@@ -251,7 +303,8 @@ async function timeEngine(vsJson, opts, engine, runs) {
     try {
       const { ms } = await expand(vsJson, opts, engine);
       times.push(ms);
-    } catch {
+    } catch (e) {
+      if (STRICT_IR_NO_FALLBACK && engine === 'ir') throw e;
       return { ms: null, err: true };
     }
   }
@@ -299,6 +352,7 @@ async function captureEngineDebug(vsJson, opts, engine) {
       response: details.response,
       trace: details.traceJson,
       traceAvailable: !!details.traceJson,
+      irPlanText: details.irPlanText,
     };
   } catch (e) {
     return {
@@ -308,6 +362,7 @@ async function captureEngineDebug(vsJson, opts, engine) {
       response: null,
       trace: null,
       traceAvailable: false,
+      irPlanText: null,
     };
   }
 }
@@ -318,12 +373,14 @@ function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebu
   const legacyTiming = legacyDebug?.ok ? `${legacyDebug.ms}ms capture call` : 'capture failed';
   const legacyStatus = legacyDebug?.response ? `${legacyDebug.response.status} ${legacyDebug.response.statusText || ''}`.trim() : 'n/a';
   const legacyRequestLog = stringifyForLog(legacyDebug?.request || {});
+  const legacyPlanLog = 'N/A (legacy engine)';
   const legacyTraceLog = legacyDebug?.traceAvailable ? stringifyForLog(legacyDebug.trace) : 'No structured trace payload returned.';
   const legacyResponseLog = stringifyForLog(legacyDebug?.response || { error: legacyDebug?.error || 'No response captured' });
 
   const irTiming = irDebug?.ok ? `${irDebug.ms}ms capture call` : 'capture failed';
   const irStatus = irDebug?.response ? `${irDebug.response.status} ${irDebug.response.statusText || ''}`.trim() : 'n/a';
   const irRequestLog = stringifyForLog(irDebug?.request || {});
+  const irPlanLog = irDebug?.irPlanText || 'No IR plan payload returned.';
   const irTraceLog = irDebug?.traceAvailable ? stringifyForLog(irDebug.trace) : 'No structured trace payload returned.';
   const irResponseLog = stringifyForLog(irDebug?.response || { error: irDebug?.error || 'No response captured' });
 
@@ -358,9 +415,11 @@ function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebu
   <div class="meta">Category: ${escHtml(category)} · Median perf: Legacy=${escHtml(legStr)} | IR=${escHtml(irStr)}</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
     <a href="#legacy-trace">Legacy trace</a>
     <a href="#legacy-http">Legacy response</a>
     <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
     <a href="#ir-trace">IR trace</a>
     <a href="#ir-http">IR response</a>
   </div>
@@ -376,6 +435,8 @@ function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebu
   </section>
   ${sectionCell('legacy', 'query', 'Query / HTTP Request', legacyRequestLog)}
   ${sectionCell('ir', 'query', 'Query / HTTP Request', irRequestLog)}
+  ${sectionCell('legacy', 'plan', 'IR Plan', legacyPlanLog)}
+  ${sectionCell('ir', 'plan', 'IR Plan', irPlanLog)}
   ${sectionCell('legacy', 'trace', 'Structured Trace', legacyTraceLog)}
   ${sectionCell('ir', 'trace', 'Structured Trace', irTraceLog)}
   ${sectionCell('legacy', 'http', 'HTTP Response', legacyResponseLog)}

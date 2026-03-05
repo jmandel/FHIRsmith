@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: filter: country code regex A.* (cs-country)</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#80 filter: country code regex A.* (cs-country)</h1>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=1ms | IR=1ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "urn:iso:std:iso:3166",
+                "filter": [
+                  {
+                    "property": "code",
+                    "op": "regex",
+                    "value": "A.*"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 500
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "urn:iso:std:iso:3166",
+                "filter": [
+                  {
+                    "property": "code",
+                    "op": "regex",
+                    "value": "A.*"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 500
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: urn:iso:std:iso:3166
+optimized-ir:
+  selector filter urn:iso:std:iso:3166 code regex A.*</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.54,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 500,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.52,
+      "result": {
+        "ms": 0.52,
+        "total": 34,
+        "returned": 34
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.39,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 500
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 500,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:urn:iso:std:iso:3166",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 500
+              },
+              "children": [],
+              "ms": 0.26,
+              "result": {
+                "candidates": 34
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 0,
+                "returned": 34,
+                "total": 34
+              },
+              "t": 0.35
+            }
+          ],
+          "ms": 0.27,
+          "result": {
+            "paged": 34
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 34,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 0.36,
+      "result": {
+        "total": 34,
+        "contains": 34
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3222",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:15 GMT",
+    "etag": "W/\"c96-Arx7DuA0wY8DOwHAfhiMs2LBcIc\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-731"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:15.047Z",
+      "identifier": "urn:uuid:d54f2bae-dc9a-44f5-bf22-6e6ecf0f6a94",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 500
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "urn:iso:std:iso:3166|2018"
+        }
+      ],
+      "total": 34,
+      "contains": [
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AD",
+          "display": "Andorra"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AE",
+          "display": "United Arab Emirates"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AF",
+          "display": "Afghanistan"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AG",
+          "display": "Antigua and Barbuda"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AI",
+          "display": "Anguilla"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AL",
+          "display": "Albania"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AM",
+          "display": "Armenia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AO",
+          "display": "Angola"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AQ",
+          "display": "Antarctica"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AR",
+          "display": "Argentina"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AS",
+          "display": "American Samoa"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AT",
+          "display": "Austria"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AU",
+          "display": "Australia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AW",
+          "display": "Aruba"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AX",
+          "display": "Åland Islands"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AZ",
+          "display": "Azerbaijan"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AA",
+          "display": "User-assigned"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ABW",
+          "display": "Aruba"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AFG",
+          "display": "Afghanistan"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AGO",
+          "display": "Angola"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AIA",
+          "display": "Anguilla"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ALA",
+          "display": "Åland Islands"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ALB",
+          "display": "Albania"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AND",
+          "display": "Andorra"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ARE",
+          "display": "United Arab Emirates"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ARG",
+          "display": "Argentina"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ARM",
+          "display": "Armenia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ASM",
+          "display": "American Samoa"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ATA",
+          "display": "Antarctica"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ATF",
+          "display": "French Southern Territories"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ATG",
+          "display": "Antigua and Barbuda"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AUS",
+          "display": "Australia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AUT",
+          "display": "Austria"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AZE",
+          "display": "Azerbaijan"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.54,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":500,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.52,\"result\":{\"ms\":0.52,\"total\":34,\"returned\":34}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3714",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 00:47:15 GMT",
+    "etag": "W/\"e82-BuIv4kTl3CGWWJAjpoP9AXi4wA0\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-732"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T00:47:15.048Z",
+      "identifier": "urn:uuid:91b2f0d1-7503-4a8f-a1aa-412dbc034d4d",
+      "total": 34,
+      "contains": [
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AA",
+          "display": "User-assigned"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ABW",
+          "display": "Aruba"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AD",
+          "display": "Andorra"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AE",
+          "display": "United Arab Emirates"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AF",
+          "display": "Afghanistan"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AFG",
+          "display": "Afghanistan"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AG",
+          "display": "Antigua and Barbuda"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AGO",
+          "display": "Angola"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AI",
+          "display": "Anguilla"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AIA",
+          "display": "Anguilla"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AL",
+          "display": "Albania"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ALA",
+          "display": "Åland Islands"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ALB",
+          "display": "Albania"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AM",
+          "display": "Armenia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AND",
+          "display": "Andorra"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AO",
+          "display": "Angola"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AQ",
+          "display": "Antarctica"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AR",
+          "display": "Argentina"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ARE",
+          "display": "United Arab Emirates"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ARG",
+          "display": "Argentina"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ARM",
+          "display": "Armenia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AS",
+          "display": "American Samoa"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ASM",
+          "display": "American Samoa"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AT",
+          "display": "Austria"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ATA",
+          "display": "Antarctica"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ATF",
+          "display": "French Southern Territories"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "ATG",
+          "display": "Antigua and Barbuda"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AU",
+          "display": "Australia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AUS",
+          "display": "Australia"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AUT",
+          "display": "Austria"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AW",
+          "display": "Aruba"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AX",
+          "display": "Åland Islands"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AZ",
+          "display": "Azerbaijan"
+        },
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AZE",
+          "display": "Azerbaijan"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 500
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "urn:iso:std:iso:3166|2018"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/ir-plan",
+          "valueString": "systems: urn:iso:std:iso:3166\noptimized-ir:\n  selector filter urn:iso:std:iso:3166 code regex A.*"
+        },
+        {
+          "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.39,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":500},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":500,\"systems\":1},\"children\":[{\"name\":\"system:urn:iso:std:iso:3166\",\"args\":{\"sysOffset\":0,\"sysCount\":500},\"children\":[],\"ms\":0.26,\"result\":{\"candidates\":34}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":34,\"total\":34},\"t\":0.35}],\"ms\":0.27,\"result\":{\"paged\":34}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":34,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.36,\"result\":{\"total\":34,\"contains\":34}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

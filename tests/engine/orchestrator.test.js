@@ -180,6 +180,53 @@ describeIfDBs('expandViaIR', () => {
     expect(codes).toEqual(['44054006', '46635009', '73211009']);
   });
 
+  test('unpinned include does not emit concept version in expanded ValueSet', async () => {
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:version-unpinned',
+      status: 'active',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, { findProvider, count: 10 });
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBe(1);
+    expect(result.expansion.contains[0].version).toBeUndefined();
+
+    const expanded = buildExpandedValueSet(vs, result.expansion, { count: 10 });
+    expect(expanded.expansion.contains[0].version).toBeUndefined();
+  });
+
+  test('version-pinned include emits concept version in expanded ValueSet', async () => {
+    const provider = await findProvider('http://snomed.info/sct');
+    const pinnedVersion = provider.version();
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:version-pinned',
+      status: 'active',
+      compose: {
+        include: [{
+          system: 'http://snomed.info/sct',
+          version: pinnedVersion,
+          concept: [{ code: '73211009' }],
+        }],
+      },
+    };
+
+    const result = await expandViaIR(vs, { findProvider, count: 10 });
+    expect(result).toBeTruthy();
+    expect(result.expansion.contains.length).toBe(1);
+    expect(result.expansion.contains[0].version).toBeTruthy();
+
+    const expanded = buildExpandedValueSet(vs, result.expansion, { count: 10 });
+    expect(expanded.expansion.contains[0].version).toBeTruthy();
+  });
+
   test('pagination (offset + count)', async () => {
     const vs = {
       resourceType: 'ValueSet',

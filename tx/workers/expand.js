@@ -1970,17 +1970,36 @@ class ExpandWorker extends TerminologyWorker {
     // Per-request override: _engine=ir forces IR, _engine=legacy forces legacy
     const engineOverride = params._engine;
     const useIR = engineOverride === 'ir' || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
+    const wantTrace = !!params._trace;
+    let irAttempt = null;
     if (useIR) {
+      const irStartedAt = performance.now();
       try {
         const irResult = await this._tryIRExpansion(valueSet, params);
-        if (irResult) return irResult;
+        const irMs = performance.now() - irStartedAt;
+        if (irResult?.expansion) return irResult.expansion;
+        irAttempt = {
+          attempted: true,
+          used: false,
+          ms: Math.round(irMs * 100) / 100,
+          reason: irResult?.reason || 'ir-returned-null',
+        };
+        if (irResult?.warnings?.length) irAttempt.warnings = irResult.warnings;
       } catch (e) {
+        const irMs = performance.now() - irStartedAt;
         // Structured errors should propagate, not fall back to legacy
         if (e.isTooCostly) {
           throw new Issue('error', 'too-costly', null, null, e.message, null, 422)
             .withDiagnostics(this.opContext?.diagnostics?.());
         }
         if (e instanceof Issue) throw e;
+        irAttempt = {
+          attempted: true,
+          used: false,
+          ms: Math.round(irMs * 100) / 100,
+          reason: 'ir-error',
+          error: e?.message || String(e),
+        };
         this.opContext?.log?.(`IR engine failed, falling back to legacy: ${e.message}`);
       }
     }
@@ -1988,6 +2007,52 @@ class ExpandWorker extends TerminologyWorker {
     const filter = new SearchFilterText(params.filter);
     const expander = new ValueSetExpander(this, params);
     expander.logExtraOutput = logExtraOutput;
+    // Legacy path, with optional structured trace.
+    if (wantTrace) {
+      const { ExpandTrace, traceStore, formatTraceSummary } = getExpandTrace();
+      const traceObj = new ExpandTrace();
+      traceObj.note('engine-selection', {
+        requested: engineOverride || null,
+        selected: 'legacy',
+        irAttempted: !!irAttempt,
+        irAttempt: irAttempt || undefined,
+      });
+      const legacySpan = traceObj.begin('legacy-expand', {
+        count: params.count,
+        offset: params.offset,
+        activeOnly: !!params.activeOnly,
+        hasTextFilter: !!params.filter,
+      });
+      let legacyResult = null;
+      let legacyErr = null;
+      const legacyStartedAt = performance.now();
+      try {
+        legacyResult = await traceStore.run(traceObj, async () => await expander.expand(valueSet, filter));
+        return legacyResult;
+      } catch (e) {
+        legacyErr = e;
+        throw e;
+      } finally {
+        const legacyMs = performance.now() - legacyStartedAt;
+        legacySpan.end({
+          ms: Math.round(legacyMs * 100) / 100,
+          total: legacyResult?.expansion?.total,
+          returned: legacyResult?.expansion?.contains?.length || 0,
+          error: legacyErr ? (legacyErr.message || String(legacyErr)) : undefined,
+        });
+        if (legacyResult?.expansion) {
+          const traceJson = traceObj.toJSON();
+          legacyResult.expansion.extension = legacyResult.expansion.extension || [];
+          legacyResult.expansion.extension.push({
+            url: 'http://fhirsmith.org/StructureDefinition/expand-trace',
+            valueString: JSON.stringify(traceJson),
+          });
+          const summary = formatTraceSummary(traceJson);
+          this.opContext?.log?.(`[legacy trace] ${summary}`);
+        }
+      }
+    }
+
     return await expander.expand(valueSet, filter);
   }
 
@@ -2000,7 +2065,9 @@ class ExpandWorker extends TerminologyWorker {
     const { ExpandTrace, traceStore, formatTraceSummary } = getExpandTrace();
     const vsJson = valueSet.jsonObj || valueSet;
 
-    if (!canHandleValueSet(vsJson)) return null;
+    if (!canHandleValueSet(vsJson)) {
+      return { expansion: null, reason: 'canHandleValueSet=false' };
+    }
 
     const wantTrace = !!params._trace;
     const traceObj = wantTrace ? new ExpandTrace() : null;
@@ -2047,13 +2114,20 @@ class ExpandWorker extends TerminologyWorker {
         limit: (params.offset < 0 && params.count < 0)
           ? (params.limit > 0 ? Math.min(params.limit, EXTERNAL_DEFAULT_LIMIT) : EXTERNAL_DEFAULT_LIMIT)
           : 0,
+        debugPlan: wantTrace,
       });
 
-      if (!result) return null;
+      if (!result) {
+        return { expansion: null, reason: 'expandViaIR returned null' };
+      }
 
       // Check for warnings about unsupported systems
       if (result.warnings?.some(w => w.includes('Systems without IR support'))) {
-        return null; // Fall back to legacy for complete expansion
+        return {
+          expansion: null,
+          reason: 'systems-without-ir-support',
+          warnings: result.warnings,
+        }; // Fall back to legacy for complete expansion
       }
 
       // Validate that all required supplements were resolved
@@ -2080,14 +2154,28 @@ class ExpandWorker extends TerminologyWorker {
         sourceVS: vsJson,
       });
 
+      // Attach compact IR plan text for diagnostics/perf detail capture.
+      if (wantTrace && result?.debug?.planText && expansion?.expansion) {
+        expansion.expansion.extension = expansion.expansion.extension || [];
+        expansion.expansion.extension.push({
+          url: 'http://fhirsmith.org/StructureDefinition/ir-plan',
+          valueString: String(result.debug.planText),
+        });
+      }
+
       // Attach trace to the expansion sub-object (not the top-level ValueSet)
       if (wantTrace && traceObj && expansion?.expansion) {
-        traceObj.attachTo(expansion.expansion);
-        const summary = formatTraceSummary(traceObj.toJSON());
+        const traceJson = traceObj.toJSON();
+        expansion.expansion.extension = expansion.expansion.extension || [];
+        expansion.expansion.extension.push({
+          url: 'http://fhirsmith.org/StructureDefinition/expand-trace',
+          valueString: JSON.stringify(traceJson),
+        });
+        const summary = formatTraceSummary(traceJson);
         this.opContext?.log?.(`[IR trace] ${summary}`);
       }
 
-      return expansion;
+      return { expansion };
     };
 
     // Run inside traceStore if tracing is active

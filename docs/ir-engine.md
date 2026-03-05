@@ -447,25 +447,15 @@ provider stack (SNOMED/LOINC/RxNorm DBs from
 scripts/run-ir-harness.sh \
   --perf \
   --db-dir /home/jmandel/hobby/sct/cache \
-  --filter v0 \
   --out-dir tmp/ir-harness-runs/20260304-v0-perf \
   --perf-out tmp/ir-harness-runs/20260304-v0-perf/perf-table.html
 ```
 
-Result set: 14 v0-focused harness rows, median of 3 runs each.
+Result set: full IR harness matrix (166 rows), median of 3 runs each.
 
-- Meaningful deltas (absolute diff >= 5ms): IR faster in 5, legacy faster in 1
-- Near-ties (absolute diff < 5ms): 8 rows
-
-Representative rows:
-
-| Test | Legacy median | IR median | Delta |
-|------|---------------|-----------|-------|
-| `provider: v0 RxNorm text search + property filter combined` | 279ms | 9ms | IR faster by 270ms (31.0x) |
-| `pagination-safety: v0 filter+cs-cs pages are disjoint` | 10ms | 2ms | IR faster by 8ms (5.0x) |
-| `multi-system: v0 filter + preloaded whole + cs-cs enumerated` | 12ms | 3ms | IR faster by 9ms (4.0x) |
-| `provider: v0 SNOMED large is-a pagination consistency` | 9ms | 2ms | IR faster by 7ms (4.5x) |
-| `logic: code regex handled in sqlite-v0` | 722ms | 806ms | Legacy faster by 84ms (1.12x) |
+Notes:
+- Winner column is suppressed for near-ties (absolute diff <= 5ms).
+- Each detail page includes split execution details and, on the IR side, a compact IR plan tree.
 
 Artifacts:
 

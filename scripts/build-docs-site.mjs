@@ -123,7 +123,7 @@ function buildLandingPage() {
 </div>
 <div class="card">
   <h2>Published Perf Snapshot</h2>
-  <p>Run id: <code>20260304-v0-perf</code> (14 v0-focused harness rows, median of 3 runs each).</p>
+  <p>Run id: <code>20260304-v0-perf</code> (full IR harness perf matrix, median of 3 runs each).</p>
   <p>Source files are committed under <code>docs/perf/v0-sqlite-20260304/</code>.</p>
 </div>
 `;
