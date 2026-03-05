@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#146 stress: mixed-system text filter with limit boundary</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=❌ | IR=34ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=❌ | IR=40ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1055ms capture call · response: 422 Unprocessable Entity</p>
+    <p class="meta-mini">capture: 1184ms capture wall · response: 422 Unprocessable Entity</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 1090ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 42ms capture wall · trace: 34.88ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -183,9 +183,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 31.35,
+  "totalMs": 34.88,
   "sqlCount": 4,
-  "sqlMs": 29.3,
+  "sqlMs": 32.41,
   "counters": {},
   "spans": [
     {
@@ -219,17 +219,17 @@ optimized-ir:
                     "_searchCsId": 1
                   },
                   "rows": 1842,
-                  "ms": 10.5,
+                  "ms": 11.68,
                   "label": "countForIR"
                 }
               ],
-              "ms": 10.55,
+              "ms": 11.73,
               "result": {
                 "count": 1842
               }
             }
           ],
-          "ms": 10.57,
+          "ms": 11.75,
           "result": {
             "count": 1842
           }
@@ -255,17 +255,17 @@ optimized-ir:
                     "_searchCsId": 1
                   },
                   "rows": 461,
-                  "ms": 5.42,
+                  "ms": 5.99,
                   "label": "countForIR"
                 }
               ],
-              "ms": 5.45,
+              "ms": 6.03,
               "result": {
                 "count": 461
               }
             }
           ],
-          "ms": 5.46,
+          "ms": 6.04,
           "result": {
             "count": 461
           }
@@ -297,11 +297,11 @@ optimized-ir:
                       "message": "executeIR:breakdown",
                       "data": {
                         "hintsMs": 0,
-                        "buildMs": 0.04,
-                        "prepMs": 0.11,
-                        "execMs": 9.61
+                        "buildMs": 0.05,
+                        "prepMs": 0.15,
+                        "execMs": 10.59
                       },
-                      "t": 26.74
+                      "t": 29.68
                     }
                   ],
                   "sql": [
@@ -314,17 +314,17 @@ optimized-ir:
                         "_limit": 1842
                       },
                       "rows": 1842,
-                      "ms": 9.61,
+                      "ms": 10.59,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 10.05,
+                  "ms": 11.12,
                   "result": {
                     "candidates": 1842
                   }
                 }
               ],
-              "ms": 10.07,
+              "ms": 11.15,
               "result": {
                 "candidates": 1842
               }
@@ -348,10 +348,10 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.02,
-                        "prepMs": 0.12,
-                        "execMs": 3.77
+                        "prepMs": 0.13,
+                        "execMs": 4.15
                       },
-                      "t": 30.97
+                      "t": 34.37
                     }
                   ],
                   "sql": [
@@ -364,23 +364,23 @@ optimized-ir:
                         "_limit": 158
                       },
                       "rows": 158,
-                      "ms": 3.77,
+                      "ms": 4.15,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 3.94,
+                  "ms": 4.34,
                   "result": {
                     "candidates": 158
                   }
                 }
               ],
-              "ms": 3.95,
+              "ms": 4.36,
               "result": {
                 "candidates": 158
               }
             }
           ],
-          "ms": 14.09,
+          "ms": 15.59,
           "result": {
             "paged": 2000
           }
@@ -392,10 +392,10 @@ optimized-ir:
             "includeDesignations": false
           },
           "children": [],
-          "ms": 0
+          "ms": 0.01
         }
       ],
-      "ms": 31.28,
+      "ms": 34.79,
       "result": {
         "total": 2303,
         "contains": 2000
@@ -417,10 +417,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "497",
+    "content-length": "498",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:46 GMT",
-    "etag": "W/\"1f1-t93O4NYzuPcmTpOAqh68WORZu0g\"",
+    "date": "Thu, 05 Mar 2026 03:01:22 GMT",
+    "etag": "W/\"1f2-9sKpNSH+yHdUGHMM+4P7+HTCNv4\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1318"
@@ -440,7 +440,7 @@ optimized-ir:
             "valueString": "VALUESET_TOO_COSTLY"
           }
         ],
-        "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n1ms compose #2\n1ms prepare filters\n703ms iterate filters\n721ms iterate filters done\n722ms prepare filters\n999ms iterate filters"
+        "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n1ms compose #2\n2ms prepare filters\n789ms iterate filters\n809ms iterate filters done\n809ms prepare filters\n1121ms iterate filters"
       }
     ]
   }
@@ -459,10 +459,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "235769",
+    "content-length": "235776",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:46 GMT",
-    "etag": "W/\"398f9-kYANmlJDLj8NULZor8Bj5rbUJrU\"",
+    "date": "Thu, 05 Mar 2026 03:01:22 GMT",
+    "etag": "W/\"39900-UXmP1mZqd6APzFjUAeD5ns2gyIs\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1319"
@@ -470,8 +470,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:56:46.298Z",
-      "identifier": "urn:uuid:0b5157b6-b5e1-4741-af13-c72a0fa3400f",
+      "timestamp": "2026-03-05T03:01:22.138Z",
+      "identifier": "urn:uuid:2cdc790b-a4fc-42c1-9b8b-85039b5b580b",
       "total": 2303,
       "contains": [
         {
@@ -10500,7 +10500,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":31.35,\"sqlCount\":4,\"sqlMs\":29.3,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":\"glucose\",\"offset\":0,\"count\":2000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":1842,\"ms\":10.5,\"label\":\"countForIR\"}],\"ms\":10.55,\"result\":{\"count\":1842}}],\"ms\":10.57,\"result\":{\"count\":1842}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":461,\"ms\":5.42,\"label\":\"countForIR\"}],\"ms\":5.45,\"result\":{\"count\":461}}],\"ms\":5.46,\"result\":{\"count\":461}},{\"name\":\"pagination\",\"args\":{\"total\":2303,\"offset\":0,\"count\":2000,\"systems\":2},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1842},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.04,\"prepMs\":0.11,\"execMs\":9.61},\"t\":26.74}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":1842},\"rows\":1842,\"ms\":9.61,\"label\":\"executeIR\"}],\"ms\":10.05,\"result\":{\"candidates\":1842}}],\"ms\":10.07,\"result\":{\"candidates\":1842}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":158},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.12,\"execMs\":3.77},\"t\":30.97}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":158},\"rows\":158,\"ms\":3.77,\"label\":\"executeIR\"}],\"ms\":3.94,\"result\":{\"candidates\":158}}],\"ms\":3.95,\"result\":{\"candidates\":158}}],\"ms\":14.09,\"result\":{\"paged\":2000}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2000,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":31.28,\"result\":{\"total\":2303,\"contains\":2000}}]}"
+          "valueString": "{\"totalMs\":34.88,\"sqlCount\":4,\"sqlMs\":32.41,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":\"glucose\",\"offset\":0,\"count\":2000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":1842,\"ms\":11.68,\"label\":\"countForIR\"}],\"ms\":11.73,\"result\":{\"count\":1842}}],\"ms\":11.75,\"result\":{\"count\":1842}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":461,\"ms\":5.99,\"label\":\"countForIR\"}],\"ms\":6.03,\"result\":{\"count\":461}}],\"ms\":6.04,\"result\":{\"count\":461}},{\"name\":\"pagination\",\"args\":{\"total\":2303,\"offset\":0,\"count\":2000,\"systems\":2},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1842},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.05,\"prepMs\":0.15,\"execMs\":10.59},\"t\":29.68}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":1842},\"rows\":1842,\"ms\":10.59,\"label\":\"executeIR\"}],\"ms\":11.12,\"result\":{\"candidates\":1842}}],\"ms\":11.15,\"result\":{\"candidates\":1842}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":158},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.13,\"execMs\":4.15},\"t\":34.37}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":158},\"rows\":158,\"ms\":4.15,\"label\":\"executeIR\"}],\"ms\":4.34,\"result\":{\"candidates\":158}}],\"ms\":4.36,\"result\":{\"candidates\":158}}],\"ms\":15.59,\"result\":{\"paged\":2000}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2000,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":34.79,\"result\":{\"total\":2303,\"contains\":2000}}]}"
         }
       ]
     }

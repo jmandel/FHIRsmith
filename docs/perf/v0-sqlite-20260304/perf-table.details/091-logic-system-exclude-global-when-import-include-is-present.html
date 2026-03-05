@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#91 logic: system exclude global when import include is present</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=10ms | IR=3ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=12ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 15ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 18ms capture wall · trace: 9.9ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 16ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 3ms capture wall · trace: 1.18ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -70,7 +70,7 @@
               },
               {
                 "valueSet": [
-                  "http://example.org/vs/exc-guard-1772679390640"
+                  "http://example.org/vs/exc-guard-1772679664094"
                 ]
               }
             ],
@@ -107,7 +107,7 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "ValueSet",
-          "url": "http://example.org/vs/exc-guard-1772679390640",
+          "url": "http://example.org/vs/exc-guard-1772679664094",
           "status": "active",
           "compose": {
             "include": [
@@ -158,7 +158,7 @@
               },
               {
                 "valueSet": [
-                  "http://example.org/vs/exc-guard-1772679390640"
+                  "http://example.org/vs/exc-guard-1772679664094"
                 ]
               }
             ],
@@ -195,7 +195,7 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "ValueSet",
-          "url": "http://example.org/vs/exc-guard-1772679390640",
+          "url": "http://example.org/vs/exc-guard-1772679664094",
           "status": "active",
           "compose": {
             "include": [
@@ -240,9 +240,9 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 8.87,
+  "totalMs": 9.9,
   "sqlCount": 1,
-  "sqlMs": 0.33,
+  "sqlMs": 0.34,
   "counters": {},
   "spans": [
     {
@@ -281,19 +281,19 @@ optimized-ir:
                 "f0_cs": 1
               },
               "rows": 124,
-              "ms": 0.33,
+              "ms": 0.34,
               "label": "legacy:executeFilters"
             }
           ],
-          "ms": 0.35,
+          "ms": 0.36,
           "result": {
             "rows": 124
           }
         }
       ],
-      "ms": 8.85,
+      "ms": 9.88,
       "result": {
-        "ms": 8.84,
+        "ms": 9.87,
         "total": 123,
         "returned": 123
       }
@@ -306,9 +306,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.95,
+  "totalMs": 1.18,
   "sqlCount": 1,
-  "sqlMs": 0.42,
+  "sqlMs": 0.49,
   "counters": {},
   "spans": [
     {
@@ -349,10 +349,10 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.02,
-                        "prepMs": 0.08,
-                        "execMs": 0.42
+                        "prepMs": 0.11,
+                        "execMs": 0.49
                       },
-                      "t": 0.89
+                      "t": 1.11
                     }
                   ],
                   "sql": [
@@ -369,17 +369,17 @@ optimized-ir:
                         "_limit": 200
                       },
                       "rows": 123,
-                      "ms": 0.42,
+                      "ms": 0.49,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.55,
+                  "ms": 0.66,
                   "result": {
                     "candidates": 123
                   }
                 }
               ],
-              "ms": 0.56,
+              "ms": 0.67,
               "result": {
                 "candidates": 123
               }
@@ -392,10 +392,10 @@ optimized-ir:
                 "returned": 123,
                 "total": 123
               },
-              "t": 0.91
+              "t": 1.13
             }
           ],
-          "ms": 0.57,
+          "ms": 0.68,
           "result": {
             "paged": 123
           }
@@ -410,7 +410,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.91,
+      "ms": 1.14,
       "result": {
         "total": 123,
         "contains": 123
@@ -432,10 +432,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "15868",
+    "content-length": "15867",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:30 GMT",
-    "etag": "W/\"3dfc-gtR3ttqRoZv70s/FmviIdeD+9q0\"",
+    "date": "Thu, 05 Mar 2026 03:01:04 GMT",
+    "etag": "W/\"3dfb-zQwferBpyRyrPVXXJf1t8m6gkFg\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-830"
@@ -443,8 +443,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:56:30.695Z",
-      "identifier": "urn:uuid:98e6eed1-6fff-44a2-a84e-9d0b00b966e6",
+      "timestamp": "2026-03-05T03:01:04.147Z",
+      "identifier": "urn:uuid:718030fc-bae9-40c9-b198-fe8685a5885c",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -460,7 +460,7 @@ optimized-ir:
         },
         {
           "name": "used-valueset",
-          "valueUri": "http://example.org/vs/exc-guard-1772679390640"
+          "valueUri": "http://example.org/vs/exc-guard-1772679664094"
         }
       ],
       "total": 123,
@@ -1084,7 +1084,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":8.87,\"sqlCount\":1,\"sqlMs\":0.33,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":200,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.33,\"label\":\"legacy:executeFilters\"}],\"ms\":0.35,\"result\":{\"rows\":124}}],\"ms\":8.85,\"result\":{\"ms\":8.84,\"total\":123,\"returned\":123}}]}"
+          "valueString": "{\"totalMs\":9.9,\"sqlCount\":1,\"sqlMs\":0.34,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":200,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.34,\"label\":\"legacy:executeFilters\"}],\"ms\":0.36,\"result\":{\"rows\":124}}],\"ms\":9.88,\"result\":{\"ms\":9.87,\"total\":123,\"returned\":123}}]}"
         }
       ]
     }
@@ -1106,8 +1106,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "17010",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:30 GMT",
-    "etag": "W/\"4272-oLRzWkGqE8iF/mFmKuHNrN1wTx4\"",
+    "date": "Thu, 05 Mar 2026 03:01:04 GMT",
+    "etag": "W/\"4272-sNv1Mrk7xdhrQnpPZU/l7kjM/pw\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-831"
@@ -1115,8 +1115,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:56:30.705Z",
-      "identifier": "urn:uuid:1cdf2fba-84f3-4871-8979-569a7969238c",
+      "timestamp": "2026-03-05T03:01:04.160Z",
+      "identifier": "urn:uuid:91e46cf4-7e49-4725-9946-aad8fd33fe80",
       "total": 123,
       "contains": [
         {
@@ -1746,7 +1746,7 @@ optimized-ir:
         },
         {
           "name": "used-valueset",
-          "valueUri": "http://example.org/vs/exc-guard-1772679390640"
+          "valueUri": "http://example.org/vs/exc-guard-1772679664094"
         }
       ],
       "extension": [
@@ -1756,7 +1756,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.95,\"sqlCount\":1,\"sqlMs\":0.42,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":200},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":200,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":200},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.08,\"execMs\":0.42},\"t\":0.89}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT _dl.concept_id, _dl.code, _dl.display, _dl.definition, _dl.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xdlu0f0 ON cl__xdlu0f0.descendant_id = c.concept_id AND cl__xdlu0f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xdlu0f0_anc_code AND cs_id = @_xdlu0f0_cs) WHERE c.cs_id = @_xdlu0_csId\\nUNION ALL\\nSELECT c.concept_id, c.code, c.displa…\",\"params\":{\"_xdlu0_csId\":1,\"_xdlu0f0_anc_code\":\"73211009\",\"_xdlu0f0_cs\":1,\"_xdlu1_csId\":1,\"_xdlu1_c0\":\"44054006\",\"_xdr_csId\":1,\"_xdr_c0\":\"44054006\",\"_limit\":200},\"rows\":123,\"ms\":0.42,\"label\":\"executeIR\"}],\"ms\":0.55,\"result\":{\"candidates\":123}}],\"ms\":0.56,\"result\":{\"candidates\":123}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":123,\"total\":123},\"t\":0.91}],\"ms\":0.57,\"result\":{\"paged\":123}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":123,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.91,\"result\":{\"total\":123,\"contains\":123}}]}"
+          "valueString": "{\"totalMs\":1.18,\"sqlCount\":1,\"sqlMs\":0.49,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":200},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":200,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":200},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.11,\"execMs\":0.49},\"t\":1.11}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT _dl.concept_id, _dl.code, _dl.display, _dl.definition, _dl.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xdlu0f0 ON cl__xdlu0f0.descendant_id = c.concept_id AND cl__xdlu0f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xdlu0f0_anc_code AND cs_id = @_xdlu0f0_cs) WHERE c.cs_id = @_xdlu0_csId\\nUNION ALL\\nSELECT c.concept_id, c.code, c.displa…\",\"params\":{\"_xdlu0_csId\":1,\"_xdlu0f0_anc_code\":\"73211009\",\"_xdlu0f0_cs\":1,\"_xdlu1_csId\":1,\"_xdlu1_c0\":\"44054006\",\"_xdr_csId\":1,\"_xdr_c0\":\"44054006\",\"_limit\":200},\"rows\":123,\"ms\":0.49,\"label\":\"executeIR\"}],\"ms\":0.66,\"result\":{\"candidates\":123}}],\"ms\":0.67,\"result\":{\"candidates\":123}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":123,\"total\":123},\"t\":1.13}],\"ms\":0.68,\"result\":{\"paged\":123}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":123,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.14,\"result\":{\"total\":123,\"contains\":123}}]}"
         }
       ]
     }

@@ -675,14 +675,18 @@ async function captureEngineDebug(vsJson, opts, engine) {
 function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebug, legacyDebug }) {
   const irStr = irPerf.err ? '❌' : `${irPerf.ms}ms`;
   const legStr = legPerf.err ? '❌' : `${legPerf.ms}ms`;
-  const legacyTiming = legacyDebug?.ok ? `${legacyDebug.ms}ms capture call` : 'capture failed';
+  const legacyTraceMs = legacyDebug?.trace?.totalMs;
+  const irTraceMs = irDebug?.trace?.totalMs;
+  const legacyTiming = legacyDebug?.ok
+    ? `${legacyDebug.ms}ms capture wall`
+    : 'capture failed';
   const legacyStatus = legacyDebug?.response ? `${legacyDebug.response.status} ${legacyDebug.response.statusText || ''}`.trim() : 'n/a';
   const legacyRequestLog = stringifyForLog(legacyDebug?.request || {});
   const legacyPlanLog = 'N/A (legacy engine)';
   const legacyTraceLog = legacyDebug?.traceAvailable ? stringifyForLog(legacyDebug.trace) : 'No structured trace payload returned.';
   const legacyResponseLog = stringifyForLog(legacyDebug?.response || { error: legacyDebug?.error || 'No response captured' });
 
-  const irTiming = irDebug?.ok ? `${irDebug.ms}ms capture call` : 'capture failed';
+  const irTiming = irDebug?.ok ? `${irDebug.ms}ms capture wall` : 'capture failed';
   const irStatus = irDebug?.response ? `${irDebug.response.status} ${irDebug.response.statusText || ''}`.trim() : 'n/a';
   const irRequestLog = stringifyForLog(irDebug?.request || {});
   const irPlanLog = irDebug?.irPlanText || 'No IR plan payload returned.';
@@ -732,11 +736,11 @@ function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebu
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: ${escHtml(legacyTiming)} · response: ${escHtml(legacyStatus)}</p>
+    <p class="meta-mini">capture: ${escHtml(legacyTiming)}${legacyTraceMs != null ? ` · trace: ${escHtml(String(legacyTraceMs))}ms` : ''} · response: ${escHtml(legacyStatus)}</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: ${escHtml(irTiming)} · response: ${escHtml(irStatus)}</p>
+    <p class="meta-mini">capture: ${escHtml(irTiming)}${irTraceMs != null ? ` · trace: ${escHtml(String(irTraceMs))}ms` : ''} · response: ${escHtml(irStatus)}</p>
   </section>
   ${sectionCell('legacy', 'query', 'Query / HTTP Request', legacyRequestLog)}
   ${sectionCell('ir', 'query', 'Query / HTTP Request', irRequestLog)}
@@ -755,10 +759,10 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, irPerf
   const filename = `${slug}.html`;
   const absPath = join(PERF_DETAILS_DIR, filename);
   const relPath = `${PERF_OUT_BASE}.details/${filename}`;
-  const [legacyDebug, irDebug] = await Promise.all([
-    captureEngineDebug(vsJson, opts, 'legacy'),
-    captureEngineDebug(vsJson, opts, 'ir'),
-  ]);
+  // Capture sequentially so one engine's heavy request does not inflate the
+  // other engine's wall-time due server-side request queueing.
+  const legacyDebug = await captureEngineDebug(vsJson, opts, 'legacy');
+  const irDebug = await captureEngineDebug(vsJson, opts, 'ir');
   writeFileSync(absPath, buildPerfDetailHtml({
     rowIndex,
     name,

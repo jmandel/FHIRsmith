@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 0.5ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 0.36ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -59,7 +59,7 @@
           "compose": {
             "include": [
               {
-                "system": "http://example.org/cs/cov-exc-1772679391963",
+                "system": "http://example.org/cs/cov-exc-1772679665641",
                 "concept": [
                   {
                     "code": "x"
@@ -86,7 +86,7 @@
             ],
             "exclude": [
               {
-                "system": "http://example.org/cs/cov-exc-1772679391963",
+                "system": "http://example.org/cs/cov-exc-1772679665641",
                 "concept": [
                   {
                     "code": "y"
@@ -121,7 +121,7 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "CodeSystem",
-          "url": "http://example.org/cs/cov-exc-1772679391963",
+          "url": "http://example.org/cs/cov-exc-1772679665641",
           "status": "active",
           "content": "complete",
           "concept": [
@@ -164,7 +164,7 @@
           "compose": {
             "include": [
               {
-                "system": "http://example.org/cs/cov-exc-1772679391963",
+                "system": "http://example.org/cs/cov-exc-1772679665641",
                 "concept": [
                   {
                     "code": "x"
@@ -191,7 +191,7 @@
             ],
             "exclude": [
               {
-                "system": "http://example.org/cs/cov-exc-1772679391963",
+                "system": "http://example.org/cs/cov-exc-1772679665641",
                 "concept": [
                   {
                     "code": "y"
@@ -226,7 +226,7 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "CodeSystem",
-          "url": "http://example.org/cs/cov-exc-1772679391963",
+          "url": "http://example.org/cs/cov-exc-1772679665641",
           "status": "active",
           "content": "complete",
           "concept": [
@@ -259,14 +259,14 @@
   <section class="cell">
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
-      <pre>systems: http://example.org/cs/cov-exc-1772679391963, http://hl7.org/fhir/administrative-gender
+      <pre>systems: http://example.org/cs/cov-exc-1772679665641, http://hl7.org/fhir/administrative-gender
 runtime-constraints:
   pagination: offset=0 count=1000
 optimized-ir:
   union [2]
     diff
-      selector concept http://example.org/cs/cov-exc-1772679391963 [3] x, y, z
-      selector concept http://example.org/cs/cov-exc-1772679391963 [1] y
+      selector concept http://example.org/cs/cov-exc-1772679665641 [3] x, y, z
+      selector concept http://example.org/cs/cov-exc-1772679665641 [1] y
     diff
       selector concept http://hl7.org/fhir/administrative-gender [2] male, female
       selector concept http://hl7.org/fhir/administrative-gender [1] female</pre>
@@ -276,7 +276,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.29,
+  "totalMs": 0.5,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -300,9 +300,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.28,
+      "ms": 0.48,
       "result": {
-        "ms": 0.27,
+        "ms": 0.47,
         "total": 3,
         "returned": 3
       }
@@ -315,7 +315,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.29,
+  "totalMs": 0.36,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -334,10 +334,10 @@ optimized-ir:
           "name": "note",
           "message": "count:static",
           "data": {
-            "system": "http://example.org/cs/cov-exc-1772679391963",
+            "system": "http://example.org/cs/cov-exc-1772679665641",
             "count": 2
           },
-          "t": 0.16
+          "t": 0.2
         },
         {
           "name": "note",
@@ -346,7 +346,7 @@ optimized-ir:
             "system": "http://hl7.org/fhir/administrative-gender",
             "count": 1
           },
-          "t": 0.18
+          "t": 0.24
         },
         {
           "name": "pagination",
@@ -358,7 +358,7 @@ optimized-ir:
           },
           "children": [
             {
-              "name": "system:http://example.org/cs/cov-exc-1772679391963",
+              "name": "system:http://example.org/cs/cov-exc-1772679665641",
               "args": {
                 "sysOffset": 0,
                 "sysCount": 2
@@ -382,7 +382,7 @@ optimized-ir:
               }
             }
           ],
-          "ms": 0.07,
+          "ms": 0.08,
           "result": {
             "paged": 3
           }
@@ -397,7 +397,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.26,
+      "ms": 0.32,
       "result": {
         "total": 3,
         "contains": 3
@@ -419,10 +419,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1177",
+    "content-length": "1176",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:31 GMT",
-    "etag": "W/\"499-EWnXO3nIgeTR+EIfUTzxT9JxmFU\"",
+    "date": "Thu, 05 Mar 2026 03:01:05 GMT",
+    "etag": "W/\"498-T7pGkWc/0+qR8vjOca8tZrg6WwI\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-923"
@@ -430,8 +430,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:56:31.973Z",
-      "identifier": "urn:uuid:80e00779-7f1a-4468-bb8d-591a9e2289fd",
+      "timestamp": "2026-03-05T03:01:05.651Z",
+      "identifier": "urn:uuid:960229bb-e1d6-4f00-bd99-060d858b3f47",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -439,7 +439,7 @@ optimized-ir:
         },
         {
           "name": "used-codesystem",
-          "valueUri": "http://example.org/cs/cov-exc-1772679391963"
+          "valueUri": "http://example.org/cs/cov-exc-1772679665641"
         },
         {
           "name": "used-codesystem",
@@ -449,12 +449,12 @@ optimized-ir:
       "total": 3,
       "contains": [
         {
-          "system": "http://example.org/cs/cov-exc-1772679391963",
+          "system": "http://example.org/cs/cov-exc-1772679665641",
           "code": "x",
           "display": "X"
         },
         {
-          "system": "http://example.org/cs/cov-exc-1772679391963",
+          "system": "http://example.org/cs/cov-exc-1772679665641",
           "code": "z",
           "display": "Z"
         },
@@ -467,7 +467,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.29,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.28,\"result\":{\"ms\":0.27,\"total\":3,\"returned\":3}}]}"
+          "valueString": "{\"totalMs\":0.5,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.48,\"result\":{\"ms\":0.47,\"total\":3,\"returned\":3}}]}"
         }
       ]
     }
@@ -487,10 +487,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "2461",
+    "content-length": "2460",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:31 GMT",
-    "etag": "W/\"99d-16bB+dnhoS/7qqVnYGiwEPWhO9I\"",
+    "date": "Thu, 05 Mar 2026 03:01:05 GMT",
+    "etag": "W/\"99c-r7Fl+sgmyHftoMUWRtipZg5/w0o\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-924"
@@ -498,17 +498,17 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:56:31.974Z",
-      "identifier": "urn:uuid:53d10090-e952-4a58-aeae-9db711a7f8f3",
+      "timestamp": "2026-03-05T03:01:05.654Z",
+      "identifier": "urn:uuid:eac979fc-95ee-46da-9655-dfc23f803e62",
       "total": 3,
       "contains": [
         {
-          "system": "http://example.org/cs/cov-exc-1772679391963",
+          "system": "http://example.org/cs/cov-exc-1772679665641",
           "code": "x",
           "display": "X"
         },
         {
-          "system": "http://example.org/cs/cov-exc-1772679391963",
+          "system": "http://example.org/cs/cov-exc-1772679665641",
           "code": "z",
           "display": "Z"
         },
@@ -521,7 +521,7 @@ optimized-ir:
       "parameter": [
         {
           "name": "used-codesystem",
-          "valueUri": "http://example.org/cs/cov-exc-1772679391963"
+          "valueUri": "http://example.org/cs/cov-exc-1772679665641"
         },
         {
           "name": "used-codesystem",
@@ -531,11 +531,11 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
-          "valueString": "systems: http://example.org/cs/cov-exc-1772679391963, http://hl7.org/fhir/administrative-gender\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2]\n    diff\n      selector concept http://example.org/cs/cov-exc-1772679391963 [3] x, y, z\n      selector concept http://example.org/cs/cov-exc-1772679391963 [1] y\n    diff\n      selector concept http://hl7.org/fhir/administrative-gender [2] male, female\n      selector concept http://hl7.org/fhir/administrative-gender [1] female"
+          "valueString": "systems: http://example.org/cs/cov-exc-1772679665641, http://hl7.org/fhir/administrative-gender\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2]\n    diff\n      selector concept http://example.org/cs/cov-exc-1772679665641 [3] x, y, z\n      selector concept http://example.org/cs/cov-exc-1772679665641 [1] y\n    diff\n      selector concept http://hl7.org/fhir/administrative-gender [2] male, female\n      selector concept http://hl7.org/fhir/administrative-gender [1] female"
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.29,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs/cov-exc-1772679391963\",\"count\":2},\"t\":0.16},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.18},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://example.org/cs/cov-exc-1772679391963\",\"args\":{\"sysOffset\":0,\"sysCount\":2},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":2}},{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}}],\"ms\":0.07,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.26,\"result\":{\"total\":3,\"contains\":3}}]}"
+          "valueString": "{\"totalMs\":0.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs/cov-exc-1772679665641\",\"count\":2},\"t\":0.2},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.24},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://example.org/cs/cov-exc-1772679665641\",\"args\":{\"sysOffset\":0,\"sysCount\":2},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":2}},{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}}],\"ms\":0.08,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.32,\"result\":{\"total\":3,\"contains\":3}}]}"
         }
       ]
     }

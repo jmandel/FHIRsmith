@@ -34,11 +34,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1ms capture call · response: 500 Internal Server Error</p>
+    <p class="meta-mini">capture: 1ms capture wall · response: 500 Internal Server Error</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 1ms capture wall · trace: 0.26ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -60,14 +60,14 @@
             "include": [
               {
                 "valueSet": [
-                  "http://example.org/vs/exc-total-inc-1772679387399"
+                  "http://example.org/vs/exc-total-inc-1772679660458"
                 ]
               }
             ],
             "exclude": [
               {
                 "valueSet": [
-                  "http://example.org/vs/exc-total-exc-1772679387399"
+                  "http://example.org/vs/exc-total-exc-1772679660458"
                 ]
               }
             ]
@@ -98,7 +98,7 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "CodeSystem",
-          "url": "http://example.org/cs/exc-total-1772679387399",
+          "url": "http://example.org/cs/exc-total-1772679660458",
           "status": "active",
           "content": "complete",
           "concept": [
@@ -125,12 +125,12 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "ValueSet",
-          "url": "http://example.org/vs/exc-total-inc-1772679387399",
+          "url": "http://example.org/vs/exc-total-inc-1772679660458",
           "status": "active",
           "compose": {
             "include": [
               {
-                "system": "http://example.org/cs/exc-total-1772679387399"
+                "system": "http://example.org/cs/exc-total-1772679660458"
               }
             ]
           }
@@ -140,12 +140,12 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "ValueSet",
-          "url": "http://example.org/vs/exc-total-exc-1772679387399",
+          "url": "http://example.org/vs/exc-total-exc-1772679660458",
           "status": "active",
           "compose": {
             "include": [
               {
-                "system": "http://example.org/cs/exc-total-1772679387399",
+                "system": "http://example.org/cs/exc-total-1772679660458",
                 "concept": [
                   {
                     "code": "blue"
@@ -184,14 +184,14 @@
             "include": [
               {
                 "valueSet": [
-                  "http://example.org/vs/exc-total-inc-1772679387399"
+                  "http://example.org/vs/exc-total-inc-1772679660458"
                 ]
               }
             ],
             "exclude": [
               {
                 "valueSet": [
-                  "http://example.org/vs/exc-total-exc-1772679387399"
+                  "http://example.org/vs/exc-total-exc-1772679660458"
                 ]
               }
             ]
@@ -222,7 +222,7 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "CodeSystem",
-          "url": "http://example.org/cs/exc-total-1772679387399",
+          "url": "http://example.org/cs/exc-total-1772679660458",
           "status": "active",
           "content": "complete",
           "concept": [
@@ -249,12 +249,12 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "ValueSet",
-          "url": "http://example.org/vs/exc-total-inc-1772679387399",
+          "url": "http://example.org/vs/exc-total-inc-1772679660458",
           "status": "active",
           "compose": {
             "include": [
               {
-                "system": "http://example.org/cs/exc-total-1772679387399"
+                "system": "http://example.org/cs/exc-total-1772679660458"
               }
             ]
           }
@@ -264,12 +264,12 @@
         "name": "tx-resource",
         "resource": {
           "resourceType": "ValueSet",
-          "url": "http://example.org/vs/exc-total-exc-1772679387399",
+          "url": "http://example.org/vs/exc-total-exc-1772679660458",
           "status": "active",
           "compose": {
             "include": [
               {
-                "system": "http://example.org/cs/exc-total-1772679387399",
+                "system": "http://example.org/cs/exc-total-1772679660458",
                 "concept": [
                   {
                     "code": "blue"
@@ -297,13 +297,13 @@
   <section class="cell">
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
-      <pre>systems: http://example.org/cs/exc-total-1772679387399
+      <pre>systems: http://example.org/cs/exc-total-1772679660458
 runtime-constraints:
   pagination: offset=0 count=1
 optimized-ir:
   diff
-    selector whole http://example.org/cs/exc-total-1772679387399
-    selector concept http://example.org/cs/exc-total-1772679387399 [2] blue, yellow</pre>
+    selector whole http://example.org/cs/exc-total-1772679660458
+    selector concept http://example.org/cs/exc-total-1772679660458 [2] blue, yellow</pre>
     </details>
   </section>
   <section class="cell">
@@ -316,7 +316,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.22,
+  "totalMs": 0.26,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -341,13 +341,13 @@ optimized-ir:
           },
           "children": [
             {
-              "name": "system:http://example.org/cs/exc-total-1772679387399",
+              "name": "system:http://example.org/cs/exc-total-1772679660458",
               "args": {
                 "sysOffset": 0,
                 "sysCount": 1
               },
               "children": [],
-              "ms": 0.05,
+              "ms": 0.06,
               "result": {
                 "candidates": 1
               }
@@ -355,16 +355,16 @@ optimized-ir:
             {
               "name": "countForIR:lazy",
               "args": {
-                "system": "http://example.org/cs/exc-total-1772679387399"
+                "system": "http://example.org/cs/exc-total-1772679660458"
               },
               "children": [],
-              "ms": 0.03,
+              "ms": 0.04,
               "result": {
                 "count": 2
               }
             }
           ],
-          "ms": 0.09,
+          "ms": 0.1,
           "result": {
             "paged": 1
           }
@@ -379,7 +379,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.19,
+      "ms": 0.23,
       "result": {
         "total": 2,
         "contains": 1
@@ -403,7 +403,7 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "168",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:27 GMT",
+    "date": "Thu, 05 Mar 2026 03:01:00 GMT",
     "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
@@ -437,10 +437,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1904",
+    "content-length": "1903",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:56:27 GMT",
-    "etag": "W/\"770-KVl01We8lmADlvbtVo/X4BRiEeQ\"",
+    "date": "Thu, 05 Mar 2026 03:01:00 GMT",
+    "etag": "W/\"76f-wHq+/ctpxNc4gM3WkpT0ld834+c\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-792"
@@ -448,12 +448,12 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:56:27.408Z",
-      "identifier": "urn:uuid:266e13b9-b017-4c36-b534-886fe75027f1",
+      "timestamp": "2026-03-05T03:01:00.467Z",
+      "identifier": "urn:uuid:09c907f2-ec01-4836-b8bf-da917536f822",
       "total": 2,
       "contains": [
         {
-          "system": "http://example.org/cs/exc-total-1772679387399",
+          "system": "http://example.org/cs/exc-total-1772679660458",
           "code": "green",
           "display": "Green"
         }
@@ -465,25 +465,25 @@ optimized-ir:
         },
         {
           "name": "used-codesystem",
-          "valueUri": "http://example.org/cs/exc-total-1772679387399"
+          "valueUri": "http://example.org/cs/exc-total-1772679660458"
         },
         {
           "name": "used-valueset",
-          "valueUri": "http://example.org/vs/exc-total-inc-1772679387399"
+          "valueUri": "http://example.org/vs/exc-total-inc-1772679660458"
         },
         {
           "name": "used-valueset",
-          "valueUri": "http://example.org/vs/exc-total-exc-1772679387399"
+          "valueUri": "http://example.org/vs/exc-total-exc-1772679660458"
         }
       ],
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
-          "valueString": "systems: http://example.org/cs/exc-total-1772679387399\nruntime-constraints:\n  pagination: offset=0 count=1\noptimized-ir:\n  diff\n    selector whole http://example.org/cs/exc-total-1772679387399\n    selector concept http://example.org/cs/exc-total-1772679387399 [2] blue, yellow"
+          "valueString": "systems: http://example.org/cs/exc-total-1772679660458\nruntime-constraints:\n  pagination: offset=0 count=1\noptimized-ir:\n  diff\n    selector whole http://example.org/cs/exc-total-1772679660458\n    selector concept http://example.org/cs/exc-total-1772679660458 [2] blue, yellow"
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.22,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/exc-total-1772679387399\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":1}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://example.org/cs/exc-total-1772679387399\"},\"children\":[],\"ms\":0.03,\"result\":{\"count\":2}}],\"ms\":0.09,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.19,\"result\":{\"total\":2,\"contains\":1}}]}"
+          "valueString": "{\"totalMs\":0.26,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/exc-total-1772679660458\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.06,\"result\":{\"candidates\":1}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://example.org/cs/exc-total-1772679660458\"},\"children\":[],\"ms\":0.04,\"result\":{\"count\":2}}],\"ms\":0.1,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.23,\"result\":{\"total\":2,\"contains\":1}}]}"
         }
       ]
     }
