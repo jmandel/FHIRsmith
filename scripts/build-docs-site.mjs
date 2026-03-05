@@ -55,7 +55,30 @@ function escHtml(s) {
     .replace(/>/g, '&gt;');
 }
 
-function pageTemplate({ title, bodyHtml }) {
+function renderTopNav(baseHref = '') {
+  const p = (rel) => `${baseHref}${rel}`;
+  return `
+  <nav>
+    <div class="inner">
+      <strong>FHIRsmith IR Docs</strong>
+      <a href="${p('index.html')}">Landing</a>
+      <a href="${p('ir-engine.html')}">IR Engine</a>
+      <a href="${p('ir-fuzzing.html')}">Fuzzing</a>
+      <a href="${p('ir-compilation-tester.html')}">Compilation Tester</a>
+      <a href="${p('tools/expand-explorer-lite.html')}">Explorer Lite</a>
+      <a href="${p('perf/index.html')}">Perf Matrix</a>
+    </div>
+  </nav>`;
+}
+
+function pageTemplate({
+  title,
+  bodyHtml,
+  baseHref = '',
+  mainClass = '',
+  extraStyles = '',
+}) {
+  const mainClassAttr = mainClass ? ` class="${escHtml(mainClass)}"` : '';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -77,21 +100,12 @@ function pageTemplate({ title, bodyHtml }) {
     th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; }
     th { background: #f8fafc; }
     ul { line-height: 1.5; }
+${extraStyles}
   </style>
 </head>
 <body>
-  <nav>
-    <div class="inner">
-      <strong>FHIRsmith IR Docs</strong>
-      <a href="index.html">Landing</a>
-      <a href="ir-engine.html">IR Engine</a>
-      <a href="ir-fuzzing.html">Fuzzing</a>
-      <a href="ir-compilation-tester.html">Compilation Tester</a>
-      <a href="tools/expand-explorer-lite.html">Explorer Lite</a>
-      <a href="perf/v0-sqlite-20260304/perf-table.html">Perf Matrix</a>
-    </div>
-  </nav>
-  <main>
+${renderTopNav(baseHref)}
+  <main${mainClassAttr}>
 ${bodyHtml}
   </main>
 </body>
@@ -105,7 +119,29 @@ function markdownToHtml(mdText) {
   return renderer.render(parser.parse(mdText));
 }
 
-function buildLandingPage() {
+function listPerfSnapshots(perfSrcDir) {
+  if (!fs.existsSync(perfSrcDir)) return [];
+  const items = [];
+  for (const ent of fs.readdirSync(perfSrcDir, { withFileTypes: true })) {
+    if (!ent.isDirectory()) continue;
+    const tablePath = path.join(perfSrcDir, ent.name, 'perf-table.html');
+    if (!fs.existsSync(tablePath)) continue;
+    items.push({ name: ent.name, relDir: `perf/${ent.name}` });
+  }
+  items.sort((a, b) => b.name.localeCompare(a.name));
+  return items;
+}
+
+function buildLandingPage(perfSnapshots) {
+  const latest = perfSnapshots[0] || null;
+  const latestShellHref = latest ? `${latest.relDir}/index.html` : 'perf/index.html';
+  const latestLabel = latest ? latest.name : '(none found)';
+  const snapshotList = perfSnapshots.length === 0
+    ? '<li>No perf snapshots discovered under <code>docs/perf/</code>.</li>'
+    : perfSnapshots.map((s) => (
+      `<li><a href="${s.relDir}/index.html">${escHtml(s.name)}</a> · `
+      + `<a href="${s.relDir}/perf-table.html">raw table</a></li>`
+    )).join('\n');
   const body = `
 <h1>FHIRsmith IR Engine Docs</h1>
 <div class="card">
@@ -114,7 +150,8 @@ function buildLandingPage() {
 <div class="card">
   <h2>Quick Links</h2>
   <ul>
-    <li><a href="perf/v0-sqlite-20260304/perf-table.html">IR vs Legacy v0 Perf Matrix</a></li>
+    <li><a href="${latestShellHref}">Latest Perf Matrix (with site navigation)</a></li>
+    <li><a href="perf/index.html">All Perf Snapshots</a></li>
     <li><a href="tools/expand-explorer-lite.html">Expand Explorer (Lite)</a></li>
     <li><a href="ir-compilation-tester.html">IR Compilation Tester Guide</a></li>
     <li><a href="ir-fuzzing.html">IR Fuzzing + Direct Oracle Guide</a></li>
@@ -123,11 +160,108 @@ function buildLandingPage() {
 </div>
 <div class="card">
   <h2>Published Perf Snapshot</h2>
-  <p>Run id: <code>20260304-v0-perf</code> (full IR harness perf matrix, median of 3 runs each).</p>
-  <p>Source files are committed under <code>docs/perf/v0-sqlite-20260304/</code>.</p>
+  <p>Latest run id: <code>${escHtml(latestLabel)}</code>.</p>
+  <p>Source files are committed under <code>docs/perf/</code>.</p>
+  <ul>
+${snapshotList}
+  </ul>
 </div>
 `;
   return pageTemplate({ title: 'FHIRsmith IR Docs', bodyHtml: body });
+}
+
+function buildPerfIndexPage(perfSnapshots) {
+  const list = perfSnapshots.length === 0
+    ? '<li>No snapshots available.</li>'
+    : perfSnapshots.map((s) => (
+      `<li><a href="${escHtml(s.name)}/index.html">${escHtml(s.name)}</a> · `
+      + `<a href="${escHtml(s.name)}/perf-table.html">raw table</a></li>`
+    )).join('\n');
+
+  const body = `
+<h1>Perf Snapshots</h1>
+<div class="card">
+  <p>Each snapshot includes an integrated shell view (with top navigation) and raw generated files.</p>
+  <ul>
+${list}
+  </ul>
+</div>`;
+  return pageTemplate({
+    title: 'FHIRsmith IR Perf Snapshots',
+    bodyHtml: body,
+    baseHref: '../',
+  });
+}
+
+function buildPerfSnapshotShellPage(snapshotName) {
+  const body = `
+<section class="card perf-shell-toolbar">
+  <h1>Perf Snapshot: ${escHtml(snapshotName)}</h1>
+  <p>
+    View mode keeps the common docs nav visible while browsing the matrix and execution details.
+    Raw files remain available for direct download.
+  </p>
+  <p>
+    <a href="index.html?view=perf-table.html">Matrix View</a> ·
+    <a href="perf-table.html" target="_blank" rel="noopener">Open Raw Table</a>
+  </p>
+  <p>
+    Current view: <code id="viewLabel">perf-table.html</code>
+  </p>
+</section>
+<iframe id="perfFrame" title="Performance Snapshot Viewer"></iframe>
+<script>
+(() => {
+  const frame = document.getElementById('perfFrame');
+  const label = document.getElementById('viewLabel');
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get('view') || 'perf-table.html';
+
+  function sanitize(view) {
+    const v = String(view || '').trim();
+    if (!v || v.includes('..') || v.startsWith('/') || v.includes('\\\\')) return 'perf-table.html';
+    if (v === 'perf-table.html') return v;
+    if (v.startsWith('perf-table.details/') && v.endsWith('.html')) return v;
+    return 'perf-table.html';
+  }
+
+  const view = sanitize(requested);
+  label.textContent = view;
+  frame.src = view;
+
+  function rewriteEmbeddedLinks() {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    for (const a of doc.querySelectorAll('a[href]')) {
+      const href = a.getAttribute('href') || '';
+      if (href.startsWith('perf-table.details/') && href.endsWith('.html')) {
+        a.setAttribute('href', 'index.html?view=' + encodeURIComponent(href));
+        a.setAttribute('target', '_top');
+        a.removeAttribute('rel');
+      } else if (href === 'perf-table.html' || href === '../perf-table.html') {
+        a.setAttribute('href', 'index.html?view=perf-table.html');
+        a.setAttribute('target', '_top');
+        a.removeAttribute('rel');
+      }
+    }
+  }
+
+  frame.addEventListener('load', rewriteEmbeddedLinks);
+})();
+</script>
+`;
+
+  return pageTemplate({
+    title: `Perf Snapshot ${snapshotName}`,
+    bodyHtml: body,
+    baseHref: '../../',
+    mainClass: 'perf-shell-main',
+    extraStyles: `
+    .perf-shell-main { max-width: none; margin: 0; padding: 12px; height: calc(100vh - 64px); box-sizing: border-box; }
+    .perf-shell-toolbar { margin: 0 0 10px 0; }
+    #perfFrame { width: 100%; height: calc(100% - 180px); min-height: 70vh; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+    `,
+  });
 }
 
 function main() {
@@ -145,7 +279,8 @@ function main() {
   ensureDir(outDir);
   fs.writeFileSync(path.join(outDir, '.nojekyll'), '');
 
-  fs.writeFileSync(path.join(outDir, 'index.html'), buildLandingPage());
+  const perfSnapshots = listPerfSnapshots(perfSrcDir);
+  fs.writeFileSync(path.join(outDir, 'index.html'), buildLandingPage(perfSnapshots));
 
   for (const page of docsPages) {
     const md = fs.readFileSync(page.src, 'utf8');
@@ -155,6 +290,16 @@ function main() {
 
   copyDir(perfSrcDir, path.join(outDir, 'perf'));
   copyDir(toolsSrcDir, path.join(outDir, 'tools'));
+
+  const perfOutDir = path.join(outDir, 'perf');
+  ensureDir(perfOutDir);
+  fs.writeFileSync(path.join(perfOutDir, 'index.html'), buildPerfIndexPage(perfSnapshots));
+
+  for (const snap of perfSnapshots) {
+    const snapOut = path.join(perfOutDir, snap.name);
+    ensureDir(snapOut);
+    fs.writeFileSync(path.join(snapOut, 'index.html'), buildPerfSnapshotShellPage(snap.name));
+  }
 
   console.log(`Docs site built at ${outDir}`);
 }
