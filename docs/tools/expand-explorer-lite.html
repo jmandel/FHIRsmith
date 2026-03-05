@@ -23,15 +23,20 @@
     .ok { color: #166534; font-weight: 700; }
     .bad { color: #991b1b; font-weight: 700; }
     .small { font-size: 12px; }
+    select { width: 100%; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #fff; }
   </style>
 </head>
 <body>
 <main>
   <h1>IR Expand Explorer (Lite)</h1>
-  <p class="muted">Simplified compiler playground using the standalone JS IR compiler. Paste a ValueSet (and optional Parameters / tx-resources), then compile to <code>basicIR</code>, <code>resolvedIR</code>, and <code>loweredIR</code>.</p>
+  <p class="muted">Simplified compiler playground using the standalone JS IR compiler. Load a harness test case (or paste your own ValueSet + optional Parameters / tx-resources). Compile runs automatically and shows <code>resolvedIR</code> and <code>optimizedIR</code>.</p>
 
   <div class="grid">
     <section class="card">
+      <div class="label">Harness Case</div>
+      <select id="caseSelect"></select>
+      <div id="caseStatus" class="small muted" style="margin-top:6px">Loading test cases…</div>
+
       <div class="label">ValueSet JSON</div>
       <textarea id="vsInput" spellcheck="false"></textarea>
 
@@ -47,46 +52,33 @@
       <div class="label" style="margin-top:10px">Resolver Endpoint (optional)</div>
       <input id="endpointInput" type="text" placeholder="https://tx.fhir.org/r4/ValueSet/$expand?url=...">
 
-      <div class="row">
-        <button id="compileBtn">Compile IR</button>
-        <span id="status" class="small muted"></span>
-      </div>
+      <div class="row"><span id="status" class="small muted"></span></div>
       <div id="error" class="err"></div>
     </section>
 
     <section class="card">
       <div class="label">Partition Safety</div>
       <div id="safety" class="small muted">No compile yet.</div>
-      <div class="label" style="margin-top:12px">Basic IR</div>
-      <pre id="basicOut"></pre>
       <div class="label" style="margin-top:12px">Resolved IR</div>
       <pre id="resolvedOut"></pre>
-      <div class="label" style="margin-top:12px">Lowered IR</div>
-      <pre id="loweredOut"></pre>
+      <div class="label" style="margin-top:12px">Optimized IR</div>
+      <pre id="optimizedOut"></pre>
     </section>
   </div>
 </main>
 
 <script src="js/standalone-vs-ir-compiler.js"></script>
 <script>
+const PERF_TABLE_PATH = '../perf/v0-sqlite-20260304/perf-table.html';
 const SAMPLE_VS = {
   resourceType: 'ValueSet',
-  url: 'http://example.org/ValueSet/demo-diabetes',
-  compose: {
-    include: [
-      {
-        system: 'http://snomed.info/sct',
-        filter: [{ property: 'concept', op: 'is-a', value: '73211009' }]
-      }
-    ],
-    exclude: [
-      {
-        system: 'http://snomed.info/sct',
-        filter: [{ property: 'concept', op: 'is-a', value: '44054006' }]
-      }
-    ]
-  }
+  url: 'http://example.org/ValueSet/demo',
+  compose: { include: [{ system: 'http://hl7.org/fhir/administrative-gender' }] }
 };
+const EMPTY_PARAMS = { resourceType: 'Parameters', parameter: [] };
+let caseIndex = [];
+let suspendAutoCompile = false;
+let autoCompileTimer = null;
 
 function pretty(v) {
   return JSON.stringify(v, null, 2);
@@ -156,6 +148,110 @@ function clearError() {
   el.style.display = 'none';
 }
 
+function setJsonInputs(valueSet, parameters, additionalResources) {
+  suspendAutoCompile = true;
+  document.getElementById('vsInput').value = pretty(valueSet || {});
+  document.getElementById('paramsInput').value = pretty(parameters || EMPTY_PARAMS);
+  document.getElementById('resourcesInput').value = pretty(additionalResources || []);
+  suspendAutoCompile = false;
+}
+
+function normalizeFromRequestBody(body) {
+  const params = Array.isArray(body?.parameter) ? body.parameter : [];
+  const valueSetParam = params.find(p => p.name === 'valueSet' && p.resource);
+  const valueSet = valueSetParam?.resource || {};
+  const additionalResources = params.filter(p => p.name === 'tx-resource' && p.resource).map(p => p.resource);
+  const compilerParams = params.filter(p =>
+    p.name !== 'valueSet'
+    && p.name !== 'tx-resource'
+    && p.name !== '_engine'
+    && p.name !== '_trace'
+    && p.name !== '_nocache'
+  );
+  return {
+    valueSet,
+    parameters: { resourceType: 'Parameters', parameter: compilerParams },
+    additionalResources,
+  };
+}
+
+function scheduleCompile(delayMs = 250) {
+  if (suspendAutoCompile) return;
+  if (autoCompileTimer) clearTimeout(autoCompileTimer);
+  autoCompileTimer = setTimeout(() => { compileNow(); }, delayMs);
+}
+
+function parseJsonFromPreText(preText) {
+  return JSON.parse(preText || '{}');
+}
+
+async function fetchCaseIndex() {
+  const statusEl = document.getElementById('caseStatus');
+  const selectEl = document.getElementById('caseSelect');
+  try {
+    statusEl.textContent = 'Loading test cases…';
+    const html = await fetch(PERF_TABLE_PATH, { cache: 'no-store' }).then(r => {
+      if (!r.ok) throw new Error(`Failed to load ${PERF_TABLE_PATH}: ${r.status}`);
+      return r.text();
+    });
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const rows = [...doc.querySelectorAll('tbody tr')];
+    const entries = [];
+    for (const row of rows) {
+      const tds = row.querySelectorAll('td');
+      if (tds.length < 6) continue;
+      const category = (tds[0].textContent || '').trim();
+      const name = (tds[1].textContent || '').trim();
+      const detailLink = tds[5].querySelector('a[href]');
+      if (!detailLink) continue;
+      const href = new URL(detailLink.getAttribute('href'), new URL(PERF_TABLE_PATH, window.location.href)).toString();
+      entries.push({ category, name, href });
+    }
+    caseIndex = entries;
+
+    const options = ['<option value="">Custom (manual JSON)</option>'];
+    for (const c of caseIndex) {
+      const label = `${c.category} :: ${c.name}`;
+      options.push(`<option value="${c.href.replace(/"/g, '&quot;')}">${label.replace(/</g, '&lt;')}</option>`);
+    }
+    selectEl.innerHTML = options.join('');
+    if (caseIndex.length > 0) {
+      selectEl.selectedIndex = 1;
+      await loadCaseByHref(selectEl.value);
+      statusEl.textContent = `Loaded ${caseIndex.length} test cases from perf snapshot.`;
+    } else {
+      statusEl.textContent = 'No test cases found in snapshot.';
+    }
+  } catch (err) {
+    selectEl.innerHTML = '<option value="">Custom (manual JSON)</option>';
+    setJsonInputs(SAMPLE_VS, EMPTY_PARAMS, []);
+    scheduleCompile(0);
+    statusEl.textContent = `Could not load harness cases: ${String(err && err.message ? err.message : err)}`;
+  }
+}
+
+async function loadCaseByHref(href) {
+  if (!href) return;
+  const statusEl = document.getElementById('caseStatus');
+  try {
+    statusEl.textContent = 'Loading selected case…';
+    const html = await fetch(href, { cache: 'no-store' }).then(r => {
+      if (!r.ok) throw new Error(`Failed to load detail page: ${r.status}`);
+      return r.text();
+    });
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const irReqPre = doc.querySelector('#ir-query pre');
+    if (!irReqPre) throw new Error('Missing IR request payload in detail page');
+    const req = parseJsonFromPreText(irReqPre.textContent || '');
+    const { valueSet, parameters, additionalResources } = normalizeFromRequestBody(req.body);
+    setJsonInputs(valueSet, parameters, additionalResources);
+    scheduleCompile(0);
+    statusEl.textContent = `Loaded case from ${href.split('/').pop()}`;
+  } catch (err) {
+    statusEl.textContent = `Failed to load case: ${String(err && err.message ? err.message : err)}`;
+  }
+}
+
 async function compileNow() {
   clearError();
   document.getElementById('status').textContent = 'Compiling...';
@@ -182,23 +278,31 @@ async function compileNow() {
     const safety = analyzePartitionSafety(out.loweredIR);
     const safetyEl = document.getElementById('safety');
     if (safety.ok) {
-      safetyEl.innerHTML = '<span class="ok">PASS</span>: lowered IR is partition-safe.';
+      safetyEl.innerHTML = '<span class="ok">PASS</span>: optimized IR is partition-safe.';
     } else {
       safetyEl.innerHTML = '<span class="bad">FAIL</span>: ' + safety.problems.join(' | ');
     }
 
-    setOutput('basicOut', out.basicIR);
     setOutput('resolvedOut', out.resolvedIR);
-    setOutput('loweredOut', out.loweredIR);
-    document.getElementById('status').textContent = 'Compiled.';
+    setOutput('optimizedOut', out.loweredIR);
+    document.getElementById('status').textContent = 'Compiled (auto).';
   } catch (err) {
     document.getElementById('status').textContent = '';
     showError(String(err && err.stack ? err.stack : err));
   }
 }
 
-document.getElementById('vsInput').value = pretty(SAMPLE_VS);
-document.getElementById('compileBtn').addEventListener('click', compileNow);
+document.getElementById('caseSelect').addEventListener('change', async (ev) => {
+  if (!ev.target.value) return;
+  await loadCaseByHref(ev.target.value);
+});
+for (const id of ['vsInput', 'paramsInput', 'resourcesInput', 'endpointInput']) {
+  document.getElementById(id).addEventListener('input', () => scheduleCompile(350));
+}
+
+setJsonInputs(SAMPLE_VS, EMPTY_PARAMS, []);
+scheduleCompile(0);
+fetchCaseIndex();
 </script>
 </body>
 </html>
