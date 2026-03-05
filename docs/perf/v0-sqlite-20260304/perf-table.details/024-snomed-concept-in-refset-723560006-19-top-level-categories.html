@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#24 SNOMED concept-in refset 723560006: 19 top-level categories</h1>
-  <div class="meta">Category: Whole-system · Median perf: Legacy=2ms | IR=2ms</div>
+  <div class="meta">Category: Whole-system · Median perf: Legacy=3ms | IR=1ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,18 +34,18 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 3ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 3ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 4ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -94,7 +94,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -156,9 +156,9 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.63,
+  "totalMs": 2.05,
   "sqlCount": 1,
-  "sqlMs": 0.07,
+  "sqlMs": 0.17,
   "counters": {},
   "spans": [
     {
@@ -193,25 +193,25 @@ optimized-ir:
               "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN value_set_member vsm_f0 ON vsm_f0.concept_id = c.concept_id AND vsm_f0.active = 1 JOIN value_set vs_f0 ON vs_f0.vs_id = vsm_f0.vs_id AND vs_f0.url = @f0_vs_url AND vs_f0.cs_id = @f0_cs\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
               "params": {
                 "cs": 1,
-                "f0_vs_url": "http://snomed.info/sct?fhir_vs=refset/http://snomed.info/sct?fhir_vs=refset/723560006",
+                "f0_vs_url": "http://snomed.info/sct?fhir_vs=refset/723560006",
                 "f0_cs": 1
               },
-              "rows": 0,
-              "ms": 0.07,
+              "rows": 19,
+              "ms": 0.17,
               "label": "legacy:executeFilters"
             }
           ],
-          "ms": 0.08,
+          "ms": 0.2,
           "result": {
-            "rows": 0
+            "rows": 19
           }
         }
       ],
-      "ms": 0.62,
+      "ms": 2.01,
       "result": {
-        "ms": 0.61,
-        "total": 0,
-        "returned": 0
+        "ms": 2.01,
+        "total": 19,
+        "returned": 17
       }
     }
   ]
@@ -222,9 +222,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.7,
+  "totalMs": 0.57,
   "sqlCount": 1,
-  "sqlMs": 0.2,
+  "sqlMs": 0.15,
   "counters": {},
   "spans": [
     {
@@ -264,11 +264,11 @@ optimized-ir:
                       "message": "executeIR:breakdown",
                       "data": {
                         "hintsMs": 0,
-                        "buildMs": 0.02,
-                        "prepMs": 0.07,
-                        "execMs": 0.2
+                        "buildMs": 0.01,
+                        "prepMs": 0.05,
+                        "execMs": 0.15
                       },
-                      "t": 0.64
+                      "t": 0.52
                     }
                   ],
                   "sql": [
@@ -281,17 +281,17 @@ optimized-ir:
                         "_limit": 1000
                       },
                       "rows": 19,
-                      "ms": 0.2,
+                      "ms": 0.15,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.32,
+                  "ms": 0.23,
                   "result": {
                     "candidates": 19
                   }
                 }
               ],
-              "ms": 0.33,
+              "ms": 0.24,
               "result": {
                 "candidates": 19
               }
@@ -304,10 +304,10 @@ optimized-ir:
                 "returned": 19,
                 "total": 19
               },
-              "t": 0.66
+              "t": 0.54
             }
           ],
-          "ms": 0.34,
+          "ms": 0.25,
           "result": {
             "paged": 19
           }
@@ -322,7 +322,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.67,
+      "ms": 0.54,
       "result": {
         "total": 19,
         "contains": 19
@@ -344,10 +344,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1581",
+    "content-length": "3343",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:06 GMT",
-    "etag": "W/\"62d-iLVKvGTGRPLJxaS5gnI/OU9otjM\"",
+    "date": "Thu, 05 Mar 2026 02:43:32 GMT",
+    "etag": "W/\"d0f-kDcpvdHleqGB5pkI2BpMAfivdNM\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-219"
@@ -355,8 +355,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:06.921Z",
-      "identifier": "urn:uuid:45d894ea-0f3e-4ece-99ee-985bf02ede8e",
+      "timestamp": "2026-03-05T02:43:32.147Z",
+      "identifier": "urn:uuid:ce8c6131-a598-41cb-9c51-d560df9d2531",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -367,11 +367,112 @@ optimized-ir:
           "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
         }
       ],
-      "total": 0,
+      "total": 19,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "105590001",
+          "display": "Substance"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "123037004",
+          "display": "Body structure"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "123038009",
+          "display": "Specimen"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "129125009",
+          "display": "Context-dependent procedure"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "243796009",
+          "display": "Context-dependent categories",
+          "contains": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "413350009",
+              "display": "Context-dependent finding"
+            }
+          ]
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "260787004",
+          "display": "Physical object"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "272379006",
+          "display": "Events"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "363787002",
+          "display": "Observable entity"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "373873005",
+          "display": "Pharmaceutical / biologic product (product)",
+          "contains": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "781405001",
+              "display": "Medicinal product package (product)"
+            }
+          ]
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "386053000",
+          "display": "Investigations"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "387713003",
+          "display": "Surgical procedure (procedure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "404684003",
+          "display": "Clinical finding (finding)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "71388002",
+          "display": "Procedure"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "723264001",
+          "display": "Lateralizable body structure reference set (foundation metadata concept)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "736478001",
+          "display": "Basic dose form (basic dose form)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "736542009",
+          "display": "Pharmaceutical dose form (dose form)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "91723000",
+          "display": "Anatomical structure"
+        }
+      ],
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.63,\"sqlCount\":1,\"sqlMs\":0.07,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN value_set_member vsm_f0 ON vsm_f0.concept_id = c.concept_id AND vsm_f0.active = 1 JOIN value_set vs_f0 ON vs_f0.vs_id = vsm_f0.vs_id AND vs_f0.url = @f0_vs_url AND vs_f0.cs_id = @f0_cs\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_vs_url\":\"http://snomed.info/sct?fhir_vs=refset/http://snomed.info/sct?fhir_vs=refset/723560006\",\"f0_cs\":1},\"rows\":0,\"ms\":0.07,\"label\":\"legacy:executeFilters\"}],\"ms\":0.08,\"result\":{\"rows\":0}}],\"ms\":0.62,\"result\":{\"ms\":0.61,\"total\":0,\"returned\":0}}]}"
+          "valueString": "{\"totalMs\":2.05,\"sqlCount\":1,\"sqlMs\":0.17,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN value_set_member vsm_f0 ON vsm_f0.concept_id = c.concept_id AND vsm_f0.active = 1 JOIN value_set vs_f0 ON vs_f0.vs_id = vsm_f0.vs_id AND vs_f0.url = @f0_vs_url AND vs_f0.cs_id = @f0_cs\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_vs_url\":\"http://snomed.info/sct?fhir_vs=refset/723560006\",\"f0_cs\":1},\"rows\":19,\"ms\":0.17,\"label\":\"legacy:executeFilters\"}],\"ms\":0.2,\"result\":{\"rows\":19}}],\"ms\":2.01,\"result\":{\"ms\":2.01,\"total\":19,\"returned\":17}}]}"
         }
       ]
     }
@@ -391,10 +492,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4064",
+    "content-length": "4068",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:06 GMT",
-    "etag": "W/\"fe0-fmC4DaaAadLEn2zN1pFTcQEWdsY\"",
+    "date": "Thu, 05 Mar 2026 02:43:32 GMT",
+    "etag": "W/\"fe4-/l7L9CRoqwacWdPEOHnD217IZko\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-220"
@@ -402,8 +503,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:06.923Z",
-      "identifier": "urn:uuid:3768b379-4f34-4a1a-a120-d52f838e1b53",
+      "timestamp": "2026-03-05T02:43:32.150Z",
+      "identifier": "urn:uuid:93f03b6a-898f-46b6-a798-ff2706f0381d",
       "total": 19,
       "contains": [
         {
@@ -515,7 +616,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.7,\"sqlCount\":1,\"sqlMs\":0.2,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.07,\"execMs\":0.2},\"t\":0.64}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN value_set_member vsm__xf0 ON vsm__xf0.concept_id = c.concept_id AND vsm__xf0.active = 1 JOIN value_set vs__xf0 ON vs__xf0.vs_id = vsm__xf0.vs_id AND vs__xf0.cs_id = @_xf0_cs AND vs__xf0.url = @_xf0_vs_url WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_vs_url\":\"http://snomed.info/sct?fhir_vs=refset/723560006\",\"_xf0_cs\":1,\"_limit\":1000},\"rows\":19,\"ms\":0.2,\"label\":\"executeIR\"}],\"ms\":0.32,\"result\":{\"candidates\":19}}],\"ms\":0.33,\"result\":{\"candidates\":19}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":19,\"total\":19},\"t\":0.66}],\"ms\":0.34,\"result\":{\"paged\":19}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":19,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.67,\"result\":{\"total\":19,\"contains\":19}}]}"
+          "valueString": "{\"totalMs\":0.57,\"sqlCount\":1,\"sqlMs\":0.15,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.05,\"execMs\":0.15},\"t\":0.52}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN value_set_member vsm__xf0 ON vsm__xf0.concept_id = c.concept_id AND vsm__xf0.active = 1 JOIN value_set vs__xf0 ON vs__xf0.vs_id = vsm__xf0.vs_id AND vs__xf0.cs_id = @_xf0_cs AND vs__xf0.url = @_xf0_vs_url WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_vs_url\":\"http://snomed.info/sct?fhir_vs=refset/723560006\",\"_xf0_cs\":1,\"_limit\":1000},\"rows\":19,\"ms\":0.15,\"label\":\"executeIR\"}],\"ms\":0.23,\"result\":{\"candidates\":19}}],\"ms\":0.24,\"result\":{\"candidates\":19}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":19,\"total\":19},\"t\":0.54}],\"ms\":0.25,\"result\":{\"paged\":19}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":19,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.54,\"result\":{\"total\":19,\"contains\":19}}]}"
         }
       ]
     }

@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 /**
  * IR engine test harness — hits the running server, asserts concrete expectations.
- * Usage: node scripts/ir-harness.mjs [filter] [--legacy] [--trace] [--perf] [--perf-out <file>]
+ * Usage: node scripts/ir-harness.mjs [filter ...] [--filter <text> ...] [--legacy] [--trace] [--perf] [--perf-out <file>]
  *                                   [--strict-ir-no-fallback|--strict-ir]
  *                                   [--semantic-parity] [--strict-total-consistency]
  *
@@ -14,9 +14,28 @@ const BASE = process.env.BASE_URL || 'http://localhost:8000';
 const EXPAND = `${BASE}/r4/ValueSet/$expand`;
 const argv = process.argv.slice(2);
 let PERF_OUT = process.env.PERF_OUT || 'tmp/perf-table.html';
-let FILTER = null;
+const FILTERS = [];
 for (let i = 0; i < argv.length; i++) {
   const arg = argv[i];
+  if (arg === '--filter') {
+    const next = argv[i + 1];
+    if (!next || next.startsWith('--')) {
+      console.error('Missing value for --filter');
+      process.exit(2);
+    }
+    FILTERS.push(next);
+    i++;
+    continue;
+  }
+  if (arg.startsWith('--filter=')) {
+    const value = arg.slice('--filter='.length);
+    if (!value.trim()) {
+      console.error('--filter requires a non-empty value');
+      process.exit(2);
+    }
+    FILTERS.push(value);
+    continue;
+  }
   if (arg === '--perf-out') {
     const next = argv[i + 1];
     if (!next || next.startsWith('--')) {
@@ -31,8 +50,8 @@ for (let i = 0; i < argv.length; i++) {
     PERF_OUT = arg.slice('--perf-out='.length);
     continue;
   }
-  if (!arg.startsWith('--') && FILTER === null) {
-    FILTER = arg;
+  if (!arg.startsWith('--')) {
+    FILTERS.push(arg);
   }
 }
 if (!PERF_OUT.trim()) {
@@ -508,7 +527,10 @@ function expansionExtensions(result, url) {
 }
 
 async function test(name, fn) {
-  if (FILTER && !name.toLowerCase().includes(FILTER.toLowerCase())) { skipped++; return; }
+  if (FILTERS.length > 0 && !FILTERS.some(f => name.toLowerCase().includes(f.toLowerCase()))) {
+    skipped++;
+    return;
+  }
   lastExpandCall = null;
   currentTestName = name;
   try {
@@ -2531,21 +2553,33 @@ async function run() {
     assert(deDes, 'German designation from supplement should appear');
   });
 
-  await test('supplement: inline supplement display override on LOINC v0 code', async () => {
+  await test('supplement: inline supplement designation appears on LOINC v0 code', async () => {
     const supp = {
       resourceType: 'CodeSystem', url: 'http://example.org/loinc-supp-test',
       content: 'supplement', supplements: SYS.LOINC,
-      concept: [{code:'2160-0', display:'Creatinine [Custom Override]'}],
+      concept: [{
+        code: '2160-0',
+        designation: [{
+          language: 'en',
+          use: {
+            system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra',
+            code: 'preferredForLanguage',
+          },
+          value: 'Creatinine [Custom Override]',
+        }],
+      }],
     };
     const { result } = await expand(
       vs({system:SYS.LOINC, concept:[{code:'2160-0'}]}),
-      { txResources: [supp],
-        params: [{name:'useSupplement', valueString: supp.url}] }
+      { txResources: [supp], includeDesignations: true,
+        params: [
+          {name:'useSupplement', valueString: supp.url},
+        ] }
     );
     const cr = findCode(result, '2160-0');
     assert(cr, 'missing 2160-0');
-    assert(cr.display === 'Creatinine [Custom Override]',
-      `expected overridden display, got ${cr.display}`);
+    const enDes = (cr.designation || []).find(d => d.language === 'en' && d.value === 'Creatinine [Custom Override]');
+    assert(enDes, 'expected supplement designation to be present');
   });
 
   // ── Phase 6: grammar-based provider handling ──

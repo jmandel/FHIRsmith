@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#111 shape-A: US states full expansion</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=1ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=3ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -45,7 +45,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -87,7 +87,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -142,7 +142,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1,
+  "totalMs": 0.93,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -155,7 +155,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0.01
+      "t": 0
     },
     {
       "name": "legacy-expand",
@@ -166,9 +166,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.98,
+      "ms": 0.92,
       "result": {
-        "ms": 0.97,
+        "ms": 0.91,
         "total": 62,
         "returned": 62
       }
@@ -181,7 +181,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.41,
+  "totalMs": 0.35,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -212,7 +212,7 @@ optimized-ir:
                 "sysCount": 1000
               },
               "children": [],
-              "ms": 0.26,
+              "ms": 0.23,
               "result": {
                 "candidates": 62
               }
@@ -225,10 +225,10 @@ optimized-ir:
                 "returned": 62,
                 "total": 62
               },
-              "t": 0.38
+              "t": 0.33
             }
           ],
-          "ms": 0.28,
+          "ms": 0.24,
           "result": {
             "paged": 62
           }
@@ -243,7 +243,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.38,
+      "ms": 0.33,
       "result": {
         "total": 62,
         "contains": 62
@@ -267,8 +267,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "5174",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"1436-cEWOanDfeuuGpW6y0Zo4p+vbdtE\"",
+    "date": "Thu, 05 Mar 2026 02:43:49 GMT",
+    "etag": "W/\"1436-QPzELCHBhZmiC3IejhnAmhDZ6Gc\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1022"
@@ -276,8 +276,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.257Z",
-      "identifier": "urn:uuid:eb572f24-a357-46e3-9fd4-77c7d0ae8756",
+      "timestamp": "2026-03-05T02:43:49.953Z",
+      "identifier": "urn:uuid:5640a4cf-7547-43a1-b562-44aaa4ab8399",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -604,7 +604,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.98,\"result\":{\"ms\":0.97,\"total\":62,\"returned\":62}}]}"
+          "valueString": "{\"totalMs\":0.93,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.92,\"result\":{\"ms\":0.91,\"total\":62,\"returned\":62}}]}"
         }
       ]
     }
@@ -626,8 +626,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "5660",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"161c-etY/dycZBvcULeq4JMW5ons1MSY\"",
+    "date": "Thu, 05 Mar 2026 02:43:49 GMT",
+    "etag": "W/\"161c-+TYUG/8csKDWhe1tL/ZNCyckOB0\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1023"
@@ -635,8 +635,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.259Z",
-      "identifier": "urn:uuid:75bb90fa-e5ab-41c1-b087-4cd980005f24",
+      "timestamp": "2026-03-05T02:43:49.955Z",
+      "identifier": "urn:uuid:5fb5418c-8cc4-44d6-b877-002f0c7450f4",
       "total": 62,
       "contains": [
         {
@@ -963,7 +963,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.41,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.26,\"result\":{\"candidates\":62}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":62,\"total\":62},\"t\":0.38}],\"ms\":0.28,\"result\":{\"paged\":62}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":62,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.38,\"result\":{\"total\":62,\"contains\":62}}]}"
+          "valueString": "{\"totalMs\":0.35,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.23,\"result\":{\"candidates\":62}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":62,\"total\":62},\"t\":0.33}],\"ms\":0.24,\"result\":{\"paged\":62}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":62,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.33,\"result\":{\"total\":62,\"contains\":62}}]}"
         }
       ]
     }

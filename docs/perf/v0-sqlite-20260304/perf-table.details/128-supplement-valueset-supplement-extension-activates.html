@@ -38,14 +38,14 @@
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -136,7 +136,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -240,7 +240,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.18,
+  "totalMs": 0.14,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -253,7 +253,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0.01
+      "t": 0
     },
     {
       "name": "legacy-expand",
@@ -264,9 +264,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.16,
+      "ms": 0.12,
       "result": {
-        "ms": 0.15,
+        "ms": 0.12,
         "total": 1,
         "returned": 1
       }
@@ -279,7 +279,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.17,
+  "totalMs": 0.15,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -301,7 +301,7 @@ optimized-ir:
             "system": "http://example.org/cs-s3",
             "count": 1
           },
-          "t": 0.09
+          "t": 0.08
         },
         {
           "name": "pagination",
@@ -332,10 +332,10 @@ optimized-ir:
                 "returned": 1,
                 "total": 1
               },
-              "t": 0.12
+              "t": 0.11
             }
           ],
-          "ms": 0.03,
+          "ms": 0.02,
           "result": {
             "paged": 1
           }
@@ -350,7 +350,7 @@ optimized-ir:
           "ms": 0.01
         }
       ],
-      "ms": 0.13,
+      "ms": 0.12,
       "result": {
         "total": 1,
         "contains": 1
@@ -372,10 +372,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1027",
+    "content-length": "1146",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"403-UASai9s4pv/ed8/t+jjvKkw87tE\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"47a-JOD3zRDk94H77rX+3ua+tz9g6dM\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1177"
@@ -383,8 +383,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.526Z",
-      "identifier": "urn:uuid:842ba917-4ff3-4349-bfdc-d9625cfdbd59",
+      "timestamp": "2026-03-05T02:43:50.183Z",
+      "identifier": "urn:uuid:227595bd-0624-405d-aebc-a66ea4c38723",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -411,6 +411,13 @@ optimized-ir:
           "display": "Mike",
           "designation": [
             {
+              "use": {
+                "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                "code": "preferredForLanguage"
+              },
+              "value": "Mike"
+            },
+            {
               "language": "es",
               "value": "Miguel"
             }
@@ -420,7 +427,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.18,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.16,\"result\":{\"ms\":0.15,\"total\":1,\"returned\":1}}]}"
+          "valueString": "{\"totalMs\":0.14,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.12,\"result\":{\"ms\":0.12,\"total\":1,\"returned\":1}}]}"
         }
       ]
     }
@@ -442,8 +449,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "1644",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"66c-VQR1/0dvxun6E1p5DoxWVpT7ke8\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"66c-Y9byvHAW1gn5P+OMkJX2MeHvjQA\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1178"
@@ -451,8 +458,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.527Z",
-      "identifier": "urn:uuid:262edae1-f943-460a-a368-251a17175d92",
+      "timestamp": "2026-03-05T02:43:50.184Z",
+      "identifier": "urn:uuid:a59c3508-737d-40ed-9826-f0a24f3c955f",
       "total": 1,
       "contains": [
         {
@@ -488,7 +495,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.17,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs-s3\",\"count\":1},\"t\":0.09},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs-s3\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.12}],\"ms\":0.03,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":true},\"children\":[],\"ms\":0.01}],\"ms\":0.13,\"result\":{\"total\":1,\"contains\":1}}]}"
+          "valueString": "{\"totalMs\":0.15,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs-s3\",\"count\":1},\"t\":0.08},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs-s3\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.11}],\"ms\":0.02,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":true},\"children\":[],\"ms\":0.01}],\"ms\":0.12,\"result\":{\"total\":1,\"contains\":1}}]}"
         }
       ]
     }

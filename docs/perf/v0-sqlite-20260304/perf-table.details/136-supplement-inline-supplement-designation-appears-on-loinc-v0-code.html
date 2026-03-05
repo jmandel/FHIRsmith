@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Perf Detail: lang: LOINC includeDesignations returns entries</title>
+<html><head><meta charset="utf-8"><title>Perf Detail: supplement: inline supplement designation appears on LOINC v0 code</title>
 <style>
   body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
   header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
@@ -18,8 +18,8 @@
   @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
 </style></head><body>
 <header>
-  <h1>#51 lang: LOINC includeDesignations returns entries</h1>
-  <div class="meta">Category: Designations · Median perf: Legacy=3ms | IR=2ms</div>
+  <h1>#136 supplement: inline supplement designation appears on LOINC v0 code</h1>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -85,6 +85,34 @@
       {
         "name": "_nocache",
         "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/loinc-supp-test",
+          "content": "supplement",
+          "supplements": "http://loinc.org",
+          "concept": [
+            {
+              "code": "2160-0",
+              "designation": [
+                {
+                  "language": "en",
+                  "use": {
+                    "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                    "code": "preferredForLanguage"
+                  },
+                  "value": "Creatinine [Custom Override]"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "useSupplement",
+        "valueString": "http://example.org/loinc-supp-test"
       }
     ]
   }
@@ -136,6 +164,34 @@
       {
         "name": "_nocache",
         "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/loinc-supp-test",
+          "content": "supplement",
+          "supplements": "http://loinc.org",
+          "concept": [
+            {
+              "code": "2160-0",
+              "designation": [
+                {
+                  "language": "en",
+                  "use": {
+                    "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                    "code": "preferredForLanguage"
+                  },
+                  "value": "Creatinine [Custom Override]"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "useSupplement",
+        "valueString": "http://example.org/loinc-supp-test"
       }
     ]
   }
@@ -160,7 +216,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.36,
+  "totalMs": 1.31,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -173,7 +229,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0.01
+      "t": 0
     },
     {
       "name": "legacy-expand",
@@ -184,9 +240,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 1.34,
+      "ms": 1.3,
       "result": {
-        "ms": 1.34,
+        "ms": 1.29,
         "total": 1,
         "returned": 1
       }
@@ -199,7 +255,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.83,
+  "totalMs": 0.77,
   "sqlCount": 1,
   "sqlMs": 0.05,
   "counters": {},
@@ -221,7 +277,7 @@ optimized-ir:
             "system": "http://loinc.org",
             "count": 1
           },
-          "t": 0.57
+          "t": 0.5
         },
         {
           "name": "pagination",
@@ -254,7 +310,7 @@ optimized-ir:
                         "prepMs": 0.03,
                         "execMs": 0.05
                       },
-                      "t": 0.68
+                      "t": 0.6
                     }
                   ],
                   "sql": [
@@ -270,13 +326,13 @@ optimized-ir:
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.1,
+                  "ms": 0.09,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.11,
+              "ms": 0.1,
               "result": {
                 "candidates": 1
               }
@@ -289,7 +345,7 @@ optimized-ir:
                 "returned": 1,
                 "total": 1
               },
-              "t": 0.69
+              "t": 0.61
             }
           ],
           "ms": 0.11,
@@ -304,10 +360,10 @@ optimized-ir:
             "includeDesignations": true
           },
           "children": [],
-          "ms": 0.11
+          "ms": 0.12
         }
       ],
-      "ms": 0.8,
+      "ms": 0.73,
       "result": {
         "total": 1,
         "contains": 1
@@ -329,19 +385,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "3537",
+    "content-length": "3770",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:37 GMT",
-    "etag": "W/\"dd1-joQHdW8J4VI/rQDBfUU5H5xHK/E\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"eba-OgBhWBc4LYaEh1GdIMioQ/mZSkU\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-470"
+    "x-request-id": "tx-1241"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:37.088Z",
-      "identifier": "urn:uuid:6968e8c7-bc8e-4dab-b101-b0d40298c280",
+      "timestamp": "2026-03-05T02:43:50.261Z",
+      "identifier": "urn:uuid:af9eb090-1cac-4824-b0f6-8aee86d428a3",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -354,6 +410,10 @@ optimized-ir:
         {
           "name": "used-codesystem",
           "valueUri": "http://loinc.org|http://loinc.org|2.81"
+        },
+        {
+          "name": "used-supplement",
+          "valueUri": "http://example.org/loinc-supp-test"
         }
       ],
       "total": 1,
@@ -503,6 +563,14 @@ optimized-ir:
                 "code": "LinguisticVariantDisplayName"
               },
               "value": "Креатинін [Маса/об'єм]"
+            },
+            {
+              "language": "en",
+              "use": {
+                "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                "code": "preferredForLanguage"
+              },
+              "value": "Creatinine [Custom Override]"
             }
           ]
         }
@@ -510,7 +578,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.34,\"result\":{\"ms\":1.34,\"total\":1,\"returned\":1}}]}"
+          "valueString": "{\"totalMs\":1.31,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.3,\"result\":{\"ms\":1.29,\"total\":1,\"returned\":1}}]}"
         }
       ]
     }
@@ -530,19 +598,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4602",
+    "content-length": "4838",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 02:43:37 GMT",
-    "etag": "W/\"11fa-xCBbVzFMXwqz291gB0ahbyPk7aA\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"12e6-J5kBA7F+OVYuVsIzng5G7mffR6E\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-471"
+    "x-request-id": "tx-1242"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T02:43:37.091Z",
-      "identifier": "urn:uuid:382490d2-7bd8-4b2e-a808-854171404066",
+      "timestamp": "2026-03-05T02:43:50.264Z",
+      "identifier": "urn:uuid:f46e1a1c-bea2-4e64-852f-2e9402289d9f",
       "total": 1,
       "contains": [
         {
@@ -682,6 +750,14 @@ optimized-ir:
                 "code": "LinguisticVariantDisplayName"
               },
               "value": "Креатинін [Маса/об'єм]"
+            },
+            {
+              "language": "en",
+              "use": {
+                "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                "code": "preferredForLanguage"
+              },
+              "value": "Creatinine [Custom Override]"
             }
           ]
         }
@@ -694,6 +770,10 @@ optimized-ir:
         {
           "name": "used-codesystem",
           "valueUri": "http://loinc.org|http://loinc.org|2.81"
+        },
+        {
+          "name": "used-supplement",
+          "valueUri": "http://example.org/loinc-supp-test"
         }
       ],
       "extension": [
@@ -703,7 +783,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.83,\"sqlCount\":1,\"sqlMs\":0.05,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://loinc.org\",\"count\":1},\"t\":0.57},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.03,\"execMs\":0.05},\"t\":0.68}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"2160-0\",\"_limit\":1000},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.1,\"result\":{\"candidates\":1}}],\"ms\":0.11,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.69}],\"ms\":0.11,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":true},\"children\":[],\"ms\":0.11}],\"ms\":0.8,\"result\":{\"total\":1,\"contains\":1}}]}"
+          "valueString": "{\"totalMs\":0.77,\"sqlCount\":1,\"sqlMs\":0.05,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://loinc.org\",\"count\":1},\"t\":0.5},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.03,\"execMs\":0.05},\"t\":0.6}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"2160-0\",\"_limit\":1000},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.09,\"result\":{\"candidates\":1}}],\"ms\":0.1,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.61}],\"ms\":0.11,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":true},\"children\":[],\"ms\":0.12}],\"ms\":0.73,\"result\":{\"total\":1,\"contains\":1}}]}"
         }
       ]
     }

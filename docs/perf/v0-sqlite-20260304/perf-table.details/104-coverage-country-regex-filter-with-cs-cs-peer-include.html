@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#104 coverage: country regex filter with cs-cs peer include</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=1ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -45,7 +45,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -102,7 +102,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -174,7 +174,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.2,
+  "totalMs": 0.8,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -198,9 +198,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 1.18,
+      "ms": 0.78,
       "result": {
-        "ms": 1.17,
+        "ms": 0.77,
         "total": 35,
         "returned": 35
       }
@@ -213,7 +213,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.81,
+  "totalMs": 0.61,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -235,7 +235,7 @@ optimized-ir:
             "system": "http://hl7.org/fhir/administrative-gender",
             "count": 1
           },
-          "t": 0.18
+          "t": 0.13
         },
         {
           "name": "countForIR",
@@ -243,7 +243,7 @@ optimized-ir:
             "system": "urn:iso:std:iso:3166"
           },
           "children": [],
-          "ms": 0.35,
+          "ms": 0.2,
           "result": {
             "count": 34
           }
@@ -264,7 +264,7 @@ optimized-ir:
                 "sysCount": 1
               },
               "children": [],
-              "ms": 0.02,
+              "ms": 0.01,
               "result": {
                 "candidates": 1
               }
@@ -276,13 +276,13 @@ optimized-ir:
                 "sysCount": 34
               },
               "children": [],
-              "ms": 0.17,
+              "ms": 0.2,
               "result": {
                 "candidates": 34
               }
             }
           ],
-          "ms": 0.2,
+          "ms": 0.22,
           "result": {
             "paged": 35
           }
@@ -297,7 +297,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.77,
+      "ms": 0.58,
       "result": {
         "total": 35,
         "contains": 35
@@ -321,8 +321,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "3358",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:19 GMT",
-    "etag": "W/\"d1e-4tR31Age0010gguc+h8NwTWg0Fo\"",
+    "date": "Thu, 05 Mar 2026 02:43:45 GMT",
+    "etag": "W/\"d1e-xcv8dOkFoIcf2P0Bm4b0estVm3s\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-950"
@@ -330,8 +330,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:19.756Z",
-      "identifier": "urn:uuid:aab73780-0c3f-4a84-855e-c5209d856dcc",
+      "timestamp": "2026-03-05T02:43:45.370Z",
+      "identifier": "urn:uuid:8f73b280-3ead-4c0a-a489-2759313649c5",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -527,7 +527,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.2,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.18,\"result\":{\"ms\":1.17,\"total\":35,\"returned\":35}}]}"
+          "valueString": "{\"totalMs\":0.8,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.78,\"result\":{\"ms\":0.77,\"total\":35,\"returned\":35}}]}"
         }
       ]
     }
@@ -547,10 +547,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4297",
+    "content-length": "4296",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:19 GMT",
-    "etag": "W/\"10c9-Jfeob1MfmEvKgtTK7V3QseLbxBg\"",
+    "date": "Thu, 05 Mar 2026 02:43:45 GMT",
+    "etag": "W/\"10c8-yzJAQzq6b02mrLpuBmtuJUXL2XU\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-951"
@@ -558,8 +558,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:19.759Z",
-      "identifier": "urn:uuid:c4883c36-856f-4714-b731-739d2fb9a048",
+      "timestamp": "2026-03-05T02:43:45.372Z",
+      "identifier": "urn:uuid:58201582-e053-4478-9e7c-3c5be2db7c7a",
       "total": 35,
       "contains": [
         {
@@ -755,7 +755,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.81,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.18},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:3166\"},\"children\":[],\"ms\":0.35,\"result\":{\"count\":34}},{\"name\":\"pagination\",\"args\":{\"total\":35,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}},{\"name\":\"system:urn:iso:std:iso:3166\",\"args\":{\"sysOffset\":0,\"sysCount\":34},\"children\":[],\"ms\":0.17,\"result\":{\"candidates\":34}}],\"ms\":0.2,\"result\":{\"paged\":35}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":35,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.77,\"result\":{\"total\":35,\"contains\":35}}]}"
+          "valueString": "{\"totalMs\":0.61,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.13},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:3166\"},\"children\":[],\"ms\":0.2,\"result\":{\"count\":34}},{\"name\":\"pagination\",\"args\":{\"total\":35,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.01,\"result\":{\"candidates\":1}},{\"name\":\"system:urn:iso:std:iso:3166\",\"args\":{\"sysOffset\":0,\"sysCount\":34},\"children\":[],\"ms\":0.2,\"result\":{\"candidates\":34}}],\"ms\":0.22,\"result\":{\"paged\":35}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":35,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.58,\"result\":{\"total\":35,\"contains\":35}}]}"
         }
       ]
     }

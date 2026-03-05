@@ -38,14 +38,14 @@
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -150,7 +150,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -268,7 +268,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.18,
+  "totalMs": 0.15,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -292,9 +292,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.16,
+      "ms": 0.14,
       "result": {
-        "ms": 0.16,
+        "ms": 0.13,
         "total": 2,
         "returned": 2
       }
@@ -307,7 +307,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.16,
+  "totalMs": 0.14,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -329,7 +329,7 @@ optimized-ir:
             "system": "http://example.org/cs-s4",
             "count": 2
           },
-          "t": 0.08
+          "t": 0.07
         },
         {
           "name": "pagination",
@@ -360,7 +360,7 @@ optimized-ir:
                 "returned": 2,
                 "total": 2
               },
-              "t": 0.11
+              "t": 0.1
             }
           ],
           "ms": 0.03,
@@ -378,7 +378,7 @@ optimized-ir:
           "ms": 0.01
         }
       ],
-      "ms": 0.13,
+      "ms": 0.11,
       "result": {
         "total": 2,
         "contains": 2
@@ -400,10 +400,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1135",
+    "content-length": "1381",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"46f-AWAmiLOZ8k+ntGOAeQ7T2a3C/Sk\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"565-T1w+Lx/3Xjg+x/p8ES3woyPFwxo\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1186"
@@ -411,8 +411,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.536Z",
-      "identifier": "urn:uuid:7227ae4e-7624-4564-a420-73c7ef5f1878",
+      "timestamp": "2026-03-05T02:43:50.192Z",
+      "identifier": "urn:uuid:2b7edcb7-ab76-416b-8b62-c754e37b75e6",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -439,6 +439,13 @@ optimized-ir:
           "display": "Papa",
           "designation": [
             {
+              "use": {
+                "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                "code": "preferredForLanguage"
+              },
+              "value": "Papa"
+            },
+            {
               "language": "de",
               "value": "Pp"
             }
@@ -450,6 +457,13 @@ optimized-ir:
           "display": "Quebec",
           "designation": [
             {
+              "use": {
+                "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                "code": "preferredForLanguage"
+              },
+              "value": "Quebec"
+            },
+            {
               "language": "de",
               "value": "Qq"
             }
@@ -459,7 +473,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.18,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.16,\"result\":{\"ms\":0.16,\"total\":2,\"returned\":2}}]}"
+          "valueString": "{\"totalMs\":0.15,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.14,\"result\":{\"ms\":0.13,\"total\":2,\"returned\":2}}]}"
         }
       ]
     }
@@ -479,10 +493,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1758",
+    "content-length": "1757",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"6de-gKUOLj0bZOjIDGfomtqvtgJteio\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"6dd-SDF5OWKBMjjRdwwVGj1sKCr2u0Y\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1187"
@@ -490,8 +504,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.537Z",
-      "identifier": "urn:uuid:d2542a02-f4a8-4cfc-907e-777a10e845e5",
+      "timestamp": "2026-03-05T02:43:50.193Z",
+      "identifier": "urn:uuid:88e8c154-d104-41d1-b447-a079f8a455a9",
       "total": 2,
       "contains": [
         {
@@ -538,7 +552,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.16,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs-s4\",\"count\":2},\"t\":0.08},{\"name\":\"pagination\",\"args\":{\"total\":2,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs-s4\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":2,\"total\":2},\"t\":0.11}],\"ms\":0.03,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":true},\"children\":[],\"ms\":0.01}],\"ms\":0.13,\"result\":{\"total\":2,\"contains\":2}}]}"
+          "valueString": "{\"totalMs\":0.14,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs-s4\",\"count\":2},\"t\":0.07},{\"name\":\"pagination\",\"args\":{\"total\":2,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs-s4\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":2,\"total\":2},\"t\":0.1}],\"ms\":0.03,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":true},\"children\":[],\"ms\":0.01}],\"ms\":0.11,\"result\":{\"total\":2,\"contains\":2}}]}"
         }
       ]
     }

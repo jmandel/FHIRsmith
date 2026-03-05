@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#116 pagination: US states last page partial</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=1ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=1ms | IR=1ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,18 +34,18 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 3ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 4ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -95,7 +95,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -158,7 +158,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.96,
+  "totalMs": 0.76,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -171,7 +171,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0.01
+      "t": 0
     },
     {
       "name": "legacy-expand",
@@ -182,9 +182,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.95,
+      "ms": 0.74,
       "result": {
-        "ms": 0.94,
+        "ms": 0.74,
         "total": 62,
         "returned": 12
       }
@@ -197,7 +197,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.39,
+  "totalMs": 0.31,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -228,7 +228,7 @@ optimized-ir:
                 "sysCount": 20
               },
               "children": [],
-              "ms": 0.26,
+              "ms": 0.21,
               "result": {
                 "candidates": 12
               }
@@ -241,10 +241,10 @@ optimized-ir:
                 "returned": 12,
                 "total": 62
               },
-              "t": 0.36
+              "t": 0.29
             }
           ],
-          "ms": 0.27,
+          "ms": 0.22,
           "result": {
             "paged": 12
           }
@@ -259,7 +259,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.36,
+      "ms": 0.28,
       "result": {
         "total": 62,
         "contains": 12
@@ -281,10 +281,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1777",
+    "content-length": "1774",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"6f1-YmgrnNENhaetwIivSROtwudlNXY\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"6ee-NFe/tjiS+z08orRyvwbaMVmfkTo\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1069"
@@ -292,8 +292,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.324Z",
-      "identifier": "urn:uuid:bfd5358e-2854-4ed5-a04f-38aec5d13aaa",
+      "timestamp": "2026-03-05T02:43:50.014Z",
+      "identifier": "urn:uuid:c9f19218-8d9e-4e22-923c-e5801524454f",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -379,7 +379,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.96,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":50,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.95,\"result\":{\"ms\":0.94,\"total\":62,\"returned\":12}}]}"
+          "valueString": "{\"totalMs\":0.76,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":50,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.74,\"result\":{\"ms\":0.74,\"total\":62,\"returned\":12}}]}"
         }
       ]
     }
@@ -401,8 +401,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "2188",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"88c-K2UCSTTaGyks2VQlWHQGpTzyE4Y\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"88c-dlrVXHSW/djn4OVrrhQGf0QwEgI\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1070"
@@ -410,8 +410,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.326Z",
-      "identifier": "urn:uuid:227794fb-30f0-4260-af37-846a1223ab76",
+      "timestamp": "2026-03-05T02:43:50.015Z",
+      "identifier": "urn:uuid:d051fde3-d1cd-4236-98cd-43fb30b15667",
       "total": 62,
       "offset": 50,
       "contains": [
@@ -497,7 +497,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.39,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":50,\"count\":20},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":50,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":50,\"sysCount\":20},\"children\":[],\"ms\":0.26,\"result\":{\"candidates\":12}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":50,\"returned\":12,\"total\":62},\"t\":0.36}],\"ms\":0.27,\"result\":{\"paged\":12}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":12,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.36,\"result\":{\"total\":62,\"contains\":12}}]}"
+          "valueString": "{\"totalMs\":0.31,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":50,\"count\":20},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":50,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":50,\"sysCount\":20},\"children\":[],\"ms\":0.21,\"result\":{\"candidates\":12}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":50,\"returned\":12,\"total\":62},\"t\":0.29}],\"ms\":0.22,\"result\":{\"paged\":12}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":12,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.28,\"result\":{\"total\":62,\"contains\":12}}]}"
         }
       ]
     }

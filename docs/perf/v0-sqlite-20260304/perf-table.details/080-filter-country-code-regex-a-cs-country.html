@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#80 filter: country code regex A.* (cs-country)</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=1ms | IR=1ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=1ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,7 +34,7 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
@@ -45,7 +45,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -98,7 +98,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -164,7 +164,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.54,
+  "totalMs": 0.69,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -188,9 +188,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.52,
+      "ms": 0.68,
       "result": {
-        "ms": 0.52,
+        "ms": 0.67,
         "total": 34,
         "returned": 34
       }
@@ -203,7 +203,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.39,
+  "totalMs": 0.36,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -234,7 +234,7 @@ optimized-ir:
                 "sysCount": 500
               },
               "children": [],
-              "ms": 0.26,
+              "ms": 0.22,
               "result": {
                 "candidates": 34
               }
@@ -247,10 +247,10 @@ optimized-ir:
                 "returned": 34,
                 "total": 34
               },
-              "t": 0.35
+              "t": 0.33
             }
           ],
-          "ms": 0.27,
+          "ms": 0.24,
           "result": {
             "paged": 34
           }
@@ -265,7 +265,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.36,
+      "ms": 0.33,
       "result": {
         "total": 34,
         "contains": 34
@@ -289,8 +289,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "3222",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:15 GMT",
-    "etag": "W/\"c96-Arx7DuA0wY8DOwHAfhiMs2LBcIc\"",
+    "date": "Thu, 05 Mar 2026 02:43:40 GMT",
+    "etag": "W/\"c96-bAtQc/hPTIRAvz8KAmI9BDnK320\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-731"
@@ -298,8 +298,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:15.047Z",
-      "identifier": "urn:uuid:d54f2bae-dc9a-44f5-bf22-6e6ecf0f6a94",
+      "timestamp": "2026-03-05T02:43:40.524Z",
+      "identifier": "urn:uuid:768ae64f-1b77-44a5-9518-1ac96970e289",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -490,7 +490,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.54,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":500,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.52,\"result\":{\"ms\":0.52,\"total\":34,\"returned\":34}}]}"
+          "valueString": "{\"totalMs\":0.69,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":500,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.68,\"result\":{\"ms\":0.67,\"total\":34,\"returned\":34}}]}"
         }
       ]
     }
@@ -512,8 +512,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "3714",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:15 GMT",
-    "etag": "W/\"e82-BuIv4kTl3CGWWJAjpoP9AXi4wA0\"",
+    "date": "Thu, 05 Mar 2026 02:43:40 GMT",
+    "etag": "W/\"e82-8KpmxnKYzqdReBpgK+6qMXfiKHA\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-732"
@@ -521,8 +521,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:15.048Z",
-      "identifier": "urn:uuid:91b2f0d1-7503-4a8f-a1aa-412dbc034d4d",
+      "timestamp": "2026-03-05T02:43:40.525Z",
+      "identifier": "urn:uuid:c7ce71af-e117-43c2-9626-5001186f967e",
       "total": 34,
       "contains": [
         {
@@ -713,7 +713,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.39,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":500},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":500,\"systems\":1},\"children\":[{\"name\":\"system:urn:iso:std:iso:3166\",\"args\":{\"sysOffset\":0,\"sysCount\":500},\"children\":[],\"ms\":0.26,\"result\":{\"candidates\":34}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":34,\"total\":34},\"t\":0.35}],\"ms\":0.27,\"result\":{\"paged\":34}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":34,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.36,\"result\":{\"total\":34,\"contains\":34}}]}"
+          "valueString": "{\"totalMs\":0.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":500},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":500,\"systems\":1},\"children\":[{\"name\":\"system:urn:iso:std:iso:3166\",\"args\":{\"sysOffset\":0,\"sysCount\":500},\"children\":[],\"ms\":0.22,\"result\":{\"candidates\":34}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":34,\"total\":34},\"t\":0.33}],\"ms\":0.24,\"result\":{\"paged\":34}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":34,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.33,\"result\":{\"total\":34,\"contains\":34}}]}"
         }
       ]
     }

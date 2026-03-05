@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/run-ir-harness.sh [options] [filter]
+  scripts/run-ir-harness.sh [options] [filter ...]
 
 Starts a local server, waits for /r4/metadata, runs selected IR harness mode(s),
 then always shuts the server down.
@@ -26,7 +26,7 @@ Options:
   --out-dir <path>        Exact output dir (overrides --out-root timestamp)
   --perf-out <path>       Perf HTML output path (default: <out-dir>/perf-table.html)
   --perf-runs <n>         PERF_RUNS value for --perf (default: 3)
-  --filter <text>         Harness name filter (or provide as positional arg)
+  --filter <text>         Harness name filter (repeatable; OR-matched)
   --trace                 Pass --trace to harness
   --strict-ir-no-fallback (or --strict-ir) Fail if IR requests fall back to legacy
   --semantic-parity       Fail if IR and legacy semantic outputs disagree (when both succeed)
@@ -37,7 +37,8 @@ Options:
 Examples:
   scripts/run-ir-harness.sh
   scripts/run-ir-harness.sh --all --perf-out tmp/my-perf.html
-  scripts/run-ir-harness.sh --ir --filter SNOMED
+  scripts/run-ir-harness.sh --ir --filter SNOMED --filter pagination
+  scripts/run-ir-harness.sh --ir SNOMED pagination
   scripts/run-ir-harness.sh --db-dir /home/jmandel/hobby/sct/cache --all
 EOF
 }
@@ -60,7 +61,7 @@ TRACE=0
 STRICT_IR_NO_FALLBACK=0
 SEMANTIC_PARITY=0
 STRICT_TOTAL_CONSISTENCY=0
-FILTER=""
+FILTERS=()
 
 MODE_SET=0
 RUN_IR=1
@@ -129,7 +130,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --filter)
-      FILTER="$2"
+      FILTERS+=("$2")
       shift
       ;;
     --trace)
@@ -158,13 +159,7 @@ while [[ $# -gt 0 ]]; do
       exit 2
       ;;
     *)
-      if [[ -z "$FILTER" ]]; then
-        FILTER="$1"
-      else
-        echo "Unexpected extra positional argument: $1" >&2
-        usage
-        exit 2
-      fi
+      FILTERS+=("$1")
       ;;
   esac
   shift
@@ -282,9 +277,9 @@ if [[ "$READY" -ne 1 ]]; then
 fi
 
 HARNESS_ARGS=()
-if [[ -n "$FILTER" ]]; then
-  HARNESS_ARGS+=("$FILTER")
-fi
+for f in "${FILTERS[@]}"; do
+  HARNESS_ARGS+=(--filter "$f")
+done
 if [[ "$TRACE" -eq 1 ]]; then
   HARNESS_ARGS+=(--trace)
 fi

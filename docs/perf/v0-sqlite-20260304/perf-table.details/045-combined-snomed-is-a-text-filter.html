@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#45 combined: SNOMED is-a + text filter</h1>
-  <div class="meta">Category: Combined · Median perf: Legacy=9ms | IR=7ms</div>
+  <div class="meta">Category: Combined · Median perf: Legacy=10ms | IR=8ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,18 +34,18 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 9ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 10ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 16ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 18ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -102,7 +102,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -172,9 +172,9 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 7.86,
+  "totalMs": 8.29,
   "sqlCount": 1,
-  "sqlMs": 0.22,
+  "sqlMs": 0.25,
   "counters": {},
   "spans": [
     {
@@ -211,7 +211,7 @@ optimized-ir:
                 "filters": 1,
                 "after": 17
               },
-              "t": 6.78
+              "t": 7.08
             }
           ],
           "sql": [
@@ -223,19 +223,19 @@ optimized-ir:
                 "f0_cs": 1
               },
               "rows": 124,
-              "ms": 0.22,
+              "ms": 0.25,
               "label": "legacy:executeFilters"
             }
           ],
-          "ms": 6.24,
+          "ms": 6.49,
           "result": {
             "rows": 17
           }
         }
       ],
-      "ms": 7.84,
+      "ms": 8.27,
       "result": {
-        "ms": 7.84,
+        "ms": 8.27,
         "total": 17,
         "returned": 17
       }
@@ -248,9 +248,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 5.89,
+  "totalMs": 7.03,
   "sqlCount": 1,
-  "sqlMs": 5.27,
+  "sqlMs": 6.33,
   "counters": {},
   "spans": [
     {
@@ -291,7 +291,7 @@ optimized-ir:
                       "data": {
                         "hasText": true
                       },
-                      "t": 0.4
+                      "t": 0.41
                     },
                     {
                       "name": "note",
@@ -299,10 +299,10 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0.06,
                         "buildMs": 0.02,
-                        "prepMs": 0.12,
-                        "execMs": 5.27
+                        "prepMs": 0.17,
+                        "execMs": 6.33
                       },
-                      "t": 5.83
+                      "t": 6.95
                     }
                   ],
                   "sql": [
@@ -316,20 +316,20 @@ optimized-ir:
                         "_searchCsId": 1,
                         "_limit": 1000
                       },
-                      "rows": 24,
-                      "ms": 5.27,
+                      "rows": 17,
+                      "ms": 6.33,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 5.51,
+                  "ms": 6.63,
                   "result": {
-                    "candidates": 24
+                    "candidates": 17
                   }
                 }
               ],
-              "ms": 5.52,
+              "ms": 6.64,
               "result": {
-                "candidates": 24
+                "candidates": 17
               }
             },
             {
@@ -337,31 +337,31 @@ optimized-ir:
               "message": "total:inferred",
               "data": {
                 "offset": 0,
-                "returned": 24,
-                "total": 24
+                "returned": 17,
+                "total": 17
               },
-              "t": 5.85
+              "t": 6.98
             }
           ],
-          "ms": 5.53,
+          "ms": 6.65,
           "result": {
-            "paged": 24
+            "paged": 17
           }
         },
         {
           "name": "bulkDesignations",
           "args": {
-            "count": 24,
+            "count": 17,
             "includeDesignations": false
           },
           "children": [],
           "ms": 0
         }
       ],
-      "ms": 5.85,
+      "ms": 6.98,
       "result": {
-        "total": 24,
-        "contains": 24
+        "total": 17,
+        "contains": 17
       }
     }
   ]
@@ -382,8 +382,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "3685",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:11 GMT",
-    "etag": "W/\"e65-JnkDrZLpE4+2PPMfxV7sasGzna4\"",
+    "date": "Thu, 05 Mar 2026 02:43:36 GMT",
+    "etag": "W/\"e65-XPmXz6UeEmLCG4TEH5op0lop6Bg\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-414"
@@ -391,8 +391,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:11.502Z",
-      "identifier": "urn:uuid:a80e4f4d-c1cf-4cbb-8112-6e5038a3880e",
+      "timestamp": "2026-03-05T02:43:36.902Z",
+      "identifier": "urn:uuid:639a908c-2fde-49ff-9636-b48733dac757",
       "parameter": [
         {
           "name": "filter",
@@ -502,7 +502,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":7.86,\"sqlCount\":1,\"sqlMs\":0.22,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":17},\"t\":6.78}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.22,\"label\":\"legacy:executeFilters\"}],\"ms\":6.24,\"result\":{\"rows\":17}}],\"ms\":7.84,\"result\":{\"ms\":7.84,\"total\":17,\"returned\":17}}]}"
+          "valueString": "{\"totalMs\":8.29,\"sqlCount\":1,\"sqlMs\":0.25,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":17},\"t\":7.08}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.25,\"label\":\"legacy:executeFilters\"}],\"ms\":6.49,\"result\":{\"rows\":17}}],\"ms\":8.27,\"result\":{\"ms\":8.27,\"total\":17,\"returned\":17}}]}"
         }
       ]
     }
@@ -522,10 +522,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "5285",
+    "content-length": "4572",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:11 GMT",
-    "etag": "W/\"14a5-A1mk3yI1t9H5ArbahuYT6iuf8Bo\"",
+    "date": "Thu, 05 Mar 2026 02:43:36 GMT",
+    "etag": "W/\"11dc-kpSg/9JK5o8wgb9/8HolSdTx8MM\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-415"
@@ -533,9 +533,9 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:11.516Z",
-      "identifier": "urn:uuid:328dab54-c8cc-4363-924d-c26c1191ce23",
-      "total": 24,
+      "timestamp": "2026-03-05T02:43:36.918Z",
+      "identifier": "urn:uuid:755c9036-2f6e-4c0b-bb34-845bdb009f7c",
+      "total": 17,
       "contains": [
         {
           "system": "http://snomed.info/sct",
@@ -564,21 +564,6 @@ optimized-ir:
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "190389009",
-          "display": "Type 2 diabetes mellitus with ulcer"
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "199229001",
-          "display": "Pre-existing type 1 diabetes mellitus (disorder)"
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "199230006",
-          "display": "Pre-existing type 2 diabetes mellitus"
-        },
-        {
-          "system": "http://snomed.info/sct",
           "code": "23045005",
           "display": "Insulin dependent diabetes mellitus type IA"
         },
@@ -586,11 +571,6 @@ optimized-ir:
           "system": "http://snomed.info/sct",
           "code": "237599002",
           "display": "Insulin treated Type II diabetes mellitus"
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "237627000",
-          "display": "Pregnancy and type 2 diabetes mellitus"
         },
         {
           "system": "http://snomed.info/sct",
@@ -614,23 +594,8 @@ optimized-ir:
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "290002008",
-          "display": "Unstable type I diabetes mellitus"
-        },
-        {
-          "system": "http://snomed.info/sct",
           "code": "33559001",
           "display": "Pineal hyperplasia AND diabetes mellitus syndrome"
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "44054006",
-          "display": "Diabetes mellitus type II"
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "46635009",
-          "display": "Diabetes mellitus type I"
         },
         {
           "system": "http://snomed.info/sct",
@@ -679,7 +644,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":5.89,\"sqlCount\":1,\"sqlMs\":5.27,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":\"insulin\",\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"standard path chosen (EXISTS rewrite skipped)\",\"data\":{\"hasText\":true},\"t\":0.4},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.06,\"buildMs\":0.02,\"prepMs\":0.12,\"execMs\":5.27},\"t\":5.83}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.active = 1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHER…\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"73211009\",\"_xf0_cs\":1,\"_searchMatch\":\"\\\"insulin\\\"\",\"_searchCsId\":1,\"_limit\":1000},\"rows\":24,\"ms\":5.27,\"label\":\"executeIR\"}],\"ms\":5.51,\"result\":{\"candidates\":24}}],\"ms\":5.52,\"result\":{\"candidates\":24}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":24,\"total\":24},\"t\":5.85}],\"ms\":5.53,\"result\":{\"paged\":24}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":24,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":5.85,\"result\":{\"total\":24,\"contains\":24}}]}"
+          "valueString": "{\"totalMs\":7.03,\"sqlCount\":1,\"sqlMs\":6.33,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":\"insulin\",\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"standard path chosen (EXISTS rewrite skipped)\",\"data\":{\"hasText\":true},\"t\":0.41},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.06,\"buildMs\":0.02,\"prepMs\":0.17,\"execMs\":6.33},\"t\":6.95}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.active = 1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHER…\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"73211009\",\"_xf0_cs\":1,\"_searchMatch\":\"\\\"insulin\\\"\",\"_searchCsId\":1,\"_limit\":1000},\"rows\":17,\"ms\":6.33,\"label\":\"executeIR\"}],\"ms\":6.63,\"result\":{\"candidates\":17}}],\"ms\":6.64,\"result\":{\"candidates\":17}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":17,\"total\":17},\"t\":6.98}],\"ms\":6.65,\"result\":{\"paged\":17}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":17,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":6.98,\"result\":{\"total\":17,\"contains\":17}}]}"
         }
       ]
     }

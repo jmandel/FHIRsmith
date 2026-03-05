@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#137 notClosed: UCUM expansion reports valueset-unclosed</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=38ms | IR=11ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=33ms | IR=9ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,18 +34,18 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 40ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 28ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 56ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 37ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -91,7 +91,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -150,7 +150,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 38.23,
+  "totalMs": 26.79,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -174,9 +174,10 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 38.2,
+      "ms": 26.77,
       "result": {
-        "ms": 38.19,
+        "ms": 26.76,
+        "total": 1357,
         "returned": 5
       }
     }
@@ -188,7 +189,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 15.51,
+  "totalMs": 7.9,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -219,7 +220,7 @@ optimized-ir:
                 "sysCount": 5
               },
               "children": [],
-              "ms": 7.7,
+              "ms": 3.26,
               "result": {
                 "candidates": 5
               }
@@ -230,13 +231,13 @@ optimized-ir:
                 "system": "http://unitsofmeasure.org"
               },
               "children": [],
-              "ms": 7.53,
+              "ms": 4.46,
               "result": {
-                "count": 1364
+                "count": 1357
               }
             }
           ],
-          "ms": 15.26,
+          "ms": 7.74,
           "result": {
             "paged": 5
           }
@@ -248,12 +249,12 @@ optimized-ir:
             "includeDesignations": false
           },
           "children": [],
-          "ms": 0.01
+          "ms": 0
         }
       ],
-      "ms": 15.44,
+      "ms": 7.85,
       "result": {
-        "total": 1364,
+        "total": 1357,
         "contains": 5
       }
     }
@@ -273,10 +274,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1534",
+    "content-length": "1591",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"5fe-eloxoL+RRipJMVWUHXW+jcVUjNc\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"637-eMpLMTOfYvlNJA2Q6Wldc6yyiOA\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1250"
@@ -284,8 +285,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.774Z",
-      "identifier": "urn:uuid:e09c8122-f3a0-44cc-8428-6e864b2f6daa",
+      "timestamp": "2026-03-05T02:43:50.401Z",
+      "identifier": "urn:uuid:23d036c5-f760-4ecd-8690-b46490fa5052",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -311,34 +312,35 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":38.23,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":38.2,\"result\":{\"ms\":38.19,\"returned\":5}}]}"
+          "valueString": "{\"totalMs\":26.79,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":26.77,\"result\":{\"ms\":26.76,\"total\":1357,\"returned\":5}}]}"
         }
       ],
+      "total": 1357,
       "contains": [
         {
           "system": "http://unitsofmeasure.org",
           "code": "%",
-          "display": "%"
+          "display": "percent"
         },
         {
           "system": "http://unitsofmeasure.org",
           "code": "%/100{WBC}",
-          "display": "%/100{WBC}"
+          "display": "percent / 100 WBC"
         },
         {
           "system": "http://unitsofmeasure.org",
           "code": "%{0to3Hours}",
-          "display": "%{0to3Hours}"
+          "display": "percent 0to3Hours"
         },
         {
           "system": "http://unitsofmeasure.org",
           "code": "%{Abnormal}",
-          "display": "%{Abnormal}"
+          "display": "percent Abnormal"
         },
         {
           "system": "http://unitsofmeasure.org",
           "code": "%{Activity}",
-          "display": "%{Activity}"
+          "display": "percent Activity"
         }
       ]
     }
@@ -358,10 +360,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1963",
+    "content-length": "1957",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"7ab-8pucSlIunp6+weo8eobvfZm5GEc\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"7a5-n/KknbkYBvfJ1vZPZR5J5TWs86w\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1251"
@@ -369,9 +371,9 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.829Z",
-      "identifier": "urn:uuid:70acc5a1-55ce-4bef-9a4c-a6a60d31472f",
-      "total": 1364,
+      "timestamp": "2026-03-05T02:43:50.436Z",
+      "identifier": "urn:uuid:91458fe4-0558-444d-b3a5-3745a2a484b7",
+      "total": 1357,
       "contains": [
         {
           "system": "http://unitsofmeasure.org",
@@ -420,7 +422,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":15.51,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://unitsofmeasure.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[],\"ms\":7.7,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://unitsofmeasure.org\"},\"children\":[],\"ms\":7.53,\"result\":{\"count\":1364}}],\"ms\":15.26,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":15.44,\"result\":{\"total\":1364,\"contains\":5}}]}"
+          "valueString": "{\"totalMs\":7.9,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://unitsofmeasure.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[],\"ms\":3.26,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://unitsofmeasure.org\"},\"children\":[],\"ms\":4.46,\"result\":{\"count\":1357}}],\"ms\":7.74,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":7.85,\"result\":{\"total\":1357,\"contains\":5}}]}"
         }
       ]
     }

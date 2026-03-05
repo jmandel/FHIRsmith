@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#12 LOINC text creatinine first 20</h1>
-  <div class="meta">Category: Text search · Median perf: Legacy=408ms | IR=37ms</div>
+  <div class="meta">Category: Text search · Median perf: Legacy=420ms | IR=46ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -34,18 +34,18 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 430ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 416ms capture call · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 469ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 461ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -95,7 +95,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -158,9 +158,9 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 427.85,
+  "totalMs": 414.56,
   "sqlCount": 1,
-  "sqlMs": 282.3,
+  "sqlMs": 262.69,
   "counters": {},
   "spans": [
     {
@@ -197,7 +197,7 @@ optimized-ir:
                 "filters": 1,
                 "after": 3827
               },
-              "t": 330.5
+              "t": 311.34
             }
           ],
           "sql": [
@@ -207,19 +207,19 @@ optimized-ir:
                 "cs": 1
               },
               "rows": 248426,
-              "ms": 282.3,
+              "ms": 262.69,
               "label": "legacy:executeFilters"
             }
           ],
-          "ms": 329.32,
+          "ms": 310.19,
           "result": {
             "rows": 3827
           }
         }
       ],
-      "ms": 427.82,
+      "ms": 414.53,
       "result": {
-        "ms": 427.81,
+        "ms": 414.52,
         "returned": 20
       }
     }
@@ -231,9 +231,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 38.46,
+  "totalMs": 43.94,
   "sqlCount": 2,
-  "sqlMs": 37.42,
+  "sqlMs": 42.8,
   "counters": {},
   "spans": [
     {
@@ -274,15 +274,15 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.01,
-                        "prepMs": 0.14,
-                        "execMs": 20.68
+                        "prepMs": 0.18,
+                        "execMs": 22.95
                       },
-                      "t": 21.56
+                      "t": 23.9
                     }
                   ],
                   "sql": [
                     {
-                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATC…",
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …",
                       "params": {
                         "_x_csId": 1,
                         "_searchMatch": "\"creatinine\"",
@@ -290,17 +290,17 @@ optimized-ir:
                         "_limit": 20
                       },
                       "rows": 20,
-                      "ms": 20.68,
+                      "ms": 22.95,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 20.91,
+                  "ms": 23.21,
                   "result": {
                     "candidates": 20
                   }
                 }
               ],
-              "ms": 20.93,
+              "ms": 23.22,
               "result": {
                 "candidates": 20
               }
@@ -319,30 +319,30 @@ optimized-ir:
                   "children": [],
                   "sql": [
                     {
-                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch UNION SE…",
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…",
                       "params": {
                         "_cnt_csId": 1,
                         "_searchMatch": "\"creatinine\"",
                         "_searchCsId": 1
                       },
-                      "rows": 3958,
-                      "ms": 16.74,
+                      "rows": 3827,
+                      "ms": 19.85,
                       "label": "countForIR"
                     }
                   ],
-                  "ms": 16.78,
+                  "ms": 19.9,
                   "result": {
-                    "count": 3958
+                    "count": 3827
                   }
                 }
               ],
-              "ms": 16.8,
+              "ms": 19.93,
               "result": {
-                "count": 3958
+                "count": 3827
               }
             }
           ],
-          "ms": 37.75,
+          "ms": 43.17,
           "result": {
             "paged": 20
           }
@@ -357,9 +357,9 @@ optimized-ir:
           "ms": 0.01
         }
       ],
-      "ms": 38.41,
+      "ms": 43.89,
       "result": {
-        "total": 3958,
+        "total": 3827,
         "contains": 20
       }
     }
@@ -379,10 +379,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4163",
+    "content-length": "4166",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:46:59 GMT",
-    "etag": "W/\"1043-Q+ZMIqbTmsalUF5uRoYL038H6CI\"",
+    "date": "Thu, 05 Mar 2026 02:43:24 GMT",
+    "etag": "W/\"1046-duZzS4BpvJZypMqrE2Xv4ei6/cU\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-111"
@@ -390,8 +390,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:46:59.531Z",
-      "identifier": "urn:uuid:d84245ba-62c4-4795-b358-54a74c49679c",
+      "timestamp": "2026-03-05T02:43:24.544Z",
+      "identifier": "urn:uuid:4b22e480-8d27-489f-ade2-dbe97713eb3a",
       "parameter": [
         {
           "name": "filter",
@@ -515,7 +515,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":427.85,\"sqlCount\":1,\"sqlMs\":282.3,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":0,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":3827},\"t\":330.5}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":282.3,\"label\":\"legacy:executeFilters\"}],\"ms\":329.32,\"result\":{\"rows\":3827}}],\"ms\":427.82,\"result\":{\"ms\":427.81,\"returned\":20}}]}"
+          "valueString": "{\"totalMs\":414.56,\"sqlCount\":1,\"sqlMs\":262.69,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":0,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":3827},\"t\":311.34}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":262.69,\"label\":\"legacy:executeFilters\"}],\"ms\":310.19,\"result\":{\"rows\":3827}}],\"ms\":414.53,\"result\":{\"ms\":414.52,\"returned\":20}}]}"
         },
         {
           "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
@@ -548,10 +548,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "5663",
+    "content-length": "5661",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:46:59 GMT",
-    "etag": "W/\"161f-244HBxnxuoPLoq2qKAZuqhLJKdg\"",
+    "date": "Thu, 05 Mar 2026 02:43:24 GMT",
+    "etag": "W/\"161d-TA32LLolL2X/mcpayP39CE1fQDk\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-112"
@@ -559,9 +559,9 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:46:59.998Z",
-      "identifier": "urn:uuid:b6736498-2b6d-45cd-ba12-336b6b76c0fa",
-      "total": 3958,
+      "timestamp": "2026-03-05T02:43:25.004Z",
+      "identifier": "urn:uuid:4a54aa5d-41e6-4026-add0-76822e211e94",
+      "total": 3827,
       "contains": [
         {
           "system": "http://loinc.org",
@@ -685,7 +685,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":38.46,\"sqlCount\":2,\"sqlMs\":37.42,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":\"creatinine\",\"offset\":0,\"count\":20},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":20},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.14,\"execMs\":20.68},\"t\":21.56}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATC…\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"creatinine\\\"\",\"_searchCsId\":1,\"_limit\":20},\"rows\":20,\"ms\":20.68,\"label\":\"executeIR\"}],\"ms\":20.91,\"result\":{\"candidates\":20}}],\"ms\":20.93,\"result\":{\"candidates\":20}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch UNION SE…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"creatinine\\\"\",\"_searchCsId\":1},\"rows\":3958,\"ms\":16.74,\"label\":\"countForIR\"}],\"ms\":16.78,\"result\":{\"count\":3958}}],\"ms\":16.8,\"result\":{\"count\":3958}}],\"ms\":37.75,\"result\":{\"paged\":20}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":20,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":38.41,\"result\":{\"total\":3958,\"contains\":20}}]}"
+          "valueString": "{\"totalMs\":43.94,\"sqlCount\":2,\"sqlMs\":42.8,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":\"creatinine\",\"offset\":0,\"count\":20},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":20},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.18,\"execMs\":22.95},\"t\":23.9}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"creatinine\\\"\",\"_searchCsId\":1,\"_limit\":20},\"rows\":20,\"ms\":22.95,\"label\":\"executeIR\"}],\"ms\":23.21,\"result\":{\"candidates\":20}}],\"ms\":23.22,\"result\":{\"candidates\":20}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"creatinine\\\"\",\"_searchCsId\":1},\"rows\":3827,\"ms\":19.85,\"label\":\"countForIR\"}],\"ms\":19.9,\"result\":{\"count\":3827}}],\"ms\":19.93,\"result\":{\"count\":3827}}],\"ms\":43.17,\"result\":{\"paged\":20}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":20,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":43.89,\"result\":{\"total\":3827,\"contains\":20}}]}"
         }
       ]
     }

@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#107 pagination-safety: mixed import+system high-count page not capped</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=3ms | IR=2ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=4ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -38,14 +38,14 @@
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 7ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 6ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -96,7 +96,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -162,7 +162,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.92,
+  "totalMs": 2.27,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -186,10 +186,10 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 1.9,
+      "ms": 2.25,
       "result": {
-        "ms": 1.89,
-        "total": 182,
+        "ms": 2.25,
+        "total": 186,
         "returned": 186
       }
     }
@@ -201,7 +201,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 2.85,
+  "totalMs": 1.44,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -222,7 +222,7 @@ optimized-ir:
             "system": "http://hl7.org/fhir/administrative-gender"
           },
           "children": [],
-          "ms": 0.03,
+          "ms": 0.04,
           "result": {
             "count": 4
           }
@@ -233,7 +233,7 @@ optimized-ir:
             "system": "urn:iso:std:iso:4217"
           },
           "children": [],
-          "ms": 0.47,
+          "ms": 0.59,
           "result": {
             "count": 182
           }
@@ -254,7 +254,7 @@ optimized-ir:
                 "sysCount": 4
               },
               "children": [],
-              "ms": 0.02,
+              "ms": 0.03,
               "result": {
                 "candidates": 4
               }
@@ -266,13 +266,13 @@ optimized-ir:
                 "sysCount": 182
               },
               "children": [],
-              "ms": 2.12,
+              "ms": 0.56,
               "result": {
                 "candidates": 182
               }
             }
           ],
-          "ms": 2.15,
+          "ms": 0.6,
           "result": {
             "paged": 186
           }
@@ -287,7 +287,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 2.82,
+      "ms": 1.4,
       "result": {
         "total": 186,
         "contains": 186
@@ -309,10 +309,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "15493",
+    "content-length": "15494",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:19 GMT",
-    "etag": "W/\"3c85-mqahn1H4cWXn/BUPc+QwMXeCP8Q\"",
+    "date": "Thu, 05 Mar 2026 02:43:45 GMT",
+    "etag": "W/\"3c86-2Adad2v+UM2r4aBXd8wK1N8Yj8Q\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-988"
@@ -320,8 +320,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:19.850Z",
-      "identifier": "urn:uuid:2b8d3fe1-b816-477f-b4a6-fe64867a91ca",
+      "timestamp": "2026-03-05T02:43:45.464Z",
+      "identifier": "urn:uuid:f115309e-7431-4c83-ba4d-6417dcfe8756",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -344,7 +344,7 @@ optimized-ir:
           "valueUri": "urn:iso:std:iso:4217"
         }
       ],
-      "total": 182,
+      "total": 186,
       "contains": [
         {
           "system": "http://hl7.org/fhir/administrative-gender",
@@ -1280,7 +1280,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.92,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":500,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.9,\"result\":{\"ms\":1.89,\"total\":182,\"returned\":186}}]}"
+          "valueString": "{\"totalMs\":2.27,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":500,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":2.25,\"result\":{\"ms\":2.25,\"total\":186,\"returned\":186}}]}"
         }
       ]
     }
@@ -1300,10 +1300,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "16416",
+    "content-length": "16414",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:19 GMT",
-    "etag": "W/\"4020-870QPxrRzn3SeNPaKENJE8fL+Tg\"",
+    "date": "Thu, 05 Mar 2026 02:43:45 GMT",
+    "etag": "W/\"401e-Ggu+3veRCTujFireW1EUu0OsVQg\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-989"
@@ -1311,8 +1311,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:19.855Z",
-      "identifier": "urn:uuid:8c987ce0-6bac-453a-ae73-d3fede159a8d",
+      "timestamp": "2026-03-05T02:43:45.468Z",
+      "identifier": "urn:uuid:f4398d74-1492-41a9-ba2a-d123e192d9fb",
       "total": 186,
       "contains": [
         {
@@ -2271,7 +2271,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":2.85,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":500},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.03,\"result\":{\"count\":4}},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:4217\"},\"children\":[],\"ms\":0.47,\"result\":{\"count\":182}},{\"name\":\"pagination\",\"args\":{\"total\":186,\"offset\":0,\"count\":500,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":4}},{\"name\":\"system:urn:iso:std:iso:4217\",\"args\":{\"sysOffset\":0,\"sysCount\":182},\"children\":[],\"ms\":2.12,\"result\":{\"candidates\":182}}],\"ms\":2.15,\"result\":{\"paged\":186}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":186,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":2.82,\"result\":{\"total\":186,\"contains\":186}}]}"
+          "valueString": "{\"totalMs\":1.44,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":500},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.04,\"result\":{\"count\":4}},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:4217\"},\"children\":[],\"ms\":0.59,\"result\":{\"count\":182}},{\"name\":\"pagination\",\"args\":{\"total\":186,\"offset\":0,\"count\":500,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.03,\"result\":{\"candidates\":4}},{\"name\":\"system:urn:iso:std:iso:4217\",\"args\":{\"sysOffset\":0,\"sysCount\":182},\"children\":[],\"ms\":0.56,\"result\":{\"candidates\":182}}],\"ms\":0.6,\"result\":{\"paged\":186}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":186,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.4,\"result\":{\"total\":186,\"contains\":186}}]}"
         }
       ]
     }

@@ -34,18 +34,18 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1138ms capture call · response: 422 Unprocessable Entity</p>
+    <p class="meta-mini">capture: 1064ms capture call · response: 422 Unprocessable Entity</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 1172ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 1099ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -102,7 +102,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -180,9 +180,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 30.83,
+  "totalMs": 30.87,
   "sqlCount": 4,
-  "sqlMs": 28.69,
+  "sqlMs": 28.8,
   "counters": {},
   "spans": [
     {
@@ -209,26 +209,26 @@ optimized-ir:
               "children": [],
               "sql": [
                 {
-                  "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch UNION SE…",
+                  "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…",
                   "params": {
                     "_cnt_csId": 1,
                     "_searchMatch": "\"glucose\"",
                     "_searchCsId": 1
                   },
-                  "rows": 1876,
-                  "ms": 9.4,
+                  "rows": 1842,
+                  "ms": 10.39,
                   "label": "countForIR"
                 }
               ],
-              "ms": 9.46,
+              "ms": 10.44,
               "result": {
-                "count": 1876
+                "count": 1842
               }
             }
           ],
-          "ms": 9.48,
+          "ms": 10.46,
           "result": {
-            "count": 1876
+            "count": 1842
           }
         },
         {
@@ -245,32 +245,32 @@ optimized-ir:
               "children": [],
               "sql": [
                 {
-                  "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch UNION SE…",
+                  "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…",
                   "params": {
                     "_cnt_csId": 1,
                     "_searchMatch": "\"glucose\"",
                     "_searchCsId": 1
                   },
-                  "rows": 716,
-                  "ms": 5.61,
+                  "rows": 461,
+                  "ms": 5.43,
                   "label": "countForIR"
                 }
               ],
-              "ms": 5.64,
+              "ms": 5.46,
               "result": {
-                "count": 716
+                "count": 461
               }
             }
           ],
-          "ms": 5.66,
+          "ms": 5.47,
           "result": {
-            "count": 716
+            "count": 461
           }
         },
         {
           "name": "pagination",
           "args": {
-            "total": 2592,
+            "total": 2303,
             "offset": 0,
             "count": 2000,
             "systems": 2
@@ -280,7 +280,7 @@ optimized-ir:
               "name": "system:http://loinc.org",
               "args": {
                 "sysOffset": 0,
-                "sysCount": 1876
+                "sysCount": 1842
               },
               "children": [
                 {
@@ -295,42 +295,42 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.03,
-                        "prepMs": 0.09,
-                        "execMs": 10.18
+                        "prepMs": 0.1,
+                        "execMs": 9.39
                       },
-                      "t": 26.5
+                      "t": 26.42
                     }
                   ],
                   "sql": [
                     {
-                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATC…",
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …",
                       "params": {
                         "_x_csId": 1,
                         "_searchMatch": "\"glucose\"",
                         "_searchCsId": 1,
-                        "_limit": 1876
+                        "_limit": 1842
                       },
-                      "rows": 1876,
-                      "ms": 10.18,
+                      "rows": 1842,
+                      "ms": 9.39,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 10.6,
+                  "ms": 9.81,
                   "result": {
-                    "candidates": 1876
+                    "candidates": 1842
                   }
                 }
               ],
-              "ms": 10.62,
+              "ms": 9.83,
               "result": {
-                "candidates": 1876
+                "candidates": 1842
               }
             },
             {
               "name": "system:http://snomed.info/sct",
               "args": {
                 "sysOffset": 0,
-                "sysCount": 124
+                "sysCount": 158
               },
               "children": [
                 {
@@ -345,39 +345,39 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.02,
-                        "prepMs": 0.11,
-                        "execMs": 3.5
+                        "prepMs": 0.1,
+                        "execMs": 3.59
                       },
                       "t": 30.47
                     }
                   ],
                   "sql": [
                     {
-                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATC…",
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …",
                       "params": {
                         "_x_csId": 1,
                         "_searchMatch": "\"glucose\"",
                         "_searchCsId": 1,
-                        "_limit": 124
+                        "_limit": 158
                       },
-                      "rows": 124,
-                      "ms": 3.5,
+                      "rows": 158,
+                      "ms": 3.59,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 3.68,
+                  "ms": 3.74,
                   "result": {
-                    "candidates": 124
+                    "candidates": 158
                   }
                 }
               ],
-              "ms": 3.69,
+              "ms": 3.76,
               "result": {
-                "candidates": 124
+                "candidates": 158
               }
             }
           ],
-          "ms": 14.38,
+          "ms": 13.65,
           "result": {
             "paged": 2000
           }
@@ -392,9 +392,9 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 30.77,
+      "ms": 30.8,
       "result": {
-        "total": 2592,
+        "total": 2303,
         "contains": 2000
       }
     }
@@ -416,8 +416,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "498",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:34 GMT",
-    "etag": "W/\"1f2-OeCQuOoExphnEjznsKHAptWxuI0\"",
+    "date": "Thu, 05 Mar 2026 02:43:59 GMT",
+    "etag": "W/\"1f2-p9+0U3mC8q0KmpGiR4JPkJQxKjA\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1318"
@@ -437,7 +437,7 @@ optimized-ir:
             "valueString": "VALUESET_TOO_COSTLY"
           }
         ],
-        "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n1ms compose #2\n2ms prepare filters\n762ms iterate filters\n780ms iterate filters done\n781ms prepare filters\n1079ms iterate filters"
+        "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n1ms compose #2\n1ms prepare filters\n715ms iterate filters\n733ms iterate filters done\n734ms prepare filters\n1009ms iterate filters"
       }
     ]
   }
@@ -456,10 +456,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "237366",
+    "content-length": "235624",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:34 GMT",
-    "etag": "W/\"39f36-F8Bwk4zqeFPQs42HzMsUszK2vuc\"",
+    "date": "Thu, 05 Mar 2026 02:43:59 GMT",
+    "etag": "W/\"39868-TcWbVkxRz4TfzO9QKJaT3WWdjv0\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1319"
@@ -467,9 +467,9 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:34.684Z",
-      "identifier": "urn:uuid:e78ad512-e5eb-4fff-984d-a5c5151d6980",
-      "total": 2592,
+      "timestamp": "2026-03-05T02:43:59.608Z",
+      "identifier": "urn:uuid:730137cc-e4fe-495e-9db2-58facb88bc1b",
+      "total": 2303,
       "contains": [
         {
           "system": "http://loinc.org",
@@ -625,12 +625,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "104655-6",
           "display": "Glucose [Mass/volume] in Mixed venous blood"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "104708-3",
-          "display": "Deprecated Estimated average glucose [Moles/volume] in Blood",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -1089,12 +1083,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "13453-6",
-          "display": "Deprecated Glucose mean value",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "13606-9",
           "display": "Glucose [Mass/volume] in Serum or Plasma --3 hours post 50 g lactose PO"
         },
@@ -1345,12 +1333,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "1502-4",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --1 hour post 100 g glucose PO",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "1503-2",
           "display": "Glucose [Mass/volume] in Urine --1 hour post 100 g glucose PO"
         },
@@ -1396,12 +1378,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "1508-1",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --1 hour post 75 g glucose PO",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "1509-9",
           "display": "Glucose [Mass/volume] in Urine --1 hour post 75 g glucose PO"
         },
@@ -1409,12 +1385,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "1510-7",
           "display": "Glucose [Mass/volume] in Serum or Plasma --1 hour post dose insulin IV"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "1511-5",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --1 hour post dose insulin IV",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -1433,12 +1403,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "1515-6",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --2 hours post 100 g glucose PO",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "1516-4",
           "display": "Glucose [Mass/volume] in Urine --2 hours post 100 g glucose PO"
         },
@@ -1451,12 +1415,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "1518-0",
           "display": "Glucose [Mass/volume] in Serum or Plasma --2 hours post 75 g glucose PO"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "1519-8",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --2 hours post 75 g glucose PO",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -1505,20 +1463,8 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "1529-7",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --30 minutes post dose insulin IV",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "1530-5",
           "display": "Glucose [Mass/volume] in Serum or Plasma --3 hours post 100 g glucose PO"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "1531-3",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --3 hours post 100 g glucose PO",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -1584,12 +1530,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "1544-6",
           "display": "Glucose [Mass/volume] in Serum or Plasma --6 hours post 100 g glucose PO"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "1545-3",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma --6 hours post 100 g glucose PO",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -1920,12 +1860,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "19105-6",
           "display": "Glucose [Interpretation] in Serum or Plasma--3 hours post dose glucose"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "20406-5",
-          "display": "Deprecated Glucose [Mass/volume] in Urine by Test strip",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -2389,18 +2323,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "26853-2",
-          "display": "Glucose [Units/volume] in Serum or Plasma --7th specimen post XXX challenge",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "26854-0",
-          "display": "Glucose [Units/volume] in Serum or Plasma --8th specimen post XXX challenge",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "27353-2",
           "display": "Glucose mean value [Mass/volume] in Blood Estimated from glycated hemoglobin"
         },
@@ -2443,18 +2365,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "27872-1",
           "display": "Insulin [Units/volume] in Serum or Plasma --6 hours post 75 g glucose PO"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "27940-6",
-          "display": "Deprecated Insulin [Units/volume] in Serum or Plasma --1.5 hours post 75 g glucose PO",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "2800-1",
-          "display": "Deprecated Glucose phosphate isomerase [Enzymatic activity/volume] in Serum",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -2665,24 +2575,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "34546-2",
           "display": "Protein and Glucose panel [Mass/volume] - Cerebral spinal fluid"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "35184-1",
-          "display": "Fasting glucose [Mass or Moles/volume] in Serum or Plasma",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "35211-2",
-          "display": "Glucose [Mass or Moles/volume] in Serum or Plasma",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "35212-0",
-          "display": "Glucose [Mass or Moles/volume] in Urine",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -4936,12 +4828,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "5914-7",
-          "display": "Glucose [Presence] in Blood by Test strip",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "59156-0",
           "display": "Glucose [Moles/volume] in Urine by Automated test strip"
         },
@@ -5012,12 +4898,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "61548-4",
-          "display": "Deprecated PhenX measure - fiber intake",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "62418-9",
           "display": "Glucose/Insulin [Ratio] in Serum or Plasma"
         },
@@ -5028,20 +4908,8 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "62804-0",
-          "display": "Deprecated PhenX measure - fasting serum insulin",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "62805-7",
           "display": "PhenX - fasting serum insulin protocol 141301"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "62850-3",
-          "display": "Deprecated PhenX measure - fasting plasma glucose for diabetes screening - blood draw",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -5055,20 +4923,8 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "62853-7",
-          "display": "Deprecated PhenX measure - glycosylated hemoglobin assay that reflects long-term glucose concentration",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "62854-5",
           "display": "PhenX - glycosylated hemoglobin assay reflecting long-term glucose concentration protocol 140901"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "62855-2",
-          "display": "Deprecated PhenX measure - oral glucose tolerance test",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -5222,12 +5078,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "6777-7",
-          "display": "Deprecated Glucose [Mass/volume] in Serum or Plasma",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "6883-3",
           "display": "Glucose.protein bound [Mass/volume] in Serum or Plasma"
         },
@@ -5333,12 +5183,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "74244-5",
-          "display": "HEDIS 2014 Value Set - Glucose Tests",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "74351-8",
           "display": "Glucose [Moles/volume] in Urine collected for unspecified duration"
         },
@@ -5386,12 +5230,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "75637-9",
           "display": "Glucose [Moles/volume] in Serum or Plasma --45 minutes post 50 g lactose PO"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "75864-9",
-          "display": "HEDIS 2015-2018 Value Set - Glucose Tests",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -5595,12 +5433,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "87421-4",
-          "display": "Deprecated Glucose [Mass/volume] in Blood --pre-meal",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "87422-2",
           "display": "Glucose [Mass/volume] in Blood --post meal"
         },
@@ -5613,12 +5445,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "88365-2",
           "display": "Glucose [Mass/volume] in Blood --pre-meal"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "90996-0",
-          "display": "HEDIS 2019-2020 Value Set - Glucose Tests",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -5777,12 +5603,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "96077-3",
-          "display": "HEDIS MY 2020 Value Set - Glucose Tests",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "96594-7",
           "display": "Glucose [Mass/volume] in DBS"
         },
@@ -5898,12 +5718,6 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "LP112413-2",
-          "display": "PhenX measure - fasting plasma glucose for diabetes screening - blood draw",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "LP112414-0",
           "display": "PhenX - fasting plasma glucose for diabetes screening - blood draw protocol 140801"
         },
@@ -5914,20 +5728,8 @@ optimized-ir:
         },
         {
           "system": "http://loinc.org",
-          "code": "LP112416-5",
-          "display": "PhenX measure - glycosylated hemoglobin assay that reflects long-term glucose concentration",
-          "inactive": true
-        },
-        {
-          "system": "http://loinc.org",
           "code": "LP112417-3",
           "display": "PhenX - glycosylated hemoglobin assay reflecting long-term glucose concentration protocol 140901"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "LP112418-1",
-          "display": "PhenX measure - oral glucose tolerance test",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -6358,12 +6160,6 @@ optimized-ir:
           "system": "http://loinc.org",
           "code": "LP212201-0",
           "display": "Glucose meter to reference method correlation"
-        },
-        {
-          "system": "http://loinc.org",
-          "code": "LP269012-3",
-          "display": "Glucose mean value",
-          "inactive": true
         },
         {
           "system": "http://loinc.org",
@@ -9887,12 +9683,6 @@ optimized-ir:
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "100737000",
-          "display": "GLUCOSE SOLUTION 50%",
-          "inactive": true
-        },
-        {
-          "system": "http://snomed.info/sct",
           "code": "1010397000",
           "display": "Severe deficiency of glucose-6-phosphate dehydrogenase (disorder)"
         },
@@ -9920,12 +9710,6 @@ optimized-ir:
           "system": "http://snomed.info/sct",
           "code": "104686004",
           "display": "Glucose measurement, blood, test strip"
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "104687008",
-          "display": "Glucose measurement, tolbutamide tolerance test",
-          "inactive": true
         },
         {
           "system": "http://snomed.info/sct",
@@ -9969,26 +9753,8 @@ optimized-ir:
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "109175000",
-          "display": "Blood glucose test kit",
-          "inactive": true
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "109176004",
-          "display": "Urine glucose test kit",
-          "inactive": true
-        },
-        {
-          "system": "http://snomed.info/sct",
           "code": "111138002",
           "display": "Product containing glucose (medicinal product)"
-        },
-        {
-          "system": "http://snomed.info/sct",
-          "code": "111555009",
-          "display": "Impaired glucose tolerance associated with unlisted conditions",
-          "inactive": true
         },
         {
           "system": "http://snomed.info/sct",
@@ -10252,12 +10018,6 @@ optimized-ir:
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "124662005",
-          "display": "Deficiency of UDPgalactose 4-epimerase",
-          "inactive": true
-        },
-        {
-          "system": "http://snomed.info/sct",
           "code": "124669001",
           "display": "Deficiency of phosphohexose isomerase"
         },
@@ -10458,69 +10218,258 @@ optimized-ir:
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "142910001",
-          "display": "Glucose 6-phosphate dehydrogenase (&amp; [red cell level])",
-          "inactive": true
+          "code": "14996001",
+          "display": "Glucose dehydrogenase (acceptor)"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "142912009",
-          "display": "Red cell glucose 6-phosphate dehydrogenase screening test",
-          "inactive": true
+          "code": "166888009",
+          "display": "Blood glucose method"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144165002",
-          "display": "(Blood sugar method [&amp; glucose]) or (random blood sugar)",
-          "inactive": true
+          "code": "166890005",
+          "display": "Random blood sugar normal"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144166001",
-          "display": "Random blood glucose (&amp; level)",
-          "inactive": true
+          "code": "166896004",
+          "display": "Laboratory blood sugar"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144167005",
-          "display": "Fasting blood glucose (&amp; level)",
-          "inactive": true
+          "code": "166900001",
+          "display": "Glucometer blood sugar"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144175004",
-          "display": "Plasma glucose level",
-          "inactive": true
+          "code": "166921001",
+          "display": "Blood glucose normal"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144179005",
-          "display": "30 minute blood glucose level",
-          "inactive": true
+          "code": "166922008",
+          "display": "Blood glucose abnormal"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144180008",
-          "display": "60 minute blood glucose level",
-          "inactive": true
+          "code": "166926006",
+          "display": "Glucose tolerance test normal"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144181007",
-          "display": "90 minute blood glucose level",
-          "inactive": true
+          "code": "166927002",
+          "display": "Impaired glucose tolerance test"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144182000",
-          "display": "120 minute blood glucose level",
-          "inactive": true
+          "code": "166928007",
+          "display": "Glucose tolerance test indicates diabetes mellitus"
         },
         {
           "system": "http://snomed.info/sct",
-          "code": "144183005",
-          "display": "150 minute blood glucose level",
-          "inactive": true
+          "code": "166929004",
+          "display": "GTT = renal glycosuria"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167086002",
+          "display": "Serum random glucose level"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167087006",
+          "display": "Serum fasting glucose measurement"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167088001",
+          "display": "Serum 2-hr post-prandial glucose level"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167095005",
+          "display": "Plasma random glucose measurement"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167096006",
+          "display": "Plasma fasting glucose level"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167097002",
+          "display": "Plasma 2-hr post-prandial glucose measurement"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167260001",
+          "display": "Urine glucose test not done"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167261002",
+          "display": "Urine glucose test negative"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167262009",
+          "display": "Urine glucose test = trace"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167264005",
+          "display": "Urine glucose test = +"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167265006",
+          "display": "Urine glucose test = ++"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167266007",
+          "display": "Urine glucose test = +++"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167267003",
+          "display": "Urine glucose test = ++++"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167523004",
+          "display": "Urine glucose: chem. titer"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167683006",
+          "display": "Glucose present in stool specimen by chromatography"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167739008",
+          "display": "CSF: glucose normal"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167740005",
+          "display": "Cerebrospinal fluid glucose decreased"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "167741009",
+          "display": "CSF: glucose increased"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1822007",
+          "display": "Impaired glucose tolerance associated with pancreatic disease"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "190749000",
+          "display": "Glucose-galactose malabsorption"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "19823000",
+          "display": "Glucose-1,6-bisphosphate synthase"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "20160006",
+          "display": "Glucose oxidase"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "206439006",
+          "display": "Neonatal jaundice with glucose-6-phosphate dehydrogenase deficiency"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "21458005",
+          "display": "Glucose-6-phosphate isomerase"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "21880003",
+          "display": "Aurothioglucose"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "22569008",
+          "display": "Glucose measurement, serum"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "226127001",
+          "display": "Low glucose diet"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "226341001",
+          "display": "Glucose intake"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "22910008",
+          "display": "Impaired glucose tolerance in obese"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "22933009",
+          "display": "G-6-PD class I variant anemia"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "23005001",
+          "display": "Glucose dehydrogenase (NAD)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "234404008",
+          "display": "Glucose phosphate isomerase deficiency"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "234586009",
+          "display": "Leukocyte glucose-6-phosphate dehydrogenase deficiency"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "236471003",
+          "display": "Low renal threshold for glucose"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "236472005",
+          "display": "High renal threshold for glucose"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237597000",
+          "display": "Disorder of glucose regulation"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237628005",
+          "display": "Impaired glucose tolerance in pregnancy"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237966006",
+          "display": "Glucose transport defect"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "23847001",
+          "display": "UDPglucose dehydrogenase"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "241440009",
+          "display": "PET myocardial glucose metabolism study"
         }
       ],
       "parameter": [
@@ -10548,7 +10497,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":30.83,\"sqlCount\":4,\"sqlMs\":28.69,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":\"glucose\",\"offset\":0,\"count\":2000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch UNION SE…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":1876,\"ms\":9.4,\"label\":\"countForIR\"}],\"ms\":9.46,\"result\":{\"count\":1876}}],\"ms\":9.48,\"result\":{\"count\":1876}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATCH @_searchMatch UNION SE…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":716,\"ms\":5.61,\"label\":\"countForIR\"}],\"ms\":5.64,\"result\":{\"count\":716}}],\"ms\":5.66,\"result\":{\"count\":716}},{\"name\":\"pagination\",\"args\":{\"total\":2592,\"offset\":0,\"count\":2000,\"systems\":2},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1876},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.03,\"prepMs\":0.09,\"execMs\":10.18},\"t\":26.5}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATC…\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":1876},\"rows\":1876,\"ms\":10.18,\"label\":\"executeIR\"}],\"ms\":10.6,\"result\":{\"candidates\":1876}}],\"ms\":10.62,\"result\":{\"candidates\":1876}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":124},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.11,\"execMs\":3.5},\"t\":30.47}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid WHERE f2.term MATC…\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":124},\"rows\":124,\"ms\":3.5,\"label\":\"executeIR\"}],\"ms\":3.68,\"result\":{\"candidates\":124}}],\"ms\":3.69,\"result\":{\"candidates\":124}}],\"ms\":14.38,\"result\":{\"paged\":2000}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2000,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":30.77,\"result\":{\"total\":2592,\"contains\":2000}}]}"
+          "valueString": "{\"totalMs\":30.87,\"sqlCount\":4,\"sqlMs\":28.8,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":\"glucose\",\"offset\":0,\"count\":2000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":1842,\"ms\":10.39,\"label\":\"countForIR\"}],\"ms\":10.44,\"result\":{\"count\":1842}}],\"ms\":10.46,\"result\":{\"count\":1842}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1 AND _cnt.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid JOIN concept c2 ON c2.co…\",\"params\":{\"_cnt_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1},\"rows\":461,\"ms\":5.43,\"label\":\"countForIR\"}],\"ms\":5.46,\"result\":{\"count\":461}}],\"ms\":5.47,\"result\":{\"count\":461}},{\"name\":\"pagination\",\"args\":{\"total\":2303,\"offset\":0,\"count\":2000,\"systems\":2},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1842},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.03,\"prepMs\":0.1,\"execMs\":9.39},\"t\":26.42}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":1842},\"rows\":1842,\"ms\":9.39,\"label\":\"executeIR\"}],\"ms\":9.81,\"result\":{\"candidates\":1842}}],\"ms\":9.83,\"result\":{\"candidates\":1842}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":158},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.02,\"prepMs\":0.1,\"execMs\":3.59},\"t\":30.47}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHERE c2.cs_id = @_searchCsId AND c2.active = 1 AND f2.term MATCH @_searchMatch UNION SELECT d2.concept_id FROM search_fts_designation f2 JOIN designation d2 ON d2.designation_id = f2.rowid …\",\"params\":{\"_x_csId\":1,\"_searchMatch\":\"\\\"glucose\\\"\",\"_searchCsId\":1,\"_limit\":158},\"rows\":158,\"ms\":3.59,\"label\":\"executeIR\"}],\"ms\":3.74,\"result\":{\"candidates\":158}}],\"ms\":3.76,\"result\":{\"candidates\":158}}],\"ms\":13.65,\"result\":{\"paged\":2000}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2000,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":30.8,\"result\":{\"total\":2303,\"contains\":2000}}]}"
         }
       ]
     }

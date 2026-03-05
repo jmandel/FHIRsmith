@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#118 multi-system: gender + US states union</h1>
-  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=2ms</div>
+  <div class="meta">Category: Phase 2 · Median perf: Legacy=2ms | IR=1ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -38,14 +38,14 @@
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 4ms capture call · response: 200 OK</p>
+    <p class="meta-mini">capture: 3ms capture call · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -90,7 +90,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "url": "http://localhost:8096/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -150,7 +150,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.08,
+  "totalMs": 0.9,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -174,9 +174,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 1.06,
+      "ms": 0.88,
       "result": {
-        "ms": 1.05,
+        "ms": 0.88,
         "total": 66,
         "returned": 66
       }
@@ -189,7 +189,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.45,
+  "totalMs": 0.61,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -210,7 +210,7 @@ optimized-ir:
             "system": "http://hl7.org/fhir/administrative-gender"
           },
           "children": [],
-          "ms": 0.06,
+          "ms": 0.03,
           "result": {
             "count": 4
           }
@@ -221,7 +221,7 @@ optimized-ir:
             "system": "https://www.usps.com/"
           },
           "children": [],
-          "ms": 0.51,
+          "ms": 0.2,
           "result": {
             "count": 62
           }
@@ -242,7 +242,7 @@ optimized-ir:
                 "sysCount": 4
               },
               "children": [],
-              "ms": 0.05,
+              "ms": 0.02,
               "result": {
                 "candidates": 4
               }
@@ -254,13 +254,13 @@ optimized-ir:
                 "sysCount": 62
               },
               "children": [],
-              "ms": 0.54,
+              "ms": 0.2,
               "result": {
                 "candidates": 62
               }
             }
           ],
-          "ms": 0.61,
+          "ms": 0.23,
           "result": {
             "paged": 66
           }
@@ -275,7 +275,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 1.41,
+      "ms": 0.58,
       "result": {
         "total": 66,
         "contains": 66
@@ -297,10 +297,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "5621",
+    "content-length": "5620",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"15f5-9tsBwqys4T/0P+Y5BuLmRThyOc8\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"15f4-DKomfCXHNhl+K2rO741nwT7L/70\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1087"
@@ -308,8 +308,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.358Z",
-      "identifier": "urn:uuid:ffee8aa2-155f-4faf-8e37-f3172ed0d39d",
+      "timestamp": "2026-03-05T02:43:50.043Z",
+      "identifier": "urn:uuid:572808b9-7ebd-4d95-a0b0-b997a4a6e14e",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -660,7 +660,7 @@ optimized-ir:
       "extension": [
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.08,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.06,\"result\":{\"ms\":1.05,\"total\":66,\"returned\":66}}]}"
+          "valueString": "{\"totalMs\":0.9,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.88,\"result\":{\"ms\":0.88,\"total\":66,\"returned\":66}}]}"
         }
       ]
     }
@@ -680,10 +680,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "6544",
+    "content-length": "6542",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 00:47:24 GMT",
-    "etag": "W/\"1990-YKozUaHJhYlX1nixts5DZPj9s0o\"",
+    "date": "Thu, 05 Mar 2026 02:43:50 GMT",
+    "etag": "W/\"198e-DB8HUPAF4zkM3TuG/kY2IvSGBfk\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-1088"
@@ -691,8 +691,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T00:47:24.362Z",
-      "identifier": "urn:uuid:1cb64dc1-5c16-4d4c-98fe-83becece5823",
+      "timestamp": "2026-03-05T02:43:50.045Z",
+      "identifier": "urn:uuid:cda0a4d6-709d-4d6b-8e77-fa839f25e1c6",
       "total": 66,
       "contains": [
         {
@@ -1043,7 +1043,7 @@ optimized-ir:
         },
         {
           "url": "http://fhirsmith.org/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.45,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.06,\"result\":{\"count\":4}},{\"name\":\"countForIR\",\"args\":{\"system\":\"https://www.usps.com/\"},\"children\":[],\"ms\":0.51,\"result\":{\"count\":62}},{\"name\":\"pagination\",\"args\":{\"total\":66,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":4}},{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":62},\"children\":[],\"ms\":0.54,\"result\":{\"candidates\":62}}],\"ms\":0.61,\"result\":{\"paged\":66}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":66,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.41,\"result\":{\"total\":66,\"contains\":66}}]}"
+          "valueString": "{\"totalMs\":0.61,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.03,\"result\":{\"count\":4}},{\"name\":\"countForIR\",\"args\":{\"system\":\"https://www.usps.com/\"},\"children\":[],\"ms\":0.2,\"result\":{\"count\":62}},{\"name\":\"pagination\",\"args\":{\"total\":66,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":4}},{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":62},\"children\":[],\"ms\":0.2,\"result\":{\"candidates\":62}}],\"ms\":0.23,\"result\":{\"paged\":66}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":66,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.58,\"result\":{\"total\":66,\"contains\":66}}]}"
         }
       ]
     }
