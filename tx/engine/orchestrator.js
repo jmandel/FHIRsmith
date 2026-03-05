@@ -154,12 +154,24 @@ function renderIRNodeLines(node, depth = 0, out = []) {
   }
 }
 
-function renderIRPlanText(root, systemsMap) {
+function renderIRPlanText(root, systemsMap, runtime = {}) {
   const systems = [...(systemsMap?.entries?.() || [])]
     .map(([, s]) => `${s.system}${s.version ? `|${s.version}` : ''}`)
     .sort();
   const lines = [];
   lines.push(`systems: ${systems.length > 0 ? systems.join(', ') : '(none)'}`);
+  lines.push('runtime-constraints:');
+  const runtimeLines = [];
+  if (runtime?.text) runtimeLines.push(`text-filter: ${JSON.stringify(runtime.text)}`);
+  if (runtime?.activeOnly) runtimeLines.push('active-only: true');
+  if (Number.isInteger(runtime?.offset) || Number.isInteger(runtime?.count)) {
+    const off = Number.isInteger(runtime?.offset) ? runtime.offset : 0;
+    const cnt = Number.isInteger(runtime?.count) ? runtime.count : -1;
+    runtimeLines.push(`pagination: offset=${off} count=${cnt}`);
+  }
+  if (runtime?.count === 0) runtimeLines.push('total-only: true');
+  if (runtimeLines.length === 0) runtimeLines.push('(none)');
+  for (const line of runtimeLines) lines.push(`  ${line}`);
   lines.push('optimized-ir:');
   renderIRNodeLines(root, 1, lines);
   return lines.join('\n');
@@ -310,7 +322,12 @@ async function expandViaIR(vsJson, opts = {}) {
 
   // 4. Collect systems and partition
   const systems = collectSystems(optimizedIR);
-  const planText = debugPlan ? renderIRPlanText(optimizedIR, systems) : null;
+  const planText = debugPlan ? renderIRPlanText(optimizedIR, systems, {
+    text,
+    activeOnly,
+    offset,
+    count,
+  }) : null;
 
   if (systems.size === 0) {
     return {

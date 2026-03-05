@@ -84,6 +84,38 @@ describe('expandViaIR trivial empties', () => {
   });
 });
 
+describe('expandViaIR debug plan text', () => {
+  test('includes request-time text filter in runtime constraints', async () => {
+    const mockProvider = {
+      version: () => null,
+      executeIR: async () => ({ candidates: [], unclosed: null }),
+      countForIR: async () => 0,
+    };
+    const findProviderMock = async (system) => (
+      system === 'http://snomed.info/sct' ? mockProvider : null
+    );
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:whole-system-with-text',
+      compose: { include: [{ system: 'http://snomed.info/sct' }] },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider: findProviderMock,
+      text: 'diabetes',
+      offset: 0,
+      count: 2000,
+      debugPlan: true,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.debug?.planText).toContain('runtime-constraints:');
+    expect(result.debug?.planText).toContain('text-filter: "diabetes"');
+    expect(result.debug?.planText).toContain('pagination: offset=0 count=2000');
+    expect(result.debug?.planText).toContain('selector whole http://snomed.info/sct');
+  });
+});
+
 describeIfDBs('expandViaIR', () => {
   beforeAll(async () => {
     sctFactory = new SqliteV0FactoryProvider(i18n, SNOMED_DB);
