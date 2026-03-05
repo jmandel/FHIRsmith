@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#89 Bulk locate handles more than 50 unique concepts</h1>
-  <div class="meta">Category: Composition Semantics · Median perf: Legacy=5ms | IR=2ms</div>
+  <div class="meta">Category: Composition Semantics · Median perf: Legacy=7ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -35,11 +35,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 6ms capture wall · trace: 4.35ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 7ms capture wall · trace: 5.5ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 6ms capture wall · trace: 1.14ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 7ms capture wall · trace: 1.59ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -517,7 +517,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 4.35,
+  "totalMs": 5.5,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -541,9 +541,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 4.33,
+      "ms": 5.47,
       "result": {
-        "ms": 4.33,
+        "ms": 5.46,
         "total": 60,
         "returned": 60
       }
@@ -556,9 +556,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.14,
+  "totalMs": 1.59,
   "sqlCount": 1,
-  "sqlMs": 0.36,
+  "sqlMs": 0.45,
   "counters": {},
   "spans": [
     {
@@ -578,7 +578,7 @@ optimized-ir:
             "system": "http://snomed.info/sct",
             "count": 60
           },
-          "t": 0.56
+          "t": 0.84
         },
         {
           "name": "pagination",
@@ -607,11 +607,11 @@ optimized-ir:
                       "message": "executeIR:breakdown",
                       "data": {
                         "hintsMs": 0,
-                        "buildMs": 0.03,
-                        "prepMs": 0.07,
-                        "execMs": 0.36
+                        "buildMs": 0.05,
+                        "prepMs": 0.1,
+                        "execMs": 0.45
                       },
-                      "t": 1.06
+                      "t": 1.49
                     }
                   ],
                   "sql": [
@@ -633,17 +633,17 @@ optimized-ir:
                         "_more": 50
                       },
                       "rows": 60,
-                      "ms": 0.36,
+                      "ms": 0.45,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.5,
+                  "ms": 0.64,
                   "result": {
                     "candidates": 60
                   }
                 }
               ],
-              "ms": 0.51,
+              "ms": 0.65,
               "result": {
                 "candidates": 60
               }
@@ -656,10 +656,10 @@ optimized-ir:
                 "returned": 60,
                 "total": 60
               },
-              "t": 1.09
+              "t": 1.53
             }
           ],
-          "ms": 0.52,
+          "ms": 0.67,
           "result": {
             "paged": 60
           }
@@ -674,7 +674,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 1.1,
+      "ms": 1.53,
       "result": {
         "total": 60,
         "contains": 60
@@ -696,19 +696,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "7777",
+    "content-length": "7776",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:30 GMT",
-    "etag": "W/\"1e61-vypxtupOarvmkNrsWQdK6qzjB7E\"",
+    "date": "Thu, 05 Mar 2026 14:41:39 GMT",
+    "etag": "W/\"1e60-slSRgrr38SzSYZk0bV2BqhDauPQ\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-812"
+    "x-request-id": "tx-814"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:30.762Z",
-      "identifier": "urn:uuid:adece573-c329-45d7-9d78-8bcad0d72c39",
+      "timestamp": "2026-03-05T14:41:39.088Z",
+      "identifier": "urn:uuid:a401c5c8-3a33-4a5d-8128-e73b23a0fc06",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -1029,7 +1029,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":4.35,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":200,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":4.33,\"result\":{\"ms\":4.33,\"total\":60,\"returned\":60}}]}"
+          "valueString": "{\"totalMs\":5.5,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":200,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":5.47,\"result\":{\"ms\":5.46,\"total\":60,\"returned\":60}}]}"
         }
       ]
     }
@@ -1049,19 +1049,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "9749",
+    "content-length": "9750",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:30 GMT",
-    "etag": "W/\"2615-PAMJAPplxtBwGrn2BCfA4DhhiV8\"",
+    "date": "Thu, 05 Mar 2026 14:41:39 GMT",
+    "etag": "W/\"2616-kmakWCdpngFUsPnT3hRF6kM9yjA\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-813"
+    "x-request-id": "tx-815"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:30.772Z",
-      "identifier": "urn:uuid:59128f9f-937d-4fb5-9efa-a446fb6e586a",
+      "timestamp": "2026-03-05T14:41:39.101Z",
+      "identifier": "urn:uuid:be961a1a-8ba6-40eb-b913-2bea6feb73aa",
       "total": 60,
       "contains": [
         {
@@ -1382,7 +1382,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.14,\"sqlCount\":1,\"sqlMs\":0.36,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":200},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":60},\"t\":0.56},{\"name\":\"pagination\",\"args\":{\"total\":60,\"offset\":0,\"count\":200,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":200},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.03,\"prepMs\":0.07,\"execMs\":0.36},\"t\":1.06}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0,@_x_c1,@_x_c2,@_x_c3,@_x_c4,@_x_c5,@_x_c6,@_x_c7,@_x_c8,@_x_c9,@_x_c10,@_x_c11,@_x_c12,@_x_c13,@_x_c14,@_x_c15,@_x_c16,@_x_c17,@_x_c18,@_x_c19,@_x_c20,@_x_c21,@_x_c22,@_x_c23,@_x_c24,@_x_c25,@_x_c26,@_x_c27,@_x_c28,@_x_c29,@_x_c30,@_x_c31,@_x_c32,@_x_c33,@_x_c34,@_x_c35,@_x_c36,@_x_c37,@_x_c38,@_…\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"105401000119101\",\"_x_c1\":\"106281000119103\",\"_x_c2\":\"10753491000119101\",\"_x_c3\":\"10754881000119104\",\"_x_c4\":\"111307005\",\"_x_c5\":\"1142044000\",\"_x_c6\":\"11530004\",\"_x_c7\":\"11687002\",\"_x_c8\":\"1197592001\",\"_x_c9\":\"1217044000\",\"_x_c10\":\"1217068008\",\"_more\":50},\"rows\":60,\"ms\":0.36,\"label\":\"executeIR\"}],\"ms\":0.5,\"result\":{\"candidates\":60}}],\"ms\":0.51,\"result\":{\"candidates\":60}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":60,\"total\":60},\"t\":1.09}],\"ms\":0.52,\"result\":{\"paged\":60}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":60,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.1,\"result\":{\"total\":60,\"contains\":60}}]}"
+          "valueString": "{\"totalMs\":1.59,\"sqlCount\":1,\"sqlMs\":0.45,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":200},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":60},\"t\":0.84},{\"name\":\"pagination\",\"args\":{\"total\":60,\"offset\":0,\"count\":200,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":200},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.05,\"prepMs\":0.1,\"execMs\":0.45},\"t\":1.49}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0,@_x_c1,@_x_c2,@_x_c3,@_x_c4,@_x_c5,@_x_c6,@_x_c7,@_x_c8,@_x_c9,@_x_c10,@_x_c11,@_x_c12,@_x_c13,@_x_c14,@_x_c15,@_x_c16,@_x_c17,@_x_c18,@_x_c19,@_x_c20,@_x_c21,@_x_c22,@_x_c23,@_x_c24,@_x_c25,@_x_c26,@_x_c27,@_x_c28,@_x_c29,@_x_c30,@_x_c31,@_x_c32,@_x_c33,@_x_c34,@_x_c35,@_x_c36,@_x_c37,@_x_c38,@_…\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"105401000119101\",\"_x_c1\":\"106281000119103\",\"_x_c2\":\"10753491000119101\",\"_x_c3\":\"10754881000119104\",\"_x_c4\":\"111307005\",\"_x_c5\":\"1142044000\",\"_x_c6\":\"11530004\",\"_x_c7\":\"11687002\",\"_x_c8\":\"1197592001\",\"_x_c9\":\"1217044000\",\"_x_c10\":\"1217068008\",\"_more\":50},\"rows\":60,\"ms\":0.45,\"label\":\"executeIR\"}],\"ms\":0.64,\"result\":{\"candidates\":60}}],\"ms\":0.65,\"result\":{\"candidates\":60}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":60,\"total\":60},\"t\":1.53}],\"ms\":0.67,\"result\":{\"paged\":60}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":60,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.53,\"result\":{\"total\":60,\"contains\":60}}]}"
         }
       ]
     }

@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#29 Mixed SQLite v0 + single-system peer: gender (4) + SNOMED enum (1) = 5</h1>
-  <div class="meta">Category: Multi-System Composition · Median perf: Legacy=2ms | IR=2ms</div>
+  <div class="meta">Category: Multi-System Composition · Median perf: Legacy=2ms | IR=1ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -35,11 +35,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 2ms capture wall · trace: 0.79ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 1.13ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 1ms capture wall · trace: 0.52ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 0.79ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -163,7 +163,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.79,
+  "totalMs": 1.13,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -176,7 +176,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0
+      "t": 0.01
     },
     {
       "name": "legacy-expand",
@@ -187,9 +187,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.78,
+      "ms": 1.11,
       "result": {
-        "ms": 0.77,
+        "ms": 1.11,
         "total": 5,
         "returned": 5
       }
@@ -202,9 +202,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.52,
+  "totalMs": 0.79,
   "sqlCount": 1,
-  "sqlMs": 0.05,
+  "sqlMs": 0.07,
   "counters": {},
   "spans": [
     {
@@ -224,7 +224,7 @@ optimized-ir:
             "system": "http://snomed.info/sct",
             "count": 1
           },
-          "t": 0.31
+          "t": 0.51
         },
         {
           "name": "countForIR",
@@ -232,7 +232,7 @@ optimized-ir:
             "system": "http://hl7.org/fhir/administrative-gender"
           },
           "children": [],
-          "ms": 0.03,
+          "ms": 0.04,
           "result": {
             "count": 4
           }
@@ -253,7 +253,7 @@ optimized-ir:
                 "sysCount": 4
               },
               "children": [],
-              "ms": 0.02,
+              "ms": 0.04,
               "result": {
                 "candidates": 4
               }
@@ -277,10 +277,10 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.01,
-                        "prepMs": 0.03,
-                        "execMs": 0.05
+                        "prepMs": 0.04,
+                        "execMs": 0.07
                       },
-                      "t": 0.49
+                      "t": 0.74
                     }
                   ],
                   "sql": [
@@ -292,23 +292,23 @@ optimized-ir:
                         "_limit": 1
                       },
                       "rows": 1,
-                      "ms": 0.05,
+                      "ms": 0.07,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.1,
+                  "ms": 0.13,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.1,
+              "ms": 0.14,
               "result": {
                 "candidates": 1
               }
             }
           ],
-          "ms": 0.14,
+          "ms": 0.19,
           "result": {
             "paged": 5
           }
@@ -323,7 +323,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.5,
+      "ms": 0.75,
       "result": {
         "total": 5,
         "contains": 5
@@ -345,10 +345,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1402",
+    "content-length": "1405",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:22 GMT",
-    "etag": "W/\"57a-kxxuNiFN01zw8mKIHx7Nfo949LE\"",
+    "date": "Thu, 05 Mar 2026 14:41:29 GMT",
+    "etag": "W/\"57d-xvMxFU6hRqDyEqQirdgJqusbkDM\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-264"
@@ -356,8 +356,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:22.500Z",
-      "identifier": "urn:uuid:f9484452-84e1-4916-8b9d-4d6546e0cb3d",
+      "timestamp": "2026-03-05T14:41:29.371Z",
+      "identifier": "urn:uuid:ad54b357-7779-4bab-83a5-bb9498647490",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -403,7 +403,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.79,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.78,\"result\":{\"ms\":0.77,\"total\":5,\"returned\":5}}]}"
+          "valueString": "{\"totalMs\":1.13,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.11,\"result\":{\"ms\":1.11,\"total\":5,\"returned\":5}}]}"
         }
       ]
     }
@@ -423,10 +423,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "3078",
+    "content-length": "3081",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:22 GMT",
-    "etag": "W/\"c06-yhUbewdLFEcIDa4RiswVdaPuttI\"",
+    "date": "Thu, 05 Mar 2026 14:41:29 GMT",
+    "etag": "W/\"c09-bEOiKcz32aVmsntMTRdrkbgQ0As\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-265"
@@ -434,8 +434,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:22.502Z",
-      "identifier": "urn:uuid:800b9795-d089-4a2f-ad23-70746cf37aca",
+      "timestamp": "2026-03-05T14:41:29.374Z",
+      "identifier": "urn:uuid:5d68d0b7-8c92-4a09-876a-ad23e97dd6c1",
       "total": 5,
       "contains": [
         {
@@ -481,7 +481,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.52,\"sqlCount\":1,\"sqlMs\":0.05,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":0.31},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.03,\"result\":{\"count\":4}},{\"name\":\"pagination\",\"args\":{\"total\":5,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":4}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.03,\"execMs\":0.05},\"t\":0.49}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.1,\"result\":{\"candidates\":1}}],\"ms\":0.1,\"result\":{\"candidates\":1}}],\"ms\":0.14,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.5,\"result\":{\"total\":5,\"contains\":5}}]}"
+          "valueString": "{\"totalMs\":0.79,\"sqlCount\":1,\"sqlMs\":0.07,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":0.51},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.04,\"result\":{\"count\":4}},{\"name\":\"pagination\",\"args\":{\"total\":5,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":4}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.04,\"execMs\":0.07},\"t\":0.74}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1},\"rows\":1,\"ms\":0.07,\"label\":\"executeIR\"}],\"ms\":0.13,\"result\":{\"candidates\":1}}],\"ms\":0.14,\"result\":{\"candidates\":1}}],\"ms\":0.19,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.75,\"result\":{\"total\":5,\"contains\":5}}]}"
         }
       ]
     }

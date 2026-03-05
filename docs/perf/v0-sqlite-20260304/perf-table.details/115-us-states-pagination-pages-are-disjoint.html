@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#115 US states pagination pages are disjoint</h1>
-  <div class="meta">Category: Pagination · Median perf: Legacy=2ms | IR=1ms</div>
+  <div class="meta">Category: Pagination · Median perf: Legacy=2ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -35,11 +35,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 2ms capture wall · trace: 0.81ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 1.01ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 1ms capture wall · trace: 0.33ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 1ms capture wall · trace: 0.44ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -161,7 +161,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.81,
+  "totalMs": 1.01,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -174,7 +174,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0
+      "t": 0.01
     },
     {
       "name": "legacy-expand",
@@ -185,9 +185,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.8,
+      "ms": 0.99,
       "result": {
-        "ms": 0.79,
+        "ms": 0.98,
         "total": 62,
         "returned": 2
       }
@@ -200,7 +200,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.33,
+  "totalMs": 0.44,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -231,7 +231,7 @@ optimized-ir:
                 "sysCount": 30
               },
               "children": [],
-              "ms": 0.22,
+              "ms": 0.29,
               "result": {
                 "candidates": 2
               }
@@ -244,10 +244,10 @@ optimized-ir:
                 "returned": 2,
                 "total": 62
               },
-              "t": 0.3
+              "t": 0.4
             }
           ],
-          "ms": 0.23,
+          "ms": 0.3,
           "result": {
             "paged": 2
           }
@@ -262,7 +262,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.3,
+      "ms": 0.4,
       "result": {
         "total": 62,
         "contains": 2
@@ -284,19 +284,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1075",
+    "content-length": "1079",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:39 GMT",
-    "etag": "W/\"433-Udusg7xA+qWZawzEWEzMbxyMYR0\"",
+    "date": "Thu, 05 Mar 2026 14:41:49 GMT",
+    "etag": "W/\"437-KTnkfOqoD0WCTVClXTwNnoCWkDo\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-1060"
+    "x-request-id": "tx-1062"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:39.908Z",
-      "identifier": "urn:uuid:e80203b8-6b76-4b1b-91b3-d5a65fd5f5e0",
+      "timestamp": "2026-03-05T14:41:49.815Z",
+      "identifier": "urn:uuid:aea7de52-15fb-4162-aaf5-06a1875d3d5c",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -332,7 +332,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.81,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":30,\"offset\":60,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.8,\"result\":{\"ms\":0.79,\"total\":62,\"returned\":2}}]}"
+          "valueString": "{\"totalMs\":1.01,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":30,\"offset\":60,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.99,\"result\":{\"ms\":0.98,\"total\":62,\"returned\":2}}]}"
         }
       ]
     }
@@ -352,19 +352,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "1601",
+    "content-length": "1600",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:39 GMT",
-    "etag": "W/\"641-n4y7uvYs01zAwolFIr+ZAjmRXGQ\"",
+    "date": "Thu, 05 Mar 2026 14:41:49 GMT",
+    "etag": "W/\"640-jfzApw6b65jeCWzFFzh9eOYKndY\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-1061"
+    "x-request-id": "tx-1063"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:39.910Z",
-      "identifier": "urn:uuid:cdddc2ab-bd94-43d7-bd7f-47b2b419ffc0",
+      "timestamp": "2026-03-05T14:41:49.817Z",
+      "identifier": "urn:uuid:37f3afad-e8d5-4bc0-bf14-7a1e9750ea49",
       "total": 62,
       "offset": 60,
       "contains": [
@@ -400,7 +400,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.33,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":60,\"count\":30},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":60,\"count\":30,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":60,\"sysCount\":30},\"children\":[],\"ms\":0.22,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":60,\"returned\":2,\"total\":62},\"t\":0.3}],\"ms\":0.23,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.3,\"result\":{\"total\":62,\"contains\":2}}]}"
+          "valueString": "{\"totalMs\":0.44,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":60,\"count\":30},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":60,\"count\":30,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":60,\"sysCount\":30},\"children\":[],\"ms\":0.29,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":60,\"returned\":2,\"total\":62},\"t\":0.4}],\"ms\":0.3,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.4,\"result\":{\"total\":62,\"contains\":2}}]}"
         }
       ]
     }

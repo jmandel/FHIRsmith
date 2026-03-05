@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#151 RxNorm TTY=SCD uses literal source</h1>
-  <div class="meta">Category: Filter Semantics · Median perf: Legacy=317ms | IR=15ms</div>
+  <div class="meta">Category: Filter Semantics · Median perf: Legacy=345ms | IR=16ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -35,11 +35,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 312ms capture wall · trace: 310.61ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 331ms capture wall · trace: 328.79ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 16ms capture wall · trace: 14.08ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 17ms capture wall · trace: 15.05ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -167,9 +167,9 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 310.61,
+  "totalMs": 328.79,
   "sqlCount": 1,
-  "sqlMs": 210.39,
+  "sqlMs": 220.76,
   "counters": {},
   "spans": [
     {
@@ -206,7 +206,7 @@ optimized-ir:
                 "filters": 1,
                 "after": 17595
               },
-              "t": 250.15
+              "t": 264.16
             }
           ],
           "sql": [
@@ -216,19 +216,19 @@ optimized-ir:
                 "cs": 1
               },
               "rows": 227845,
-              "ms": 210.39,
+              "ms": 220.76,
               "label": "legacy:executeFilters"
             }
           ],
-          "ms": 249.45,
+          "ms": 263.37,
           "result": {
             "rows": 17595
           }
         }
       ],
-      "ms": 310.58,
+      "ms": 328.76,
       "result": {
-        "ms": 310.56,
+        "ms": 328.74,
         "returned": 5
       }
     }
@@ -240,9 +240,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 14.08,
+  "totalMs": 15.05,
   "sqlCount": 2,
-  "sqlMs": 13.34,
+  "sqlMs": 14.26,
   "counters": {},
   "spans": [
     {
@@ -282,11 +282,11 @@ optimized-ir:
                       "message": "executeIR:breakdown",
                       "data": {
                         "hintsMs": 0,
-                        "buildMs": 0.03,
+                        "buildMs": 0.04,
                         "prepMs": 0.06,
-                        "execMs": 7.47
+                        "execMs": 7.98
                       },
-                      "t": 8.05
+                      "t": 8.59
                     }
                   ],
                   "sql": [
@@ -299,17 +299,17 @@ optimized-ir:
                         "_limit": 5
                       },
                       "rows": 5,
-                      "ms": 7.47,
+                      "ms": 7.98,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 7.59,
+                  "ms": 8.11,
                   "result": {
                     "candidates": 5
                   }
                 }
               ],
-              "ms": 7.61,
+              "ms": 8.13,
               "result": {
                 "candidates": 5
               }
@@ -335,23 +335,23 @@ optimized-ir:
                         "_cntf0_vl0": "SCD"
                       },
                       "rows": 17595,
-                      "ms": 5.87,
+                      "ms": 6.28,
                       "label": "countForIR"
                     }
                   ],
-                  "ms": 5.91,
+                  "ms": 6.32,
                   "result": {
                     "count": 17595
                   }
                 }
               ],
-              "ms": 5.92,
+              "ms": 6.33,
               "result": {
                 "count": 17595
               }
             }
           ],
-          "ms": 13.55,
+          "ms": 14.48,
           "result": {
             "paged": 5
           }
@@ -363,10 +363,10 @@ optimized-ir:
             "includeDesignations": false
           },
           "children": [],
-          "ms": 0.01
+          "ms": 0
         }
       ],
-      "ms": 14.01,
+      "ms": 14.96,
       "result": {
         "total": 17595,
         "contains": 5
@@ -388,19 +388,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "2230",
+    "content-length": "2186",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:56 GMT",
-    "etag": "W/\"8b6-fNsiu048NVsw6l3OgR2ivj7QugQ\"",
+    "date": "Thu, 05 Mar 2026 14:42:08 GMT",
+    "etag": "W/\"88a-ERskrTYEaDwYsJ1/9p+X+AEwgDw\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-1363"
+    "x-request-id": "tx-1365"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:56.331Z",
-      "identifier": "urn:uuid:effc3a34-32b7-4de7-8a45-47b8afa4eebb",
+      "timestamp": "2026-03-05T14:42:08.113Z",
+      "identifier": "urn:uuid:47498a0f-4197-44fc-973d-bc85a6834e04",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -412,7 +412,7 @@ optimized-ir:
         },
         {
           "name": "used-codesystem",
-          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
         }
       ],
       "contains": [
@@ -445,7 +445,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":310.61,\"sqlCount\":1,\"sqlMs\":210.39,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":17595},\"t\":250.15}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":227845,\"ms\":210.39,\"label\":\"legacy:executeFilters\"}],\"ms\":249.45,\"result\":{\"rows\":17595}}],\"ms\":310.58,\"result\":{\"ms\":310.56,\"returned\":5}}]}"
+          "valueString": "{\"totalMs\":328.79,\"sqlCount\":1,\"sqlMs\":220.76,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":17595},\"t\":264.16}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":227845,\"ms\":220.76,\"label\":\"legacy:executeFilters\"}],\"ms\":263.37,\"result\":{\"rows\":17595}}],\"ms\":328.76,\"result\":{\"ms\":328.74,\"returned\":5}}]}"
         }
       ]
     }
@@ -465,19 +465,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "3819",
+    "content-length": "3772",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:56 GMT",
-    "etag": "W/\"eeb-lAcX/7/waLbmavXWqeI+rtHEaAw\"",
+    "date": "Thu, 05 Mar 2026 14:42:08 GMT",
+    "etag": "W/\"ebc-2tXpJjXb8h4+D8WzzBlVAQ0+Tj4\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-1364"
+    "x-request-id": "tx-1366"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:56.658Z",
-      "identifier": "urn:uuid:ce258809-6181-43d7-8c90-ce0040ac52e8",
+      "timestamp": "2026-03-05T14:42:08.458Z",
+      "identifier": "urn:uuid:6dc60c72-5340-4df0-acbd-d2c269e08ac3",
       "total": 17595,
       "contains": [
         {
@@ -513,7 +513,7 @@ optimized-ir:
         },
         {
           "name": "used-codesystem",
-          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
         }
       ],
       "extension": [
@@ -523,7 +523,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":14.08,\"sqlCount\":2,\"sqlMs\":13.34,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.03,\"prepMs\":0.06,\"execMs\":7.47},\"t\":8.05}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":2,\"_xf0_vl0\":\"SCD\",\"_limit\":5},\"rows\":5,\"ms\":7.47,\"label\":\"executeIR\"}],\"ms\":7.59,\"result\":{\"candidates\":5}}],\"ms\":7.61,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":2,\"_cntf0_vl0\":\"SCD\"},\"rows\":17595,\"ms\":5.87,\"label\":\"countForIR\"}],\"ms\":5.91,\"result\":{\"count\":17595}}],\"ms\":5.92,\"result\":{\"count\":17595}}],\"ms\":13.55,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":14.01,\"result\":{\"total\":17595,\"contains\":5}}]}"
+          "valueString": "{\"totalMs\":15.05,\"sqlCount\":2,\"sqlMs\":14.26,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.04,\"prepMs\":0.06,\"execMs\":7.98},\"t\":8.59}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_xf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_xf0_vl0))) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":2,\"_xf0_vl0\":\"SCD\",\"_limit\":5},\"rows\":5,\"ms\":7.98,\"label\":\"executeIR\"}],\"ms\":8.11,\"result\":{\"candidates\":5}}],\"ms\":8.13,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_cnt_csId AND c.concept_id IN (SELECT source_concept_id FROM concept_literal WHERE property_id = @_cntf0_prop AND active = 1 AND value_text COLLATE NOCASE IN (@_cntf0_vl0))) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":2,\"_cntf0_vl0\":\"SCD\"},\"rows\":17595,\"ms\":6.28,\"label\":\"countForIR\"}],\"ms\":6.32,\"result\":{\"count\":17595}}],\"ms\":6.33,\"result\":{\"count\":17595}}],\"ms\":14.48,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":14.96,\"result\":{\"total\":17595,\"contains\":5}}]}"
         }
       ]
     }

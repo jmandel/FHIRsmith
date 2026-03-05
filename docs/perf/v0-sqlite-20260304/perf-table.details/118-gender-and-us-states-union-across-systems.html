@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#118 Gender and US states union across systems</h1>
-  <div class="meta">Category: Multi-System Composition · Median perf: Legacy=2ms | IR=1ms</div>
+  <div class="meta">Category: Multi-System Composition · Median perf: Legacy=2ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -35,11 +35,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 2ms capture wall · trace: 1.04ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 1.23ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 2ms capture wall · trace: 0.66ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 4ms capture wall · trace: 1.3ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -153,7 +153,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 1.04,
+  "totalMs": 1.23,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -166,7 +166,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0
+      "t": 0.01
     },
     {
       "name": "legacy-expand",
@@ -177,9 +177,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 1.02,
+      "ms": 1.22,
       "result": {
-        "ms": 1.01,
+        "ms": 1.21,
         "total": 66,
         "returned": 66
       }
@@ -192,7 +192,7 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.66,
+  "totalMs": 1.3,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -213,7 +213,7 @@ optimized-ir:
             "system": "http://hl7.org/fhir/administrative-gender"
           },
           "children": [],
-          "ms": 0.03,
+          "ms": 0.04,
           "result": {
             "count": 4
           }
@@ -224,7 +224,7 @@ optimized-ir:
             "system": "https://www.usps.com/"
           },
           "children": [],
-          "ms": 0.22,
+          "ms": 0.4,
           "result": {
             "count": 62
           }
@@ -245,7 +245,7 @@ optimized-ir:
                 "sysCount": 4
               },
               "children": [],
-              "ms": 0.02,
+              "ms": 0.06,
               "result": {
                 "candidates": 4
               }
@@ -257,13 +257,13 @@ optimized-ir:
                 "sysCount": 62
               },
               "children": [],
-              "ms": 0.21,
+              "ms": 0.55,
               "result": {
                 "candidates": 62
               }
             }
           ],
-          "ms": 0.24,
+          "ms": 0.62,
           "result": {
             "paged": 66
           }
@@ -278,7 +278,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.63,
+      "ms": 1.25,
       "result": {
         "total": 66,
         "contains": 66
@@ -300,19 +300,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "5646",
+    "content-length": "5649",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:39 GMT",
-    "etag": "W/\"160e-5zCfNaiQ2IFdGIoKP0TrX0rXWYg\"",
+    "date": "Thu, 05 Mar 2026 14:41:49 GMT",
+    "etag": "W/\"1611-y2hTJzB4DD3pNNTzrATOy22Asho\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-1087"
+    "x-request-id": "tx-1089"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:39.954Z",
-      "identifier": "urn:uuid:cde88899-9d50-495d-9a07-a160b215694d",
+      "timestamp": "2026-03-05T14:41:49.865Z",
+      "identifier": "urn:uuid:de426634-421d-45d6-98cf-7e3fbbc7ba4c",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -663,7 +663,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":1.04,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.02,\"result\":{\"ms\":1.01,\"total\":66,\"returned\":66}}]}"
+          "valueString": "{\"totalMs\":1.23,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.22,\"result\":{\"ms\":1.21,\"total\":66,\"returned\":66}}]}"
         }
       ]
     }
@@ -683,19 +683,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "6657",
+    "content-length": "6655",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:39 GMT",
-    "etag": "W/\"1a01-B/2EwLXMwVRGg1PCYV3X1wJa6kE\"",
+    "date": "Thu, 05 Mar 2026 14:41:49 GMT",
+    "etag": "W/\"19ff-8hsoqR1wPOEmQ0hZceIfSsDVq24\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-1088"
+    "x-request-id": "tx-1090"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:39.957Z",
-      "identifier": "urn:uuid:bdcdbdc7-05a8-415c-8a98-0fdd4bbfc31b",
+      "timestamp": "2026-03-05T14:41:49.870Z",
+      "identifier": "urn:uuid:ab7b49f7-7334-41b1-8d16-000f09944d04",
       "total": 66,
       "contains": [
         {
@@ -1046,7 +1046,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.66,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.03,\"result\":{\"count\":4}},{\"name\":\"countForIR\",\"args\":{\"system\":\"https://www.usps.com/\"},\"children\":[],\"ms\":0.22,\"result\":{\"count\":62}},{\"name\":\"pagination\",\"args\":{\"total\":66,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":4}},{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":62},\"children\":[],\"ms\":0.21,\"result\":{\"candidates\":62}}],\"ms\":0.24,\"result\":{\"paged\":66}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":66,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.63,\"result\":{\"total\":66,\"contains\":66}}]}"
+          "valueString": "{\"totalMs\":1.3,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.04,\"result\":{\"count\":4}},{\"name\":\"countForIR\",\"args\":{\"system\":\"https://www.usps.com/\"},\"children\":[],\"ms\":0.4,\"result\":{\"count\":62}},{\"name\":\"pagination\",\"args\":{\"total\":66,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.06,\"result\":{\"candidates\":4}},{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":62},\"children\":[],\"ms\":0.55,\"result\":{\"candidates\":62}}],\"ms\":0.62,\"result\":{\"paged\":66}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":66,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.25,\"result\":{\"total\":66,\"contains\":66}}]}"
         }
       ]
     }

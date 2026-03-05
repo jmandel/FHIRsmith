@@ -1244,7 +1244,30 @@ async function run() {
     const usedCs = findParams(result, 'used-codesystem').map(p => p.valueUri || '');
     const sctEntry = usedCs.find(v => v.startsWith(SYS.SCT));
     assert(sctEntry, 'SNOMED in used-codesystem');
-    assert(sctEntry.includes('|'), `expected version in used-codesystem, got ${sctEntry}`);
+    assert(/^http:\/\/snomed\.info\/sct\|http:\/\/snomed\.info\/sct\/.+\/version\/\d{8}$/.test(sctEntry),
+      `expected SNOMED used-codesystem in system|canonical-version-uri form, got ${sctEntry}`);
+
+    // LOINC uses a numeric/dotted version token (e.g. 2.81).
+    const { result: loincResult } = await expand(vs({
+      system: SYS.LOINC, concept: [{ code: '2160-0' }],
+    }));
+    const loincUsed = findParams(loincResult, 'used-codesystem').map(p => p.valueUri || '');
+    const loincEntry = loincUsed.find(v => v.startsWith(SYS.LOINC));
+    assert(loincEntry, 'LOINC in used-codesystem');
+    const loincVersion = loincEntry.slice((`${SYS.LOINC}|`).length);
+    assert(/^\d+(?:\.\d+)*$/.test(loincVersion),
+      `expected LOINC numeric/dotted version token, got ${loincVersion}`);
+
+    // RxNorm uses a non-URI token version (typically numeric/date-like).
+    const { result: rxResult } = await expand(vs({
+      system: SYS.RXNORM, concept: [{ code: '1191' }],
+    }));
+    const rxUsed = findParams(rxResult, 'used-codesystem').map(p => p.valueUri || '');
+    const rxEntry = rxUsed.find(v => v.startsWith(SYS.RXNORM));
+    assert(rxEntry, 'RxNorm in used-codesystem');
+    const rxVersion = rxEntry.slice((`${SYS.RXNORM}|`).length);
+    assert(/^[0-9][0-9A-Za-z._-]*$/.test(rxVersion),
+      `expected RxNorm token version, got ${rxVersion}`);
   });
 
   // ── vs-import ────────────────────────────────────────────────────────

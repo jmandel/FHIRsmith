@@ -93,6 +93,21 @@ function openV0Database(dbPath) {
   return db;
 }
 
+function sqliteV0VersionToken(meta) {
+  const baseUri = meta?.baseUri || '';
+  const canonicalUri = meta?.canonicalUri || '';
+  if (canonicalUri) {
+    // v0 DBs may store canonical_uri as either "system|version" (LOINC/RxNorm)
+    // or a canonical version URI (SNOMED edition/version URI).
+    const prefix = `${baseUri}|`;
+    if (prefix !== '|' && canonicalUri.startsWith(prefix)) {
+      return canonicalUri.slice(prefix.length);
+    }
+    return canonicalUri;
+  }
+  return meta?.version || null;
+}
+
 function buildRuntimeConfig(rawCfg, system) {
   const cfg = rawCfg || {};
   const searchRaw = cfg['search'] || {};
@@ -179,7 +194,9 @@ class SqliteV0Provider extends BaseCSServices {
   // ── metadata ─────────────────────────────────────────────────────
 
   system()      { return this.#meta.baseUri; }
-  version()     { return this.#meta.canonicalUri; }
+  version() {
+    return sqliteV0VersionToken(this.#meta);
+  }
   name()        { return this.#meta.name || this.#meta.baseUri; }
   description() { return this.#meta.name || ''; }
 
@@ -1407,7 +1424,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
   }
 
   version() {
-    return this._meta?.canonicalUri || null;
+    return sqliteV0VersionToken(this._meta);
   }
 
   name() {

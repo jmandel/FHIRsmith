@@ -34,7 +34,7 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
 
     test('factory metadata', () => {
       expect(factory.system()).toBe('http://snomed.info/sct');
-      expect(factory.version()).toContain('snomed.info/sct');
+      expect(factory.version()).toMatch(/^http:\/\/snomed\.info\/sct\/.+\/version\/\d{8}$/);
       expect(factory.name()).toBe('SNOMED CT International');
     });
 
@@ -177,7 +177,8 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
 
     test('factory metadata', () => {
       expect(factory.system()).toBe('http://loinc.org');
-      expect(factory.version()).toContain('loinc.org');
+      // LOINC version token should be numeric/dotted (e.g. 2.81), not a URI.
+      expect(factory.version()).toMatch(/^\d+(?:\.\d+)*$/);
     });
 
     test('locate and code/display', async () => {

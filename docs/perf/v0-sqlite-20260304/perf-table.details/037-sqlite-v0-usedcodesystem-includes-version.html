@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#37 SQLite v0 usedCodeSystem includes version</h1>
-  <div class="meta">Category: Expansion Metadata · Median perf: Legacy=2ms | IR=1ms</div>
+  <div class="meta">Category: Expansion Metadata · Median perf: Legacy=3ms | IR=1ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -35,11 +35,11 @@
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 1ms capture wall · trace: 0.62ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 4ms capture wall · trace: 2.53ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 1ms capture wall · trace: 0.44ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 0.56ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
@@ -60,10 +60,10 @@
           "compose": {
             "include": [
               {
-                "system": "http://snomed.info/sct",
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
                 "concept": [
                   {
-                    "code": "73211009"
+                    "code": "1191"
                   }
                 ]
               }
@@ -107,10 +107,10 @@
           "compose": {
             "include": [
               {
-                "system": "http://snomed.info/sct",
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
                 "concept": [
                   {
-                    "code": "73211009"
+                    "code": "1191"
                   }
                 ]
               }
@@ -144,18 +144,18 @@
   <section class="cell">
     <details id="ir-plan" open>
       <summary>IR Plan</summary>
-      <pre>systems: http://snomed.info/sct
+      <pre>systems: http://www.nlm.nih.gov/research/umls/rxnorm
 runtime-constraints:
   pagination: offset=0 count=1000
 optimized-ir:
-  selector concept http://snomed.info/sct [1] 73211009</pre>
+  selector concept http://www.nlm.nih.gov/research/umls/rxnorm [1] 1191</pre>
     </details>
   </section>
   <section class="cell">
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.62,
+  "totalMs": 2.53,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -168,7 +168,7 @@ optimized-ir:
         "selected": "legacy",
         "irAttempted": false
       },
-      "t": 0
+      "t": 0.01
     },
     {
       "name": "legacy-expand",
@@ -179,9 +179,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 0.61,
+      "ms": 2.5,
       "result": {
-        "ms": 0.61,
+        "ms": 2.49,
         "total": 1,
         "returned": 1
       }
@@ -194,9 +194,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 0.44,
+  "totalMs": 0.56,
   "sqlCount": 1,
-  "sqlMs": 0.06,
+  "sqlMs": 0.07,
   "counters": {},
   "spans": [
     {
@@ -213,10 +213,10 @@ optimized-ir:
           "name": "note",
           "message": "count:static",
           "data": {
-            "system": "http://snomed.info/sct",
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
             "count": 1
           },
-          "t": 0.27
+          "t": 0.38
         },
         {
           "name": "pagination",
@@ -228,7 +228,7 @@ optimized-ir:
           },
           "children": [
             {
-              "name": "system:http://snomed.info/sct",
+              "name": "system:http://www.nlm.nih.gov/research/umls/rxnorm",
               "args": {
                 "sysOffset": 0,
                 "sysCount": 1000
@@ -237,7 +237,7 @@ optimized-ir:
                 {
                   "name": "executeIR:sql",
                   "args": {
-                    "system": "http://snomed.info/sct"
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
                   },
                   "children": [
                     {
@@ -246,10 +246,10 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.01,
-                        "prepMs": 0.04,
-                        "execMs": 0.06
+                        "prepMs": 0.03,
+                        "execMs": 0.07
                       },
-                      "t": 0.4
+                      "t": 0.51
                     }
                   ],
                   "sql": [
@@ -257,21 +257,21 @@ optimized-ir:
                       "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
                       "params": {
                         "_x_csId": 1,
-                        "_x_c0": "73211009",
+                        "_x_c0": "1191",
                         "_limit": 1000
                       },
                       "rows": 1,
-                      "ms": 0.06,
+                      "ms": 0.07,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.12,
+                  "ms": 0.13,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.13,
+              "ms": 0.14,
               "result": {
                 "candidates": 1
               }
@@ -284,7 +284,7 @@ optimized-ir:
                 "returned": 1,
                 "total": 1
               },
-              "t": 0.41
+              "t": 0.53
             }
           ],
           "ms": 0.14,
@@ -302,7 +302,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 0.42,
+      "ms": 0.53,
       "result": {
         "total": 1,
         "contains": 1
@@ -324,19 +324,19 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "958",
+    "content-length": "938",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:24 GMT",
-    "etag": "W/\"3be-A1p1COnsOnL5279/GjfPfc1ORu4\"",
+    "date": "Thu, 05 Mar 2026 14:41:31 GMT",
+    "etag": "W/\"3aa-2lSDLwGw8cmApV7zWrDBmU9BB3k\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-336"
+    "x-request-id": "tx-338"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:24.066Z",
-      "identifier": "urn:uuid:562b7ef8-dbde-4e5d-a9c1-131d80f98d1d",
+      "timestamp": "2026-03-05T14:41:31.255Z",
+      "identifier": "urn:uuid:35762bd8-8a01-4fbb-9d3f-8325ce9f6d1c",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -344,21 +344,21 @@ optimized-ir:
         },
         {
           "name": "used-codesystem",
-          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
         }
       ],
       "total": 1,
       "contains": [
         {
-          "system": "http://snomed.info/sct",
-          "code": "73211009",
-          "display": "Diabetes mellitus"
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1191",
+          "display": "aspirin"
         }
       ],
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.62,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.61,\"result\":{\"ms\":0.61,\"total\":1,\"returned\":1}}]}"
+          "valueString": "{\"totalMs\":2.53,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":2.5,\"result\":{\"ms\":2.49,\"total\":1,\"returned\":1}}]}"
         }
       ]
     }
@@ -378,41 +378,41 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "2324",
+    "content-length": "2400",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 13:14:24 GMT",
-    "etag": "W/\"914-VVW4KzLKXy5VvOChp7vIQh229eg\"",
+    "date": "Thu, 05 Mar 2026 14:41:31 GMT",
+    "etag": "W/\"960-q3npOOSaWPmyQmB+dj2EdiT8gXE\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
-    "x-request-id": "tx-337"
+    "x-request-id": "tx-339"
   },
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T13:14:24.068Z",
-      "identifier": "urn:uuid:41de9b03-fcb5-4876-96a3-0c4cdf4ca656",
+      "timestamp": "2026-03-05T14:41:31.259Z",
+      "identifier": "urn:uuid:17bf05bb-55b5-415a-ab66-62e2cf2688af",
       "total": 1,
       "contains": [
         {
-          "system": "http://snomed.info/sct",
-          "code": "73211009",
-          "display": "Diabetes mellitus"
+          "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+          "code": "1191",
+          "display": "aspirin"
         }
       ],
       "parameter": [
         {
           "name": "used-codesystem",
-          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+          "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
         }
       ],
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
-          "valueString": "systems: http://snomed.info/sct\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://snomed.info/sct [1] 73211009"
+          "valueString": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://www.nlm.nih.gov/research/umls/rxnorm [1] 1191"
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":0.44,\"sqlCount\":1,\"sqlMs\":0.06,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":0.27},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.04,\"execMs\":0.06},\"t\":0.4}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1000},\"rows\":1,\"ms\":0.06,\"label\":\"executeIR\"}],\"ms\":0.12,\"result\":{\"candidates\":1}}],\"ms\":0.13,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.41}],\"ms\":0.14,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.42,\"result\":{\"total\":1,\"contains\":1}}]}"
+          "valueString": "{\"totalMs\":0.56,\"sqlCount\":1,\"sqlMs\":0.07,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"count\":1},\"t\":0.38},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.03,\"execMs\":0.07},\"t\":0.51}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"1191\",\"_limit\":1000},\"rows\":1,\"ms\":0.07,\"label\":\"executeIR\"}],\"ms\":0.13,\"result\":{\"candidates\":1}}],\"ms\":0.14,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.53}],\"ms\":0.14,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.53,\"result\":{\"total\":1,\"contains\":1}}]}"
         }
       ]
     }
