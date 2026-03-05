@@ -19,7 +19,7 @@
 </style></head><body>
 <header>
   <h1>#28 SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems</h1>
-  <div class="meta">Category: Multi-system · Median perf: Legacy=6ms | IR=3ms</div>
+  <div class="meta">Category: Multi-System Composition · Median perf: Legacy=5ms | IR=2ms</div>
   <div class="links">
     <a href="#legacy-query">Legacy query</a>
     <a href="#legacy-plan">Legacy plan</a>
@@ -29,23 +29,24 @@
     <a href="#ir-plan">IR plan</a>
     <a href="#ir-trace">IR trace</a>
     <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/028-snomed-loinc-rxnorm-enum-3-codes-3-systems.json" target="_blank" rel="noopener">Input payload</a>
   </div>
 </header>
 <main class="grid">
   <section class="engine-card">
     <h3>Legacy Engine (left)</h3>
-    <p class="meta-mini">capture: 8ms capture wall · trace: 6.54ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 5ms capture wall · trace: 3.6ms · response: 200 OK</p>
   </section>
   <section class="engine-card">
     <h3>IR Engine (right)</h3>
-    <p class="meta-mini">capture: 4ms capture wall · trace: 2.14ms · response: 200 OK</p>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 1.24ms · response: 200 OK</p>
   </section>
   <section class="cell">
     <details id="legacy-query" open>
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8096/r4/ValueSet/$expand",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -108,7 +109,7 @@
       <summary>Query / HTTP Request</summary>
       <pre>{
   "method": "POST",
-  "url": "http://localhost:8096/r4/ValueSet/$expand",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -189,7 +190,7 @@ optimized-ir:
     <details id="legacy-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 6.54,
+  "totalMs": 3.6,
   "sqlCount": 0,
   "sqlMs": 0,
   "counters": {},
@@ -213,9 +214,9 @@ optimized-ir:
         "hasTextFilter": false
       },
       "children": [],
-      "ms": 6.51,
+      "ms": 3.58,
       "result": {
-        "ms": 6.5,
+        "ms": 3.57,
         "total": 3,
         "returned": 3
       }
@@ -228,9 +229,9 @@ optimized-ir:
     <details id="ir-trace" open>
       <summary>Structured Trace</summary>
       <pre>{
-  "totalMs": 2.14,
+  "totalMs": 1.24,
   "sqlCount": 3,
-  "sqlMs": 0.17,
+  "sqlMs": 0.14,
   "counters": {},
   "spans": [
     {
@@ -250,7 +251,7 @@ optimized-ir:
             "system": "http://loinc.org",
             "count": 1
           },
-          "t": 1.05
+          "t": 0.56
         },
         {
           "name": "note",
@@ -259,7 +260,7 @@ optimized-ir:
             "system": "http://snomed.info/sct",
             "count": 1
           },
-          "t": 1.38
+          "t": 0.75
         },
         {
           "name": "note",
@@ -268,7 +269,7 @@ optimized-ir:
             "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
             "count": 1
           },
-          "t": 1.74
+          "t": 0.93
         },
         {
           "name": "pagination",
@@ -298,10 +299,10 @@ optimized-ir:
                       "data": {
                         "hintsMs": 0,
                         "buildMs": 0.01,
-                        "prepMs": 0.04,
-                        "execMs": 0.07
+                        "prepMs": 0.03,
+                        "execMs": 0.06
                       },
-                      "t": 1.9
+                      "t": 1.04
                     }
                   ],
                   "sql": [
@@ -313,17 +314,17 @@ optimized-ir:
                         "_limit": 1
                       },
                       "rows": 1,
-                      "ms": 0.07,
+                      "ms": 0.06,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.14,
+                  "ms": 0.11,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.15,
+              "ms": 0.11,
               "result": {
                 "candidates": 1
               }
@@ -348,9 +349,9 @@ optimized-ir:
                         "hintsMs": 0,
                         "buildMs": 0,
                         "prepMs": 0.02,
-                        "execMs": 0.05
+                        "execMs": 0.04
                       },
-                      "t": 2
+                      "t": 1.13
                     }
                   ],
                   "sql": [
@@ -362,17 +363,17 @@ optimized-ir:
                         "_limit": 1
                       },
                       "rows": 1,
-                      "ms": 0.05,
+                      "ms": 0.04,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.09,
+                  "ms": 0.07,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.09,
+              "ms": 0.08,
               "result": {
                 "candidates": 1
               }
@@ -397,9 +398,9 @@ optimized-ir:
                         "hintsMs": 0,
                         "buildMs": 0,
                         "prepMs": 0.02,
-                        "execMs": 0.05
+                        "execMs": 0.04
                       },
-                      "t": 2.09
+                      "t": 1.2
                     }
                   ],
                   "sql": [
@@ -411,23 +412,23 @@ optimized-ir:
                         "_limit": 1
                       },
                       "rows": 1,
-                      "ms": 0.05,
+                      "ms": 0.04,
                       "label": "executeIR"
                     }
                   ],
-                  "ms": 0.08,
+                  "ms": 0.06,
                   "result": {
                     "candidates": 1
                   }
                 }
               ],
-              "ms": 0.08,
+              "ms": 0.07,
               "result": {
                 "candidates": 1
               }
             }
           ],
-          "ms": 0.35,
+          "ms": 0.27,
           "result": {
             "paged": 3
           }
@@ -442,7 +443,7 @@ optimized-ir:
           "ms": 0
         }
       ],
-      "ms": 2.09,
+      "ms": 1.21,
       "result": {
         "total": 3,
         "contains": 3
@@ -466,8 +467,8 @@ optimized-ir:
     "connection": "keep-alive",
     "content-length": "1369",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 03:00:50 GMT",
-    "etag": "W/\"559-ubOdNmkUY/zLDiqZQrBqdCWIAjk\"",
+    "date": "Thu, 05 Mar 2026 13:14:22 GMT",
+    "etag": "W/\"559-M7aLC4mDARDFgGC7yH06eR3ziFs\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-255"
@@ -475,8 +476,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T03:00:50.900Z",
-      "identifier": "urn:uuid:9f48b4b2-8438-4f6a-bd4e-b3e304be4fa9",
+      "timestamp": "2026-03-05T13:14:22.479Z",
+      "identifier": "urn:uuid:94f16e15-f4d1-4a1e-8b84-cddc1b6cc04a",
       "parameter": [
         {
           "name": "displayLanguage",
@@ -516,7 +517,7 @@ optimized-ir:
       "extension": [
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":6.54,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":6.51,\"result\":{\"ms\":6.5,\"total\":3,\"returned\":3}}]}"
+          "valueString": "{\"totalMs\":3.6,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.58,\"result\":{\"ms\":3.57,\"total\":3,\"returned\":3}}]}"
         }
       ]
     }
@@ -536,10 +537,10 @@ optimized-ir:
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-origin": "*",
     "connection": "keep-alive",
-    "content-length": "4697",
+    "content-length": "4700",
     "content-type": "application/fhir+json; charset=utf-8",
-    "date": "Thu, 05 Mar 2026 03:00:50 GMT",
-    "etag": "W/\"1259-s7UA3LRtMEaTnHwX49UQV0kOogg\"",
+    "date": "Thu, 05 Mar 2026 13:14:22 GMT",
+    "etag": "W/\"125c-fdCbJEElZI1An8e5rmkxpZezVq4\"",
     "keep-alive": "timeout=5",
     "x-powered-by": "Express",
     "x-request-id": "tx-256"
@@ -547,8 +548,8 @@ optimized-ir:
   "body": {
     "resourceType": "ValueSet",
     "expansion": {
-      "timestamp": "2026-03-05T03:00:50.911Z",
-      "identifier": "urn:uuid:c1d52ce3-9540-4766-aab9-66713257ff1a",
+      "timestamp": "2026-03-05T13:14:22.486Z",
+      "identifier": "urn:uuid:0de032c0-b0d4-4f74-87fd-ebe8c8f4b702",
       "total": 3,
       "contains": [
         {
@@ -588,7 +589,7 @@ optimized-ir:
         },
         {
           "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
-          "valueString": "{\"totalMs\":2.14,\"sqlCount\":3,\"sqlMs\":0.17,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":3,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://loinc.org\",\"count\":1},\"t\":1.05},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":1.38},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"count\":1},\"t\":1.74},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":3},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.04,\"execMs\":0.07},\"t\":1.9}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"2160-0\",\"_limit\":1},\"rows\":1,\"ms\":0.07,\"label\":\"executeIR\"}],\"ms\":0.14,\"result\":{\"candidates\":1}}],\"ms\":0.15,\"result\":{\"candidates\":1}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0,\"prepMs\":0.02,\"execMs\":0.05},\"t\":2}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.09,\"result\":{\"candidates\":1}}],\"ms\":0.09,\"result\":{\"candidates\":1}},{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0,\"prepMs\":0.02,\"execMs\":0.05},\"t\":2.09}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"1191\",\"_limit\":1},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.08,\"result\":{\"candidates\":1}}],\"ms\":0.08,\"result\":{\"candidates\":1}}],\"ms\":0.35,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":2.09,\"result\":{\"total\":3,\"contains\":3}}]}"
+          "valueString": "{\"totalMs\":1.24,\"sqlCount\":3,\"sqlMs\":0.14,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":3,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://loinc.org\",\"count\":1},\"t\":0.56},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":0.75},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"count\":1},\"t\":0.93},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":3},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.01,\"prepMs\":0.03,\"execMs\":0.06},\"t\":1.04}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"2160-0\",\"_limit\":1},\"rows\":1,\"ms\":0.06,\"label\":\"executeIR\"}],\"ms\":0.11,\"result\":{\"candidates\":1}}],\"ms\":0.11,\"result\":{\"candidates\":1}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0,\"prepMs\":0.02,\"execMs\":0.04},\"t\":1.13}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"73211009\",\"_limit\":1},\"rows\":1,\"ms\":0.04,\"label\":\"executeIR\"}],\"ms\":0.07,\"result\":{\"candidates\":1}}],\"ms\":0.08,\"result\":{\"candidates\":1}},{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0,\"prepMs\":0.02,\"execMs\":0.04},\"t\":1.2}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c WHERE c.cs_id = @_x_csId AND c.code IN (@_x_c0)) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_x_c0\":\"1191\",\"_limit\":1},\"rows\":1,\"ms\":0.04,\"label\":\"executeIR\"}],\"ms\":0.06,\"result\":{\"candidates\":1}}],\"ms\":0.07,\"result\":{\"candidates\":1}}],\"ms\":0.27,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":1.21,\"result\":{\"total\":3,\"contains\":3}}]}"
         }
       ]
     }

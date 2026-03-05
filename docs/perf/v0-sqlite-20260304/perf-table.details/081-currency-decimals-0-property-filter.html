@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Currency decimals=0 property filter</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#81 Currency decimals=0 property filter</h1>
+  <div class="meta">Category: Filter Semantics · Median perf: Legacy=1ms | IR=1ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/081-currency-decimals-0-property-filter.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 1ms capture wall · trace: 0.36ms · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 1ms capture wall · trace: 0.23ms · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "urn:iso:std:iso:4217",
+                "filter": [
+                  {
+                    "property": "decimals",
+                    "op": "=",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 500
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "urn:iso:std:iso:4217",
+                "filter": [
+                  {
+                    "property": "decimals",
+                    "op": "=",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 500
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: urn:iso:std:iso:4217
+runtime-constraints:
+  pagination: offset=0 count=500
+optimized-ir:
+  selector filter urn:iso:std:iso:4217 decimals = 0</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.36,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 500,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.35,
+      "result": {
+        "ms": 0.34,
+        "total": 18,
+        "returned": 18
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.23,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 500
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 500,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:urn:iso:std:iso:4217",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 500
+              },
+              "children": [],
+              "ms": 0.11,
+              "result": {
+                "candidates": 18
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 0,
+                "returned": 18,
+                "total": 18
+              },
+              "t": 0.2
+            }
+          ],
+          "ms": 0.12,
+          "result": {
+            "paged": 18
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 18,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 0.21,
+      "result": {
+        "total": 18,
+        "contains": 18
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2254",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:30 GMT",
+    "etag": "W/\"8ce-jt4/kQU5atRrMpyIVNfixYry2P0\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-740"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:30.664Z",
+      "identifier": "urn:uuid:5b1a6922-f2e3-44f6-b8b3-532dea8de720",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 500
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "urn:iso:std:iso:4217"
+        }
+      ],
+      "total": 18,
+      "contains": [
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "BIF",
+          "display": "Burundian franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "CLP",
+          "display": "Chilean peso"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "CVE",
+          "display": "Cape Verde escudo"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "DJF",
+          "display": "Djiboutian franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "GNF",
+          "display": "Guinean franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "ISK",
+          "display": "Icelandic króna"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "JPY",
+          "display": "Japanese yen"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "KMF",
+          "display": "Comoro franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "KRW",
+          "display": "South Korean won"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "PYG",
+          "display": "Paraguayan guaraní"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "RWF",
+          "display": "Rwandan franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "UGX",
+          "display": "Ugandan shilling"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "UYI",
+          "display": "Uruguay Peso en Unidades Indexadas (URUIURUI) (funds code)"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "VND",
+          "display": "Vietnamese đồng"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "VUV",
+          "display": "Vanuatu vatu"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "XAF",
+          "display": "CFA franc BEAC"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "XOF",
+          "display": "CFA franc BCEAO"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "XPF",
+          "display": "CFP franc (franc Pacifique)"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":500,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.35,\"result\":{\"ms\":0.34,\"total\":18,\"returned\":18}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2830",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:30 GMT",
+    "etag": "W/\"b0e-oOOEA9jEpOombRh3SxvQbqAzOcw\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-741"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:30.665Z",
+      "identifier": "urn:uuid:148c767e-9b59-466d-93bb-bb34acade577",
+      "total": 18,
+      "contains": [
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "BIF",
+          "display": "Burundian franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "CLP",
+          "display": "Chilean peso"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "CVE",
+          "display": "Cape Verde escudo"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "DJF",
+          "display": "Djiboutian franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "GNF",
+          "display": "Guinean franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "ISK",
+          "display": "Icelandic króna"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "JPY",
+          "display": "Japanese yen"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "KMF",
+          "display": "Comoro franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "KRW",
+          "display": "South Korean won"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "PYG",
+          "display": "Paraguayan guaraní"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "RWF",
+          "display": "Rwandan franc"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "UGX",
+          "display": "Ugandan shilling"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "UYI",
+          "display": "Uruguay Peso en Unidades Indexadas (URUIURUI) (funds code)"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "VND",
+          "display": "Vietnamese đồng"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "VUV",
+          "display": "Vanuatu vatu"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "XAF",
+          "display": "CFA franc BEAC"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "XOF",
+          "display": "CFA franc BCEAO"
+        },
+        {
+          "system": "urn:iso:std:iso:4217",
+          "code": "XPF",
+          "display": "CFP franc (franc Pacifique)"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 500
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "urn:iso:std:iso:4217"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: urn:iso:std:iso:4217\nruntime-constraints:\n  pagination: offset=0 count=500\noptimized-ir:\n  selector filter urn:iso:std:iso:4217 decimals = 0"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.23,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":500},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":500,\"systems\":1},\"children\":[{\"name\":\"system:urn:iso:std:iso:4217\",\"args\":{\"sysOffset\":0,\"sysCount\":500},\"children\":[],\"ms\":0.11,\"result\":{\"candidates\":18}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":18,\"total\":18},\"t\":0.2}],\"ms\":0.12,\"result\":{\"paged\":18}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":18,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.21,\"result\":{\"total\":18,\"contains\":18}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

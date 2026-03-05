@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: SNOMED is-a combined with text filter</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#45 SNOMED is-a combined with text filter</h1>
+  <div class="meta">Category: Composition Semantics · Median perf: Legacy=9ms | IR=8ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/045-snomed-is-a-combined-with-text-filter.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 9ms capture wall · trace: 7.77ms · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 8ms capture wall · trace: 6.65ms · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "activeOnly",
+        "valueBoolean": true
+      },
+      {
+        "name": "filter",
+        "valueString": "insulin"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "activeOnly",
+        "valueBoolean": true
+      },
+      {
+        "name": "filter",
+        "valueString": "insulin"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://snomed.info/sct
+runtime-constraints:
+  text-filter: "insulin"
+  active-only: true
+  pagination: offset=0 count=1000
+optimized-ir:
+  selector filter http://snomed.info/sct concept is-a 73211009</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 7.77,
+  "sqlCount": 1,
+  "sqlMs": 0.22,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": true,
+        "hasTextFilter": true
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://snomed.info/sct",
+            "filterCount": 1,
+            "hasTextSearch": true
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeSetIntersection",
+              "data": {
+                "filters": 1,
+                "after": 17
+              },
+              "t": 6.61
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+              "params": {
+                "cs": 1,
+                "f0_anc_code": "73211009",
+                "f0_cs": 1
+              },
+              "rows": 124,
+              "ms": 0.22,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 6.08,
+          "result": {
+            "rows": 17
+          }
+        }
+      ],
+      "ms": 7.76,
+      "result": {
+        "ms": 7.75,
+        "total": 17,
+        "returned": 17
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 6.65,
+  "sqlCount": 1,
+  "sqlMs": 5.89,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": true,
+        "text": "insulin",
+        "offset": 0,
+        "count": 1000
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 1000,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 1000
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "standard path chosen (EXISTS rewrite skipped)",
+                      "data": {
+                        "hasText": true
+                      },
+                      "t": 0.48
+                    },
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0.07,
+                        "buildMs": 0.03,
+                        "prepMs": 0.16,
+                        "execMs": 5.89
+                      },
+                      "t": 6.57
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.active = 1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHER…",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_anc_code": "73211009",
+                        "_xf0_cs": 1,
+                        "_searchMatch": "\"insulin\"",
+                        "_searchCsId": 1,
+                        "_limit": 1000
+                      },
+                      "rows": 17,
+                      "ms": 5.89,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 6.2,
+                  "result": {
+                    "candidates": 17
+                  }
+                }
+              ],
+              "ms": 6.21,
+              "result": {
+                "candidates": 17
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 0,
+                "returned": 17,
+                "total": 17
+              },
+              "t": 6.6
+            }
+          ],
+          "ms": 6.22,
+          "result": {
+            "paged": 17
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 17,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 6.6,
+      "result": {
+        "total": 17,
+        "contains": 17
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3713",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:26 GMT",
+    "etag": "W/\"e81-DtQHcg0/weJylt0RGk3t/Lg22r4\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-414"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:26.999Z",
+      "identifier": "urn:uuid:daa1543b-9346-4900-98c3-c73691543703",
+      "parameter": [
+        {
+          "name": "filter",
+          "valueString": "insulin"
+        },
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "activeOnly",
+          "valueBoolean": true
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "total": 17,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1197592001",
+          "display": "Intrauterine growth restriction, short stature, early adult-onset diabetes syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1255271005",
+          "display": "Juvenile-onset diabetes mellitus, central and peripheral neurodegeneration syndrome (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1303868000",
+          "display": "Intermediate DEND syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "190368000",
+          "display": "Type I diabetes mellitus with ulcer"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "190372001",
+          "display": "Type I diabetes mellitus maturity onset"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "23045005",
+          "display": "Insulin dependent diabetes mellitus type IA"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237599002",
+          "display": "Insulin treated Type II diabetes mellitus"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237651005",
+          "display": "Insulin resistance - type A"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237652003",
+          "display": "Insulin resistance - type B"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "24203005",
+          "display": "Extreme insulin resistance with acanthosis nigricans, hirsutism AND abnormal insulin receptors"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "28032008",
+          "display": "Insulin dependent diabetes mellitus type IB"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "33559001",
+          "display": "Pineal hyperplasia AND diabetes mellitus syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "609569007",
+          "display": "Diabetes mellitus due to genetic defect in insulin action"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "75682002",
+          "display": "Diabetes mellitus caused by insulin receptor antibodies (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "782825008",
+          "display": "Primary microcephaly, epilepsy, permanent neonatal diabetes syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "783722008",
+          "display": "Myopathy and diabetes mellitus (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "91352004",
+          "display": "Insulinopathy"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":7.77,\"sqlCount\":1,\"sqlMs\":0.22,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":17},\"t\":6.61}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.22,\"label\":\"legacy:executeFilters\"}],\"ms\":6.08,\"result\":{\"rows\":17}}],\"ms\":7.76,\"result\":{\"ms\":7.75,\"total\":17,\"returned\":17}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4731",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:27 GMT",
+    "etag": "W/\"127b-Bjv/GDTd2UkYW2S+xhzB78r2GXw\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-415"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:27.015Z",
+      "identifier": "urn:uuid:87be0b20-ddc2-44d6-86f1-7027dda913e8",
+      "total": 17,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1197592001",
+          "display": "Intrauterine growth restriction, short stature, early adult-onset diabetes syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1255271005",
+          "display": "Juvenile-onset diabetes mellitus, central and peripheral neurodegeneration syndrome (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1303868000",
+          "display": "Intermediate DEND syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "190368000",
+          "display": "Type I diabetes mellitus with ulcer"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "190372001",
+          "display": "Type I diabetes mellitus maturity onset"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "23045005",
+          "display": "Insulin dependent diabetes mellitus type IA"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237599002",
+          "display": "Insulin treated Type II diabetes mellitus"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237651005",
+          "display": "Insulin resistance - type A"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "237652003",
+          "display": "Insulin resistance - type B"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "24203005",
+          "display": "Extreme insulin resistance with acanthosis nigricans, hirsutism AND abnormal insulin receptors"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "28032008",
+          "display": "Insulin dependent diabetes mellitus type IB"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "33559001",
+          "display": "Pineal hyperplasia AND diabetes mellitus syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "609569007",
+          "display": "Diabetes mellitus due to genetic defect in insulin action"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "75682002",
+          "display": "Diabetes mellitus caused by insulin receptor antibodies (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "782825008",
+          "display": "Primary microcephaly, epilepsy, permanent neonatal diabetes syndrome"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "783722008",
+          "display": "Myopathy and diabetes mellitus (disorder)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "91352004",
+          "display": "Insulinopathy"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "activeOnly",
+          "valueBoolean": true
+        },
+        {
+          "name": "filter",
+          "valueString": "insulin"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct\nruntime-constraints:\n  text-filter: \"insulin\"\n  active-only: true\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 73211009"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":6.65,\"sqlCount\":1,\"sqlMs\":5.89,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":\"insulin\",\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"standard path chosen (EXISTS rewrite skipped)\",\"data\":{\"hasText\":true},\"t\":0.48},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.07,\"buildMs\":0.03,\"prepMs\":0.16,\"execMs\":5.89},\"t\":6.57}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 AND t.active = 1 AND t.concept_id IN (SELECT c2.concept_id FROM search_fts_display f2 JOIN concept c2 ON c2.concept_id = f2.rowid WHER…\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"73211009\",\"_xf0_cs\":1,\"_searchMatch\":\"\\\"insulin\\\"\",\"_searchCsId\":1,\"_limit\":1000},\"rows\":17,\"ms\":5.89,\"label\":\"executeIR\"}],\"ms\":6.2,\"result\":{\"candidates\":17}}],\"ms\":6.21,\"result\":{\"candidates\":17}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":17,\"total\":17},\"t\":6.6}],\"ms\":6.22,\"result\":{\"paged\":17}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":17,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":6.6,\"result\":{\"total\":17,\"contains\":17}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

@@ -1,0 +1,126 @@
+{
+  "id": 80,
+  "slug": "080-country-code-regex-a-filter-on-inline-codesystem",
+  "name": "Country code regex A.* filter on inline CodeSystem",
+  "category": "Filter Semantics",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "urn:iso:std:iso:3166",
+            "filter": [
+              {
+                "property": "code",
+                "op": "regex",
+                "value": "A.*"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 500
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "urn:iso:std:iso:3166",
+                    "filter": [
+                      {
+                        "property": "code",
+                        "op": "regex",
+                        "value": "A.*"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 500
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "urn:iso:std:iso:3166",
+                    "filter": [
+                      {
+                        "property": "code",
+                        "op": "regex",
+                        "value": "A.*"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 500
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "id": 68,
+  "slug": "068-redundant-designation-equal-to-primary-display-is-suppressed",
+  "name": "Redundant designation equal to primary display is suppressed",
+  "category": "Designations & Language",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {
+                "code": "73211009"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "includeDesignations": true
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "concept": [
+                      {
+                        "code": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "concept": [
+                      {
+                        "code": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

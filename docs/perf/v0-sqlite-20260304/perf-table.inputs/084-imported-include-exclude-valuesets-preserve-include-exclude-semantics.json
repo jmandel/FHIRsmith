@@ -1,0 +1,335 @@
+{
+  "id": 84,
+  "slug": "084-imported-include-exclude-valuesets-preserve-include-exclude-semantics",
+  "name": "Imported include/exclude ValueSets preserve include/exclude semantics",
+  "category": "Composition Semantics",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "http://example.org/vs/palette-inc-1772716470685"
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "valueSet": [
+              "http://example.org/vs/palette-exc-1772716470685"
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/palette-1772716470685",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "red",
+              "display": "Red"
+            },
+            {
+              "code": "blue",
+              "display": "Blue"
+            },
+            {
+              "code": "green",
+              "display": "Green"
+            },
+            {
+              "code": "yellow",
+              "display": "Yellow"
+            }
+          ]
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/palette-inc-1772716470685",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/palette-1772716470685",
+                "concept": [
+                  {
+                    "code": "red"
+                  },
+                  {
+                    "code": "blue"
+                  },
+                  {
+                    "code": "green"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/palette-exc-1772716470685",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/palette-1772716470685",
+                "concept": [
+                  {
+                    "code": "blue"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/palette-inc-1772716470685"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/palette-exc-1772716470685"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/palette-1772716470685",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/palette-inc-1772716470685",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/palette-1772716470685",
+                    "concept": [
+                      {
+                        "code": "red"
+                      },
+                      {
+                        "code": "blue"
+                      },
+                      {
+                        "code": "green"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/palette-exc-1772716470685",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/palette-1772716470685",
+                    "concept": [
+                      {
+                        "code": "blue"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/palette-inc-1772716470685"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/palette-exc-1772716470685"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/palette-1772716470685",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/palette-inc-1772716470685",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/palette-1772716470685",
+                    "concept": [
+                      {
+                        "code": "red"
+                      },
+                      {
+                        "code": "blue"
+                      },
+                      {
+                        "code": "green"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/palette-exc-1772716470685",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/palette-1772716470685",
+                    "concept": [
+                      {
+                        "code": "blue"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "id": 56,
+  "slug": "056-experimental-codesystem-emits-warning-for-non-experimental-valueset",
+  "name": "Experimental CodeSystem emits warning for non-experimental ValueSet",
+  "category": "Expansion Metadata",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://example.org/test-vs",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/experimental-1"
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": {
+        "resourceType": "CodeSystem",
+        "url": "http://example.org/cs/experimental-1",
+        "version": "1.0.0",
+        "status": "active",
+        "content": "complete",
+        "concept": [
+          {
+            "code": "A",
+            "display": "Alpha"
+          },
+          {
+            "code": "B",
+            "display": "Bravo"
+          },
+          {
+            "code": "C",
+            "display": "Charlie"
+          }
+        ],
+        "experimental": true
+      }
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/experimental-1"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/experimental-1",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "experimental": true
+            }
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/experimental-1"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/experimental-1",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "experimental": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -75,6 +75,8 @@ const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
 const PERF_OUT_PATH = resolve(PERF_OUT);
 const PERF_OUT_BASE = basename(PERF_OUT_PATH, extname(PERF_OUT_PATH));
 const PERF_DETAILS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.details`);
+const PERF_INPUTS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.inputs`);
+const PERF_CATALOG_PATH = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.catalog.json`);
 const TRACE_EXTENSION_URLS = new Set([
   'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace',
   'http://fhirsmith.org/StructureDefinition/expand-trace', // backwards compatibility
@@ -534,18 +536,81 @@ function expansionExtensions(result, url) {
   return (result.expansion?.extension || []).filter(e => e.url === url);
 }
 
-async function test(name, fn) {
-  if (FILTERS.length > 0 && !FILTERS.some(f => name.toLowerCase().includes(f.toLowerCase()))) {
+const ALLOWED_TEST_CATEGORIES = new Set([
+  'Baseline Fixtures',
+  'Compose Overrides',
+  'Composition Semantics',
+  'Concept Enumerations',
+  'Cross-Source Coverage',
+  'Designations & Language',
+  'Exclusions',
+  'Expansion Metadata',
+  'Filter Semantics',
+  'Hierarchy',
+  'Multi-System Composition',
+  'Pagination',
+  'Pagination Safety',
+  'Parameter Handling',
+  'Property Filters',
+  'Provider Execution',
+  'Safety Limits',
+  'Single-System Composition',
+  'Stress & Scale',
+  'Subsumption',
+  'Supplements',
+  'Text Search',
+  'txResources',
+  'Unclosed Expansion',
+  'ValueSet Imports',
+]);
+
+function validateTestMeta(meta) {
+  if (!meta.name || !meta.rawName || !meta.category) {
+    throw new Error(`Invalid test metadata: ${JSON.stringify(meta)}`);
+  }
+  if (!ALLOWED_TEST_CATEGORIES.has(meta.category)) {
+    throw new Error(`Unknown test category "${meta.category}" for test "${meta.name}"`);
+  }
+  const weakPrefix = /^(meta|params|stress|shape|coverage|infra|filter|logic|combined|exclude|lang|compose|notClosed|limit|pagination-bug|unclosed):/i;
+  if (weakPrefix.test(meta.name)) {
+    throw new Error(`Weak test title prefix in "${meta.name}"`);
+  }
+}
+
+function normalizeTestDef(def) {
+  if (typeof def === 'string') {
+    return {
+      id: null,
+      rawName: def,
+      name: def,
+      category: currentCategory || 'Uncategorized',
+    };
+  }
+  const rawName = String(def?.rawName || def?.name || '').trim();
+  const name = String(def?.name || rawName).trim();
+  return {
+    id: Number.isInteger(def?.id) ? def.id : null,
+    rawName: rawName || name,
+    name: name || rawName,
+    category: String(def?.category || currentCategory || 'Uncategorized').trim(),
+  };
+}
+
+async function test(def, fn) {
+  const meta = normalizeTestDef(def);
+  validateTestMeta(meta);
+  const filterHaystack = `${meta.rawName} ${meta.name} ${meta.category}`.toLowerCase();
+  if (FILTERS.length > 0 && !FILTERS.some(f => filterHaystack.includes(f.toLowerCase()))) {
     skipped++;
     return;
   }
   lastExpandCall = null;
-  currentTestName = name;
+  currentTestName = meta.rawName;
   try {
     const t0 = performance.now();
     await fn();
     const ms = (performance.now() - t0).toFixed(0);
-    console.log(`  \x1b[32m✓\x1b[0m ${name} (${ms}ms)`);
+    console.log(`  \x1b[32m✓\x1b[0m ${meta.name} (${ms}ms)`);
     passed++;
 
     // In perf mode, re-run the last expand() call with both engines
@@ -553,23 +618,28 @@ async function test(name, fn) {
       const { vsJson, opts } = lastExpandCall;
       const ir = await timeEngine(vsJson, opts, 'ir', PERF_RUNS);
       const leg = await timeEngine(vsJson, opts, 'legacy', PERF_RUNS);
-      const rowIndex = perfRows.length + 1;
+      const rowIndex = meta.id ?? (perfRows.length + 1);
       let detailHref = null;
+      let inputHref = null;
       let detailError = null;
       try {
-        const detail = await capturePerfDetails(rowIndex, name, currentCategory, vsJson, opts, ir, leg);
+        const detail = await capturePerfDetails(rowIndex, meta.name, meta.category, vsJson, opts, ir, leg);
         detailHref = detail.href;
+        inputHref = detail.inputHref;
       } catch (e) {
         detailError = e.message || String(e);
       }
       perfRows.push({
-        name,
-        category: currentCategory,
+        id: rowIndex,
+        rawName: meta.rawName,
+        name: meta.name,
+        category: meta.category,
         irMs: ir.ms,
         legMs: leg.ms,
         irErr: ir.err,
         legErr: leg.err,
         detailHref,
+        inputHref,
         detailError,
       });
       const irStr = ir.err ? '❌' : `${ir.ms}ms`;
@@ -578,7 +648,7 @@ async function test(name, fn) {
       if (detailError) console.log(`    details: ❌ ${detailError}`);
     }
   } catch (e) {
-    console.log(`  \x1b[31m✗\x1b[0m ${name}`);
+    console.log(`  \x1b[31m✗\x1b[0m ${meta.name}`);
     console.log(`    ${e.message}`);
     failed++;
   } finally {
@@ -593,7 +663,7 @@ function findParams(result, name) {
 }
 
 // ── perf collection ────────────────────────────────────────────────────
-const perfRows = [];  // { name, category, irMs, legMs, irErr, legErr }
+const perfRows = [];  // { name, category, irMs, legMs, irErr, legErr, detailHref, inputHref }
 let currentCategory = '';
 let lastExpandCall = null;  // { vsJson, opts } from most recent expand()
 
@@ -731,6 +801,7 @@ function buildPerfDetailHtml({ rowIndex, name, category, irPerf, legPerf, irDebu
     <a href="#ir-plan">IR plan</a>
     <a href="#ir-trace">IR trace</a>
     <a href="#ir-http">IR response</a>
+    ${irDebug?.inputHref ? `<a href="${escHtml(irDebug.inputHref)}" target="_blank" rel="noopener">Input payload</a>` : ''}
   </div>
 </header>
 <main class="grid">
@@ -759,26 +830,45 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, irPerf
   const filename = `${slug}.html`;
   const absPath = join(PERF_DETAILS_DIR, filename);
   const relPath = `${PERF_OUT_BASE}.details/${filename}`;
+  const inputFilename = `${slug}.json`;
+  const inputAbsPath = join(PERF_INPUTS_DIR, inputFilename);
+  const inputRelPath = `${PERF_OUT_BASE}.inputs/${inputFilename}`;
   // Capture sequentially so one engine's heavy request does not inflate the
   // other engine's wall-time due server-side request queueing.
   const legacyDebug = await captureEngineDebug(vsJson, opts, 'legacy');
   const irDebug = await captureEngineDebug(vsJson, opts, 'ir');
+  const payloadDoc = {
+    id: rowIndex,
+    slug,
+    name,
+    category,
+    source: {
+      valueSet: vsJson,
+      options: opts,
+    },
+    requests: {
+      legacy: legacyDebug.request || null,
+      ir: irDebug.request || null,
+    },
+  };
+  writeFileSync(inputAbsPath, JSON.stringify(payloadDoc, null, 2));
   writeFileSync(absPath, buildPerfDetailHtml({
     rowIndex,
     name,
     category,
     irPerf,
     legPerf,
-    irDebug,
+    irDebug: { ...irDebug, inputHref: `../${PERF_OUT_BASE}.inputs/${inputFilename}` },
     legacyDebug,
   }));
-  return { href: relPath };
+  return { href: relPath, inputHref: inputRelPath };
 }
 
 // ── tests ──────────────────────────────────────────────────────────────
 async function run() {
   if (PERF_MODE) {
     mkdirSync(PERF_DETAILS_DIR, { recursive: true });
+    mkdirSync(PERF_INPUTS_DIR, { recursive: true });
   }
 
   // Check server is up
@@ -789,7 +879,7 @@ async function run() {
 
   console.log('\n=== SNOMED is-a ==='); currentCategory = 'SNOMED is-a';
 
-  await test('is-a Diabetes: 124 codes, includes self+children', async () => {
+  await test({ id: 1, rawName: 'is-a Diabetes: 124 codes, includes self+children', name: 'is-a Diabetes: 124 codes, includes self+children', category: 'Subsumption' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
       { count: 200, activeOnly: true });
     eq(result.expansion.total, 124, 'total');
@@ -799,7 +889,7 @@ async function run() {
     assert(codes(result).every(c => c.display?.length > 0), 'all have display');
   });
 
-  await test('descendent-of Diabetes: 123 codes, excludes self', async () => {
+  await test({ id: 2, rawName: 'descendent-of Diabetes: 123 codes, excludes self', name: 'descendent-of Diabetes: 123 codes, excludes self', category: 'Subsumption' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'descendent-of', value: '73211009' }] }),
       { count: 200, activeOnly: true });
     eq(result.expansion.total, 123, 'total');
@@ -807,14 +897,14 @@ async function run() {
     assert(findCode(result, '44054006'), 'includes Type 2');
   });
 
-  await test('Clinical finding count=0: total=124412', async () => {
+  await test({ id: 3, rawName: 'Clinical finding count=0: total=124412', name: 'Clinical finding count=0: total=124412', category: 'Subsumption' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '404684003' }] }),
       { count: 0, activeOnly: true });
     eq(result.expansion.total, 124412, 'total');
     eq(codes(result).length, 0, 'no codes returned');
   });
 
-  await test('Clinical finding first 50: fast with EXISTS pushdown', async () => {
+  await test({ id: 4, rawName: 'Clinical finding first 50: fast with EXISTS pushdown', name: 'Clinical finding first 50: fast with EXISTS pushdown', category: 'Subsumption' }, async () => {
     const { result, ms } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '404684003' }] }),
       { count: 50, activeOnly: true });
     eq(result.expansion.total, 124412, 'total');
@@ -824,7 +914,7 @@ async function run() {
 
   console.log('\n=== Pagination ==='); currentCategory = 'Pagination';
 
-  await test('Diabetes pages are disjoint and reconstruct full set', async () => {
+  await test({ id: 5, rawName: 'Diabetes pages are disjoint and reconstruct full set', name: 'Diabetes pages are disjoint and reconstruct full set', category: 'Pagination' }, async () => {
     const allCodes = new Set();
     for (let off = 0; off < 200; off += 30) {
       const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
@@ -838,7 +928,7 @@ async function run() {
     eq(allCodes.size, 124, 'all codes covered');
   });
 
-  await test('LOINC STATUS=ACTIVE high offset (1000,20)', async () => {
+  await test({ id: 6, rawName: 'LOINC STATUS=ACTIVE high offset (1000,20)', name: 'LOINC STATUS=ACTIVE high offset (1000,20)', category: 'Pagination' }, async () => {
     const { result } = await expand(vs({ system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] }),
       { count: 20, offset: 1000 });
     assert(result.expansion.total > 90000, `total ${result.expansion.total}`);
@@ -847,7 +937,7 @@ async function run() {
 
   console.log('\n=== Excludes ==='); currentCategory = 'Excludes';
 
-  await test('Diabetes minus Type2 subtree: 108 codes', async () => {
+  await test({ id: 7, rawName: 'Diabetes minus Type2 subtree: 108 codes', name: 'Diabetes minus Type2 subtree: 108 codes', category: 'Exclusions' }, async () => {
     const { result } = await expand(
       vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
          { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '44054006' }] }),
@@ -858,7 +948,7 @@ async function run() {
     assert(findCode(result, '46635009'), 'Type 1 remains');
   });
 
-  await test('Diabetes minus Type1+Type2: ~86 codes', async () => {
+  await test({ id: 8, rawName: 'Diabetes minus Type1+Type2: ~86 codes', name: 'Diabetes minus Type1+Type2: ~86 codes', category: 'Exclusions' }, async () => {
     const { result } = await expand(
       vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
          [{ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '44054006' }] },
@@ -870,7 +960,7 @@ async function run() {
     assert(findCode(result, '73211009'), 'self remains');
   });
 
-  await test('Diabetes exclude 2 enumerated codes', async () => {
+  await test({ id: 9, rawName: 'Diabetes exclude 2 enumerated codes', name: 'Diabetes exclude 2 enumerated codes', category: 'Exclusions' }, async () => {
     const { result } = await expand(
       vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
          { system: SYS.SCT, concept: [{ code: '44054006' }, { code: '46635009' }] }),
@@ -883,14 +973,14 @@ async function run() {
 
   console.log('\n=== Text search ==='); currentCategory = 'Text search';
 
-  await test('is-a Diabetes + text gestational: 8 codes', async () => {
+  await test({ id: 10, rawName: 'is-a Diabetes + text gestational: 8 codes', name: 'is-a Diabetes + text gestational: 8 codes', category: 'Text Search' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
       { count: 200, activeOnly: true, filter: 'gestational' });
     eq(result.expansion.total, 8, 'total');
     assert(codes(result).every(c => c.display.toLowerCase().includes('gestational')), 'all match');
   });
 
-  await test('is-a Diabetes + text insulin: results match text', async () => {
+  await test({ id: 11, rawName: 'is-a Diabetes + text insulin: results match text', name: 'is-a Diabetes + text insulin: results match text', category: 'Text Search' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
       { count: 200, activeOnly: true, filter: 'insulin' });
     assert(result.expansion.total > 10, `total ${result.expansion.total}`);
@@ -898,14 +988,14 @@ async function run() {
     assert(codes(result).length > 0, 'has results');
   });
 
-  await test('LOINC text creatinine first 20', async () => {
+  await test({ id: 12, rawName: 'LOINC text creatinine first 20', name: 'LOINC text creatinine first 20', category: 'Text Search' }, async () => {
     const { result } = await expand(vs({ system: SYS.LOINC }),
       { count: 20, filter: 'creatinine' });
     assert(codes(result).length > 0, 'has results');
     assert(codes(result).length <= 20, 'respects count');
   });
 
-  await test('RxNorm text aspirin + TTY=IN: finds aspirin 1191', async () => {
+  await test({ id: 13, rawName: 'RxNorm text aspirin + TTY=IN: finds aspirin 1191', name: 'RxNorm text aspirin + TTY=IN: finds aspirin 1191', category: 'Text Search' }, async () => {
     const { result } = await expand(vs({ system: SYS.RXNORM, filter: [{ property: 'TTY', op: '=', value: 'IN' }] }),
       { count: 20, filter: 'aspirin' });
     assert(findCode(result, '1191'), 'aspirin 1191 present');
@@ -913,7 +1003,7 @@ async function run() {
 
   console.log('\n=== Property filters ==='); currentCategory = 'Property filters';
 
-  await test('RxNorm TTY=IN first 50', async () => {
+  await test({ id: 14, rawName: 'RxNorm TTY=IN first 50', name: 'RxNorm TTY=IN first 50', category: 'Property Filters' }, async () => {
     const { result } = await expand(vs({ system: SYS.RXNORM, filter: [{ property: 'TTY', op: '=', value: 'IN' }] }),
       { count: 50 });
     assert(result.expansion.total > 14000, `total ${result.expansion.total}`);
@@ -921,14 +1011,14 @@ async function run() {
     assert(codes(result).every(c => c.display?.length > 0), 'all have display');
   });
 
-  await test('LOINC CLASSTYPE=1 first 50: ~66K total', async () => {
+  await test({ id: 15, rawName: 'LOINC CLASSTYPE=1 first 50: ~66K total', name: 'LOINC CLASSTYPE=1 first 50: ~66K total', category: 'Property Filters' }, async () => {
     const { result } = await expand(vs({ system: SYS.LOINC, filter: [{ property: 'CLASSTYPE', op: '=', value: '1' }] }),
       { count: 50 });
     assert(result.expansion.total > 60000, `total ${result.expansion.total}`);
     eq(codes(result).length, 50, 'page size');
   });
 
-  await test('LOINC STATUS=ACTIVE first 20: ~96K total', async () => {
+  await test({ id: 16, rawName: 'LOINC STATUS=ACTIVE first 20: ~96K total', name: 'LOINC STATUS=ACTIVE first 20: ~96K total', category: 'Property Filters' }, async () => {
     const { result } = await expand(vs({ system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] }),
       { count: 20 });
     assert(result.expansion.total > 90000, `total ${result.expansion.total}`);
@@ -937,14 +1027,14 @@ async function run() {
 
   console.log('\n=== Concept enumeration ==='); currentCategory = 'Concept enum';
 
-  await test('SNOMED 3 codes: correct displays', async () => {
+  await test({ id: 17, rawName: 'SNOMED 3 codes: correct displays', name: 'SNOMED 3 codes: correct displays', category: 'Concept Enumerations' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, concept: [{ code: '73211009' }, { code: '44054006' }, { code: '46635009' }] }));
     eq(result.expansion.total, 3, 'total');
     // v0 provider returns preferred term; cs-snomed returns FSN without suffix
     assert(findCode(result, '73211009')?.display?.startsWith('Diabetes mellitus'), 'DM display');
   });
 
-  await test('SNOMED enum + designations', async () => {
+  await test({ id: 18, rawName: 'SNOMED enum + designations', name: 'SNOMED enum + designations', category: 'Concept Enumerations' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, concept: [{ code: '73211009' }] }),
       { includeDesignations: true });
     const entry = findCode(result, '73211009');
@@ -953,7 +1043,7 @@ async function run() {
 
   console.log('\n=== Whole-system (cs-cs / legacy adapter) ==='); currentCategory = 'Whole-system';
 
-  await test('gender whole-system: 4 codes', async () => {
+  await test({ id: 19, rawName: 'gender whole-system: 4 codes', name: 'gender whole-system: 4 codes', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }));
     eq(result.expansion.total, 4, 'total');
     assert(findCode(result, 'male')?.display === 'Male', 'male');
@@ -962,14 +1052,14 @@ async function run() {
     assert(findCode(result, 'unknown')?.display === 'Unknown', 'unknown');
   });
 
-  await test('gender enumerated subset: male+female only', async () => {
+  await test({ id: 20, rawName: 'gender enumerated subset: male+female only', name: 'gender enumerated subset: male+female only', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER, concept: [{ code: 'male' }, { code: 'female' }] }));
     eq(result.expansion.total, 2, 'total');
     assert(findCode(result, 'male'), 'male present');
     assert(!findCode(result, 'unknown'), 'unknown absent');
   });
 
-  await test('gender exclude: minus other+unknown = male+female', async () => {
+  await test({ id: 21, rawName: 'gender exclude: minus other+unknown = male+female', name: 'gender exclude: minus other+unknown = male+female', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(
       vs({ system: SYS.GENDER },
          { system: SYS.GENDER, concept: [{ code: 'other' }, { code: 'unknown' }] }));
@@ -980,14 +1070,14 @@ async function run() {
     assert(!findCode(result, 'unknown'), 'unknown excluded');
   });
 
-  await test('LOINC enumerated: 2160-0 + 2345-7', async () => {
+  await test({ id: 22, rawName: 'LOINC enumerated: 2160-0 + 2345-7', name: 'LOINC enumerated: 2160-0 + 2345-7', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs({ system: SYS.LOINC, concept: [{ code: '2160-0' }, { code: '2345-7' }] }));
     eq(result.expansion.total, 2, 'total');
     assert(findCode(result, '2160-0')?.display?.includes('Creatinine'), 'Creatinine');
     assert(findCode(result, '2345-7')?.display?.includes('Glucose'), 'Glucose');
   });
 
-  await test('RxNorm enumerated: aspirin + ibuprofen + acetaminophen', async () => {
+  await test({ id: 23, rawName: 'RxNorm enumerated: aspirin + ibuprofen + acetaminophen', name: 'RxNorm enumerated: aspirin + ibuprofen + acetaminophen', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs({ system: SYS.RXNORM, concept: [{ code: '161' }, { code: '5640' }, { code: '1191' }] }));
     eq(result.expansion.total, 3, 'total');
     assert(findCode(result, '1191')?.display === 'aspirin', 'aspirin');
@@ -995,7 +1085,7 @@ async function run() {
     assert(findCode(result, '161')?.display === 'acetaminophen', 'acetaminophen');
   });
 
-  await test('SNOMED concept-in refset 723560006: 19 top-level categories', async () => {
+  await test({ id: 24, rawName: 'SNOMED concept-in refset 723560006: 19 top-level categories', name: 'SNOMED concept-in refset 723560006: 19 top-level categories', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT,
       filter: [{ property: 'concept', op: 'in', value: 'http://snomed.info/sct?fhir_vs=refset/723560006' }] }));
     eq(result.expansion.total, 19, 'total');
@@ -1004,7 +1094,7 @@ async function run() {
     assert(findCode(result, '123037004'), 'Body structure');
   });
 
-  await test('same-system dedup: gender male+female \u222a female+other = 3', async () => {
+  await test({ id: 25, rawName: 'same-system dedup: gender male+female \u222a female+other = 3', name: 'Same-system dedup returns 3 unique gender codes', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs([
       { system: SYS.GENDER, concept: [{ code: 'male' }, { code: 'female' }] },
       { system: SYS.GENDER, concept: [{ code: 'female' }, { code: 'other' }] },
@@ -1015,7 +1105,7 @@ async function run() {
     assert(findCode(result, 'other'), 'other');
   });
 
-  await test('cross-system exclude: gender+pubstat minus both unknowns = 6', async () => {
+  await test({ id: 26, rawName: 'cross-system exclude: gender+pubstat minus both unknowns = 6', name: 'Cross-system exclude removes unknown from both systems', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs(
       [{ system: SYS.GENDER }, { system: SYS.PUBSTAT }],
       [{ system: SYS.GENDER, concept: [{ code: 'unknown' }] },
@@ -1026,7 +1116,7 @@ async function run() {
     eq(codes(result).filter(c => c.system === SYS.PUBSTAT).length, 3, 'pubstat count');
   });
 
-  await test('text filter across cs-cs systems: gender+pubstat filter=unknown', async () => {
+  await test({ id: 27, rawName: 'text filter across cs-cs systems: gender+pubstat filter=unknown', name: 'Text filter across single-system peers (gender + publication-status)', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs([{ system: SYS.GENDER }, { system: SYS.PUBSTAT }]),
       { filter: 'unknown' });
     assert(codes(result).length >= 2, 'at least 2 matches');
@@ -1036,7 +1126,7 @@ async function run() {
 
   console.log('\n=== Multi-system ==='); currentCategory = 'Multi-system';
 
-  await test('SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems', async () => {
+  await test({ id: 28, rawName: 'SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems', name: 'SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems', category: 'Multi-System Composition' }, async () => {
     const { result } = await expand(vs([
       { system: SYS.SCT, concept: [{ code: '73211009' }] },
       { system: SYS.LOINC, concept: [{ code: '2160-0' }] },
@@ -1048,7 +1138,7 @@ async function run() {
     assert(findCode(result, '1191')?.display === 'aspirin', 'RxNorm display');
   });
 
-  await test('Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5', async () => {
+  await test({ id: 29, rawName: 'Mixed v0+cs-cs: gender (4) + SNOMED enum (1) = 5', name: 'Mixed SQLite v0 + single-system peer: gender (4) + SNOMED enum (1) = 5', category: 'Multi-System Composition' }, async () => {
     const { result, ms } = await expand(vs([
       { system: 'http://hl7.org/fhir/administrative-gender' },
       { system: SYS.SCT, concept: [{ code: '73211009' }] },
@@ -1060,7 +1150,7 @@ async function run() {
     assert(findCode(result, '73211009')?.display?.startsWith('Diabetes mellitus'), 'SNOMED display');
   });
 
-  await test('Mixed v0+cs-cs: gender (4) + SNOMED is-a (124), stride across boundary', async () => {
+  await test({ id: 30, rawName: 'Mixed v0+cs-cs: gender (4) + SNOMED is-a (124), stride across boundary', name: 'Mixed SQLite v0 + single-system peer: gender (4) + SNOMED is-a (124)', category: 'Multi-System Composition' }, async () => {
     // Canonical order: gender first (http://hl7...), SNOMED second (http://snomed...)
     // offset=2 count=5 → 2 gender + 3 SNOMED
     const { result } = await expand(vs([
@@ -1073,7 +1163,7 @@ async function run() {
     eq(systems.size, 2, 'page spans both systems');
   });
 
-  await test('Mixed v0+cs-cs + text filter', async () => {
+  await test({ id: 31, rawName: 'Mixed v0+cs-cs + text filter', name: 'Mixed SQLite v0 + single-system peer with text filter', category: 'Multi-System Composition' }, async () => {
     const { result } = await expand(vs([
       { system: 'http://hl7.org/fhir/administrative-gender' },
       { system: SYS.SCT, concept: [{ code: '73211009' }, { code: '44054006' }] },
@@ -1083,7 +1173,7 @@ async function run() {
     assert(codes(result).length >= 1, 'at least male');
   });
 
-  await test('Multi-system stride pagination', async () => {
+  await test({ id: 32, rawName: 'Multi-system stride pagination', name: 'Stride pagination crosses system boundaries correctly', category: 'Multi-System Composition' }, async () => {
     // Pick an offset that straddles the true canonical boundary between the 2 systems.
     const sctBranch = { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] };
     const loincBranch = { system: SYS.LOINC, filter: [{ property: 'CLASSTYPE', op: '=', value: '1' }] };
@@ -1110,7 +1200,7 @@ async function run() {
   // ── meta: expansion parameters ──────────────────────────────────────────
   console.log('\n=== Meta ==='); currentCategory = 'Meta';
 
-  await test('meta: multi-system emits used-codesystem for each system', async () => {
+  await test({ id: 33, rawName: 'meta: multi-system emits used-codesystem for each system', name: 'usedCodeSystem emitted once per system in multi-system expansion', category: 'Expansion Metadata' }, async () => {
     const { result } = await expand(vs([
       { system: SYS.GENDER, concept: [{ code: 'male' }] },
       { system: SYS.PUBSTAT, concept: [{ code: 'active' }] },
@@ -1120,7 +1210,7 @@ async function run() {
     assert(usedCs.some(v => v.startsWith(SYS.PUBSTAT)), 'pubstat in used-codesystem');
   });
 
-  await test('meta: used-codesystem dedupes repeated same-system', async () => {
+  await test({ id: 34, rawName: 'meta: used-codesystem dedupes repeated same-system', name: 'usedCodeSystem deduplicates repeated references to one system', category: 'Expansion Metadata' }, async () => {
     const { result } = await expand(vs([
       { system: SYS.GENDER, concept: [{ code: 'male' }, { code: 'female' }] },
       { system: SYS.GENDER, concept: [{ code: 'other' }] },
@@ -1130,7 +1220,7 @@ async function run() {
     eq(usedCs.length, 1, 'exactly 1 used-codesystem for gender');
   });
 
-  await test('meta: offset/count are echoed in expansion parameters', async () => {
+  await test({ id: 35, rawName: 'meta: offset/count are echoed in expansion parameters', name: 'offset and count echoed in expansion parameters', category: 'Expansion Metadata' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }), { count: 2, offset: 1 });
     const offsetP = findParams(result, 'offset')[0];
     const countP = findParams(result, 'count')[0];
@@ -1138,7 +1228,7 @@ async function run() {
     assert(countP?.valueInteger === 2, `expected count=2, got ${countP?.valueInteger}`);
   });
 
-  await test('meta: text filter is echoed in expansion parameters', async () => {
+  await test({ id: 36, rawName: 'meta: text filter is echoed in expansion parameters', name: 'text filter is echoed in expansion parameters', category: 'Expansion Metadata' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
@@ -1147,7 +1237,7 @@ async function run() {
     eq(filterP?.valueString, 'mell', 'filter echoed');
   });
 
-  await test('meta: v0 used-codesystem includes version', async () => {
+  await test({ id: 37, rawName: 'meta: v0 used-codesystem includes version', name: 'SQLite v0 usedCodeSystem includes version', category: 'Expansion Metadata' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT, concept: [{ code: '73211009' }],
     }));
@@ -1160,7 +1250,7 @@ async function run() {
   // ── vs-import ────────────────────────────────────────────────────────
   console.log('\n=== ValueSet imports ==='); currentCategory = 'VS import';
 
-  await test('vs-import: pure import of administrative-gender', async () => {
+  await test({ id: 38, rawName: 'vs-import: pure import of administrative-gender', name: 'Pure ValueSet import of administrative-gender', category: 'ValueSet Imports' }, async () => {
     const { result } = await expand(vs({ valueSet: ['http://hl7.org/fhir/ValueSet/administrative-gender'] }));
     eq(result.expansion.total, 4, 'total');
     assert(findCode(result, 'male'), 'male');
@@ -1169,7 +1259,7 @@ async function run() {
     assert(findCode(result, 'unknown'), 'unknown');
   });
 
-  await test('vs-import: system + valueSet intersection', async () => {
+  await test({ id: 39, rawName: 'vs-import: system + valueSet intersection', name: 'System and ValueSet intersection', category: 'ValueSet Imports' }, async () => {
     const { result } = await expand(vs({
       system: SYS.GENDER,
       concept: [{ code: 'male' }, { code: 'female' }, { code: 'other' }],
@@ -1185,7 +1275,7 @@ async function run() {
   // ── pagination-safety ──────────────────────────────────────────────
   console.log('\n=== Pagination safety ==='); currentCategory = 'Pagination safety';
 
-  await test('pagination-safety: mixed v0+cs-cs reconstruct full set', async () => {
+  await test({ id: 40, rawName: 'pagination-safety: mixed v0+cs-cs reconstruct full set', name: 'Mixed SQLite v0 + single-system peer reconstructs full set', category: 'Pagination Safety' }, async () => {
     const query = vs([
       { system: SYS.GENDER },
       { system: SYS.SCT, concept: [{ code: '73211009' }] },
@@ -1202,7 +1292,7 @@ async function run() {
     eq(allCodes.size, 5, 'all codes covered');
   });
 
-  await test('pagination-safety: v0 filter+cs-cs pages are disjoint', async () => {
+  await test({ id: 41, rawName: 'pagination-safety: v0 filter+cs-cs pages are disjoint', name: 'SQLite v0 filter + single-system peer pages are disjoint', category: 'Pagination Safety' }, async () => {
     const query = vs([
       { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
       { system: SYS.GENDER },
@@ -1220,13 +1310,13 @@ async function run() {
     eq(allCodes.size, 128, 'all codes covered without gaps');
   });
 
-  await test('pagination-safety: offset beyond end returns empty', async () => {
+  await test({ id: 42, rawName: 'pagination-safety: offset beyond end returns empty', name: 'Offset beyond end returns empty page', category: 'Pagination Safety' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }), { count: 10, offset: 100 });
     eq(result.expansion.total, 4, 'total');
     eq(codes(result).length, 0, 'no codes past end');
   });
 
-  await test('pagination-safety: deep offset 110K into 124K set returns 10K codes', async () => {
+  await test({ id: 43, rawName: 'pagination-safety: deep offset 110K into 124K set returns 10K codes', name: 'Deep offset into 124K set returns expected 10K page', category: 'Pagination Safety' }, async () => {
     const { result, ms } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
@@ -1240,7 +1330,7 @@ async function run() {
     assert(JSON.stringify(sorted) === JSON.stringify(expected), 'codes are sorted');
   });
 
-  await test('pagination-safety: last page of 124K set is partial', async () => {
+  await test({ id: 44, rawName: 'pagination-safety: last page of 124K set is partial', name: 'Last page of large expansion is partial', category: 'Pagination Safety' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
@@ -1252,7 +1342,7 @@ async function run() {
   // ── combined ─────────────────────────────────────────────────────────
   console.log('\n=== Combined ==='); currentCategory = 'Combined';
 
-  await test('combined: SNOMED is-a + text filter', async () => {
+  await test({ id: 45, rawName: 'combined: SNOMED is-a + text filter', name: 'SNOMED is-a combined with text filter', category: 'Composition Semantics' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
@@ -1261,7 +1351,7 @@ async function run() {
     assert(codes(result).every(c => c.system === SYS.SCT), 'all SNOMED');
   });
 
-  await test('combined: include filter + exclude filter same system', async () => {
+  await test({ id: 46, rawName: 'combined: include filter + exclude filter same system', name: 'Include and exclude filters combine within one system', category: 'Composition Semantics' }, async () => {
     const { result } = await expand(
       vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
          [{ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '44054006' }] },
@@ -1272,7 +1362,7 @@ async function run() {
     assert(!findCode(result, '46635009'), 'Type1 excluded');
   });
 
-  await test('combined: enumerated + text filter', async () => {
+  await test({ id: 47, rawName: 'combined: enumerated + text filter', name: 'Enumerated include combined with text filter', category: 'Composition Semantics' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       concept: [{ code: '73211009' }, { code: '44054006' }, { code: '46635009' }],
@@ -1281,7 +1371,7 @@ async function run() {
     assert(codes(result).every(c => c.display.toLowerCase().includes('type')), 'all match text');
   });
 
-  await test('combined: multi-system + exclude + pagination', async () => {
+  await test({ id: 48, rawName: 'combined: multi-system + exclude + pagination', name: 'Multi-system expansion with exclude remains pagination-safe', category: 'Composition Semantics' }, async () => {
     const query = vs(
       [{ system: SYS.GENDER }, { system: SYS.PUBSTAT }],
       [{ system: SYS.GENDER, concept: [{ code: 'unknown' }] },
@@ -1301,7 +1391,7 @@ async function run() {
   // ── lang / designations ───────────────────────────────────────────
   console.log('\n=== Designations ==='); currentCategory = 'Designations';
 
-  await test('lang: SNOMED includeDesignations returns entries', async () => {
+  await test({ id: 49, rawName: 'lang: SNOMED includeDesignations returns entries', name: 'SNOMED includeDesignations returns designation entries', category: 'Designations & Language' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT, concept: [{ code: '73211009' }],
     }), { includeDesignations: true });
@@ -1310,7 +1400,7 @@ async function run() {
     assert(entry.designation.every(d => d.value?.length > 0), 'all have value');
   });
 
-  await test('lang: SNOMED is-a filter includeDesignations', async () => {
+  await test({ id: 50, rawName: 'lang: SNOMED is-a filter includeDesignations', name: 'SNOMED is-a filter with includeDesignations', category: 'Designations & Language' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
@@ -1319,7 +1409,7 @@ async function run() {
     assert(codes(result).every(c => c.designation?.length > 0), 'all have designations');
   });
 
-  await test('lang: LOINC includeDesignations returns entries', async () => {
+  await test({ id: 51, rawName: 'lang: LOINC includeDesignations returns entries', name: 'LOINC includeDesignations returns designation entries', category: 'Designations & Language' }, async () => {
     const { result } = await expand(vs({
       system: SYS.LOINC, concept: [{ code: '2160-0' }],
     }), { includeDesignations: true });
@@ -1357,7 +1447,7 @@ async function run() {
     };
   }
 
-  await test('meta: used-codesystem emitted for single system', async () => {
+  await test({ id: 52, rawName: 'meta: used-codesystem emitted for single system', name: 'usedCodeSystem emitted for single-system expansion', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/meta-used-1');
     const { result } = await expand(vsForCS(cs.url), { txResources: cs });
     assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
@@ -1367,7 +1457,7 @@ async function run() {
       `used-codesystem should reference the inline CS, got: ${JSON.stringify(usedParams)}`);
   });
 
-  await test('meta: used-codesystem emitted for multi-system', async () => {
+  await test({ id: 53, rawName: 'meta: used-codesystem emitted for multi-system', name: 'usedCodeSystem emitted for multi-system expansion', category: 'Expansion Metadata' }, async () => {
     const cs1 = inlineCS('http://example.org/cs/multi-1');
     const cs2 = inlineCS('http://example.org/cs/multi-2', {
       concept: [{ code: 'X', display: 'Xray' }],
@@ -1390,7 +1480,7 @@ async function run() {
       'should record cs/multi-2');
   });
 
-  await test('meta: warning-draft for draft CodeSystem', async () => {
+  await test({ id: 54, rawName: 'meta: warning-draft for draft CodeSystem', name: 'Draft CodeSystem emits warning for non-draft ValueSet', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/draft-1', { status: 'draft' });
     const { result } = await expand(vsForCS(cs.url), { txResources: cs });
     assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
@@ -1398,7 +1488,7 @@ async function run() {
       `expected warning-draft parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
   });
 
-  await test('meta: warning-retired for retired CodeSystem', async () => {
+  await test({ id: 55, rawName: 'meta: warning-retired for retired CodeSystem', name: 'Retired CodeSystem emits warning', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/retired-1', { status: 'retired' });
     const { result } = await expand(vsForCS(cs.url), { txResources: cs });
     assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
@@ -1406,7 +1496,7 @@ async function run() {
       `expected warning-retired parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
   });
 
-  await test('meta: warning-experimental for experimental CodeSystem (non-experimental VS)', async () => {
+  await test({ id: 56, rawName: 'meta: warning-experimental for experimental CodeSystem (non-experimental VS)', name: 'Experimental CodeSystem emits warning for non-experimental ValueSet', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/experimental-1', { experimental: true });
     const { result } = await expand(vsForCS(cs.url), { txResources: cs });
     assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
@@ -1414,7 +1504,7 @@ async function run() {
       `expected warning-experimental parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
   });
 
-  await test('meta: NO warning-draft when VS is also draft', async () => {
+  await test({ id: 57, rawName: 'meta: NO warning-draft when VS is also draft', name: 'No draft warning when ValueSet is also draft', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/draft-2', { status: 'draft' });
     const vsJson = {
       resourceType: 'ValueSet',
@@ -1430,7 +1520,7 @@ async function run() {
 
   // Note: legacy engine has a bug here — ValueSet wrapper doesn't expose .experimental,
   // so it always emits warning-experimental. IR engine correctly suppresses it.
-  await test('meta: NO warning-experimental when VS is also experimental', async () => {
+  await test({ id: 58, rawName: 'meta: NO warning-experimental when VS is also experimental', name: 'No experimental warning when ValueSet is also experimental', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/experimental-2', { experimental: true });
     const vsJson = {
       resourceType: 'ValueSet',
@@ -1445,7 +1535,7 @@ async function run() {
       `should NOT have warning-experimental when VS is also experimental`);
   });
 
-  await test('meta: warning-deprecated via standardsStatus extension', async () => {
+  await test({ id: 59, rawName: 'meta: warning-deprecated via standardsStatus extension', name: 'Deprecated standards-status extension emits warning', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/deprecated-1', {
       extension: [{
         url: 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status',
@@ -1458,7 +1548,7 @@ async function run() {
       `expected warning-deprecated parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
   });
 
-  await test('meta: fragment CodeSystem sets valueset-unclosed extension', async () => {
+  await test({ id: 60, rawName: 'meta: fragment CodeSystem sets valueset-unclosed extension', name: 'Fragment CodeSystem sets valueset-unclosed extension', category: 'Expansion Metadata' }, async () => {
     const cs = inlineCS('http://example.org/cs/fragment-1', { content: 'fragment' });
     const { result } = await expand(vsForCS(cs.url), { txResources: cs });
     assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
@@ -1467,7 +1557,7 @@ async function run() {
       `expected valueset-unclosed extension, got extensions: ${JSON.stringify(result.expansion?.extension)}`);
   });
 
-  await test('meta: SNOMED expansion emits used-codesystem with version', async () => {
+  await test({ id: 61, rawName: 'meta: SNOMED expansion emits used-codesystem with version', name: 'SNOMED expansion emits usedCodeSystem with version', category: 'Expansion Metadata' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
@@ -1479,7 +1569,7 @@ async function run() {
 
   // ── Phase 1.1–1.4: compose overrides, used-valueset, count guard ─────
 
-  await test('compose: display override from compose replaces provider display', async () => {
+  await test({ id: 62, rawName: 'compose: display override from compose replaces provider display', name: 'Compose display override replaces provider display', category: 'Compose Overrides' }, async () => {
     // Gender 'male' has provider display 'Male' — compose overrides to 'Masculin'
     const { result } = await expand(vs({
       system: SYS.GENDER,
@@ -1496,7 +1586,7 @@ async function run() {
       `expected display 'Female', got '${female.display}'`);
   });
 
-  await test('compose: inline designation from compose appears with includeDesignations', async () => {
+  await test({ id: 63, rawName: 'compose: inline designation from compose appears with includeDesignations', name: 'Compose designation appears when includeDesignations is enabled', category: 'Compose Overrides' }, async () => {
     const { result } = await expand(vs({
       system: SYS.GENDER,
       concept: [{
@@ -1516,7 +1606,7 @@ async function run() {
       `expected French designation, got: ${JSON.stringify(desigs)}`);
   });
 
-  await test('meta: ValueSet import emits used-valueset parameter', async () => {
+  await test({ id: 64, rawName: 'meta: ValueSet import emits used-valueset parameter', name: 'ValueSet import emits used-valueset parameter', category: 'Expansion Metadata' }, async () => {
     // Pure import of administrative-gender VS — should emit used-valueset
     const { result } = await expand(vs({
       valueSet: ['http://hl7.org/fhir/ValueSet/administrative-gender'],
@@ -1528,7 +1618,7 @@ async function run() {
       `expected used-valueset for administrative-gender, got: ${JSON.stringify(usedVS)}`);
   });
 
-  await test('meta: count parameter is omitted when not requested (no count=-1)', async () => {
+  await test({ id: 65, rawName: 'meta: count parameter is omitted when not requested (no count=-1)', name: 'No count=-1 parameter when count is not requested', category: 'Expansion Metadata' }, async () => {
     // Expand without specifying count — should NOT emit count=-1
     const { result } = await expand(vs({
       system: SYS.GENDER,
@@ -1542,7 +1632,7 @@ async function run() {
 
   // ── Phase 1.5: designation parameter filter ────────────────────────
 
-  await test('lang: designation parameter filters SNOMED designations by FSN use code', async () => {
+  await test({ id: 66, rawName: 'lang: designation parameter filters SNOMED designations by FSN use code', name: 'designation parameter filters SNOMED designations by FSN use', category: 'Designations & Language' }, async () => {
     // SNOMED 73211009 has 3 designations: 2 synonyms + 1 FSN
     // designation=http://snomed.info/sct|900000000000003001 should keep only FSN
     const { result } = await expand(vs({
@@ -1568,7 +1658,7 @@ async function run() {
       `expected 1 FSN designation, got ${desigs.length}: ${JSON.stringify(desigs)}`);
   });
 
-  await test('lang: displayLanguage=en echoed and matches default display for SNOMED', async () => {
+  await test({ id: 67, rawName: 'lang: displayLanguage=en echoed and matches default display for SNOMED', name: 'displayLanguage=en echoed and display remains SNOMED default', category: 'Designations & Language' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       concept: [{ code: '73211009' }],
@@ -1584,7 +1674,7 @@ async function run() {
       `expected displayLanguage=en in params, got: ${JSON.stringify(expansionParams(result, 'displayLanguage'))}`);
   });
 
-  await test('lang: redundant designation equal to primary display is suppressed', async () => {
+  await test({ id: 68, rawName: 'lang: redundant designation equal to primary display is suppressed', name: 'Redundant designation equal to primary display is suppressed', category: 'Designations & Language' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT,
       concept: [{ code: '73211009' }],
@@ -1602,7 +1692,7 @@ async function run() {
 
   // ── Phase 1.8: property-value regex in SQL ─────────────────────────
 
-  await test('logic: property regex on literal-valued property (LOINC STATUS regex ^ACT)', async () => {
+  await test({ id: 69, rawName: 'logic: property regex on literal-valued property (LOINC STATUS regex ^ACT)', name: 'Regex filter applies to literal-valued LOINC STATUS property', category: 'Composition Semantics' }, async () => {
     // LOINC STATUS is a literal property. regex should work like = but with pattern matching.
     const { result } = await expand(vs({
       system: SYS.LOINC,
@@ -1614,10 +1704,10 @@ async function run() {
       `expected non-zero total or results`);
   });
 
-  // ── Phase 2: shape-A, infra, shape-B/filter tests ─────────────────
-  console.log('\n=== Phase 2: shape-A / infra / shape-B / filters ==='); currentCategory = 'Phase 2';
+  // ── Phase 2: baseline fixtures + filter/txResources tests ───────────
+  console.log('\n=== Phase 2: baselines / txResources / filters ==='); currentCategory = 'Phase 2';
 
-  await test('shape-A: currency full expansion (preloaded map)', async () => {
+  await test({ id: 70, rawName: 'baseline: currency full expansion (preloaded map)', name: 'Currency full expansion baseline (preloaded map)', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({ system: SYS.CURRENCY }), { count: 500 });
     const all = codes(result);
     assert(all.length >= 150, `expected ≥150 currency codes, got ${all.length}`);
@@ -1632,7 +1722,7 @@ async function run() {
     assert(jpy.display && jpy.display.length > 0, 'JPY missing display');
   });
 
-  await test('shape-A: administrative-gender (cs-cs) strict shape', async () => {
+  await test({ id: 71, rawName: 'baseline: administrative-gender (inline CodeSystem) strict shape', name: 'Administrative-gender inline CodeSystem baseline expansion', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }));
     eq(result.expansion.total, 4, 'total');
     eq(codes(result).length, 4, 'exactly 4 codes returned');
@@ -1642,7 +1732,7 @@ async function run() {
     assert(findCode(result, 'unknown')?.display === 'Unknown', 'unknown display');
   });
 
-  await test('shape-A: publication-status (cs-cs)', async () => {
+  await test({ id: 72, rawName: 'baseline: publication-status (inline CodeSystem)', name: 'Publication-status inline CodeSystem baseline expansion', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({ system: SYS.PUBSTAT }));
     eq(result.expansion.total, 4, 'total');
     eq(codes(result).length, 4, 'exactly 4 codes returned');
@@ -1652,7 +1742,7 @@ async function run() {
     assert(findCode(result, 'unknown')?.display === 'Unknown', 'unknown display');
   });
 
-  await test('infra: tx-resource injected CodeSystem can be expanded', async () => {
+  await test({ id: 73, rawName: 'infra: tx-resource injected CodeSystem can be expanded', name: 'txResources-injected CodeSystem can be expanded', category: 'txResources' }, async () => {
     const cs = {
       resourceType: 'CodeSystem',
       url: 'http://example.org/cs/colors',
@@ -1672,7 +1762,7 @@ async function run() {
     assert(findCode(result, 'blue')?.display === 'Blue', 'blue present');
   });
 
-  await test('infra: tx-resource injected ValueSet import resolves', async () => {
+  await test({ id: 74, rawName: 'infra: tx-resource injected ValueSet import resolves', name: 'txResources-injected ValueSet import resolves', category: 'txResources' }, async () => {
     const cs = {
       resourceType: 'CodeSystem',
       url: 'http://example.org/cs/shapes',
@@ -1703,7 +1793,7 @@ async function run() {
     assert(!findCode(result, 'triangle'), 'triangle should be absent');
   });
 
-  await test('shape-B: single concept exact match (v0)', async () => {
+  await test({ id: 75, rawName: 'baseline: single concept exact match (SQLite v0)', name: 'Single concept exact match on SQLite v0', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, concept: [{ code: '73211009' }] }));
     eq(result.expansion.total, 1, 'total');
     const dm = findCode(result, '73211009');
@@ -1711,7 +1801,7 @@ async function run() {
     assert(dm.display?.startsWith('Diabetes mellitus'), `unexpected display: ${dm.display}`);
   });
 
-  await test('filter: gender regex [mf].* (inline FHIR cs-cs)', async () => {
+  await test({ id: 76, rawName: 'filter: gender regex [mf].* (inline FHIR cs-cs)', name: 'Gender regex [mf].* on inline FHIR CodeSystem', category: 'Filter Semantics' }, async () => {
     const { result } = await expand(vs({
       system: SYS.GENDER,
       filter: [{ property: 'code', op: 'regex', value: '[mf].*' }],
@@ -1723,7 +1813,7 @@ async function run() {
     assert(!findCode(result, 'unknown'), 'unknown should be absent');
   });
 
-  await test('filter: inline FHIR is-a with hierarchy (condition-ver-status)', async () => {
+  await test({ id: 77, rawName: 'filter: inline FHIR is-a with hierarchy (condition-ver-status)', name: 'Inline FHIR is-a filter with hierarchy (condition-ver-status)', category: 'Filter Semantics' }, async () => {
     // condition-ver-status hierarchy: unconfirmed → {provisional, differential}, confirmed, refuted, entered-in-error
     // is-a "unconfirmed" = unconfirmed + provisional + differential = 3 codes
     const { result } = await expand(vs({
@@ -1739,7 +1829,7 @@ async function run() {
     assert(!findCode(result, 'entered-in-error'), 'entered-in-error should be absent');
   });
 
-  await test('filter: inline FHIR descendent-of (condition-ver-status)', async () => {
+  await test({ id: 78, rawName: 'filter: inline FHIR descendent-of (condition-ver-status)', name: 'Inline FHIR descendent-of filter (condition-ver-status)', category: 'Filter Semantics' }, async () => {
     // descendent-of "unconfirmed" = provisional + differential = 2 codes (excludes self)
     const { result } = await expand(vs({
       system: SYS.CONDVER,
@@ -1751,7 +1841,7 @@ async function run() {
     assert(findCode(result, 'differential'), 'differential present');
   });
 
-  await test('filter: inline FHIR concept = exact code (cs-cs)', async () => {
+  await test({ id: 79, rawName: 'filter: inline FHIR concept = exact code (cs-cs)', name: 'Inline FHIR concept filter exact-code match', category: 'Filter Semantics' }, async () => {
     const { result } = await expand(vs({
       system: SYS.CONDVER,
       filter: [{ property: 'concept', op: '=', value: 'confirmed' }],
@@ -1760,7 +1850,7 @@ async function run() {
     assert(findCode(result, 'confirmed'), 'confirmed present');
   });
 
-  await test('filter: country code regex A.* (cs-country)', async () => {
+  await test({ id: 80, rawName: 'filter: country code regex A.* (cs-country)', name: 'Country code regex A.* filter on inline CodeSystem', category: 'Filter Semantics' }, async () => {
     const { result } = await expand(vs({
       system: SYS.COUNTRY,
       filter: [{ property: 'code', op: 'regex', value: 'A.*' }],
@@ -1770,7 +1860,7 @@ async function run() {
       'all codes should start with A');
   });
 
-  await test('filter: currency decimals=0 (property =)', async () => {
+  await test({ id: 81, rawName: 'filter: currency decimals=0 (property =)', name: 'Currency decimals=0 property filter', category: 'Filter Semantics' }, async () => {
     const { result } = await expand(vs({
       system: SYS.CURRENCY,
       filter: [{ property: 'decimals', op: '=', value: '0' }],
@@ -1779,7 +1869,7 @@ async function run() {
     assert(findCode(result, 'JPY'), 'JPY should be zero-decimal');
   });
 
-  await test('params: property=definition includes definition property', async () => {
+  await test({ id: 82, rawName: 'params: property=definition includes definition property', name: 'property=definition parameter includes definition property', category: 'Parameter Handling' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }), {
       params: [{ name: 'property', valueString: 'definition' }],
     });
@@ -1794,7 +1884,7 @@ async function run() {
     }
   });
 
-  await test('lang: includeDesignations on package cs-cs whole-system is structurally valid', async () => {
+  await test({ id: 83, rawName: 'lang: includeDesignations on package cs-cs whole-system is structurally valid', name: 'includeDesignations on package inline CodeSystem is structurally valid', category: 'Designations & Language' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }), { includeDesignations: true });
     const all = codes(result);
     assert(all.length === 4, `expected 4 gender codes, got ${all.length}`);
@@ -1817,7 +1907,7 @@ async function run() {
 
   // ── Phase 2 batch 2: logic, provider, pagination, text-search, exclude ──
 
-  await test('logic: imported inc/exc valueSets apply Inc/Exc semantics', async () => {
+  await test({ id: 84, rawName: 'logic: imported inc/exc valueSets apply Inc/Exc semantics', name: 'Imported include/exclude ValueSets preserve include/exclude semantics', category: 'Composition Semantics' }, async () => {
     const csUrl = `http://example.org/cs/palette-${Date.now()}`;
     const incVsUrl = `http://example.org/vs/palette-inc-${Date.now()}`;
     const excVsUrl = `http://example.org/vs/palette-exc-${Date.now()}`;
@@ -1835,7 +1925,7 @@ async function run() {
     assert(!findCode(result,'blue'), 'blue should be excluded');
   });
 
-  await test('logic: total includes direct and imported include contributions', async () => {
+  await test({ id: 85, rawName: 'logic: total includes direct and imported include contributions', name: 'Total includes direct and imported include contributions', category: 'Composition Semantics' }, async () => {
     const csUrl = `http://example.org/cs/total-${Date.now()}`;
     const impVsUrl = `http://example.org/vs/total-imp-${Date.now()}`;
     const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
@@ -1850,7 +1940,7 @@ async function run() {
     assert(result.expansion.total === 4, `expected total=4, got ${result.expansion.total}`);
   });
 
-  await test('logic: whole-system descendant traversal keeps exact total', async () => {
+  await test({ id: 86, rawName: 'logic: whole-system descendant traversal keeps exact total', name: 'Whole-system descendant traversal preserves exact total', category: 'Composition Semantics' }, async () => {
     const csUrl = `http://example.org/cs/hier-${Date.now()}`;
     const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
       concept:[
@@ -1863,7 +1953,7 @@ async function run() {
     assert(result.expansion.total === 5, `expected total=5, got ${result.expansion.total}`);
   });
 
-  await test('logic: total reflects imported excludes without mutating accumulated list', async () => {
+  await test({ id: 87, rawName: 'logic: total reflects imported excludes without mutating accumulated list', name: 'Total reflects imported excludes without list mutation', category: 'Composition Semantics' }, async () => {
     const csUrl = `http://example.org/cs/exc-total-${Date.now()}`;
     const incVsUrl = `http://example.org/vs/exc-total-inc-${Date.now()}`;
     const excVsUrl = `http://example.org/vs/exc-total-exc-${Date.now()}`;
@@ -1889,7 +1979,7 @@ async function run() {
     }
   });
 
-  await test('logic: mixed import+peer inc/exc paginates without gaps or duplicates', async () => {
+  await test({ id: 88, rawName: 'logic: mixed import+peer inc/exc paginates without gaps or duplicates', name: 'Mixed import+peer include/exclude paginates without gaps', category: 'Composition Semantics' }, async () => {
     const csUrl = `http://example.org/cs/page-${Date.now()}`;
     const incVsUrl = `http://example.org/vs/page-inc-${Date.now()}`;
     const excVsUrl = `http://example.org/vs/page-exc-${Date.now()}`;
@@ -1920,7 +2010,7 @@ async function run() {
     assert(pagedSet.size === fullSet.size, `paged ${pagedSet.size} != full ${fullSet.size}`);
   });
 
-  await test('logic: bulk locate handles >50 unique concepts', async () => {
+  await test({ id: 89, rawName: 'logic: bulk locate handles >50 unique concepts', name: 'Bulk locate handles more than 50 unique concepts', category: 'Composition Semantics' }, async () => {
     // Seed from SNOMED is-a diabetes
     const { result: seed } = await expand(vs({
       system: SYS.SCT, filter: [{property:'concept',op:'is-a',value:'73211009'}],
@@ -1935,7 +2025,7 @@ async function run() {
       `expected ${seedCodes.length} codes, got ${gotSet.size}`);
   });
 
-  await test('text-search: SNOMED filter=diabetes no pagination', async () => {
+  await test({ id: 90, rawName: 'text-search: SNOMED filter=diabetes no pagination', name: 'SNOMED filter=diabetes without pagination', category: 'Text Search' }, async () => {
     // count: 2000 to bypass default limit (diabetes returns ~1179 codes > 1000 limit)
     const { result } = await expand(vs({system:SYS.SCT}), {filter:'diabetes', count: 2000});
     const c = codes(result);
@@ -1943,7 +2033,7 @@ async function run() {
     assert(c.length >= 100, `expected many results, got ${c.length}`);
   });
 
-  await test('logic: system exclude global when import include is present', async () => {
+  await test({ id: 91, rawName: 'logic: system exclude global when import include is present', name: 'System exclude is global when import include is present', category: 'Composition Semantics' }, async () => {
     const impVsUrl = `http://example.org/vs/exc-guard-${Date.now()}`;
     const impVs = {resourceType:'ValueSet',url:impVsUrl,status:'active',
       compose:{include:[{system:SYS.SCT,concept:[{code:'44054006'}]}]}};
@@ -1954,7 +2044,7 @@ async function run() {
     assert(!findCode(result,'44054006'), 'excluded code should not appear despite import');
   });
 
-  await test('exclude: inline FHIR filter-based exclude (condition-ver-status)', async () => {
+  await test({ id: 92, rawName: 'exclude: inline FHIR filter-based exclude (condition-ver-status)', name: 'Inline FHIR filter-based exclude (condition-ver-status)', category: 'Exclusions' }, async () => {
     const { result } = await expand(vs(
       [{system:SYS.CONDVER}],
       [{system:SYS.CONDVER,filter:[{property:'concept',op:'is-a',value:'unconfirmed'}]}]
@@ -1968,7 +2058,7 @@ async function run() {
     assert(findCode(result,'confirmed'), 'confirmed should remain');
   });
 
-  await test('provider: preloaded map iteration (currency full + filter)', async () => {
+  await test({ id: 93, rawName: 'provider: preloaded map iteration (currency full + filter)', name: 'Preloaded-map provider iteration (currency full + filter)', category: 'Provider Execution' }, async () => {
     const { result: full } = await expand(vs({system:SYS.CURRENCY}));
     assert(codes(full).length >= 150, `expected >=150 currencies, got ${codes(full).length}`);
     const { result: filtered } = await expand(vs({
@@ -1978,7 +2068,7 @@ async function run() {
       `expected 18 zero-decimal currencies, got ${codes(filtered).length}`);
   });
 
-  await test('provider: cs-cs hierarchy iteration (condition-ver-status)', async () => {
+  await test({ id: 94, rawName: 'provider: cs-cs hierarchy iteration (condition-ver-status)', name: 'Inline CodeSystem hierarchy iteration (condition-ver-status)', category: 'Provider Execution' }, async () => {
     const { result } = await expand(vs({system:SYS.CONDVER}));
     const c = codes(result);
     assert(c.length === 6, `expected 6 condition-ver-status codes, got ${c.length}`);
@@ -1992,13 +2082,13 @@ async function run() {
 
   // ── Phase 2 batch 3: pagination, multi-system, coverage, pagination-safety ──
 
-  await test('pagination: currency count=10 offset=0', async () => {
+  await test({ id: 95, rawName: 'pagination: currency count=10 offset=0', name: 'Currency pagination with count=10 and offset=0', category: 'Pagination' }, async () => {
     const { result } = await expand(vs({system:SYS.CURRENCY}), {count:10, offset:0});
     assert(codes(result).length === 10, `expected 10 codes, got ${codes(result).length}`);
     assert(result.expansion.total >= 150, `expected total>=150, got ${result.expansion.total}`);
   });
 
-  await test('pagination-bug: preloaded map total matches full expansion when paged', async () => {
+  await test({ id: 96, rawName: 'pagination-bug: preloaded map total matches full expansion when paged', name: 'Preloaded-map pagination total matches full expansion', category: 'Pagination Safety' }, async () => {
     // Full expansion
     const { result: full } = await expand(vs({system:SYS.CURRENCY}));
     const fullCount = codes(full).length;
@@ -2008,7 +2098,7 @@ async function run() {
       `paged total ${page.expansion.total} != full count ${fullCount}`);
   });
 
-  await test('multi-system: v0 filter + preloaded whole + cs-cs enumerated', async () => {
+  await test({ id: 97, rawName: 'multi-system: v0 filter + preloaded whole + cs-cs enumerated', name: 'SQLite v0 filter + preloaded whole + single-system enumerated', category: 'Multi-System Composition' }, async () => {
     const { result } = await expand(vs([
       {system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'73211009'}]},
       {system:SYS.CURRENCY},
@@ -2020,7 +2110,7 @@ async function run() {
     assert(result.expansion.total > 200, `expected large total, got ${result.expansion.total}`);
   });
 
-  await test('provider: v0 SNOMED large is-a pagination consistency', async () => {
+  await test({ id: 98, rawName: 'provider: v0 SNOMED large is-a pagination consistency', name: 'SQLite v0 SNOMED large is-a preserves pagination consistency', category: 'Provider Execution' }, async () => {
     const q = vs({system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'73211009'}]});
     const { result: p1 } = await expand(q, {count:50, offset:0});
     const { result: p2 } = await expand(q, {count:50, offset:50});
@@ -2034,7 +2124,7 @@ async function run() {
     }
   });
 
-  await test('provider: v0 RxNorm text search + property filter combined', async () => {
+  await test({ id: 99, rawName: 'provider: v0 RxNorm text search + property filter combined', name: 'SQLite v0 RxNorm text search combined with property filter', category: 'Provider Execution' }, async () => {
     const { result } = await expand(vs({
       system:SYS.RXNORM, filter:[{property:'TTY',op:'=',value:'IN'}],
     }), {filter:'aspirin', count:20});
@@ -2043,7 +2133,7 @@ async function run() {
     assert(c.some(x => x.code === '1191'), 'expected aspirin code 1191');
   });
 
-  await test('coverage: tx-resource whole include with cs-cs peer', async () => {
+  await test({ id: 100, rawName: 'coverage: tx-resource whole include with cs-cs peer', name: 'txResources whole include with inline CodeSystem peer', category: 'Cross-Source Coverage' }, async () => {
     const csUrl = `http://example.org/cs/cov-whole-${Date.now()}`;
     const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
       concept:[{code:'a',display:'A'},{code:'b',display:'B'}]};
@@ -2057,7 +2147,7 @@ async function run() {
     assert(findCode(result,'male'), 'missing male');
   });
 
-  await test('coverage: tx-resource concept include + exclude with cs-cs peer', async () => {
+  await test({ id: 101, rawName: 'coverage: tx-resource concept include + exclude with cs-cs peer', name: 'txResources concept include/exclude with inline CodeSystem peer', category: 'Cross-Source Coverage' }, async () => {
     const csUrl = `http://example.org/cs/cov-exc-${Date.now()}`;
     const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
       concept:[{code:'x',display:'X'},{code:'y',display:'Y'},{code:'z',display:'Z'}]};
@@ -2074,7 +2164,7 @@ async function run() {
     assert(!findCode(result,'female'), 'female should be excluded');
   });
 
-  await test('coverage: valueset-import include with gender peer', async () => {
+  await test({ id: 102, rawName: 'coverage: valueset-import include with gender peer', name: 'Imported ValueSet include with gender peer', category: 'Cross-Source Coverage' }, async () => {
     // Adapted from codex-2 USPS test — use gender import instead
     const { result } = await expand(vs([
       {valueSet:['http://hl7.org/fhir/ValueSet/administrative-gender']},
@@ -2086,7 +2176,7 @@ async function run() {
     assert(findCode(result,'active'), 'missing active');
   });
 
-  await test('coverage: valueset-import include with gender peer and exclude', async () => {
+  await test({ id: 103, rawName: 'coverage: valueset-import include with gender peer and exclude', name: 'Imported ValueSet include with gender peer plus exclude', category: 'Cross-Source Coverage' }, async () => {
     const { result } = await expand(vs(
       [{valueSet:['http://hl7.org/fhir/ValueSet/administrative-gender']},{system:SYS.PUBSTAT,concept:[{code:'active'}]}],
       [{system:SYS.GENDER,concept:[{code:'other'},{code:'unknown'}]}]
@@ -2097,7 +2187,7 @@ async function run() {
     assert(!findCode(result,'unknown'), 'unknown excluded');
   });
 
-  await test('coverage: country regex filter with cs-cs peer include', async () => {
+  await test({ id: 104, rawName: 'coverage: country regex filter with cs-cs peer include', name: 'Country regex filter with inline CodeSystem peer include', category: 'Cross-Source Coverage' }, async () => {
     const { result } = await expand(vs([
       {system:SYS.COUNTRY, filter:[{property:'code',op:'regex',value:'A.*'}]},
       {system:SYS.GENDER, concept:[{code:'male'}]},
@@ -2107,7 +2197,7 @@ async function run() {
     assert(findCode(result,'male'), 'missing gender peer code');
   });
 
-  await test('pagination-safety: mixed v0 + preloaded reconstruct full set', async () => {
+  await test({ id: 105, rawName: 'pagination-safety: mixed v0 + preloaded reconstruct full set', name: 'Mixed SQLite v0 + preloaded reconstructs full set', category: 'Pagination Safety' }, async () => {
     const q = vs([
       {system:SYS.SCT, concept:[{code:'73211009'},{code:'44054006'},{code:'46635009'}]},
       {system:SYS.CURRENCY},
@@ -2127,7 +2217,7 @@ async function run() {
       `paged ${pagedSet.size} != full ${fullSet.size}`);
   });
 
-  await test('pagination-safety: valueset-import peer with excludes reconstruct', async () => {
+  await test({ id: 106, rawName: 'pagination-safety: valueset-import peer with excludes reconstruct', name: 'Imported ValueSet peer with excludes reconstructs complete set', category: 'Pagination Safety' }, async () => {
     const csUrl = `http://example.org/cs/pgsafe-${Date.now()}`;
     const vsUrl = `http://example.org/vs/pgsafe-${Date.now()}`;
     const cs = {resourceType:'CodeSystem',url:csUrl,status:'active',content:'complete',
@@ -2151,7 +2241,7 @@ async function run() {
       `paged ${pagedSet.size} != full ${fullSet.size}`);
   });
 
-  await test('pagination-safety: mixed import+system high-count page not capped', async () => {
+  await test({ id: 107, rawName: 'pagination-safety: mixed import+system high-count page not capped', name: 'Mixed import + system high-count page is not capped', category: 'Pagination Safety' }, async () => {
     // Expand gender import + currency peer — high count should return all
     const { result } = await expand(vs([
       {valueSet:['http://hl7.org/fhir/ValueSet/administrative-gender']},
@@ -2161,7 +2251,7 @@ async function run() {
     assert(c.length >= 160, `expected >=160 (4 gender + ~178 currency), got ${c.length}`);
   });
 
-  await test('logic: same-system valueSet intersections constrain membership', async () => {
+  await test({ id: 108, rawName: 'logic: same-system valueSet intersections constrain membership', name: 'Same-system ValueSet intersections constrain membership', category: 'Composition Semantics' }, async () => {
     // System + valueSet[] intersection: only codes in both the system filter AND the imported VS
     const { result } = await expand(vs({
       system: SYS.GENDER,
@@ -2172,7 +2262,7 @@ async function run() {
     assert(c.length === 2, `expected 2 (male+female intersection), got ${c.length}`);
   });
 
-  await test('logic: code regex handled in sqlite-v0', async () => {
+  await test({ id: 109, rawName: 'logic: code regex handled in sqlite-v0', name: 'Code regex is handled in SQLite v0', category: 'Composition Semantics' }, async () => {
     const { result } = await expand(vs({
       system: SYS.SCT, filter:[{property:'code',op:'regex',value:'^7[0-9]{4,}'}],
     }), {count:20});
@@ -2185,7 +2275,7 @@ async function run() {
 
   // ── Phase 2 batch 4: remaining green tests ──
 
-  await test('coverage: UCUM whole-system with gender peer include', async () => {
+  await test({ id: 110, rawName: 'coverage: UCUM whole-system with gender peer include', name: 'UCUM whole-system with gender peer include', category: 'Cross-Source Coverage' }, async () => {
     // UCUM whole-system uses specialEnumeration (ucum-common) — returns common units + unclosed
     // count: 2000 to bypass default limit (UCUM common = 1364 + 1 gender > 1000)
     const { result } = await expand(vs([
@@ -2201,7 +2291,7 @@ async function run() {
 
   // ── Phase 4.1: US states (preloaded map, 62 codes) ──
 
-  await test('shape-A: US states full expansion', async () => {
+  await test({ id: 111, rawName: 'baseline: US states full expansion', name: 'US states full-expansion baseline', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({system:SYS.USPS}));
     assert(result.expansion.total === 62, `expected 62 US states, got ${result.expansion.total}`);
     assert(findCode(result,'CA'), 'California should be present');
@@ -2210,7 +2300,7 @@ async function run() {
     assert(ca.display === 'California', `expected California, got ${ca.display}`);
   });
 
-  await test('shape-B: US states enumerated', async () => {
+  await test({ id: 112, rawName: 'baseline: US states enumerated', name: 'US states enumerated baseline', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({system:SYS.USPS,
       concept:[{code:'CA'},{code:'NY'},{code:'TX'}]}));
     assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
@@ -2219,7 +2309,7 @@ async function run() {
     assert(findCode(result,'TX')?.display === 'Texas');
   });
 
-  await test('exclude: US states subtract 2 from 4 enumerated', async () => {
+  await test({ id: 113, rawName: 'exclude: US states subtract 2 from 4 enumerated', name: 'US states subtract 2 from 4 enumerated', category: 'Exclusions' }, async () => {
     const { result } = await expand(vs(
       {system:SYS.USPS, concept:[{code:'CA'},{code:'NY'},{code:'TX'},{code:'FL'}]},
       {system:SYS.USPS, concept:[{code:'CA'},{code:'FL'}]}
@@ -2231,7 +2321,7 @@ async function run() {
     assert(!findCode(result,'FL'), 'FL should be excluded');
   });
 
-  await test('exclude: exclude from whole system (preloaded map)', async () => {
+  await test({ id: 114, rawName: 'exclude: exclude from whole system (preloaded map)', name: 'Whole-system exclude on preloaded map', category: 'Exclusions' }, async () => {
     const { result } = await expand(vs(
       {system:SYS.USPS},
       {system:SYS.USPS, concept:[{code:'CA'},{code:'NY'}]}
@@ -2242,7 +2332,7 @@ async function run() {
     assert(findCode(result,'TX'), 'TX should remain');
   });
 
-  await test('pagination: US states disjoint pages', async () => {
+  await test({ id: 115, rawName: 'pagination: US states disjoint pages', name: 'US states pagination pages are disjoint', category: 'Pagination' }, async () => {
     const { result: p1 } = await expand(vs({system:SYS.USPS}), {count:30, offset:0});
     const { result: p2 } = await expand(vs({system:SYS.USPS}), {count:30, offset:30});
     const { result: p3 } = await expand(vs({system:SYS.USPS}), {count:30, offset:60});
@@ -2254,21 +2344,21 @@ async function run() {
     assert(new Set(allKeys).size === 62, `pages should be disjoint (got ${new Set(allKeys).size} unique)`);
   });
 
-  await test('pagination: US states last page partial', async () => {
+  await test({ id: 116, rawName: 'pagination: US states last page partial', name: 'US states final page is partial', category: 'Pagination' }, async () => {
     const { result } = await expand(vs({system:SYS.USPS}), {count:20, offset:50});
     const c = codes(result);
     assert(c.length === 12, `expected 12 on last page, got ${c.length}`);
     assert(result.expansion.total === 62, `total should be 62, got ${result.expansion.total}`);
   });
 
-  await test('pagination: US states offset beyond end', async () => {
+  await test({ id: 117, rawName: 'pagination: US states offset beyond end', name: 'US states offset beyond end returns empty', category: 'Pagination' }, async () => {
     const { result } = await expand(vs({system:SYS.USPS}), {count:10, offset:100});
     const c = codes(result);
     assert(c.length === 0, `expected 0, got ${c.length}`);
     assert(result.expansion.total === 62, `total should be 62, got ${result.expansion.total}`);
   });
 
-  await test('multi-system: gender + US states union', async () => {
+  await test({ id: 118, rawName: 'multi-system: gender + US states union', name: 'Gender and US states union across systems', category: 'Multi-System Composition' }, async () => {
     const { result } = await expand(vs([
       {system:SYS.GENDER},
       {system:SYS.USPS},
@@ -2280,12 +2370,12 @@ async function run() {
 
   // ── Phase 4.2: area codes (M49, 270 codes) ──
 
-  await test('shape-A: area codes full expansion', async () => {
+  await test({ id: 119, rawName: 'baseline: area codes full expansion', name: 'Area codes full-expansion baseline', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({system:SYS.AREACODE}));
     assert(result.expansion.total === 270, `expected 270, got ${result.expansion.total}`);
   });
 
-  await test('filter: area codes class=region', async () => {
+  await test({ id: 120, rawName: 'filter: area codes class=region', name: 'Area codes class=region filter', category: 'Filter Semantics' }, async () => {
     const { result } = await expand(vs({system:SYS.AREACODE,
       filter:[{property:'class', op:'=', value:'region'}]}));
     assert(result.expansion.total === 29, `expected 29 regions, got ${result.expansion.total}`);
@@ -2293,13 +2383,13 @@ async function run() {
     assert(findCode(result,'001'), 'World (001) should be present');
   });
 
-  await test('filter: area codes class=country', async () => {
+  await test({ id: 121, rawName: 'filter: area codes class=country', name: 'Area codes class=country filter', category: 'Filter Semantics' }, async () => {
     const { result } = await expand(vs({system:SYS.AREACODE,
       filter:[{property:'class', op:'=', value:'country'}]}));
     assert(result.expansion.total === 241, `expected 241 countries, got ${result.expansion.total}`);
   });
 
-  await test('coverage: areacode class filter with cs-cs peer', async () => {
+  await test({ id: 122, rawName: 'coverage: areacode class filter with cs-cs peer', name: 'Area-code class filter with inline CodeSystem peer', category: 'Cross-Source Coverage' }, async () => {
     const { result } = await expand(vs([
       {system:SYS.AREACODE, filter:[{property:'class', op:'=', value:'region'}]},
       {system:SYS.GENDER, concept:[{code:'male'}]},
@@ -2311,7 +2401,7 @@ async function run() {
 
   // ── Phase 4.3: MIME types (grammar-based, concept-include only) ──
 
-  await test('shape-B: MIME types enumerated', async () => {
+  await test({ id: 123, rawName: 'baseline: MIME types enumerated', name: 'MIME types enumerated baseline', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({system:SYS.MIME,
       concept:[{code:'text/html'},{code:'application/json'},{code:'image/png'}]}));
     assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
@@ -2322,7 +2412,7 @@ async function run() {
 
   // ── Phase 4.4: Language codes (grammar-based, concept-include) ──
 
-  await test('shape-B: language codes enumerated', async () => {
+  await test({ id: 124, rawName: 'baseline: language codes enumerated', name: 'Language codes enumerated baseline', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({system:SYS.LANG,
       concept:[{code:'en'},{code:'fr'},{code:'de'}]}));
     assert(result.expansion.total === 3, `expected 3, got ${result.expansion.total}`);
@@ -2331,7 +2421,7 @@ async function run() {
     assert(findCode(result,'de')?.display === 'German', `expected German, got ${findCode(result,'de')?.display}`);
   });
 
-  await test('params: language code includeDesignations', async () => {
+  await test({ id: 125, rawName: 'params: language code includeDesignations', name: 'displayLanguage parameter with includeDesignations', category: 'Parameter Handling' }, async () => {
     const { result } = await expand(vs({system:SYS.LANG,
       concept:[{code:'en'}]}), {includeDesignations:true});
     assert(findCode(result,'en'), 'en should be present');
@@ -2357,7 +2447,7 @@ async function run() {
     return [cs, supp];
   }
 
-  await test('supplement: useSupplement applies content + records used-supplement', async () => {
+  await test({ id: 126, rawName: 'supplement: useSupplement applies content + records used-supplement', name: 'useSupplement applies content and records used-supplement', category: 'Supplements' }, async () => {
     const [cs, supp] = suppFixture(
       'http://example.org/cs-s1', 'http://example.org/supp-s1',
       [{code:'A', display:'Alpha'}, {code:'B', display:'Bravo'}],
@@ -2379,7 +2469,7 @@ async function run() {
     assert(usedSupp[0].valueUri === supp.url, `expected ${supp.url}, got ${usedSupp[0].valueUri}`);
   });
 
-  await test('supplement: provided but not requested is ignored', async () => {
+  await test({ id: 127, rawName: 'supplement: provided but not requested is ignored', name: 'Provided supplement is ignored unless requested', category: 'Supplements' }, async () => {
     const [cs, supp] = suppFixture(
       'http://example.org/cs-s2', 'http://example.org/supp-s2',
       [{code:'X', display:'Xray'}],
@@ -2400,7 +2490,7 @@ async function run() {
     assert(usedSupp.length === 0, 'used-supplement should not be emitted');
   });
 
-  await test('supplement: valueset-supplement extension activates', async () => {
+  await test({ id: 128, rawName: 'supplement: valueset-supplement extension activates', name: 'ValueSet supplement extension activates supplement application', category: 'Supplements' }, async () => {
     const [cs, supp] = suppFixture(
       'http://example.org/cs-s3', 'http://example.org/supp-s3',
       [{code:'M', display:'Mike'}],
@@ -2419,7 +2509,7 @@ async function run() {
     assert(esDes?.value === 'Miguel', `expected Miguel, got ${esDes?.value}`);
   });
 
-  await test('supplement: used-supplement deduped', async () => {
+  await test({ id: 129, rawName: 'supplement: used-supplement deduped', name: 'used-supplement parameter is deduplicated', category: 'Supplements' }, async () => {
     const [cs, supp] = suppFixture(
       'http://example.org/cs-s4', 'http://example.org/supp-s4',
       [{code:'P', display:'Papa'}, {code:'Q', display:'Quebec'}],
@@ -2435,7 +2525,7 @@ async function run() {
     assert(usedSupp.length === 1, `used-supplement should appear once, got ${usedSupp.length}`);
   });
 
-  await test('supplement: missing required fails', async () => {
+  await test({ id: 130, rawName: 'supplement: missing required fails', name: 'Missing required supplement fails expansion', category: 'Supplements' }, async () => {
     const cs = {
       resourceType: 'CodeSystem', url: 'http://example.org/cs-s5',
       content: 'complete', concept: [{code:'Z', display:'Zulu'}],
@@ -2453,7 +2543,7 @@ async function run() {
     }
   });
 
-  await test('supplement: missing VS extension supplement fails', async () => {
+  await test({ id: 131, rawName: 'supplement: missing VS extension supplement fails', name: 'Missing ValueSet supplement extension fails expansion', category: 'Supplements' }, async () => {
     const cs = {
       resourceType: 'CodeSystem', url: 'http://example.org/cs-s6',
       content: 'complete', concept: [{code:'Y', display:'Yankee'}],
@@ -2472,7 +2562,7 @@ async function run() {
     }
   });
 
-  await test('supplement: designation filter selects supplement use-coded designation', async () => {
+  await test({ id: 132, rawName: 'supplement: designation filter selects supplement use-coded designation', name: 'Designation filter selects supplement use-coded designation', category: 'Supplements' }, async () => {
     const [cs, supp] = suppFixture(
       'http://example.org/cs-s7', 'http://example.org/supp-s7',
       [{code:'D', display:'Delta'}],
@@ -2496,7 +2586,7 @@ async function run() {
     assert(desigs[0].value === 'DLT', `expected DLT, got ${desigs[0].value}`);
   });
 
-  await test('supplement: version-pinned canonical accepted', async () => {
+  await test({ id: 133, rawName: 'supplement: version-pinned canonical accepted', name: 'Version-pinned supplement canonical is accepted', category: 'Supplements' }, async () => {
     const [cs, supp] = suppFixture(
       'http://example.org/cs-s8', 'http://example.org/supp-s8',
       [{code:'V', display:'Victor'}],
@@ -2513,7 +2603,7 @@ async function run() {
     assert(jaDes, 'version-pinned supplement designation should appear');
   });
 
-  await test('supplement: itemWeight extension projected', async () => {
+  await test({ id: 134, rawName: 'supplement: itemWeight extension projected', name: 'itemWeight supplement extension is projected', category: 'Supplements' }, async () => {
     const cs = {
       resourceType: 'CodeSystem', url: 'http://example.org/cs-s9',
       content: 'complete',
@@ -2548,7 +2638,7 @@ async function run() {
 
   // ── Phase 5: v0 supplement paths ──
 
-  await test('supplement: inline supplement adds designation to SNOMED v0 code', async () => {
+  await test({ id: 135, rawName: 'supplement: inline supplement adds designation to SNOMED v0 code', name: 'Inline supplement adds designation to SNOMED v0 concept', category: 'Supplements' }, async () => {
     const supp = {
       resourceType: 'CodeSystem', url: 'http://example.org/sct-supp-test',
       content: 'supplement', supplements: SYS.SCT,
@@ -2565,7 +2655,7 @@ async function run() {
     assert(deDes, 'German designation from supplement should appear');
   });
 
-  await test('supplement: inline supplement designation appears on LOINC v0 code', async () => {
+  await test({ id: 136, rawName: 'supplement: inline supplement designation appears on LOINC v0 code', name: 'Inline supplement designation appears on LOINC v0 concept', category: 'Supplements' }, async () => {
     const supp = {
       resourceType: 'CodeSystem', url: 'http://example.org/loinc-supp-test',
       content: 'supplement', supplements: SYS.LOINC,
@@ -2596,7 +2686,7 @@ async function run() {
 
   // ── Phase 6: grammar-based provider handling ──
 
-  await test('notClosed: UCUM expansion reports valueset-unclosed', async () => {
+  await test({ id: 137, rawName: 'notClosed: UCUM expansion reports valueset-unclosed', name: 'UCUM expansion reports valueset-unclosed', category: 'Unclosed Expansion' }, async () => {
     const { result } = await expand(vs({system:SYS.UCUM}), {count:5});
     const c = codes(result);
     assert(c.length === 5, `expected 5, got ${c.length}`);
@@ -2608,7 +2698,7 @@ async function run() {
     assert(ext.valueString?.includes('grammar'), `unclosed message should mention grammar, got: ${ext.valueString}`);
   });
 
-  await test('notClosed: MIME whole-system not enumerable', async () => {
+  await test({ id: 138, rawName: 'notClosed: MIME whole-system not enumerable', name: 'MIME whole-system expansion is not enumerable', category: 'Unclosed Expansion' }, async () => {
     // Should return an OperationOutcome with too-costly (expand() throws on OO)
     try {
       await expand(vs({system:SYS.MIME}));
@@ -2618,7 +2708,7 @@ async function run() {
     }
   });
 
-  await test('coverage: MIME concept + language peer', async () => {
+  await test({ id: 139, rawName: 'coverage: MIME concept + language peer', name: 'MIME concept include with language peer', category: 'Cross-Source Coverage' }, async () => {
     const { result } = await expand(vs([
       {system:SYS.MIME, concept:[{code:'text/html'},{code:'application/json'}]},
       {system:SYS.LANG, concept:[{code:'en'}]},
@@ -2630,7 +2720,7 @@ async function run() {
 
   // ── Phase 7: limit enforcement ──
 
-  await test('limit: SNOMED whole-system exceeds default limit → too-costly', async () => {
+  await test({ id: 140, rawName: 'limit: SNOMED whole-system exceeds default limit → too-costly', name: 'SNOMED whole-system exceeds default limit -> too-costly', category: 'Safety Limits' }, async () => {
     try {
       await expand(vs({system:SYS.SCT}));
       assert(false, 'expected too-costly error');
@@ -2640,7 +2730,7 @@ async function run() {
     }
   });
 
-  await test('limit: explicit limit=50 rejects US states (62 codes)', async () => {
+  await test({ id: 141, rawName: 'limit: explicit limit=50 rejects US states (62 codes)', name: 'Explicit limit=50 rejects US states (62 codes)', category: 'Safety Limits' }, async () => {
     try {
       await expand(vs({system:SYS.USPS}), {
         params: [{ name: 'limit', valueInteger: 50 }],
@@ -2652,7 +2742,7 @@ async function run() {
     }
   });
 
-  await test('limit: pagination bypasses limit for large system', async () => {
+  await test({ id: 142, rawName: 'limit: pagination bypasses limit for large system', name: 'Pagination bypasses expansion limit for large systems', category: 'Safety Limits' }, async () => {
     const { result } = await expand(vs({system:SYS.SCT}), { offset: 0, count: 10 });
     assert(result.expansion.total > 1000, `SNOMED total should be >1000, got ${result.expansion.total}`);
     assert(result.expansion.contains.length === 10, `expected 10 codes, got ${result.expansion.contains.length}`);
@@ -2660,7 +2750,7 @@ async function run() {
 
   // ── Phase 8: high-value stress tests ──
 
-  await test('unclosed: multi-system with grammar provider reports unclosed on all pages', async () => {
+  await test({ id: 143, rawName: 'unclosed: multi-system with grammar provider reports unclosed on all pages', name: 'Unclosed multi-system grammar provider reports unclosed on all pages', category: 'Unclosed Expansion' }, async () => {
     // UCUM (grammar-based, unclosed) + SNOMED hand parts.
     // SNOMED sorts first alphabetically, so page 1 is all SNOMED.
     // The unclosed signal must still appear even when UCUM isn't on this page.
@@ -2681,7 +2771,7 @@ async function run() {
       `unclosed message should mention grammar, got: ${unclosed?.valueString}`);
   });
 
-  await test('stress: deep SNOMED is-a pagination stable across adjacent pages', async () => {
+  await test({ id: 144, rawName: 'stress: deep SNOMED is-a pagination stable across adjacent pages', name: 'Deep SNOMED is-a pagination stable across adjacent pages', category: 'Stress & Scale' }, async () => {
     // Two overlapping pages deep into Clinical finding hierarchy
     const isA404684003 = vs({system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'404684003'}]});
     const { result: p1 } = await expand(isA404684003, { offset: 50000, count: 20 });
@@ -2698,7 +2788,7 @@ async function run() {
       'overlapping region should be identical across adjacent pages');
   });
 
-  await test('stress: complex same-system inc/exc with pagination', async () => {
+  await test({ id: 145, rawName: 'stress: complex same-system inc/exc with pagination', name: 'Complex same-system include/exclude remains pagination-safe', category: 'Stress & Scale' }, async () => {
     // Include is-a diabetes, exclude two specific codes, paginate
     const complexVS = vs(
       [{system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'73211009'}]}],
@@ -2715,7 +2805,7 @@ async function run() {
     assert(allCodes.length === full.expansion.total, `all codes should match total: ${allCodes.length} vs ${full.expansion.total}`);
   });
 
-  await test('stress: mixed-system text filter with limit boundary', async () => {
+  await test({ id: 146, rawName: 'stress: mixed-system text filter with limit boundary', name: 'Mixed-system text filter respects limit boundary', category: 'Stress & Scale' }, async () => {
     // SNOMED + LOINC filtered by 'glucose' — total > 1000, so unpaginated triggers limit
     const mixedVS = vs([{system:SYS.SCT},{system:SYS.LOINC}]);
 
@@ -2736,7 +2826,7 @@ async function run() {
     assert(systems.has(SYS.SCT), 'SNOMED codes should be present');
   });
 
-  await test('stress: include.valueSet + sibling filter at scale', async () => {
+  await test({ id: 147, rawName: 'stress: include.valueSet + sibling filter at scale', name: 'include.valueSet plus sibling filter scales correctly', category: 'Stress & Scale' }, async () => {
     // Import a published VS (observation-codes = LOINC whole-system) with a SNOMED filter peer
     const { result } = await expand(vs([
       { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
@@ -2752,7 +2842,7 @@ async function run() {
 
   // ── Property filter config (sources, linkMatch, aliases) ──
 
-  await test('filter: LOINC SCALE_TYP=Doc uses concept_literal + code-or-display', async () => {
+  await test({ id: 148, rawName: 'filter: LOINC SCALE_TYP=Doc uses concept_literal + code-or-display', name: 'LOINC SCALE_TYP=Doc uses concept_literal plus code-or-display', category: 'Filter Semantics' }, async () => {
     // SCALE_TYP is concept-valued but LOINC stores filterable values in
     // both concept_literal (value_text) and concept_link (target display).
     // The filter value 'Doc' matches target concept LP32888-7's display.
@@ -2764,7 +2854,7 @@ async function run() {
       `LOINC SCALE_TYP=Doc should have >10k codes, got ${result.expansion.total}`);
   });
 
-  await test('filter: LOINC ORDER_OBS=Observation uses literal source with alias', async () => {
+  await test({ id: 149, rawName: 'filter: LOINC ORDER_OBS=Observation uses literal source with alias', name: 'LOINC ORDER_OBS=Observation uses literal source with alias', category: 'Filter Semantics' }, async () => {
     // ORDER_OBS config: sources=["literal"], value.aliases={"observation":"Observation"}
     const { result } = await expand(vs({
       system: SYS.LOINC,
@@ -2774,7 +2864,7 @@ async function run() {
       `LOINC ORDER_OBS=Observation should have many codes, got ${result.expansion.total}`);
   });
 
-  await test('filter: LOINC CLASS=CHEM via dual sources', async () => {
+  await test({ id: 150, rawName: 'filter: LOINC CLASS=CHEM via dual sources', name: 'LOINC CLASS=CHEM via dual sources', category: 'Filter Semantics' }, async () => {
     // CLASS config: sources=["literal","link"], linkMatch=code-or-display
     const { result } = await expand(vs({
       system: SYS.LOINC,
@@ -2784,7 +2874,7 @@ async function run() {
       `LOINC CLASS=CHEM should have many codes, got ${result.expansion.total}`);
   });
 
-  await test('filter: RxNorm TTY=SCD uses literal source', async () => {
+  await test({ id: 151, rawName: 'filter: RxNorm TTY=SCD uses literal source', name: 'RxNorm TTY=SCD uses literal source', category: 'Filter Semantics' }, async () => {
     // RxNorm TTY config: sources=["literal"]
     const { result } = await expand(vs({
       system: SYS.RXNORM,
@@ -2839,7 +2929,7 @@ async function run() {
 
   // ── 9.1: whole-system hierarchy (default, excludeNested not set) ──
 
-  await test('hierarchy: condition-clinical whole-system has nested structure', async () => {
+  await test({ id: 152, rawName: 'hierarchy: condition-clinical whole-system has nested structure', name: 'Condition-clinical whole-system preserves nested structure', category: 'Hierarchy' }, async () => {
     // condition-clinical: active→[recurrence,relapse], inactive→[remission,resolved], unknown
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
@@ -2862,7 +2952,7 @@ async function run() {
     assert(inactiveKids.includes('resolved'), 'resolved is child of inactive');
   });
 
-  await test('hierarchy: condition-ver-status whole-system has nested structure', async () => {
+  await test({ id: 153, rawName: 'hierarchy: condition-ver-status whole-system has nested structure', name: 'Condition-ver-status whole-system preserves nested structure', category: 'Hierarchy' }, async () => {
     // unconfirmed→[provisional,differential], confirmed, refuted, entered-in-error
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status' }),
@@ -2877,7 +2967,7 @@ async function run() {
     assert(kids.includes('differential'), 'differential is child of unconfirmed');
   });
 
-  await test('hierarchy: goal-achievement multi-level nesting preserved', async () => {
+  await test({ id: 154, rawName: 'hierarchy: goal-achievement multi-level nesting preserved', name: 'Goal-achievement preserves multi-level nesting', category: 'Hierarchy' }, async () => {
     // in-progress→[improving,worsening,no-change], achieved→[sustaining],
     // not-achieved→[no-progress,not-attainable]
     const { result } = await expand(
@@ -2893,7 +2983,7 @@ async function run() {
     eq(naKids.length, 2, 'not-achieved has 2 children');
   });
 
-  await test('hierarchy: total counts all codes including nested', async () => {
+  await test({ id: 155, rawName: 'hierarchy: total counts all codes including nested', name: 'Total counts all codes including nested descendants', category: 'Hierarchy' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
     );
@@ -2905,7 +2995,7 @@ async function run() {
 
   // ── 9.2: excludeNested=true → flat output ──
 
-  await test('hierarchy: excludeNested=true returns flat condition-clinical', async () => {
+  await test({ id: 156, rawName: 'hierarchy: excludeNested=true returns flat condition-clinical', name: 'excludeNested=true flattens condition-clinical expansion', category: 'Hierarchy' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
       { excludeNested: true },
@@ -2919,7 +3009,7 @@ async function run() {
     assert(allCodes.includes('remission'), 'remission at top level');
   });
 
-  await test('hierarchy: excludeNested=true on goal-achievement is flat', async () => {
+  await test({ id: 157, rawName: 'hierarchy: excludeNested=true on goal-achievement is flat', name: 'excludeNested=true flattens goal-achievement expansion', category: 'Hierarchy' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/goal-achievement' }),
       { excludeNested: true },
@@ -2931,7 +3021,7 @@ async function run() {
 
   // ── 9.3: pagination forces flat ──
 
-  await test('hierarchy: offset > 0 forces flat even on hierarchical CS', async () => {
+  await test({ id: 158, rawName: 'hierarchy: offset > 0 forces flat even on hierarchical CS', name: 'Offset > 0 flattens hierarchical expansion', category: 'Hierarchy' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
       { offset: 1, count: 3 },
@@ -2940,7 +3030,7 @@ async function run() {
     eq(result.expansion.total, 7, 'total still 7');
   });
 
-  await test('hierarchy: count < total forces flat', async () => {
+  await test({ id: 159, rawName: 'hierarchy: count < total forces flat', name: 'count < total flattens hierarchical expansion', category: 'Hierarchy' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
       { count: 3 },
@@ -2949,7 +3039,7 @@ async function run() {
     eq(result.expansion.total, 7, 'total still 7');
   });
 
-  await test('hierarchy: count >= total allows nesting', async () => {
+  await test({ id: 160, rawName: 'hierarchy: count >= total allows nesting', name: 'count >= total preserves hierarchical nesting', category: 'Hierarchy' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
       { count: 100 },
@@ -2960,7 +3050,7 @@ async function run() {
 
   // ── 9.4: non-hierarchical CS is unaffected ──
 
-  await test('hierarchy: non-hierarchical CS (gender) is always flat', async () => {
+  await test({ id: 161, rawName: 'hierarchy: non-hierarchical CS (gender) is always flat', name: 'Non-hierarchical CodeSystem (gender) is always flat', category: 'Hierarchy' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://hl7.org/fhir/administrative-gender' }),
     );
@@ -2971,7 +3061,7 @@ async function run() {
 
   // ── 9.5: concept enumeration (not whole-system) ──
 
-  await test('hierarchy: concept enumeration from hierarchical CS is flat', async () => {
+  await test({ id: 162, rawName: 'hierarchy: concept enumeration from hierarchical CS is flat', name: 'Concept enumeration from hierarchical CodeSystem is flat', category: 'Hierarchy' }, async () => {
     // Requesting specific codes — no hierarchy regardless
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical',
@@ -2985,7 +3075,7 @@ async function run() {
 
   // ── 9.6: filter on hierarchical CS ──
 
-  await test('hierarchy: filter on hierarchical CS uses parent() for nesting', async () => {
+  await test({ id: 163, rawName: 'hierarchy: filter on hierarchical CS uses parent() for nesting', name: 'Filtered hierarchical expansion nests children under parent', category: 'Hierarchy' }, async () => {
     // Use is-a filter on condition-clinical to get a subtree
     // is-a 'active' should return: active, recurrence, relapse
     const { result } = await expand(
@@ -3006,7 +3096,7 @@ async function run() {
 
   // ── 9.7: IR matches legacy for hierarchical output ──
 
-  await test('hierarchy: IR matches legacy for condition-clinical', async () => {
+  await test({ id: 164, rawName: 'hierarchy: IR matches legacy for condition-clinical', name: 'IR matches legacy for condition-clinical hierarchy', category: 'Hierarchy' }, async () => {
     const { result: ir } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
       {}, 'ir',
@@ -3031,7 +3121,7 @@ async function run() {
     eq(JSON.stringify(irRoots), JSON.stringify(legRoots), 'same root codes');
   });
 
-  await test('hierarchy: IR matches legacy for goal-achievement', async () => {
+  await test({ id: 165, rawName: 'hierarchy: IR matches legacy for goal-achievement', name: 'IR matches legacy for goal-achievement hierarchy', category: 'Hierarchy' }, async () => {
     const { result: ir } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/goal-achievement' }),
       {}, 'ir',
@@ -3050,7 +3140,7 @@ async function run() {
     eq(JSON.stringify(irIpKids), JSON.stringify(legIpKids), 'in-progress children match');
   });
 
-  await test('hierarchy: IR matches legacy excludeNested=true', async () => {
+  await test({ id: 166, rawName: 'hierarchy: IR matches legacy excludeNested=true', name: 'IR matches legacy when excludeNested=true', category: 'Hierarchy' }, async () => {
     const { result: ir } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
       { excludeNested: true }, 'ir',
@@ -3078,8 +3168,27 @@ async function run() {
   if (PERF_MODE && perfRows.length > 0) {
     mkdirSync(dirname(PERF_OUT_PATH), { recursive: true });
     writeFileSync(PERF_OUT_PATH, buildPerfHtml(perfRows));
+    const catalog = {
+      generatedAt: new Date().toISOString(),
+      perfRuns: PERF_RUNS,
+      rows: perfRows.map(r => ({
+        id: r.id,
+        category: r.category,
+        name: r.name,
+        rawName: r.rawName,
+        irMs: r.irMs,
+        legacyMs: r.legMs,
+        irError: !!r.irErr,
+        legacyError: !!r.legErr,
+        detailHref: r.detailHref || null,
+        inputHref: r.inputHref || null,
+      })),
+    };
+    writeFileSync(PERF_CATALOG_PATH, JSON.stringify(catalog, null, 2));
     console.log(`\nPerf table written to ${PERF_OUT_PATH} (${perfRows.length} rows)`);
     console.log(`Perf detail pages written to ${PERF_DETAILS_DIR}`);
+    console.log(`Perf input payloads written to ${PERF_INPUTS_DIR}`);
+    console.log(`Perf catalog written to ${PERF_CATALOG_PATH}`);
   }
 
   process.exit(failed > 0 ? 1 : 0);
@@ -3117,7 +3226,12 @@ function buildPerfHtml(rows) {
     } else if (r.detailError) {
       action = `<span class="err">${escHtml(r.detailError)}</span>`;
     }
-    return `<tr class="${cls}"><td>${escHtml(r.category)}</td><td>${escHtml(r.name)}</td><td class="num">${irStr}</td><td class="num">${legStr}</td><td>${ratio}</td><td>${action}</td></tr>`;
+    let inputAction = '<span class="muted">n/a</span>';
+    if (r.inputHref) {
+      const inputHref = escHtml(r.inputHref);
+      inputAction = `<a href="${inputHref}" target="_blank" rel="noopener">Input JSON</a>`;
+    }
+    return `<tr class="${cls}"><td>${escHtml(r.category)}</td><td>${escHtml(r.name)}</td><td class="num">${irStr}</td><td class="num">${legStr}</td><td>${ratio}</td><td>${action}</td><td>${inputAction}</td></tr>`;
   }).join('\n');
 
   return `<!DOCTYPE html>
@@ -3138,9 +3252,9 @@ function buildPerfHtml(rows) {
   .muted { color: #777; }
 </style></head><body>
 <h1>IR vs Legacy Engine — Performance Comparison</h1>
-<p class="meta">Generated ${ts} &middot; median of ${PERF_RUNS} runs &middot; _nocache=true &middot; details in ${escHtml(PERF_OUT_BASE)}.details/</p>
+<p class="meta">Generated ${ts} &middot; median of ${PERF_RUNS} runs &middot; _nocache=true &middot; details in ${escHtml(PERF_OUT_BASE)}.details/ &middot; inputs in ${escHtml(PERF_OUT_BASE)}.inputs/</p>
 <table>
-<thead><tr><th>Category</th><th>Test</th><th>IR</th><th>Legacy</th><th>Winner</th><th>Details</th></tr></thead>
+<thead><tr><th>Category</th><th>Test</th><th>IR</th><th>Legacy</th><th>Winner</th><th>Details</th><th>Inputs</th></tr></thead>
 <tbody>
 ${tableRows}
 </tbody></table>

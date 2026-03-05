@@ -1,0 +1,105 @@
+{
+  "id": 137,
+  "slug": "137-ucum-expansion-reports-valueset-unclosed",
+  "name": "UCUM expansion reports valueset-unclosed",
+  "category": "Unclosed Expansion",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://unitsofmeasure.org"
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 5
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://unitsofmeasure.org"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://unitsofmeasure.org"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "id": 4,
+  "slug": "004-clinical-finding-first-50-fast-with-exists-pushdown",
+  "name": "Clinical finding first 50: fast with EXISTS pushdown",
+  "category": "Subsumption",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {
+                "property": "concept",
+                "op": "is-a",
+                "value": "404684003"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 50,
+      "activeOnly": true
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 50
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 50
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

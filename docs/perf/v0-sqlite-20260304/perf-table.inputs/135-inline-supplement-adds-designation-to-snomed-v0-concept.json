@@ -1,0 +1,193 @@
+{
+  "id": 135,
+  "slug": "135-inline-supplement-adds-designation-to-snomed-v0-concept",
+  "name": "Inline supplement adds designation to SNOMED v0 concept",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {
+                "code": "73211009"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/sct-supp-test",
+          "content": "supplement",
+          "supplements": "http://snomed.info/sct",
+          "concept": [
+            {
+              "code": "73211009",
+              "designation": [
+                {
+                  "language": "de",
+                  "value": "Zuckerkrankheit"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "includeDesignations": true,
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/sct-supp-test"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "concept": [
+                      {
+                        "code": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/sct-supp-test",
+              "content": "supplement",
+              "supplements": "http://snomed.info/sct",
+              "concept": [
+                {
+                  "code": "73211009",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Zuckerkrankheit"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/sct-supp-test"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "concept": [
+                      {
+                        "code": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/sct-supp-test",
+              "content": "supplement",
+              "supplements": "http://snomed.info/sct",
+              "concept": [
+                {
+                  "code": "73211009",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Zuckerkrankheit"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/sct-supp-test"
+          }
+        ]
+      }
+    }
+  }
+}

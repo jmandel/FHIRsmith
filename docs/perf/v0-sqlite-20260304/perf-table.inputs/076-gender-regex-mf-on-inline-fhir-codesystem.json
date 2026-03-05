@@ -1,0 +1,116 @@
+{
+  "id": 76,
+  "slug": "076-gender-regex-mf-on-inline-fhir-codesystem",
+  "name": "Gender regex [mf].* on inline FHIR CodeSystem",
+  "category": "Filter Semantics",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "filter": [
+              {
+                "property": "code",
+                "op": "regex",
+                "value": "[mf].*"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {}
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "filter": [
+                      {
+                        "property": "code",
+                        "op": "regex",
+                        "value": "[mf].*"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "filter": [
+                      {
+                        "property": "code",
+                        "op": "regex",
+                        "value": "[mf].*"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

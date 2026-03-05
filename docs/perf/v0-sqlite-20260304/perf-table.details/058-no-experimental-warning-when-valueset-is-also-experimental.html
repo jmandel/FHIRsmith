@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: No experimental warning when ValueSet is also experimental</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#58 No experimental warning when ValueSet is also experimental</h1>
+  <div class="meta">Category: Expansion Metadata · Median perf: Legacy=1ms | IR=1ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/058-no-experimental-warning-when-valueset-is-also-experimental.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 1ms capture wall · trace: 0.2ms · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 0.23ms · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/test-vs-experimental",
+          "status": "active",
+          "experimental": true,
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/experimental-2"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/experimental-2",
+          "version": "1.0.0",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "A",
+              "display": "Alpha"
+            },
+            {
+              "code": "B",
+              "display": "Bravo"
+            },
+            {
+              "code": "C",
+              "display": "Charlie"
+            }
+          ],
+          "experimental": true
+        }
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/test-vs-experimental",
+          "status": "active",
+          "experimental": true,
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/experimental-2"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "tx-resource",
+        "resource": {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/experimental-2",
+          "version": "1.0.0",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "A",
+              "display": "Alpha"
+            },
+            {
+              "code": "B",
+              "display": "Bravo"
+            },
+            {
+              "code": "C",
+              "display": "Charlie"
+            }
+          ],
+          "experimental": true
+        }
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://example.org/cs/experimental-2
+runtime-constraints:
+  pagination: offset=0 count=1000
+optimized-ir:
+  selector whole http://example.org/cs/experimental-2</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.2,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.18,
+      "result": {
+        "ms": 0.17,
+        "total": 3,
+        "returned": 3
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.23,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "url": "http://example.org/test-vs-experimental",
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 1000
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 1000,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://example.org/cs/experimental-2",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 1000
+              },
+              "children": [],
+              "ms": 0.05,
+              "result": {
+                "candidates": 3
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 0,
+                "returned": 3,
+                "total": 3
+              },
+              "t": 0.18
+            }
+          ],
+          "ms": 0.06,
+          "result": {
+            "paged": 3
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 3,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 0.18,
+      "result": {
+        "total": 3,
+        "contains": 3
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1335",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:27 GMT",
+    "etag": "W/\"537-d1YrPuXytJ956zHxTuVApkM9k+A\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-533"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "url": "http://example.org/test-vs-experimental",
+    "status": "active",
+    "experimental": true,
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:27.261Z",
+      "identifier": "urn:uuid:68a85c9e-a3d3-440e-9e2e-0f117e3978d3",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "warning-experimental",
+          "valueUri": "http://example.org/test-vs-experimental"
+        },
+        {
+          "name": "warning-experimental",
+          "valueUri": "http://example.org/cs/experimental-2|1.0.0"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://example.org/cs/experimental-2|1.0.0"
+        }
+      ],
+      "total": 3,
+      "contains": [
+        {
+          "system": "http://example.org/cs/experimental-2",
+          "code": "A",
+          "display": "Alpha"
+        },
+        {
+          "system": "http://example.org/cs/experimental-2",
+          "code": "B",
+          "display": "Bravo"
+        },
+        {
+          "system": "http://example.org/cs/experimental-2",
+          "code": "C",
+          "display": "Charlie"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.2,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.18,\"result\":{\"ms\":0.17,\"total\":3,\"returned\":3}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1823",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:27 GMT",
+    "etag": "W/\"71f-heHC+b8wfvMZaDAeHJjt++giVOc\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-534"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "url": "http://example.org/test-vs-experimental",
+    "status": "active",
+    "experimental": true,
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:27.262Z",
+      "identifier": "urn:uuid:4f65fbb5-f8ba-4b3e-a278-708eedd5f27f",
+      "total": 3,
+      "contains": [
+        {
+          "system": "http://example.org/cs/experimental-2",
+          "code": "A",
+          "display": "Alpha"
+        },
+        {
+          "system": "http://example.org/cs/experimental-2",
+          "code": "B",
+          "display": "Bravo"
+        },
+        {
+          "system": "http://example.org/cs/experimental-2",
+          "code": "C",
+          "display": "Charlie"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://example.org/cs/experimental-2|1.0.0"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://example.org/cs/experimental-2\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/experimental-2"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.23,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"url\":\"http://example.org/test-vs-experimental\",\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/experimental-2\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.18}],\"ms\":0.06,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.18,\"result\":{\"total\":3,\"contains\":3}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

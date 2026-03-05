@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Gender and US states union across systems</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#118 Gender and US states union across systems</h1>
+  <div class="meta">Category: Multi-System Composition · Median perf: Legacy=2ms | IR=1ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/118-gender-and-us-states-union-across-systems.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 1.04ms · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 2ms capture wall · trace: 0.66ms · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "system": "https://www.usps.com/"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "system": "https://www.usps.com/"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://hl7.org/fhir/administrative-gender, https://www.usps.com/
+runtime-constraints:
+  pagination: offset=0 count=1000
+optimized-ir:
+  union [2]
+    selector whole http://hl7.org/fhir/administrative-gender
+    selector whole https://www.usps.com/</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 1.04,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 1.02,
+      "result": {
+        "ms": 1.01,
+        "total": 66,
+        "returned": 66
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.66,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 2,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 1000
+      },
+      "children": [
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          },
+          "children": [],
+          "ms": 0.03,
+          "result": {
+            "count": 4
+          }
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "https://www.usps.com/"
+          },
+          "children": [],
+          "ms": 0.22,
+          "result": {
+            "count": 62
+          }
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 66,
+            "offset": 0,
+            "count": 1000,
+            "systems": 2
+          },
+          "children": [
+            {
+              "name": "system:http://hl7.org/fhir/administrative-gender",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 4
+              },
+              "children": [],
+              "ms": 0.02,
+              "result": {
+                "candidates": 4
+              }
+            },
+            {
+              "name": "system:https://www.usps.com/",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 62
+              },
+              "children": [],
+              "ms": 0.21,
+              "result": {
+                "candidates": 62
+              }
+            }
+          ],
+          "ms": 0.24,
+          "result": {
+            "paged": 66
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 66,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 0.63,
+      "result": {
+        "total": 66,
+        "contains": 66
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "5646",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:39 GMT",
+    "etag": "W/\"160e-5zCfNaiQ2IFdGIoKP0TrX0rXWYg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1087"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:39.954Z",
+      "identifier": "urn:uuid:cde88899-9d50-495d-9a07-a160b215694d",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "https://www.usps.com/"
+        }
+      ],
+      "total": 66,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "male",
+          "display": "Male"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "female",
+          "display": "Female"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "other",
+          "display": "Other"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "unknown",
+          "display": "Unknown"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AL",
+          "display": "Alabama"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AK",
+          "display": "Alaska"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AS",
+          "display": "American Samoa"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AZ",
+          "display": "Arizona"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AR",
+          "display": "Arkansas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "CA",
+          "display": "California"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "CO",
+          "display": "Colorado"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "CT",
+          "display": "Connecticut"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "DE",
+          "display": "Delaware"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "DC",
+          "display": "District of Columbia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "FM",
+          "display": "Federated States of Micronesia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "FL",
+          "display": "Florida"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "GA",
+          "display": "Georgia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "GU",
+          "display": "Guam"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "HI",
+          "display": "Hawaii"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "ID",
+          "display": "Idaho"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "IL",
+          "display": "Illinois"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "IN",
+          "display": "Indiana"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "IA",
+          "display": "Iowa"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "KS",
+          "display": "Kansas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "KY",
+          "display": "Kentucky"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "LA",
+          "display": "Louisiana"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "ME",
+          "display": "Maine"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MH",
+          "display": "Marshall Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MD",
+          "display": "Maryland"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MA",
+          "display": "Massachusetts"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MI",
+          "display": "Michigan"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MN",
+          "display": "Minnesota"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MS",
+          "display": "Mississippi"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MO",
+          "display": "Missouri"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MT",
+          "display": "Montana"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NE",
+          "display": "Nebraska"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NV",
+          "display": "Nevada"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NH",
+          "display": "New Hampshire"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NJ",
+          "display": "New Jersey"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NM",
+          "display": "New Mexico"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NY",
+          "display": "New York"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NC",
+          "display": "North Carolina"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "ND",
+          "display": "North Dakota"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MP",
+          "display": "Northern Mariana Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "OH",
+          "display": "Ohio"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "OK",
+          "display": "Oklahoma"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "OR",
+          "display": "Oregon"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "PW",
+          "display": "Palau"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "PA",
+          "display": "Pennsylvania"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "PR",
+          "display": "Puerto Rico"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "RI",
+          "display": "Rhode Island"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "SC",
+          "display": "South Carolina"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "SD",
+          "display": "South Dakota"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "TN",
+          "display": "Tennessee"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "TX",
+          "display": "Texas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "UT",
+          "display": "Utah"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VT",
+          "display": "Vermont"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VI",
+          "display": "Virgin Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VA",
+          "display": "Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WA",
+          "display": "Washington"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WV",
+          "display": "West Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WI",
+          "display": "Wisconsin"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WY",
+          "display": "Wyoming"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AE",
+          "display": "Armed Forces Europe, the Middle East, and Canada"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AP",
+          "display": "Armed Forces Pacific"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AA",
+          "display": "Armed Forces Americas (except Canada)"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":1.04,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.02,\"result\":{\"ms\":1.01,\"total\":66,\"returned\":66}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "6657",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:39 GMT",
+    "etag": "W/\"1a01-B/2EwLXMwVRGg1PCYV3X1wJa6kE\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1088"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:39.957Z",
+      "identifier": "urn:uuid:bdcdbdc7-05a8-415c-8a98-0fdd4bbfc31b",
+      "total": 66,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "female",
+          "display": "Female"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "male",
+          "display": "Male"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "other",
+          "display": "Other"
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "unknown",
+          "display": "Unknown"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AA",
+          "display": "Armed Forces Americas (except Canada)"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AE",
+          "display": "Armed Forces Europe, the Middle East, and Canada"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AK",
+          "display": "Alaska"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AL",
+          "display": "Alabama"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AP",
+          "display": "Armed Forces Pacific"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AR",
+          "display": "Arkansas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AS",
+          "display": "American Samoa"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "AZ",
+          "display": "Arizona"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "CA",
+          "display": "California"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "CO",
+          "display": "Colorado"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "CT",
+          "display": "Connecticut"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "DC",
+          "display": "District of Columbia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "DE",
+          "display": "Delaware"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "FL",
+          "display": "Florida"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "FM",
+          "display": "Federated States of Micronesia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "GA",
+          "display": "Georgia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "GU",
+          "display": "Guam"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "HI",
+          "display": "Hawaii"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "IA",
+          "display": "Iowa"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "ID",
+          "display": "Idaho"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "IL",
+          "display": "Illinois"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "IN",
+          "display": "Indiana"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "KS",
+          "display": "Kansas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "KY",
+          "display": "Kentucky"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "LA",
+          "display": "Louisiana"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MA",
+          "display": "Massachusetts"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MD",
+          "display": "Maryland"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "ME",
+          "display": "Maine"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MH",
+          "display": "Marshall Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MI",
+          "display": "Michigan"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MN",
+          "display": "Minnesota"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MO",
+          "display": "Missouri"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MP",
+          "display": "Northern Mariana Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MS",
+          "display": "Mississippi"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "MT",
+          "display": "Montana"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NC",
+          "display": "North Carolina"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "ND",
+          "display": "North Dakota"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NE",
+          "display": "Nebraska"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NH",
+          "display": "New Hampshire"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NJ",
+          "display": "New Jersey"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NM",
+          "display": "New Mexico"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NV",
+          "display": "Nevada"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "NY",
+          "display": "New York"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "OH",
+          "display": "Ohio"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "OK",
+          "display": "Oklahoma"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "OR",
+          "display": "Oregon"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "PA",
+          "display": "Pennsylvania"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "PR",
+          "display": "Puerto Rico"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "PW",
+          "display": "Palau"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "RI",
+          "display": "Rhode Island"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "SC",
+          "display": "South Carolina"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "SD",
+          "display": "South Dakota"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "TN",
+          "display": "Tennessee"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "TX",
+          "display": "Texas"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "UT",
+          "display": "Utah"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VA",
+          "display": "Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VI",
+          "display": "Virgin Islands"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "VT",
+          "display": "Vermont"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WA",
+          "display": "Washington"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WI",
+          "display": "Wisconsin"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WV",
+          "display": "West Virginia"
+        },
+        {
+          "system": "https://www.usps.com/",
+          "code": "WY",
+          "display": "Wyoming"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "https://www.usps.com/"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://hl7.org/fhir/administrative-gender, https://www.usps.com/\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2]\n    selector whole http://hl7.org/fhir/administrative-gender\n    selector whole https://www.usps.com/"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.66,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.03,\"result\":{\"count\":4}},{\"name\":\"countForIR\",\"args\":{\"system\":\"https://www.usps.com/\"},\"children\":[],\"ms\":0.22,\"result\":{\"count\":62}},{\"name\":\"pagination\",\"args\":{\"total\":66,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":4},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":4}},{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":62},\"children\":[],\"ms\":0.21,\"result\":{\"candidates\":62}}],\"ms\":0.24,\"result\":{\"paged\":66}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":66,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":0.63,\"result\":{\"total\":66,\"contains\":66}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

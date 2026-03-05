@@ -1,0 +1,144 @@
+{
+  "id": 11,
+  "slug": "011-is-a-diabetes-text-insulin-results-match-text",
+  "name": "is-a Diabetes + text insulin: results match text",
+  "category": "Text Search",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {
+                "property": "concept",
+                "op": "is-a",
+                "value": "73211009"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 200,
+      "activeOnly": true,
+      "filter": "insulin"
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 200
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "filter",
+            "valueString": "insulin"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 200
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "filter",
+            "valueString": "insulin"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

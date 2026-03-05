@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Unclosed multi-system grammar provider reports unclosed on all pages</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#143 Unclosed multi-system grammar provider reports unclosed on all pages</h1>
+  <div class="meta">Category: Unclosed Expansion · Median perf: Legacy=35ms | IR=8ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/143-unclosed-multi-system-grammar-provider-reports-unclosed-on-all-pages.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 34ms capture wall · trace: 32.76ms · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 10ms capture wall · trace: 9.13ms · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unitsofmeasure.org"
+              },
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "85562004"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 10
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://unitsofmeasure.org"
+              },
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "85562004"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 10
+      },
+      {
+        "name": "offset",
+        "valueInteger": 0
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://snomed.info/sct, http://unitsofmeasure.org
+runtime-constraints:
+  pagination: offset=0 count=10
+optimized-ir:
+  union [2]
+    selector whole http://unitsofmeasure.org
+    selector filter http://snomed.info/sct concept is-a 85562004</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 32.76,
+  "sqlCount": 1,
+  "sqlMs": 2.42,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.01
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 10,
+        "offset": 0,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://snomed.info/sct",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+              "params": {
+                "cs": 1,
+                "f0_anc_code": "85562004",
+                "f0_cs": 1
+              },
+              "rows": 2366,
+              "ms": 2.42,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 2.46,
+          "result": {
+            "rows": 2366
+          }
+        }
+      ],
+      "ms": 32.75,
+      "result": {
+        "ms": 32.74,
+        "returned": 10
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 9.13,
+  "sqlCount": 2,
+  "sqlMs": 2.78,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 2,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 10
+      },
+      "children": [
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://snomed.info/sct"
+          },
+          "children": [
+            {
+              "name": "countForIR:sql",
+              "args": {
+                "system": "http://snomed.info/sct"
+              },
+              "children": [],
+              "sql": [
+                {
+                  "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1",
+                  "params": {
+                    "_cnt_csId": 1,
+                    "_cntf0_anc_code": "85562004",
+                    "_cntf0_cs": 1
+                  },
+                  "rows": 2366,
+                  "ms": 1.61,
+                  "label": "countForIR"
+                }
+              ],
+              "ms": 1.75,
+              "result": {
+                "count": 2366
+              }
+            }
+          ],
+          "ms": 1.76,
+          "result": {
+            "count": 2366
+          }
+        },
+        {
+          "name": "countForIR",
+          "args": {
+            "system": "http://unitsofmeasure.org"
+          },
+          "children": [],
+          "ms": 5.47,
+          "result": {
+            "count": 1357
+          }
+        },
+        {
+          "name": "pagination",
+          "args": {
+            "total": 3723,
+            "offset": 0,
+            "count": 10,
+            "systems": 2
+          },
+          "children": [
+            {
+              "name": "system:http://snomed.info/sct",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 10
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "standard path chosen (EXISTS rewrite skipped)",
+                      "data": {
+                        "closureCount": 2366,
+                        "conceptCount": 519624,
+                        "hasText": false
+                      },
+                      "t": 7.77
+                    },
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0.08,
+                        "buildMs": 0.03,
+                        "prepMs": 0.1,
+                        "execMs": 1.17
+                      },
+                      "t": 9.06
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_anc_code": "85562004",
+                        "_xf0_cs": 1,
+                        "_limit": 10
+                      },
+                      "rows": 10,
+                      "ms": 1.17,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 1.41,
+                  "result": {
+                    "candidates": 10
+                  }
+                }
+              ],
+              "ms": 1.42,
+              "result": {
+                "candidates": 10
+              }
+            }
+          ],
+          "ms": 1.43,
+          "result": {
+            "paged": 10
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 10,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0
+        }
+      ],
+      "ms": 9.08,
+      "result": {
+        "total": 3723,
+        "contains": 10
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2881",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:45 GMT",
+    "etag": "W/\"b41-8gqyq88XJntD0wTPvDZedz/n6kU\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1292"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:45.633Z",
+      "identifier": "urn:uuid:50caf2c7-c71f-4a69-8dcc-7f87a66ddf66",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "offset",
+          "valueInteger": 0
+        },
+        {
+          "name": "count",
+          "valueInteger": 10
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unitsofmeasure.org|2.2"
+        },
+        {
+          "name": "warning-draft",
+          "valueUri": "http://hl7.org/fhir/ValueSet/ucum-common|4.0.1"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        }
+      ],
+      "offset": 0,
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+          "valueString": "The code System \"http://unitsofmeasure.org has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":32.76,\"sqlCount\":1,\"sqlMs\":2.42,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"85562004\",\"f0_cs\":1},\"rows\":2366,\"ms\":2.42,\"label\":\"legacy:executeFilters\"}],\"ms\":2.46,\"result\":{\"rows\":2366}}],\"ms\":32.75,\"result\":{\"ms\":32.74,\"returned\":10}}]}"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%",
+          "display": "percent"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%/100{WBC}",
+          "display": "percent / 100 WBC"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{0to3Hours}",
+          "display": "percent 0to3Hours"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Abnormal}",
+          "display": "percent Abnormal"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Activity}",
+          "display": "percent Activity"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{BasalActivity}",
+          "display": "percent BasalActivity"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Binding}",
+          "display": "percent Binding"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Blockade}",
+          "display": "percent Blockade"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Carboxyhemoglobin}",
+          "display": "percent Carboxyhemoglobin"
+        },
+        {
+          "system": "http://unitsofmeasure.org",
+          "code": "%{Conversion}",
+          "display": "percent Conversion"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "4845",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:45 GMT",
+    "etag": "W/\"12ed-ePAPoWrszniqgIlegtF/UaqJl6M\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-1293"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:45.676Z",
+      "identifier": "urn:uuid:8f54d8a7-7947-4ee8-aced-ce5690aa0ab8",
+      "total": 3723,
+      "contains": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "10025002",
+          "display": "Base of phalanx of index finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003609005",
+          "display": "Periarticular bone structure of metacarpophalangeal joint"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003610000",
+          "display": "Entire periarticular bone of metacarpophalangeal joint (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003698006",
+          "display": "Entire left finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003699003",
+          "display": "Entire right finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003760000",
+          "display": "Structure of epiphysis of first metacarpal bone"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003761001",
+          "display": "Entire epiphysis of first metacarpal bone (body structure)"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003762008",
+          "display": "Structure of epiphysis of distal phalanx of index finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003763003",
+          "display": "Entire epiphysis of distal phalanx of index finger"
+        },
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1003764009",
+          "display": "Structure of epiphysis of distal phalanx of middle finger"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 10
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://unitsofmeasure.org|2.2"
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+          "valueString": "The code System \"http://unitsofmeasure.org\" has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://snomed.info/sct, http://unitsofmeasure.org\nruntime-constraints:\n  pagination: offset=0 count=10\noptimized-ir:\n  union [2]\n    selector whole http://unitsofmeasure.org\n    selector filter http://snomed.info/sct concept is-a 85562004"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":9.13,\"sqlCount\":2,\"sqlMs\":2.78,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":10},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__cntf0 ON cl__cntf0.descendant_id = c.concept_id AND cl__cntf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_cntf0_anc_code AND cs_id = @_cntf0_cs) WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_anc_code\":\"85562004\",\"_cntf0_cs\":1},\"rows\":2366,\"ms\":1.61,\"label\":\"countForIR\"}],\"ms\":1.75,\"result\":{\"count\":2366}}],\"ms\":1.76,\"result\":{\"count\":2366}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://unitsofmeasure.org\"},\"children\":[],\"ms\":5.47,\"result\":{\"count\":1357}},{\"name\":\"pagination\",\"args\":{\"total\":3723,\"offset\":0,\"count\":10,\"systems\":2},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":10},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"standard path chosen (EXISTS rewrite skipped)\",\"data\":{\"closureCount\":2366,\"conceptCount\":519624,\"hasText\":false},\"t\":7.77},{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0.08,\"buildMs\":0.03,\"prepMs\":0.1,\"execMs\":1.17},\"t\":9.06}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN closure cl__xf0 ON cl__xf0.descendant_id = c.concept_id AND cl__xf0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @_xf0_anc_code AND cs_id = @_xf0_cs) WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_anc_code\":\"85562004\",\"_xf0_cs\":1,\"_limit\":10},\"rows\":10,\"ms\":1.17,\"label\":\"executeIR\"}],\"ms\":1.41,\"result\":{\"candidates\":10}}],\"ms\":1.42,\"result\":{\"candidates\":10}}],\"ms\":1.43,\"result\":{\"paged\":10}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":10,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":9.08,\"result\":{\"total\":3723,\"contains\":10}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

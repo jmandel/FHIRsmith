@@ -1,0 +1,235 @@
+{
+  "id": 134,
+  "slug": "134-itemweight-supplement-extension-is-projected",
+  "name": "itemWeight supplement extension is projected",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs-s9",
+            "concept": [
+              {
+                "code": "W"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s9",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "W",
+              "display": "Whiskey"
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s9",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s9",
+          "concept": [
+            {
+              "code": "W",
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                  "valueDecimal": 3.5
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/supp-s9"
+        },
+        {
+          "name": "property",
+          "valueString": "http://hl7.org/fhir/StructureDefinition/itemWeight"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "legacy": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s9",
+                    "concept": [
+                      {
+                        "code": "W"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s9",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "W",
+                  "display": "Whiskey"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s9",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s9",
+              "concept": [
+                {
+                  "code": "W",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                      "valueDecimal": 3.5
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s9"
+          },
+          {
+            "name": "property",
+            "valueString": "http://hl7.org/fhir/StructureDefinition/itemWeight"
+          }
+        ]
+      }
+    },
+    "ir": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s9",
+                    "concept": [
+                      {
+                        "code": "W"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s9",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "W",
+                  "display": "Whiskey"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s9",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s9",
+              "concept": [
+                {
+                  "code": "W",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                      "valueDecimal": 3.5
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s9"
+          },
+          {
+            "name": "property",
+            "valueString": "http://hl7.org/fhir/StructureDefinition/itemWeight"
+          }
+        ]
+      }
+    }
+  }
+}

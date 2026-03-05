@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: property=definition parameter includes definition property</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#82 property=definition parameter includes definition property</h1>
+  <div class="meta">Category: Parameter Handling · Median perf: Legacy=1ms | IR=1ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/082-property-definition-parameter-includes-definition-property.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 1ms capture wall · trace: 0.23ms · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 1ms capture wall · trace: 0.27ms · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "property",
+        "valueString": "definition"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://hl7.org/fhir/administrative-gender"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      },
+      {
+        "name": "property",
+        "valueString": "definition"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://hl7.org/fhir/administrative-gender
+runtime-constraints:
+  pagination: offset=0 count=1000
+optimized-ir:
+  selector whole http://hl7.org/fhir/administrative-gender</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.23,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": -1,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [],
+      "ms": 0.22,
+      "result": {
+        "ms": 0.21,
+        "total": 4,
+        "returned": 4
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 0.27,
+  "sqlCount": 0,
+  "sqlMs": 0,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 1000
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 1000,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://hl7.org/fhir/administrative-gender",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 1000
+              },
+              "children": [],
+              "ms": 0.06,
+              "result": {
+                "candidates": 4
+              }
+            },
+            {
+              "name": "note",
+              "message": "total:inferred",
+              "data": {
+                "offset": 0,
+                "returned": 4,
+                "total": 4
+              },
+              "t": 0.2
+            }
+          ],
+          "ms": 0.08,
+          "result": {
+            "paged": 4
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 4,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.04
+        }
+      ],
+      "ms": 0.23,
+      "result": {
+        "total": 4,
+        "contains": 4
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "2253",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:30 GMT",
+    "etag": "W/\"8cd-TrFxbwEkIKwVt0vflXAmIGguGzg\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-749"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:30.672Z",
+      "identifier": "urn:uuid:13fff2bd-cdd1-414c-9ad9-a79b3cea1769",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        }
+      ],
+      "total": 4,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "male",
+          "display": "Male",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "definition"
+                },
+                {
+                  "url": "value",
+                  "valueString": "Male."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "female",
+          "display": "Female",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "definition"
+                },
+                {
+                  "url": "value",
+                  "valueString": "Female."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "other",
+          "display": "Other",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "definition"
+                },
+                {
+                  "url": "value",
+                  "valueString": "Other."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "unknown",
+          "display": "Unknown",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+              "extension": [
+                {
+                  "url": "code",
+                  "valueCode": "definition"
+                },
+                {
+                  "url": "value",
+                  "valueString": "Unknown."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.23,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.22,\"result\":{\"ms\":0.21,\"total\":4,\"returned\":4}}]}"
+        },
+        {
+          "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+          "extension": [
+            {
+              "url": "code",
+              "valueCode": "definition"
+            },
+            {
+              "url": "uri",
+              "valueUri": "http://hl7.org/fhir/concept-properties#definition"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3419",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:30 GMT",
+    "etag": "W/\"d5b-C3fbvITrk2NlPSPEVUYjp3y+Wpk\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-750"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:30.674Z",
+      "identifier": "urn:uuid:02e1e592-fc6b-47d2-8156-f6fbcaa454e5",
+      "total": 4,
+      "contains": [
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "female",
+          "display": "Female",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/codesystem-concept-comments",
+              "valueString": "Female"
+            }
+          ],
+          "property": [
+            {
+              "code": "definition",
+              "valueString": "Female."
+            }
+          ]
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "male",
+          "display": "Male",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/codesystem-concept-comments",
+              "valueString": "Male"
+            }
+          ],
+          "property": [
+            {
+              "code": "definition",
+              "valueString": "Male."
+            }
+          ]
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "other",
+          "display": "Other",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/codesystem-concept-comments",
+              "valueString": "The administrative gender is a value other than male/female/unknown. Where this value is selected, systems may often choose to include an extension with the localized more specific value."
+            }
+          ],
+          "property": [
+            {
+              "code": "definition",
+              "valueString": "Other."
+            }
+          ]
+        },
+        {
+          "system": "http://hl7.org/fhir/administrative-gender",
+          "code": "unknown",
+          "display": "Unknown",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/codesystem-concept-comments",
+              "valueString": "A proper value is applicable, but not known.  Usage Notes: This means the actual value is not known. If the only thing that is unknown is how to properly express the value in the necessary constraints (value set, datatype, etc.), then the OTH or UNC flavor should be used. No properties should be included for a datatype with this property unless:  Those properties themselves directly translate to a semantic of \"unknown\". (E.g. a local code sent as a translation that conveys 'unknown') Those properties further qualify the nature of what is unknown. (E.g. specifying a use code of \"H\" and a URL prefix of \"tel:\" to convey that it is the home phone number that is unknown.)"
+            }
+          ],
+          "property": [
+            {
+              "code": "definition",
+              "valueString": "Unknown."
+            }
+          ]
+        }
+      ],
+      "parameter": [
+        {
+          "name": "property",
+          "valueString": "definition"
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://hl7.org/fhir/administrative-gender\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://hl7.org/fhir/administrative-gender"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":0.27,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.06,\"result\":{\"candidates\":4}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":4,\"total\":4},\"t\":0.2}],\"ms\":0.08,\"result\":{\"paged\":4}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":4,\"includeDesignations\":false},\"children\":[],\"ms\":0.04}],\"ms\":0.23,\"result\":{\"total\":4,\"contains\":4}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>

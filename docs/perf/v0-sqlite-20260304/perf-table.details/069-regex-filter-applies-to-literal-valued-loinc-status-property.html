@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Regex filter applies to literal-valued LOINC STATUS property</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<header>
+  <h1>#69 Regex filter applies to literal-valued LOINC STATUS property</h1>
+  <div class="meta">Category: Composition Semantics · Median perf: Legacy=572ms | IR=148ms</div>
+  <div class="links">
+    <a href="#legacy-query">Legacy query</a>
+    <a href="#legacy-plan">Legacy plan</a>
+    <a href="#legacy-trace">Legacy trace</a>
+    <a href="#legacy-http">Legacy response</a>
+    <a href="#ir-query">IR query</a>
+    <a href="#ir-plan">IR plan</a>
+    <a href="#ir-trace">IR trace</a>
+    <a href="#ir-http">IR response</a>
+    <a href="../perf-table.inputs/069-regex-filter-applies-to-literal-valued-loinc-status-property.json" target="_blank" rel="noopener">Input payload</a>
+  </div>
+</header>
+<main class="grid">
+  <section class="engine-card">
+    <h3>Legacy Engine (left)</h3>
+    <p class="meta-mini">capture: 565ms capture wall · trace: 562.27ms · response: 200 OK</p>
+  </section>
+  <section class="engine-card">
+    <h3>IR Engine (right)</h3>
+    <p class="meta-mini">capture: 143ms capture wall · trace: 141.25ms · response: 200 OK</p>
+  </section>
+  <section class="cell">
+    <details id="legacy-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "STATUS",
+                    "op": "regex",
+                    "value": "^ACT"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "legacy"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-query" open>
+      <summary>Query / HTTP Request</summary>
+      <pre>{
+  "method": "POST",
+  "url": "http://localhost:8000/r4/ValueSet/$expand",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "valueSet",
+        "resource": {
+          "resourceType": "ValueSet",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "STATUS",
+                    "op": "regex",
+                    "value": "^ACT"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "_engine",
+        "valueString": "ir"
+      },
+      {
+        "name": "count",
+        "valueInteger": 5
+      },
+      {
+        "name": "_trace",
+        "valueString": "true"
+      },
+      {
+        "name": "_nocache",
+        "valueString": "true"
+      }
+    ]
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-plan" open>
+      <summary>IR Plan</summary>
+      <pre>N/A (legacy engine)</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-plan" open>
+      <summary>IR Plan</summary>
+      <pre>systems: http://loinc.org
+runtime-constraints:
+  pagination: offset=0 count=5
+optimized-ir:
+  selector filter http://loinc.org STATUS regex ^ACT</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 562.27,
+  "sqlCount": 1,
+  "sqlMs": 256.65,
+  "counters": {},
+  "spans": [
+    {
+      "name": "note",
+      "message": "engine-selection",
+      "data": {
+        "requested": "legacy",
+        "selected": "legacy",
+        "irAttempted": false
+      },
+      "t": 0.02
+    },
+    {
+      "name": "legacy-expand",
+      "args": {
+        "count": 5,
+        "offset": -1,
+        "activeOnly": false,
+        "hasTextFilter": false
+      },
+      "children": [
+        {
+          "name": "legacy:executeFilters",
+          "args": {
+            "system": "http://loinc.org",
+            "filterCount": 1,
+            "hasTextSearch": false
+          },
+          "children": [
+            {
+              "name": "note",
+              "message": "legacy:codeSetIntersection",
+              "data": {
+                "filters": 1,
+                "after": 96241
+              },
+              "t": 446.48
+            }
+          ],
+          "sql": [
+            {
+              "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+              "params": {
+                "cs": 1
+              },
+              "rows": 248426,
+              "ms": 256.65,
+              "label": "legacy:executeFilters"
+            }
+          ],
+          "ms": 444.95,
+          "result": {
+            "rows": 96241
+          }
+        }
+      ],
+      "ms": 562.21,
+      "result": {
+        "ms": 562.18,
+        "returned": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-trace" open>
+      <summary>Structured Trace</summary>
+      <pre>{
+  "totalMs": 141.25,
+  "sqlCount": 2,
+  "sqlMs": 139.67,
+  "counters": {},
+  "spans": [
+    {
+      "name": "orchestrate",
+      "args": {
+        "systems": 1,
+        "activeOnly": false,
+        "text": null,
+        "offset": 0,
+        "count": 5
+      },
+      "children": [
+        {
+          "name": "pagination",
+          "args": {
+            "total": null,
+            "offset": 0,
+            "count": 5,
+            "systems": 1
+          },
+          "children": [
+            {
+              "name": "system:http://loinc.org",
+              "args": {
+                "sysOffset": 0,
+                "sysCount": 5
+              },
+              "children": [
+                {
+                  "name": "executeIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "executeIR:breakdown",
+                      "data": {
+                        "hintsMs": 0,
+                        "buildMs": 0.07,
+                        "prepMs": 0.07,
+                        "execMs": 0.16
+                      },
+                      "t": 1.5
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN concept_literal lit__xf0 ON lit__xf0.source_concept_id = c.concept_id AND lit__xf0.property_id = @_xf0_prop AND lit__xf0.active = 1 AND lit__xf0.value_text REGEXP @_xf0_re WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit",
+                      "params": {
+                        "_x_csId": 1,
+                        "_xf0_prop": 37,
+                        "_xf0_re": "^ACT",
+                        "_limit": 5
+                      },
+                      "rows": 5,
+                      "ms": 0.16,
+                      "label": "executeIR"
+                    }
+                  ],
+                  "ms": 0.34,
+                  "result": {
+                    "candidates": 5
+                  }
+                }
+              ],
+              "ms": 0.36,
+              "result": {
+                "candidates": 5
+              }
+            },
+            {
+              "name": "countForIR:lazy",
+              "args": {
+                "system": "http://loinc.org"
+              },
+              "children": [
+                {
+                  "name": "countForIR:sql",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN concept_literal lit__cntf0 ON lit__cntf0.source_concept_id = c.concept_id AND lit__cntf0.property_id = @_cntf0_prop AND lit__cntf0.active = 1 AND lit__cntf0.value_text REGEXP @_cntf0_re WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1",
+                      "params": {
+                        "_cnt_csId": 1,
+                        "_cntf0_prop": 37,
+                        "_cntf0_re": "^ACT"
+                      },
+                      "rows": 96241,
+                      "ms": 139.51,
+                      "label": "countForIR"
+                    }
+                  ],
+                  "ms": 139.58,
+                  "result": {
+                    "count": 96241
+                  }
+                }
+              ],
+              "ms": 139.6,
+              "result": {
+                "count": 96241
+              }
+            }
+          ],
+          "ms": 139.99,
+          "result": {
+            "paged": 5
+          }
+        },
+        {
+          "name": "bulkDesignations",
+          "args": {
+            "count": 5,
+            "includeDesignations": false
+          },
+          "children": [],
+          "ms": 0.01
+        }
+      ],
+      "ms": 141.15,
+      "result": {
+        "total": 96241,
+        "contains": 5
+      }
+    }
+  ]
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="legacy-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "1939",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:29 GMT",
+    "etag": "W/\"793-nPTBxuCu3U2d+OGjsb5ZIxm33+8\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-632"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:29.809Z",
+      "identifier": "urn:uuid:2a998df6-3ce1-40ff-85a0-43cf37859d74",
+      "parameter": [
+        {
+          "name": "displayLanguage",
+          "valueCode": "*"
+        },
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|http://loinc.org|2.81"
+        }
+      ],
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "1-8",
+          "display": "Acyclovir [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10-9",
+          "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100-8",
+          "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1000-9",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10000-8",
+          "display": "R wave duration in lead AVR"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":562.27,\"sqlCount\":1,\"sqlMs\":256.65,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.02},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":96241},\"t\":446.48}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":256.65,\"label\":\"legacy:executeFilters\"}],\"ms\":444.95,\"result\":{\"rows\":96241}}],\"ms\":562.21,\"result\":{\"ms\":562.18,\"returned\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+  <section class="cell">
+    <details id="ir-http" open>
+      <summary>HTTP Response</summary>
+      <pre>{
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "connection": "keep-alive",
+    "content-length": "3457",
+    "content-type": "application/fhir+json; charset=utf-8",
+    "date": "Thu, 05 Mar 2026 13:14:30 GMT",
+    "etag": "W/\"d81-Yc1Gec27UJ4TwrWp6Kkb7pmiGd0\"",
+    "keep-alive": "timeout=5",
+    "x-powered-by": "Express",
+    "x-request-id": "tx-633"
+  },
+  "body": {
+    "resourceType": "ValueSet",
+    "expansion": {
+      "timestamp": "2026-03-05T13:14:30.514Z",
+      "identifier": "urn:uuid:8a3515eb-8faa-4b6d-ae33-29f739946151",
+      "total": 96241,
+      "contains": [
+        {
+          "system": "http://loinc.org",
+          "code": "1-8",
+          "display": "Acyclovir [Susceptibility]"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10-9",
+          "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "100-8",
+          "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "1000-9",
+          "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+        },
+        {
+          "system": "http://loinc.org",
+          "code": "10000-8",
+          "display": "R wave duration in lead AVR"
+        }
+      ],
+      "parameter": [
+        {
+          "name": "count",
+          "valueInteger": 5
+        },
+        {
+          "name": "used-codesystem",
+          "valueUri": "http://loinc.org|http://loinc.org|2.81"
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+          "valueString": "systems: http://loinc.org\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://loinc.org STATUS regex ^ACT"
+        },
+        {
+          "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+          "valueString": "{\"totalMs\":141.25,\"sqlCount\":2,\"sqlMs\":139.67,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"hintsMs\":0,\"buildMs\":0.07,\"prepMs\":0.07,\"execMs\":0.16},\"t\":1.5}],\"sql\":[{\"sql\":\"SELECT DISTINCT t.concept_id, t.code, t.display, t.definition, t.active FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN concept_literal lit__xf0 ON lit__xf0.source_concept_id = c.concept_id AND lit__xf0.property_id = @_xf0_prop AND lit__xf0.active = 1 AND lit__xf0.value_text REGEXP @_xf0_re WHERE c.cs_id = @_x_csId) AS t WHERE 1=1 ORDER BY t.code LIMIT @_limit\",\"params\":{\"_x_csId\":1,\"_xf0_prop\":37,\"_xf0_re\":\"^ACT\",\"_limit\":5},\"rows\":5,\"ms\":0.16,\"label\":\"executeIR\"}],\"ms\":0.34,\"result\":{\"candidates\":5}}],\"ms\":0.36,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:sql\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(DISTINCT _cnt.code) AS cnt FROM (SELECT c.concept_id, c.code, c.display, c.definition, c.active FROM concept c JOIN concept_literal lit__cntf0 ON lit__cntf0.source_concept_id = c.concept_id AND lit__cntf0.property_id = @_cntf0_prop AND lit__cntf0.active = 1 AND lit__cntf0.value_text REGEXP @_cntf0_re WHERE c.cs_id = @_cnt_csId) AS _cnt WHERE 1=1\",\"params\":{\"_cnt_csId\":1,\"_cntf0_prop\":37,\"_cntf0_re\":\"^ACT\"},\"rows\":96241,\"ms\":139.51,\"label\":\"countForIR\"}],\"ms\":139.58,\"result\":{\"count\":96241}}],\"ms\":139.6,\"result\":{\"count\":96241}}],\"ms\":139.99,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":141.15,\"result\":{\"total\":96241,\"contains\":5}}]}"
+        }
+      ]
+    }
+  }
+}</pre>
+    </details>
+  </section>
+</main>
+</body></html>
