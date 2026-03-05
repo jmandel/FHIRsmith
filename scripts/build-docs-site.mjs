@@ -63,8 +63,7 @@ function renderTopNav(baseHref = '') {
       <strong>FHIRsmith IR Docs</strong>
       <a href="${p('index.html')}">Landing</a>
       <a href="${p('ir-engine.html')}">IR Engine</a>
-      <a href="${p('ir-fuzzing.html')}">Fuzzing</a>
-      <a href="${p('ir-compilation-tester.html')}">Compilation Tester</a>
+      <a href="${p('ir-compilation-tester.html')}">Compilation + Fuzzing</a>
       <a href="${p('tools/expand-explorer-lite.html')}">Explorer Lite</a>
       <a href="${p('perf/index.html')}">Perf Matrix</a>
     </div>
@@ -153,8 +152,7 @@ function buildLandingPage(perfSnapshots) {
     <li><a href="${latestShellHref}">Latest Perf Matrix (with site navigation)</a></li>
     <li><a href="perf/index.html">All Perf Snapshots</a></li>
     <li><a href="tools/expand-explorer-lite.html">Expand Explorer (Lite)</a></li>
-    <li><a href="ir-compilation-tester.html">IR Compilation Tester Guide</a></li>
-    <li><a href="ir-fuzzing.html">IR Fuzzing + Direct Oracle Guide</a></li>
+    <li><a href="ir-compilation-tester.html">IR Compilation + Fuzzing Tester Guide</a></li>
     <li><a href="ir-engine.html">IR Engine Design and Runtime Notes</a></li>
   </ul>
 </div>
