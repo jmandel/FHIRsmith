@@ -2126,6 +2126,14 @@ class ExpandWorker extends TerminologyWorker {
             return null;
           }
         },
+        resolveVersionAtDate: async (system, lockedDate) => {
+          try {
+            if (typeof worker.resolveCodeSystemVersionAtDate !== 'function') return null;
+            return await worker.resolveCodeSystemVersionAtDate(system, lockedDate, params);
+          } catch {
+            return null;
+          }
+        },
         activeOnly: !!params.activeOnly,
         text: params.filter || null,
         offset: Math.max(params.offset || 0, 0),

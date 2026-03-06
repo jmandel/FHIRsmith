@@ -1,0 +1,880 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`sqlite-v0 plan formatting formats logical, physical, and SQL AST artifacts: logical 1`] = `
+"kind: "intersect"
+items:
+  - 
+    kind: "fromRows"
+    key: "concept_id"
+    rows:
+      kind: "filter"
+      input:
+        kind: "scan"
+        table: "concept"
+        as: null
+      predicate:
+        kind: "activeEquals"
+        value: true
+  - 
+    kind: "fromRows"
+    key: "concept_id"
+    rows:
+      kind: "search"
+      text: "alpha"
+      spec:
+        sources:
+          - "designation"
+          - "display"
+        activeOnlyConcepts: true
+        designationActiveOnly: true
+        literalActiveOnly: true
+  - 
+    kind: "diff"
+    left:
+      kind: "union"
+      items:
+        - 
+          kind: "fromRows"
+          key: "concept_id"
+          rows:
+            kind: "reachability"
+            relation:
+              key: "property:PART_OF"
+              property: "PART_OF"
+              operators:
+                - "descendent-of"
+                - "is-a"
+              storage: "conceptLink"
+              edgeSetId: 1
+              includeSelfForIsA: true
+              label: "Hierarchy property PART_OF"
+            seed:
+              kind: "explicitCodes"
+              codes:
+                - "A-100"
+            direction: "down"
+            includeSelf: true
+            minDepth: 0
+            maxDepth: null
+        - 
+          kind: "fromRows"
+          key: "source_concept_id"
+          rows:
+            kind: "filter"
+            input:
+              kind: "scan"
+              table: "concept_literal"
+              as: null
+            predicate:
+              kind: "literalPropertyMatch"
+              property: "CLASS"
+              values:
+                - "CHEM"
+    right:
+      kind: "explicitCodes"
+      codes:
+        - "A-110""
+`;
+
+exports[`sqlite-v0 plan formatting formats logical, physical, and SQL AST artifacts: physical 1`] = `
+"kind: "materialize"
+strategy: "ordered-materialize"
+selection:
+  activeOnly: true
+  text: "alpha"
+members:
+  kind: "diff"
+  strategy: "anti-exists-by-key"
+  left:
+    kind: "union"
+    strategy: "union-all"
+    items:
+      - 
+        kind: "fromRows"
+        strategy: "row-source"
+        key: "concept_id"
+        rows:
+          kind: "row-reachability"
+          strategy: "relation-conceptLink"
+          relation:
+            key: "property:PART_OF"
+            property: "PART_OF"
+            storage: "conceptLink"
+            edgeSetId: 1
+            includeSelfForIsA: true
+            label: "Hierarchy property PART_OF"
+          seed:
+            kind: "scan-codes"
+            strategy: "code-in"
+            codes:
+              - "A-100"
+          direction: "down"
+          includeSelf: true
+      - 
+        kind: "fromRows"
+        strategy: "row-source"
+        key: "source_concept_id"
+        rows:
+          kind: "row-filter"
+          strategy: "literal-in"
+          predicate:
+            kind: "literalPropertyMatch"
+            property: "CLASS"
+            values:
+              - "CHEM"
+          input:
+            kind: "row-scan"
+            strategy: "table-scan"
+            table: "concept_literal"
+            as: null
+  right:
+    kind: "scan-codes"
+    strategy: "code-in"
+    codes:
+      - "A-110"
+columns:
+  - "active"
+  - "code"
+  - "concept_id"
+  - "definition"
+  - "display"
+includeTotal: false
+orderBy:
+  - 
+    key: "code"
+    direction: "asc"
+offset: 0
+count: 10"
+`;
+
+exports[`sqlite-v0 plan formatting formats logical, physical, and SQL AST artifacts: sql-ast 1`] = `
+"kind: "select"
+distinct: false
+columns:
+  - 
+    kind: "alias"
+    expr:
+      kind: "column"
+      name: "active"
+      tableAlias: "c"
+    alias: "active"
+  - 
+    kind: "alias"
+    expr:
+      kind: "column"
+      name: "code"
+      tableAlias: "c"
+    alias: "code"
+  - 
+    kind: "alias"
+    expr:
+      kind: "column"
+      name: "concept_id"
+      tableAlias: "c"
+    alias: "concept_id"
+  - 
+    kind: "alias"
+    expr:
+      kind: "column"
+      name: "definition"
+      tableAlias: "c"
+    alias: "definition"
+  - 
+    kind: "alias"
+    expr:
+      kind: "column"
+      name: "display"
+      tableAlias: "c"
+    alias: "display"
+from:
+  kind: "subquery"
+  alias: "m"
+  query:
+    kind: "compound"
+    op: "EXCEPT"
+    queries:
+      - 
+        kind: "compound"
+        op: "UNION"
+        queries:
+          - 
+            kind: "select"
+            distinct: true
+            columns:
+              - 
+                kind: "alias"
+                expr:
+                  kind: "column"
+                  name: "concept_id"
+                  tableAlias: "r"
+                alias: "concept_id"
+            from:
+              kind: "subquery"
+              alias: "r"
+              query:
+                kind: "with"
+                recursive: true
+                ctes:
+                  - 
+                    kind: "cte"
+                    name: "seed_rel"
+                    columns:
+                      - "concept_id"
+                    query:
+                      kind: "select"
+                      distinct: true
+                      columns:
+                        - 
+                          kind: "alias"
+                          expr:
+                            kind: "column"
+                            name: "concept_id"
+                            tableAlias: "seed"
+                          alias: "concept_id"
+                      from:
+                        kind: "subquery"
+                        alias: "seed"
+                        query:
+                          kind: "select"
+                          distinct: false
+                          columns:
+                            - 
+                              kind: "alias"
+                              expr:
+                                kind: "column"
+                                name: "concept_id"
+                                tableAlias: "c"
+                              alias: "concept_id"
+                          from:
+                            kind: "table"
+                            name: "concept"
+                            alias: "c"
+                          joins:
+                            []
+                          where:
+                            kind: "in"
+                            expr:
+                              kind: "column"
+                              name: "code"
+                              tableAlias: "c"
+                            items:
+                              - 
+                                kind: "param"
+                                name: "code_0"
+                          orderBy:
+                            []
+                          limit: null
+                          offset: null
+                      joins:
+                        []
+                      where: null
+                      orderBy:
+                        []
+                      limit: null
+                      offset: null
+                  - 
+                    kind: "cte"
+                    name: "walk_rel"
+                    columns:
+                      - "concept_id"
+                    query:
+                      kind: "compound"
+                      op: "UNION"
+                      queries:
+                        - 
+                          kind: "select"
+                          distinct: false
+                          columns:
+                            - 
+                              kind: "alias"
+                              expr:
+                                kind: "column"
+                                name: "concept_id"
+                                tableAlias: "s"
+                              alias: "concept_id"
+                          from:
+                            kind: "table"
+                            name: "seed_rel"
+                            alias: "s"
+                          joins:
+                            []
+                          where: null
+                          orderBy:
+                            []
+                          limit: null
+                          offset: null
+                        - 
+                          kind: "select"
+                          distinct: false
+                          columns:
+                            - 
+                              kind: "alias"
+                              expr:
+                                kind: "column"
+                                name: "source_concept_id"
+                                tableAlias: "l"
+                              alias: "concept_id"
+                          from:
+                            kind: "table"
+                            name: "concept_link"
+                            alias: "l"
+                          joins:
+                            - 
+                              kind: "join"
+                              joinType: "INNER"
+                              source:
+                                kind: "table"
+                                name: "walk_rel"
+                                alias: "w"
+                              on:
+                                kind: "binary"
+                                op: "="
+                                left:
+                                  kind: "column"
+                                  name: "target_concept_id"
+                                  tableAlias: "l"
+                                right:
+                                  kind: "column"
+                                  name: "concept_id"
+                                  tableAlias: "w"
+                            - 
+                              kind: "join"
+                              joinType: "INNER"
+                              source:
+                                kind: "table"
+                                name: "concept"
+                                alias: "src"
+                              on:
+                                kind: "binary"
+                                op: "="
+                                left:
+                                  kind: "column"
+                                  name: "concept_id"
+                                  tableAlias: "src"
+                                right:
+                                  kind: "column"
+                                  name: "source_concept_id"
+                                  tableAlias: "l"
+                            - 
+                              kind: "join"
+                              joinType: "INNER"
+                              source:
+                                kind: "table"
+                                name: "concept"
+                                alias: "tgt"
+                              on:
+                                kind: "binary"
+                                op: "="
+                                left:
+                                  kind: "column"
+                                  name: "concept_id"
+                                  tableAlias: "tgt"
+                                right:
+                                  kind: "column"
+                                  name: "target_concept_id"
+                                  tableAlias: "l"
+                          where:
+                            kind: "and"
+                            items:
+                              - 
+                                kind: "binary"
+                                op: "="
+                                left:
+                                  kind: "column"
+                                  name: "property_id"
+                                  tableAlias: "l"
+                                right:
+                                  kind: "param"
+                                  name: "reach_prop_id_1"
+                              - 
+                                kind: "binary"
+                                op: "="
+                                left:
+                                  kind: "column"
+                                  name: "edge_set_id"
+                                  tableAlias: "l"
+                                right:
+                                  kind: "param"
+                                  name: "reach_edge_set_id_2"
+                              - 
+                                kind: "binary"
+                                op: "="
+                                left:
+                                  kind: "column"
+                                  name: "active"
+                                  tableAlias: "l"
+                                right:
+                                  kind: "literal"
+                                  value: 1
+                          orderBy:
+                            []
+                          limit: null
+                          offset: null
+                body:
+                  kind: "select"
+                  distinct: true
+                  columns:
+                    - 
+                      kind: "alias"
+                      expr:
+                        kind: "column"
+                        name: "concept_id"
+                        tableAlias: "w"
+                      alias: "concept_id"
+                  from:
+                    kind: "table"
+                    name: "walk_rel"
+                    alias: "w"
+                  joins:
+                    []
+                  where: null
+                  orderBy:
+                    []
+                  limit: null
+                  offset: null
+            joins:
+              []
+            where:
+              kind: "binary"
+              op: "IS NOT"
+              left:
+                kind: "column"
+                name: "concept_id"
+                tableAlias: "r"
+              right:
+                kind: "literal"
+                value: null
+            orderBy:
+              []
+            limit: null
+            offset: null
+          - 
+            kind: "select"
+            distinct: true
+            columns:
+              - 
+                kind: "alias"
+                expr:
+                  kind: "column"
+                  name: "source_concept_id"
+                  tableAlias: "r"
+                alias: "concept_id"
+            from:
+              kind: "subquery"
+              alias: "r"
+              query:
+                kind: "select"
+                distinct: false
+                columns:
+                  - 
+                    kind: "alias"
+                    expr:
+                      kind: "literal"
+                      value: "*"
+                    alias: "*"
+                from:
+                  kind: "table"
+                  name: "concept_literal"
+                  alias: "cl"
+                joins:
+                  - 
+                    kind: "join"
+                    joinType: "INNER"
+                    source:
+                      kind: "table"
+                      name: "concept"
+                      alias: "src"
+                    on:
+                      kind: "binary"
+                      op: "="
+                      left:
+                        kind: "column"
+                        name: "concept_id"
+                        tableAlias: "src"
+                      right:
+                        kind: "column"
+                        name: "source_concept_id"
+                        tableAlias: "cl"
+                where:
+                  kind: "and"
+                  items:
+                    - 
+                      kind: "binary"
+                      op: "="
+                      left:
+                        kind: "column"
+                        name: "property_id"
+                        tableAlias: "cl"
+                      right:
+                        kind: "param"
+                        name: "prop_id_3"
+                    - 
+                      kind: "binary"
+                      op: "="
+                      left:
+                        kind: "column"
+                        name: "active"
+                        tableAlias: "cl"
+                      right:
+                        kind: "literal"
+                        value: 1
+                    - 
+                      kind: "or"
+                      items:
+                        - 
+                          kind: "in"
+                          expr:
+                            kind: "collate"
+                            expr:
+                              kind: "column"
+                              name: "value_text"
+                              tableAlias: "cl"
+                            collation: "NOCASE"
+                          items:
+                            - 
+                              kind: "param"
+                              name: "prop_value_4"
+                        - 
+                          kind: "and"
+                          items:
+                            - 
+                              kind: "binary"
+                              op: "IS"
+                              left:
+                                kind: "column"
+                                name: "value_text"
+                                tableAlias: "cl"
+                              right:
+                                kind: "literal"
+                                value: null
+                            - 
+                              kind: "in"
+                              expr:
+                                kind: "collate"
+                                expr:
+                                  kind: "column"
+                                  name: "value_raw"
+                                  tableAlias: "cl"
+                                collation: "NOCASE"
+                              items:
+                                - 
+                                  kind: "param"
+                                  name: "prop_value_4"
+                orderBy:
+                  []
+                limit: null
+                offset: null
+            joins:
+              []
+            where:
+              kind: "binary"
+              op: "IS NOT"
+              left:
+                kind: "column"
+                name: "source_concept_id"
+                tableAlias: "r"
+              right:
+                kind: "literal"
+                value: null
+            orderBy:
+              []
+            limit: null
+            offset: null
+      - 
+        kind: "select"
+        distinct: false
+        columns:
+          - 
+            kind: "alias"
+            expr:
+              kind: "column"
+              name: "concept_id"
+              tableAlias: "c"
+            alias: "concept_id"
+        from:
+          kind: "table"
+          name: "concept"
+          alias: "c"
+        joins:
+          []
+        where:
+          kind: "in"
+          expr:
+            kind: "column"
+            name: "code"
+            tableAlias: "c"
+          items:
+            - 
+              kind: "param"
+              name: "code_5"
+        orderBy:
+          []
+        limit: null
+        offset: null
+joins:
+  - 
+    kind: "join"
+    joinType: "INNER"
+    source:
+      kind: "table"
+      name: "concept"
+      alias: "c"
+    on:
+      kind: "binary"
+      op: "="
+      left:
+        kind: "column"
+        name: "concept_id"
+        tableAlias: "c"
+      right:
+        kind: "column"
+        name: "concept_id"
+        tableAlias: "m"
+where:
+  kind: "and"
+  items:
+    - 
+      kind: "binary"
+      op: "="
+      left:
+        kind: "column"
+        name: "active"
+        tableAlias: "c"
+      right:
+        kind: "literal"
+        value: 1
+    - 
+      kind: "inQuery"
+      expr:
+        kind: "column"
+        name: "concept_id"
+        tableAlias: "c"
+      query:
+        kind: "compound"
+        op: "UNION"
+        queries:
+          - 
+            kind: "select"
+            distinct: true
+            columns:
+              - 
+                kind: "alias"
+                expr:
+                  kind: "column"
+                  name: "concept_id"
+                  tableAlias: "c"
+                alias: "concept_id"
+            from:
+              kind: "table"
+              name: "search_fts_display"
+              alias: "f"
+            joins:
+              - 
+                kind: "join"
+                joinType: "INNER"
+                source:
+                  kind: "table"
+                  name: "concept"
+                  alias: "c"
+                on:
+                  kind: "binary"
+                  op: "="
+                  left:
+                    kind: "column"
+                    name: "concept_id"
+                    tableAlias: "c"
+                  right:
+                    kind: "column"
+                    name: "rowid"
+                    tableAlias: "f"
+            where:
+              kind: "and"
+              items:
+                - 
+                  kind: "binary"
+                  op: "="
+                  left:
+                    kind: "column"
+                    name: "active"
+                    tableAlias: "c"
+                  right:
+                    kind: "literal"
+                    value: 1
+                - 
+                  kind: "binary"
+                  op: "MATCH"
+                  left:
+                    kind: "column"
+                    name: "term"
+                    tableAlias: "f"
+                  right:
+                    kind: "param"
+                    name: "search_match_6"
+            orderBy:
+              []
+            limit: null
+            offset: null
+          - 
+            kind: "select"
+            distinct: true
+            columns:
+              - 
+                kind: "alias"
+                expr:
+                  kind: "column"
+                  name: "concept_id"
+                  tableAlias: "d"
+                alias: "concept_id"
+            from:
+              kind: "table"
+              name: "search_fts_designation"
+              alias: "f"
+            joins:
+              - 
+                kind: "join"
+                joinType: "INNER"
+                source:
+                  kind: "table"
+                  name: "designation"
+                  alias: "d"
+                on:
+                  kind: "binary"
+                  op: "="
+                  left:
+                    kind: "column"
+                    name: "designation_id"
+                    tableAlias: "d"
+                  right:
+                    kind: "column"
+                    name: "rowid"
+                    tableAlias: "f"
+              - 
+                kind: "join"
+                joinType: "INNER"
+                source:
+                  kind: "table"
+                  name: "concept"
+                  alias: "c"
+                on:
+                  kind: "binary"
+                  op: "="
+                  left:
+                    kind: "column"
+                    name: "concept_id"
+                    tableAlias: "c"
+                  right:
+                    kind: "column"
+                    name: "concept_id"
+                    tableAlias: "d"
+            where:
+              kind: "and"
+              items:
+                - 
+                  kind: "binary"
+                  op: "="
+                  left:
+                    kind: "column"
+                    name: "active"
+                    tableAlias: "c"
+                  right:
+                    kind: "literal"
+                    value: 1
+                - 
+                  kind: "binary"
+                  op: "="
+                  left:
+                    kind: "column"
+                    name: "active"
+                    tableAlias: "d"
+                  right:
+                    kind: "literal"
+                    value: 1
+                - 
+                  kind: "binary"
+                  op: "MATCH"
+                  left:
+                    kind: "column"
+                    name: "term"
+                    tableAlias: "f"
+                  right:
+                    kind: "param"
+                    name: "search_match_6"
+            orderBy:
+              []
+            limit: null
+            offset: null
+orderBy:
+  - 
+    key:
+      kind: "column"
+      name: "code"
+      tableAlias: "c"
+    direction: "ASC"
+limit:
+  kind: "literal"
+  value: 10
+offset: null"
+`;
+
+exports[`sqlite-v0 plan formatting formats logical, physical, and SQL AST artifacts: terminal 1`] = `
+"kind: "materializeConcepts"
+columns:
+  - "active"
+  - "code"
+  - "concept_id"
+  - "definition"
+  - "display"
+includeTotal: false
+orderBy:
+  - 
+    key: "code"
+    direction: "asc"
+offset: 0
+count: 10
+members:
+  kind: "diff"
+  left:
+    kind: "union"
+    items:
+      - 
+        kind: "fromRows"
+        key: "concept_id"
+        rows:
+          kind: "reachability"
+          relation:
+            key: "property:PART_OF"
+            property: "PART_OF"
+            operators:
+              - "descendent-of"
+              - "is-a"
+            storage: "conceptLink"
+            edgeSetId: 1
+            includeSelfForIsA: true
+            label: "Hierarchy property PART_OF"
+          seed:
+            kind: "explicitCodes"
+            codes:
+              - "A-100"
+          direction: "down"
+          includeSelf: true
+          minDepth: 0
+          maxDepth: null
+      - 
+        kind: "fromRows"
+        key: "source_concept_id"
+        rows:
+          kind: "filter"
+          input:
+            kind: "scan"
+            table: "concept_literal"
+            as: null
+          predicate:
+            kind: "literalPropertyMatch"
+            property: "CLASS"
+            values:
+              - "CHEM"
+  right:
+    kind: "explicitCodes"
+    codes:
+      - "A-110""
+`;

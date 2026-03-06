@@ -10,7 +10,10 @@ const IR = require('./ir');
 function buildIRFromValueSet(vsJson, opts = {}) {
   const vs = vsJson?.jsonObj || vsJson;
   const compose = vs?.compose || {};
-  return buildIRFromCompose(compose, opts);
+  const lockedDate = compose?.lockedDate != null
+    ? String(compose.lockedDate)
+    : (opts?.lockedDate != null ? String(opts.lockedDate) : null);
+  return buildIRFromCompose(compose, { ...opts, lockedDate });
 }
 
 function buildIRFromCompose(compose, opts = {}) {
@@ -36,7 +39,15 @@ function buildComponentExpr(cset, path, opts = {}) {
   }
 
   const system = String(cset.system);
-  const version = cset.version ? String(cset.version) : null;
+  // Treat wildcard version as unversioned selector in current IR execution.
+  // (Provider-specific "all versions" semantics are handled outside IR.)
+  const rawVersion = cset.version ? String(cset.version) : null;
+  const version = rawVersion === '*' ? null : rawVersion;
+  // lockedDate is a compose-level qualifier for otherwise-unversioned selectors.
+  // Do not attach lockedDate when component supplied explicit version (including '*').
+  const lockedDate = (!rawVersion && opts?.lockedDate != null)
+    ? String(opts.lockedDate)
+    : null;
 
   // Leaf selector for this component
   let leaf;
@@ -50,7 +61,7 @@ function buildComponentExpr(cset, path, opts = {}) {
         meta: { path: `${path}.concept[${j}]` },
       }))
       .filter(x => x.code);
-    leaf = IR.selector({ system, version, shape: 'concept', conceptCodes, meta });
+    leaf = IR.selector({ system, version, lockedDate, shape: 'concept', conceptCodes, meta });
   } else if (Array.isArray(cset.filter) && cset.filter.length > 0) {
     const filterClauses = cset.filter.map((f, j) => ({
       property: String(f.property || ''),
@@ -58,9 +69,9 @@ function buildComponentExpr(cset, path, opts = {}) {
       value: f.value != null ? String(f.value) : null,
       meta: { path: `${path}.filter[${j}]` },
     }));
-    leaf = IR.selector({ system, version, shape: 'filter', filterClauses, meta });
+    leaf = IR.selector({ system, version, lockedDate, shape: 'filter', filterClauses, meta });
   } else {
-    leaf = IR.selector({ system, version, shape: 'whole', meta });
+    leaf = IR.selector({ system, version, lockedDate, shape: 'whole', meta });
   }
 
   // Optional imports constrain the leaf via intersection.

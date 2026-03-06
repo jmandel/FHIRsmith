@@ -27,6 +27,15 @@ This snapshot is generated from the full IR harness suite (166 tests).
 - `perf-table.details/*.html`
 - `perf-table.inputs/*.json`
 
+## Query-shape clustering
+
+Use the clustering helper to group rows by execution shape instead of harness
+category:
+
+```bash
+node scripts/cluster-perf-catalog.mjs docs/perf/v0-sqlite-20260305/perf-table.catalog.json
+```
+
 Excluded on purpose:
 
 - server logs

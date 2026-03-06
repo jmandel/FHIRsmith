@@ -5,6 +5,49 @@ const path = require('path');
 const readline = require('readline');
 const chalk = require('chalk');
 
+function normalizeIsoDate(raw) {
+  const v = String(raw || '').trim();
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+function digitsDateToIso(raw) {
+  const v = String(raw || '').trim();
+  if (!/^\d{8}$/.test(v)) return null;
+  const y = Number(v.slice(0, 4));
+  const mo = Number(v.slice(4, 6));
+  const d = Number(v.slice(6, 8));
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+}
+
+function deriveLoincReleaseDate(version, sourceDir) {
+  const directIso = normalizeIsoDate(version);
+  if (directIso) return directIso;
+  const directDigits = digitsDateToIso(version);
+  if (directDigits) return directDigits;
+
+  const v = String(version || '');
+  const digitsInVersion = v.match(/(\d{8})/);
+  if (digitsInVersion) {
+    const iso = digitsDateToIso(digitsInVersion[1]);
+    if (iso) return iso;
+  }
+
+  const fromPath = String(sourceDir || '').match(/(\d{8})/);
+  if (fromPath) {
+    const iso = digitsDateToIso(fromPath[1]);
+    if (iso) return iso;
+  }
+
+  return null;
+}
+
 class LoincModule extends BaseTerminologyModule {
   constructor() {
     super();
@@ -577,6 +620,7 @@ class LoincDataMigrator {
 
     try {
       // Initialize tracking variables
+      this.sourceDir = sourceDir;
       this.codeKey = 0;
       this.relKey = 0;
       this.descKey = 0;
@@ -734,17 +778,21 @@ class LoincDataMigrator {
           });
         });
 
-        this.insertInitialData(db, version);
+        this.insertInitialData(db, version, this.sourceDir);
         if (verbose) console.log('Database tables created');
         resolve();
       });
     });
   }
 
-  insertInitialData(db, version) {
+  insertInitialData(db, version, sourceDir) {
     // Config
     db.run('INSERT INTO Config (ConfigKey, Value) VALUES (1, "c3c89b66-5930-4aa2-8962-124561a5f8c1")');
     db.run('INSERT INTO Config (ConfigKey, Value) VALUES (2, ?)', [version]);
+    const releaseDate = deriveLoincReleaseDate(version, sourceDir);
+    if (releaseDate) {
+      db.run('INSERT INTO Config (ConfigKey, Value) VALUES (4, ?)', [releaseDate]);
+    }
 
     // Types
     db.run('INSERT INTO Types (TypeKey, Code) VALUES (1, "Code")');

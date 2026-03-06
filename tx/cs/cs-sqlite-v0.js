@@ -20,7 +20,9 @@ const { CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api'
 const { BaseCSServices } = require('./cs-base');
 const { DesignationUse } = require('../library/designations');
 const { VersionUtilities } = require('../../library/version-utilities');
-const { buildExpandSql, buildMembershipSql, buildCountSql } = require('./sqlite-v0-sql');
+const { supportsFilterClause } = require('./sqlite-v0-clause-lowering');
+const { createSqliteV0Compiler } = require('./sqlite-v0-compiler');
+const { formatMembershipPlan, formatPhysicalPlan, formatSqlAst, formatTerminalPlan } = require('./sqlite-v0-format-plan');
 const { trace } = require('../engine/expand-trace');
 
 // ── Helper functions (ported from codex) ────────────────────────────
@@ -108,6 +110,85 @@ function sqliteV0VersionToken(meta) {
   return meta?.version || null;
 }
 
+function normalizeIsoDate(raw) {
+  const v = String(raw || '').trim();
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+function digitsDateToIso(raw) {
+  const v = String(raw || '').trim();
+  if (!/^\d{8}$/.test(v)) return null;
+  const y = Number(v.slice(0, 4));
+  const mo = Number(v.slice(4, 6));
+  const d = Number(v.slice(6, 8));
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+}
+
+function mmddyyyyToIso(raw) {
+  const v = String(raw || '').trim();
+  if (!/^\d{8}$/.test(v)) return null;
+  const mo = Number(v.slice(0, 2));
+  const d = Number(v.slice(2, 4));
+  const y = Number(v.slice(4, 8));
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${v.slice(4, 8)}-${v.slice(0, 2)}-${v.slice(2, 4)}`;
+}
+
+function normalizeInlineTotal(raw) {
+  if (raw == null) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function extractReleaseDate(meta) {
+  const explicit = normalizeIsoDate(meta?.releaseDate)
+    || digitsDateToIso(meta?.releaseDate)
+    || mmddyyyyToIso(meta?.releaseDate);
+  if (explicit) return explicit;
+
+  const canonical = String(meta?.canonicalUri || '');
+  const version = String(meta?.version || '');
+  const loadedAt = String(meta?.loadedAt || '');
+
+  // SNOMED canonical URI contains /version/YYYYMMDD
+  const snomed = canonical.match(/\/version\/(\d{8})(?:$|[/?#])/);
+  if (snomed) {
+    const iso = digitsDateToIso(snomed[1]);
+    if (iso) return iso;
+  }
+
+  // Generic 8-digit date token from version.
+  // Prefer YYYYMMDD; fallback to MMDDYYYY for RxNorm-like versions.
+  const eight = version.match(/(\d{8})/);
+  if (eight) {
+    const iso = digitsDateToIso(eight[1]) || mmddyyyyToIso(eight[1]);
+    if (iso) return iso;
+  }
+
+  // ISO date token in version string.
+  const isoToken = version.match(/(\d{4}-\d{2}-\d{2})/);
+  if (isoToken) {
+    const iso = normalizeIsoDate(isoToken[1]);
+    if (iso) return iso;
+  }
+
+  // Last resort: DB load timestamp date component.
+  const loadedIso = loadedAt.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (loadedIso) {
+    const iso = normalizeIsoDate(loadedIso[1]);
+    if (iso) return iso;
+  }
+
+  return null;
+}
+
 function buildRuntimeConfig(rawCfg, system) {
   const cfg = rawCfg || {};
   const searchRaw = cfg['search'] || {};
@@ -179,8 +260,10 @@ class SqliteV0Provider extends BaseCSServices {
   #propDefs;   // Map<propertyCode, {property_id, value_kind, is_hierarchy}>
   #closureOk;  // boolean — is the closure table populated?
   #stmts;      // prepared statements cache
+  #compiler = null;
+  #options;
 
-  constructor(opContext, supplements, db, meta, runtime, propDefs, conceptCount = null) {
+  constructor(opContext, supplements, db, meta, runtime, propDefs, options = {}) {
     super(opContext, supplements);
     this.#db = db;
     this.#meta = meta;
@@ -188,7 +271,7 @@ class SqliteV0Provider extends BaseCSServices {
     this.#propDefs = propDefs;
     this.#closureOk = !!runtime.hierarchy?.closure?.enabled;
     this.#stmts = {};
-    this.#conceptCountCache = conceptCount; // pre-warmed from factory
+    this.#options = options || {};
   }
 
   // ── metadata ─────────────────────────────────────────────────────
@@ -210,28 +293,120 @@ class SqliteV0Provider extends BaseCSServices {
   isNotClosed() { return false; }
   hasParents()  { return this.#closureOk; }
 
-  // Cached concept count for EXISTS rewrite density heuristic
-  #conceptCountCache = null;
-  #getConceptCount() {
-    if (this.#conceptCountCache == null) {
-      this.#conceptCountCache = this.#prep('conceptCount',
-        'SELECT COUNT(*) AS cnt FROM concept WHERE cs_id = @cs')
-        .get({ cs: this.#meta.csId }).cnt;
-    }
-    return this.#conceptCountCache;
+  #irCompilerConfig() {
+    const flags = this.#runtime?.behaviorFlags?.irCompiler || {};
+    return {
+      tracePlans: this.#options.traceIrCompilerPlans != null ? !!this.#options.traceIrCompilerPlans : !!flags.tracePlans,
+    };
   }
 
-  // Quick closure count for a single is-a/descendent-of selector
-  #getClosureCount(subtree) {
-    if (subtree?.kind !== 'selector' || subtree.shape !== 'filter') return 0;
-    const clause = (subtree.filterClauses || [])[0];
-    if (!clause || (clause.op !== 'is-a' && clause.op !== 'descendent-of')) return 0;
-    if ((subtree.filterClauses || []).length !== 1) return 0;
-    const row = this.#prep('closureCount',
-      `SELECT COUNT(*) AS cnt FROM closure WHERE ancestor_id = (
-        SELECT concept_id FROM concept WHERE code = @code AND cs_id = @cs)`)
-      .get({ code: clause.value, cs: this.#meta.csId });
-    return row?.cnt || 0;
+  #compilerFor() {
+    if (!this.#compiler) {
+      this.#compiler = createSqliteV0Compiler({
+        propertyDefs: this.#propDefs,
+        runtime: this.#runtime,
+        scope: {
+          csId: this.#meta.csId,
+          system: this.#meta.baseUri,
+          version: this.version(),
+        },
+      });
+    }
+    return this.#compiler;
+  }
+
+  #traceCompiledArtifacts(label, compiled, cfg) {
+    if (!cfg?.tracePlans || !compiled) return;
+    trace.note(`${label}:compiler`, {
+      scope: compiled.traceInfo?.scope || null,
+      cache: compiled.traceInfo ? {
+        baseCacheKey: compiled.traceInfo.baseCacheKey || null,
+        baseCacheHit: !!compiled.traceInfo.baseCacheHit,
+        selectedCacheKey: compiled.traceInfo.selectedCacheKey || null,
+        selectedCacheHit: !!compiled.traceInfo.selectedCacheHit,
+      } : null,
+      base: formatMembershipPlan(compiled.base),
+      selected: compiled.selected ? formatMembershipPlan(compiled.selected) : null,
+      terminal: compiled.terminal ? formatTerminalPlan(compiled.terminal) : null,
+      physical: formatPhysicalPlan(compiled.physical),
+      sqlAst: formatSqlAst(compiled.sqlAst),
+    });
+  }
+
+  #executeCompiledSql(compiled, label) {
+    const tPrep = performance.now();
+    const stmt = this.#db.prepare(compiled.sql.text);
+    const prepMs = performance.now() - tPrep;
+    const tExec = performance.now();
+    const rows = stmt.all(compiled.sql.params);
+    const execMs = performance.now() - tExec;
+    trace.sql(compiled.sql.text, compiled.sql.params, rows.length, execMs, label);
+    return { rows, prepMs, execMs };
+  }
+
+  #executeIRNew(subtree, opts = {}, cfg = null) {
+    if (!subtree || subtree.kind === 'empty') return { candidates: [], total: 0 };
+    if (opts.count === 0) return { candidates: [] };
+    const compiler = this.#compilerFor();
+    const span = trace.begin('executeIR:compiler', { system: this.#meta.baseUri });
+    const compiled = compiler.compileExpand(subtree, {
+      ...opts,
+      includeDebugArtifacts: !!cfg?.tracePlans,
+    });
+    this.#traceCompiledArtifacts('executeIR', compiled, cfg);
+    const { rows, prepMs, execMs } = this.#executeCompiledSql(compiled, 'executeIR');
+    trace.note('executeIR:breakdown', { prepMs: +prepMs.toFixed(2), execMs: +execMs.toFixed(2) });
+    const total = rows.length > 0
+      ? normalizeInlineTotal(rows[0]?.total)
+      : ((compiled.terminal?.includeTotal && (!Number.isInteger(opts.offset) || opts.offset <= 0)) ? 0 : null);
+    const candidates = rows
+      .filter(r => r.code != null)
+      .map(r => ({
+        code: r.code,
+        display: this._displayFromSupplements(r.code) || r.display,
+        definition: r.definition,
+        active: !!r.active,
+        conceptId: r.concept_id,
+      }));
+    span.end({ candidates: candidates.length, total });
+    return { candidates, total, compiled };
+  }
+
+  #countIRNew(subtree, opts = {}, cfg = null) {
+    if (!subtree || subtree.kind === 'empty') return { count: 0 };
+    const compiler = this.#compilerFor();
+    const span = trace.begin('countForIR:compiler', { system: this.#meta.baseUri });
+    const compiled = compiler.compileCount(subtree, {
+      ...opts,
+      includeDebugArtifacts: !!cfg?.tracePlans,
+    });
+    this.#traceCompiledArtifacts('countForIR', compiled, cfg);
+    const t0 = performance.now();
+    const row = this.#db.prepare(compiled.sql.text).get(compiled.sql.params);
+    const elapsedMs = performance.now() - t0;
+    const count = row?.cnt ?? 0;
+    trace.sql(compiled.sql.text, compiled.sql.params, count, elapsedMs, 'countForIR');
+    span.end({ count });
+    return { count, compiled };
+  }
+
+  #membershipIRNew(subtree, cfg = null) {
+    if (!subtree || subtree.kind === 'empty') {
+      return { has: () => false };
+    }
+    const compiler = this.#compilerFor();
+    const compiled = compiler.compileProbe(subtree, '__probe__', {
+      includeDebugArtifacts: !!cfg?.tracePlans,
+    });
+    this.#traceCompiledArtifacts('membershipForIR', compiled, cfg);
+    const stmt = this.#db.prepare(compiled.sql.text);
+    const probeKey = Object.keys(compiled.sql.params).find(k => k.startsWith('check_code_')) || 'check_code_0';
+    return {
+      has(code) {
+        const result = stmt.get({ ...compiled.sql.params, [probeKey]: code });
+        return !!result;
+      }
+    };
   }
 
   propertyDefinitions() {
@@ -419,19 +594,11 @@ class SqliteV0Provider extends BaseCSServices {
   // ── filter protocol ─────────────────────────────────────────────
 
   async doesFilter(prop, op, value) {
-    const filtersCfg = this.#runtime.filters || {};
-    if (prop === 'concept' && filtersCfg.concept?.operators?.includes(op)) return true;
-    if (prop === 'code' && op === 'regex') return true;
-    if (filtersCfg[prop]?.operators?.includes(op)) return true;
-    // Regex on any literal property
-    if (op === 'regex' && prop !== 'concept') {
-      const propDef = this.#propDefs.get(prop);
-      if (propDef && propDef.value_kind !== 'concept') return true;
-    }
-    // Check property config with alias resolution
-    const resolved = this.#resolvePropertyFilterConfig(prop);
-    if (resolved?.operators?.includes(op)) return true;
-    return false;
+    return supportsFilterClause({
+      property: prop,
+      op,
+      value,
+    }, this.#propDefs, this.#runtime);
   }
 
   async getPrepContext(iterate) {
@@ -978,99 +1145,17 @@ class SqliteV0Provider extends BaseCSServices {
 
   /**
    * Execute an IR subtree scoped to this code system.
-   * Compiles the IR to a single SQL query via sqlite-v0-sql.js and
-   * returns results as an array of candidates.
+   * Compiles the IR through the sqlite-v0 provider-private execution compiler
+   * and returns results as an array of candidates.
    *
    * @param {Object} subtree - optimized IR node from rewrite.js
    * @param {Object} opts - { activeOnly, text, count, offset }
    * @returns {Object} { candidates: [{code, display, definition, active, conceptId}], total?: number }
    */
   executeIR(subtree, opts = {}) {
-    if (!subtree || subtree.kind === 'empty') {
-      return { candidates: [], total: 0 };
-    }
-    // Short-circuit when caller needs zero rows (defensive; orchestrator
-    // should skip this call, but guard against mis-use).
-    if (opts.count === 0) {
-      return { candidates: [] };
-    }
-
-    // Fast path: small concept enumerations with text filter.
-    // Locate each code and text-match in JS instead of FTS SQL.
-    if (opts.text && subtree.kind === 'selector' && subtree.shape === 'concept'
-        && subtree.conceptCodes?.length <= 50) {
-      const lower = opts.text.toLowerCase();
-      const candidates = [];
-      for (const cc of subtree.conceptCodes) {
-        if (opts.count != null && candidates.length >= opts.count) break;
-        const row = this.#prep('locate',
-          'SELECT concept_id, code, display, definition, active FROM concept WHERE cs_id = @cs AND code = @code')
-          .get({ cs: this.#meta.csId, code: cc.code });
-        if (!row) continue;
-        if (opts.activeOnly && !row.active) continue;
-        const suppDisplay = this._displayFromSupplements(row.code);
-        const effectiveDisplay = suppDisplay || row.display;
-        if ((effectiveDisplay || '').toLowerCase().includes(lower)
-            || (row.code || '').toLowerCase().includes(lower)) {
-          candidates.push({ code: row.code, display: effectiveDisplay,
-            definition: row.definition, active: !!row.active, conceptId: row.concept_id });
-        }
-      }
-      trace.note('executeIR:fastpath', { codes: subtree.conceptCodes.length, text: opts.text, hits: candidates.length });
-      return { candidates };
-    }
-
-    const span = trace.begin('executeIR:sql', { system: this.#meta.baseUri });
-
-    // Supply density hints only when the IR contains a closure filter
-    // (is-a / descendent-of). For concept enums and property filters,
-    // the EXISTS rewrite doesn't apply, so skip the expensive COUNT(*).
-    const enrichedOpts = { ...opts };
-    const tHints = performance.now();
-    // EXISTS rewrite requires closure filter AND no text filter.
-    // Skip the expensive getConceptCount (SELECT COUNT ~17ms cold) when
-    // text is present — the rewrite won't fire anyway.
-    const closureCount = this.#getClosureCount(subtree);
-    if (closureCount > 0 && !opts.text) {
-      enrichedOpts._conceptCount = this.#getConceptCount();
-      enrichedOpts._closureCount = closureCount;
-    }
-    const hintsMs = performance.now() - tHints;
-
-    const tBuild = performance.now();
-    const { sql, params } = buildExpandSql(
-      subtree, this.#meta.csId, enrichedOpts, this.#propDefs, this.#runtime
-    );
-    const buildMs = performance.now() - tBuild;
-
-    if (sql.includes('WHERE 0')) {
-      span.end({ empty: true });
-      return { candidates: [], total: 0 };
-    }
-
-    const tPrep = performance.now();
-    const stmt = this.#db.prepare(sql);
-    const prepMs = performance.now() - tPrep;
-
-    const tExec = performance.now();
-    const rows = stmt.all(params);
-    const execMs = performance.now() - tExec;
-
-    trace.sql(sql, params, rows.length, execMs, 'executeIR');
-    trace.note('executeIR:breakdown', { hintsMs: +hintsMs.toFixed(2), buildMs: +buildMs.toFixed(2), prepMs: +prepMs.toFixed(2), execMs: +execMs.toFixed(2) });
-
-    const candidates = rows
-      .filter(r => r.code != null)
-      .map(r => ({
-        code: r.code,
-        display: this._displayFromSupplements(r.code) || r.display,
-        definition: r.definition,
-        active: !!r.active,
-        conceptId: r.concept_id,
-      }));
-
-    span.end({ candidates: candidates.length });
-    return { candidates };
+    const cfg = this.#irCompilerConfig();
+    const result = this.#executeIRNew(subtree, opts, cfg);
+    return { candidates: result.candidates, total: result.total };
   }
 
   /**
@@ -1081,25 +1166,8 @@ class SqliteV0Provider extends BaseCSServices {
    * @returns {{ has: (code: string) => boolean }}
    */
   membershipForIR(subtree) {
-    if (!subtree || subtree.kind === 'empty') {
-      return { has: () => false };
-    }
-
-    const { sql, params } = buildMembershipSql(
-      subtree, this.#meta.csId, '_mbr', this.#propDefs, this.#runtime
-    );
-
-    if (sql.includes('WHERE 0')) {
-      return { has: () => false };
-    }
-
-    const stmt = this.#db.prepare(sql);
-    return {
-      has(code) {
-        const result = stmt.get({ ...params, _checkCode: code });
-        return !!result;
-      }
-    };
+    const cfg = this.#irCompilerConfig();
+    return this.#membershipIRNew(subtree, cfg);
   }
 
   /**
@@ -1109,48 +1177,8 @@ class SqliteV0Provider extends BaseCSServices {
    * @returns {number}
    */
   countForIR(subtree, opts = {}) {
-    if (!subtree || subtree.kind === 'empty') return 0;
-
-    // Fast path: small concept enumerations with text filter.
-    // Locate each code and text-match in JS instead of FTS SQL (~17ms → <1ms).
-    if (opts.text && subtree.kind === 'selector' && subtree.shape === 'concept'
-        && subtree.conceptCodes?.length <= 50) {
-      const lower = opts.text.toLowerCase();
-      let cnt = 0;
-      for (const cc of subtree.conceptCodes) {
-        const row = this.#prep('locate',
-          'SELECT concept_id, code, display, definition, active FROM concept WHERE cs_id = @cs AND code = @code')
-          .get({ cs: this.#meta.csId, code: cc.code });
-        if (!row) continue;
-        if (opts.activeOnly && !row.active) continue;
-        if ((row.display || '').toLowerCase().includes(lower)
-            || (row.code || '').toLowerCase().includes(lower)) cnt++;
-      }
-      trace.note('countForIR:fastpath', { codes: subtree.conceptCodes.length, text: opts.text, count: cnt });
-      return cnt;
-    }
-
-    const span = trace.begin('countForIR:sql', { system: this.#meta.baseUri });
-
-    // EXISTS rewrite requires closure filter AND no text filter.
-    // Skip expensive getConceptCount (~17ms cold) when it can't be used.
-    const enrichedOpts = { ...opts };
-    const closureCount = this.#getClosureCount(subtree);
-    if (closureCount > 0 && !opts.text) {
-      enrichedOpts._conceptCount = this.#getConceptCount();
-      enrichedOpts._closureCount = closureCount;
-    }
-    const { sql, params } = buildCountSql(
-      subtree, this.#meta.csId, '_cnt', this.#propDefs, this.#runtime, enrichedOpts
-    );
-
-    const t0 = performance.now();
-    const row = this.#db.prepare(sql).get(params);
-    const elapsedMs = performance.now() - t0;
-    const cnt = row?.cnt ?? 0;
-    trace.sql(sql, params, cnt, elapsedMs, 'countForIR');
-    span.end({ count: cnt });
-    return cnt;
+    const cfg = this.#irCompilerConfig();
+    return this.#countIRNew(subtree, opts, cfg).count;
   }
 
   /** Whether this provider supports native IR execution. */
@@ -1292,10 +1320,9 @@ const V0_SPECIALIZATION_REGISTRY = [];
 
 class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
   _dbPath;
-  _meta;       // { csId, baseUri, canonicalUri, version, name, editionCode }
+  _meta;       // { csId, baseUri, canonicalUri, version, releaseDate, name, editionCode }
   _runtime;    // parsed cs_config values
   _propDefs;   // Map<propertyCode, {property_id, value_kind, is_hierarchy}>
-  _conceptCount = null; // cached at load() — immutable per database
   _loaded = false;
 
   /**
@@ -1382,8 +1409,11 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
         editionCode: cs.edition_code,
         version: cs.version,
         canonicalUri: cs.canonical_uri,
+        releaseDate: cs.release_date || null,
+        loadedAt: cs.loaded_at || null,
         name: cs.name,
       };
+      this._meta.releaseDate = extractReleaseDate(this._meta);
 
       // Load runtime config with defaults
       const rawCfg = {};
@@ -1407,11 +1437,21 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
         });
       }
 
-      // Cache concept count for EXISTS rewrite density heuristic.
-      // This avoids a ~17ms full-table COUNT(*) on every request.
-      this._conceptCount = db.prepare(
-        'SELECT COUNT(*) AS cnt FROM concept WHERE cs_id = @cs'
-      ).get({ cs: cs.cs_id }).cnt;
+      // Native IR planning treats concept_id as sufficient identity within one
+      // scoped provider bucket. Make that runtime invariant explicit.
+      const dupCode = db.prepare(
+        `SELECT code, COUNT(*) AS cnt
+           FROM concept
+          WHERE cs_id = @cs
+          GROUP BY code
+         HAVING COUNT(*) > 1
+          LIMIT 1`
+      ).get({ cs: cs.cs_id });
+      if (dupCode) {
+        throw new Error(
+          `sqlite-v0 invariant violated: duplicate code '${dupCode.code}' appears ${dupCode.cnt} times within cs_id=${cs.cs_id}`
+        );
+      }
 
       this._loaded = true;
     } finally {
@@ -1435,6 +1475,10 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
     return this._meta?.version || 'unknown';
   }
 
+  releaseDate() {
+    return this._meta?.releaseDate || null;
+  }
+
   id() {
     return `sqlite-v0-${this._meta?.baseUri}-${this._meta?.version}`;
   }
@@ -1446,7 +1490,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
   async build(opContext, supplements) {
     this.recordUse();
     const db = openV0Database(this._dbPath);
-    return new SqliteV0Provider(opContext, supplements, db, this._meta, this._runtime, this._propDefs, this._conceptCount);
+    return new SqliteV0Provider(opContext, supplements, db, this._meta, this._runtime, this._propDefs, this._options);
   }
 
   /** Build implicit value sets from URL patterns (like SNOMED's fhir_vs=isa/X). */

@@ -694,6 +694,10 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     return this._sharedData.version;
   }
 
+  releaseDate() {
+    return this._sharedData?.releaseDate || null;
+  }
+
   // eslint-disable-next-line no-unused-vars
   async buildKnownValueSet(url, version) {
     return null;
@@ -711,13 +715,16 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     try {
       this._sharedData = {
         version: '',
+        releaseDate: null,
         rels: [],
         reltypes: [],
         totalCodeCount: 0
       };
 
       // Load version
-      this._sharedData.version = await this.#readVersion(db);
+      const meta = await this.#readVersionMetadata(db);
+      this._sharedData.version = meta.version;
+      this._sharedData.releaseDate = meta.releaseDate;
 
       // Load relationship types
       this._sharedData.rels = await this.#loadList(db, 'SELECT DISTINCT REL FROM RXNREL');
@@ -735,9 +742,9 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     this._loaded = true;
   }
 
-  async #readVersion(db) {
+  async #readVersionMetadata(db) {
     return new Promise((resolve) => {
-      db.get('SELECT version FROM RXNVer', (err, row) => {
+      db.get('SELECT version, release_date FROM RXNVer LIMIT 1', (err, row) => {
         if (err || !row) {
           // Fallback: try to extract version from database path
           const dbDetails = this.dbPath;
@@ -755,9 +762,12 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
               version = d;
             }
           }
-          resolve(version);
+          resolve({ version, releaseDate: null });
         } else {
-          resolve(row.version.toString());
+          resolve({
+            version: row.version.toString(),
+            releaseDate: row.release_date ? row.release_date.toString() : null,
+          });
         }
       });
     });

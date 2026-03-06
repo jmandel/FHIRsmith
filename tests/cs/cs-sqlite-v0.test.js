@@ -1,5 +1,9 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const BetterSqlite3 = require('better-sqlite3');
 const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
 const { OperationContext } = require('../../tx/operation-context');
 const { Designations } = require('../../tx/library/designations');
@@ -23,7 +27,88 @@ function makeOpContext() {
   return new OperationContext('en', i18n);
 }
 
+function versionDigitsToIso(version) {
+  const v = String(version || '').trim();
+  if (!/^\d{8}$/.test(v)) return null;
+
+  const y = Number(v.slice(0, 4));
+  const mo = Number(v.slice(4, 6));
+  const d = Number(v.slice(6, 8));
+  if (y >= 1800 && y <= 2400 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+    return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+  }
+
+  const mo2 = Number(v.slice(0, 2));
+  const d2 = Number(v.slice(2, 4));
+  const y2 = Number(v.slice(4, 8));
+  if (y2 >= 1800 && y2 <= 2400 && mo2 >= 1 && mo2 <= 12 && d2 >= 1 && d2 <= 31) {
+    return `${v.slice(4, 8)}-${v.slice(0, 2)}-${v.slice(2, 4)}`;
+  }
+
+  return null;
+}
+
+function makeTempDuplicateCodeDb() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sqlite-v0-dup-'));
+  const dbPath = path.join(dir, 'dup.v0.db');
+  const db = new BetterSqlite3(dbPath);
+  try {
+    db.exec(`
+      CREATE TABLE code_system (
+        cs_id INTEGER PRIMARY KEY,
+        base_uri TEXT,
+        version TEXT,
+        canonical_uri TEXT,
+        release_date TEXT,
+        loaded_at TEXT,
+        name TEXT,
+        edition_code TEXT
+      );
+      CREATE TABLE cs_config (
+        cs_id INTEGER,
+        key TEXT,
+        value TEXT
+      );
+      CREATE TABLE property_def (
+        property_id INTEGER PRIMARY KEY,
+        cs_id INTEGER,
+        property_code TEXT,
+        value_kind TEXT,
+        is_hierarchy INTEGER,
+        display TEXT
+      );
+      CREATE TABLE concept (
+        concept_id INTEGER PRIMARY KEY,
+        cs_id INTEGER,
+        code TEXT,
+        active INTEGER,
+        display TEXT,
+        definition TEXT
+      );
+    `);
+    db.prepare(`
+      INSERT INTO code_system (cs_id, base_uri, version, canonical_uri, release_date, loaded_at, name, edition_code)
+      VALUES (1, 'urn:test:dup', '1', 'urn:test:dup|1', '2026-03-05', '2026-03-05T00:00:00Z', 'dup', NULL)
+    `).run();
+    db.prepare(`
+      INSERT INTO concept (concept_id, cs_id, code, active, display, definition)
+      VALUES (?, 1, 'DUP', 1, ?, NULL)
+    `).run(1, 'Duplicate 1');
+    db.prepare(`
+      INSERT INTO concept (concept_id, cs_id, code, active, display, definition)
+      VALUES (?, 1, 'DUP', 1, ?, NULL)
+    `).run(2, 'Duplicate 2');
+  } finally {
+    db.close();
+  }
+  return { dbPath, dir };
+}
+
 describeIfDBs('SqliteV0FactoryProvider', () => {
+  function uniqueCodes(result) {
+    return [...new Set((result?.candidates || []).map(c => c.code))].sort();
+  }
+
   describe('SNOMED CT', () => {
     let factory;
 
@@ -36,6 +121,10 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       expect(factory.system()).toBe('http://snomed.info/sct');
       expect(factory.version()).toMatch(/^http:\/\/snomed\.info\/sct\/.+\/version\/\d{8}$/);
       expect(factory.name()).toBe('SNOMED CT International');
+      expect(factory.releaseDate()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      const m = factory.version().match(/\/version\/(\d{8})$/);
+      expect(m).toBeTruthy();
+      expect(factory.releaseDate()).toBe(`${m[1].slice(0, 4)}-${m[1].slice(4, 6)}-${m[1].slice(6, 8)}`);
     });
 
     test('locate concept', async () => {
@@ -179,6 +268,7 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       expect(factory.system()).toBe('http://loinc.org');
       // LOINC version token should be numeric/dotted (e.g. 2.81), not a URI.
       expect(factory.version()).toMatch(/^\d+(?:\.\d+)*$/);
+      expect(factory.releaseDate()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
     test('locate and code/display', async () => {
@@ -232,6 +322,11 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
 
     test('factory metadata', () => {
       expect(factory.system()).toBe('http://www.nlm.nih.gov/research/umls/rxnorm');
+      expect(factory.releaseDate()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      const expectedFromVersion = versionDigitsToIso(factory.defaultVersion());
+      if (expectedFromVersion) {
+        expect(factory.releaseDate()).toBe(expectedFromVersion);
+      }
     });
 
     test('locate and code/display', async () => {
@@ -383,6 +478,7 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       });
       const result = provider.executeIR(subtree, { count: 20 });
       expect(result.candidates.length).toBe(20);
+      expect(result.total == null || result.total > result.candidates.length).toBe(true);
       for (const c of result.candidates) {
         expect(c.code).toBeTruthy();
         expect(c.display).toBeTruthy();
@@ -465,5 +561,18 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       expect(total).toBeGreaterThanOrEqual(sample.candidates.length);
       provider.close();
     });
+
+  });
+});
+
+describe('SqliteV0FactoryProvider invariants', () => {
+  test('load rejects duplicate codes within one scoped code system', async () => {
+    const { dbPath, dir } = makeTempDuplicateCodeDb();
+    try {
+      const factory = new SqliteV0FactoryProvider(i18n, dbPath);
+      await expect(factory.load()).rejects.toThrow(/duplicate code 'DUP'/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

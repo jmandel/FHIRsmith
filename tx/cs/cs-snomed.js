@@ -1067,6 +1067,14 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
     return this._sharedData.versionUri;
   }
 
+  releaseDate() {
+    const raw = String(this._sharedData?.versionDate || '').trim();
+    if (/^\d{8}$/.test(raw)) {
+      return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+    }
+    return null;
+  }
+
   getPartialVersion() {
     let ver = this.version();
     if (ver.includes("/version")) {

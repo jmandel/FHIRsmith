@@ -15,6 +15,7 @@
 const crypto = require('crypto');
 const { buildIRFromValueSet } = require('./build-ir');
 const { resolveImports } = require('./resolve-imports');
+const { renderIRPlanText } = require('./ir-debug');
 const {
   optimize,
   collectSystems,
@@ -100,81 +101,68 @@ function staticConceptSetFromIR(node) {
   }
 }
 
-function fmtSelector(sel) {
-  const system = sel.system || '?';
-  const version = sel.version ? `|${sel.version}` : '';
-  if (sel.shape === 'whole' || sel.shape === 'all') return `selector whole ${system}${version}`;
-  if (sel.shape === 'concept') {
-    const codes = (sel.conceptCodes || []).map(c => c?.code).filter(Boolean);
-    const head = codes.slice(0, 5).join(', ');
-    const more = codes.length > 5 ? ` …(+${codes.length - 5})` : '';
-    return `selector concept ${system}${version} [${codes.length}] ${head}${more}`.trim();
-  }
-  if (sel.shape === 'filter') {
-    const clauses = (sel.filterClauses || []).map(f => `${f.property} ${f.op} ${f.value}`).join(' ; ');
-    return `selector filter ${system}${version} ${clauses}`.trim();
-  }
-  return `selector ${sel.shape || '?'} ${system}${version}`;
-}
-
-function renderIRNodeLines(node, depth = 0, out = []) {
-  const pad = '  '.repeat(depth);
-  if (!node) {
-    out.push(`${pad}(null)`);
-    return out;
-  }
+function hasLockedDateSelectors(node) {
+  if (!node || typeof node !== 'object') return false;
   switch (node.kind) {
-    case 'empty':
-      out.push(`${pad}empty`);
-      return out;
     case 'selector':
-      out.push(`${pad}${fmtSelector(node)}`);
-      return out;
-    case 'import': {
-      const v = node.version ? `|${node.version}` : '';
-      out.push(`${pad}import ${node.url || '?'}${v}`);
-      if (node.resolved) renderIRNodeLines(node.resolved, depth + 1, out);
-      return out;
-    }
+      return !node.version && !!node.lockedDate;
+    case 'import':
+      return node.resolved ? hasLockedDateSelectors(node.resolved) : false;
     case 'union':
-    case 'intersect': {
-      const items = node.items || [];
-      out.push(`${pad}${node.kind} [${items.length}]`);
-      for (const item of items) renderIRNodeLines(item, depth + 1, out);
-      return out;
-    }
+    case 'intersect':
+      return (node.items || []).some(hasLockedDateSelectors);
     case 'diff':
-      out.push(`${pad}diff`);
-      renderIRNodeLines(node.left, depth + 1, out);
-      renderIRNodeLines(node.right, depth + 1, out);
-      return out;
+      return hasLockedDateSelectors(node.left) || hasLockedDateSelectors(node.right);
     default:
-      out.push(`${pad}${node.kind || 'unknown'}`);
-      return out;
+      return false;
   }
 }
 
-function renderIRPlanText(root, systemsMap, runtime = {}) {
-  const systems = [...(systemsMap?.entries?.() || [])]
-    .map(([, s]) => `${s.system}${s.version ? `|${s.version}` : ''}`)
-    .sort();
-  const lines = [];
-  lines.push(`systems: ${systems.length > 0 ? systems.join(', ') : '(none)'}`);
-  lines.push('runtime-constraints:');
-  const runtimeLines = [];
-  if (runtime?.text) runtimeLines.push(`text-filter: ${JSON.stringify(runtime.text)}`);
-  if (runtime?.activeOnly) runtimeLines.push('active-only: true');
-  if (Number.isInteger(runtime?.offset) || Number.isInteger(runtime?.count)) {
-    const off = Number.isInteger(runtime?.offset) ? runtime.offset : 0;
-    const cnt = Number.isInteger(runtime?.count) ? runtime.count : -1;
-    runtimeLines.push(`pagination: offset=${off} count=${cnt}`);
+async function resolveLockedDateVersions(node, resolveVersionAtDate, warnings = []) {
+  const cache = new Map();
+  const warned = new Set();
+
+  async function resolveOne(system, lockedDate) {
+    const key = `${String(system || '')}\x00${String(lockedDate || '')}`;
+    if (cache.has(key)) return cache.get(key);
+    const resolved = await resolveVersionAtDate(system, lockedDate);
+    const clean = resolved == null ? null : String(resolved).trim();
+    cache.set(key, clean || null);
+    return cache.get(key);
   }
-  if (runtime?.count === 0) runtimeLines.push('total-only: true');
-  if (runtimeLines.length === 0) runtimeLines.push('(none)');
-  for (const line of runtimeLines) lines.push(`  ${line}`);
-  lines.push('optimized-ir:');
-  renderIRNodeLines(root, 1, lines);
-  return lines.join('\n');
+
+  async function walk(n) {
+    if (!n || typeof n !== 'object') return n;
+    switch (n.kind) {
+    case 'empty':
+      return n;
+    case 'selector': {
+      if (n.version || !n.lockedDate) return n;
+      const resolvedVersion = await resolveOne(n.system, n.lockedDate);
+      if (!resolvedVersion) {
+        const warnKey = `${n.system}|${n.lockedDate}`;
+        if (!warned.has(warnKey)) {
+          warned.add(warnKey);
+          warnings.push(`Unable to resolve ${n.system} at lockedDate ${n.lockedDate}; using unversioned selector`);
+        }
+        return n;
+      }
+      return { ...n, version: resolvedVersion, lockedDate: null };
+    }
+    case 'import':
+      return n.resolved ? { ...n, resolved: await walk(n.resolved) } : n;
+    case 'union':
+      return { ...n, items: await Promise.all((n.items || []).map(walk)) };
+    case 'intersect':
+      return { ...n, items: await Promise.all((n.items || []).map(walk)) };
+    case 'diff':
+      return { ...n, left: await walk(n.left), right: await walk(n.right) };
+    default:
+      return n;
+    }
+  }
+
+  return await walk(node);
 }
 
 /** Enrich a raw candidate with system metadata. */
@@ -248,6 +236,8 @@ function canHandleValueSet(vsJson) {
   if (vsJson?.expansion && !vsJson?.compose) return false;
   const compose = vsJson.compose;
   if (!compose) return true;
+  if (compose.lockedDate != null && String(compose.lockedDate).trim() === '') return false;
+  if (compose.inactive != null && typeof compose.inactive !== 'boolean') return false;
   const include = compose.include;
   const exclude = compose.exclude;
   if (include != null && !Array.isArray(include)) return false;
@@ -296,10 +286,13 @@ function canHandleValueSet(vsJson) {
  *   count?: number,
  *   includeDesignations?: boolean,
  *   properties?: string[],
+ *   resolveVersionAtDate?: async (system, lockedDate) => version | null,
  * }
  * @returns {Object} { expansion: { contains: [...], total?, offset?, ... }, warnings: string[] }
  */
 async function expandViaIR(vsJson, opts = {}) {
+  if (!canHandleValueSet(vsJson)) return null;
+
   const {
     findProvider,
     resolveValueSet,
@@ -313,12 +306,16 @@ async function expandViaIR(vsJson, opts = {}) {
     excludeNested = false,
     limit = 0,
     debugPlan = false,
+    resolveVersionAtDate = null,
   } = opts;
+
+  const composeInactive = vsJson?.compose?.inactive;
+  const effectiveActiveOnly = activeOnly || composeInactive === false;
 
   const warnings = [];
   const orchestrateSpan = trace.begin('orchestrate', {
     url: vsJson.url, systems: Object.keys(vsJson.compose?.include || []).length,
-    activeOnly, text, offset, count,
+    activeOnly: effectiveActiveOnly, text, offset, count,
   });
 
   try {
@@ -342,8 +339,18 @@ async function expandViaIR(vsJson, opts = {}) {
     }
   }
 
-  // 3. Optimize
-  const optimizedIR = optimize(resolvedIR);
+  // 3. Bind lockedDate selectors to concrete versions when resolver is provided.
+  let boundIR = resolvedIR;
+  if (hasLockedDateSelectors(boundIR)) {
+    if (typeof resolveVersionAtDate === 'function') {
+      boundIR = await resolveLockedDateVersions(boundIR, resolveVersionAtDate, warnings);
+    } else {
+      warnings.push('lockedDate present but no resolveVersionAtDate callback provided; using unversioned selectors');
+    }
+  }
+
+  // 4. Optimize
+  const optimizedIR = optimize(boundIR);
 
   // 3.5 Guardrail: IR execution requires provably partition-safe expressions.
   // If this invariant fails, return null so caller can fall back to legacy.
@@ -353,11 +360,11 @@ async function expandViaIR(vsJson, opts = {}) {
     return null;
   }
 
-  // 4. Collect systems and partition
+  // 5. Collect systems and partition
   const systems = collectSystems(optimizedIR);
   const planText = debugPlan ? renderIRPlanText(optimizedIR, systems, {
     text,
-    activeOnly,
+    activeOnly: effectiveActiveOnly,
     offset,
     count,
   }) : null;
@@ -420,7 +427,7 @@ async function expandViaIR(vsJson, opts = {}) {
     // Fast path: concept enumerations have a known count from the IR itself
     // (no SQL needed). Only call countForIR for filters/whole-system shapes.
     let sysCount = null; // null = deferred (will be resolved later if needed)
-    const staticCount = countFromIR(subtree, text, activeOnly);
+    const staticCount = countFromIR(subtree, text, effectiveActiveOnly);
     if (staticCount != null) {
       sysCount = staticCount;
       trace.note('count:static', { system, count: sysCount });
@@ -444,7 +451,7 @@ async function expandViaIR(vsJson, opts = {}) {
       if (r.count != null) continue; // already have static count
       if (typeof r.irProvider.countForIR === 'function') {
         const cntSpan = trace.begin('countForIR', { system: r.system });
-        r.count = await r.irProvider.countForIR(r.subtree, { activeOnly, text });
+        r.count = await r.irProvider.countForIR(r.subtree, { activeOnly: effectiveActiveOnly, text });
         cntSpan.end({ count: r.count });
       } else {
         r.count = 0;
@@ -505,7 +512,7 @@ async function expandViaIR(vsJson, opts = {}) {
     const r = resolved[0];
     const sysSpan = trace.begin(`system:${r.system}`, { sysOffset: offset, sysCount: count });
     const result = await r.irProvider.executeIR(r.subtree, {
-      activeOnly, text, count, offset,
+      activeOnly: effectiveActiveOnly, text, count, offset,
     });
     sysSpan.end({ candidates: result.candidates.length });
     if (result.unclosed) unclosedMessages.push(result.unclosed);
@@ -517,13 +524,19 @@ async function expandViaIR(vsJson, opts = {}) {
     // If we got 0 rows (offset past end) or a full page (more data
     // exists), fall through to the lazy COUNT.
     const flatCount = allCandidates.length;
-    if (flatCount > 0 && flatCount < count) {
+    if (Number.isInteger(result.total) && result.total >= 0) {
+      deferredTotal = result.total;
+      trace.note('total:provider', { offset, returned: flatCount, total: deferredTotal });
+    } else if (flatCount === 0 && offset === 0) {
+      deferredTotal = 0;
+      trace.note('total:inferred-empty', { offset, returned: flatCount, total: deferredTotal });
+    } else if (flatCount > 0 && flatCount < count) {
       deferredTotal = offset + flatCount;
       trace.note('total:inferred', { offset, returned: flatCount, total: deferredTotal });
     } else if (typeof r.irProvider.countForIR === 'function') {
       // Full page or empty page past end — need exact count.
       const cntSpan = trace.begin('countForIR:lazy', { system: r.system });
-      deferredTotal = await r.irProvider.countForIR(r.subtree, { activeOnly, text });
+      deferredTotal = await r.irProvider.countForIR(r.subtree, { activeOnly: effectiveActiveOnly, text });
       cntSpan.end({ count: deferredTotal });
     }
 
@@ -550,7 +563,7 @@ async function expandViaIR(vsJson, opts = {}) {
 
       const sysSpan = trace.begin(`system:${r.system}`, { sysOffset, sysCount });
       const result = await r.irProvider.executeIR(r.subtree, {
-        activeOnly, text, count: sysCount, offset: sysOffset,
+        activeOnly: effectiveActiveOnly, text, count: sysCount, offset: sysOffset,
       });
       sysSpan.end({ candidates: result.candidates.length });
       if (result.unclosed) unclosedMessages.push(result.unclosed);
@@ -1038,4 +1051,5 @@ module.exports = {
   canHandleValueSet,
   expandViaIR,
   buildExpandedValueSet,
+  resolveLockedDateVersions,
 };

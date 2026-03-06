@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const IR = require('./ir');
 
 function rewriteOptEnabled() {
@@ -29,6 +30,21 @@ function optimize(expr) {
   const flat = flatten(expr);
   if (!rewriteOptEnabled()) return flat;
   return simplify(flat);
+}
+
+function canonicalizeIR(expr, opts = {}) {
+  const optimizeExpr = opts.optimizeExpr !== false;
+  const assignNodeIds = opts.assignNodeIds !== false;
+  const base = optimizeExpr ? simplify(flatten(IR.cloneExpr(expr))) : IR.cloneExpr(expr);
+  const canonical = canonicalizeNode(base);
+  return assignNodeIds ? annotateNodeIds(canonical) : canonical;
+}
+
+function canonicalIRHash(expr, opts = {}) {
+  const canonical = canonicalizeIR(expr, { ...opts, assignNodeIds: false });
+  return crypto.createHash('sha1')
+    .update(JSON.stringify(canonicalStructuralForm(canonical)))
+    .digest('hex');
 }
 
 function simplify(expr) {
@@ -257,6 +273,7 @@ function selectorKey(sel, shapeOverride = null) {
   return JSON.stringify([
     String(sel?.system || ''),
     sel?.version || null,
+    sel?.lockedDate || null,
     String(shapeOverride || sel?.shape || ''),
     normalizeText(sel?.text),
   ]);
@@ -266,6 +283,7 @@ function intersectSelectorKey(sel) {
   return JSON.stringify([
     String(sel?.system || ''),
     sel?.version || null,
+    sel?.lockedDate || null,
     normalizeText(sel?.text),
   ]);
 }
@@ -285,6 +303,7 @@ function filterSignature(sel) {
   return JSON.stringify([
     String(sel?.system || ''),
     sel?.version || null,
+    sel?.lockedDate || null,
     normalizeText(sel?.text),
     clauses,
     intersectCodes,
@@ -337,6 +356,7 @@ function dedupeConceptCodes(codes) {
     seen.add(code);
     out.push(c);
   }
+  out.sort(compareConceptEntries);
   return out;
 }
 
@@ -516,9 +536,234 @@ function flattenUnionToList(expr) {
   return out;
 }
 
+function canonicalizeNode(node) {
+  if (!node || typeof node !== 'object') return node;
+  switch (node.kind) {
+  case 'empty':
+    return { kind: 'empty' };
+  case 'selector':
+    return canonicalizeSelector(node);
+  case 'import':
+    return {
+      kind: 'import',
+      url: String(node.url || ''),
+      version: node.version || null,
+      resolved: node.resolved ? canonicalizeNode(node.resolved) : null,
+      meta: canonicalJsonValue(node.meta),
+    };
+  case 'union':
+  case 'intersect': {
+    const items = (node.items || []).map(canonicalizeNode);
+    items.sort(compareExprCanonical);
+    return {
+      kind: node.kind,
+      items,
+      meta: canonicalJsonValue(node.meta),
+    };
+  }
+  case 'diff':
+    return {
+      kind: 'diff',
+      left: canonicalizeNode(node.left),
+      right: canonicalizeNode(node.right),
+      meta: canonicalJsonValue(node.meta),
+    };
+  default:
+    return canonicalJsonValue(node);
+  }
+}
+
+function canonicalizeSelector(node) {
+  return {
+    kind: 'selector',
+    system: String(node.system || ''),
+    version: node.version || null,
+    lockedDate: node.lockedDate || null,
+    shape: canonicalShape(node.shape),
+    conceptCodes: canonicalizeConceptCodeList(node.conceptCodes),
+    filterClauses: canonicalizeFilterClauseList(node.filterClauses),
+    intersectCodes: normalizeIntersectCodes(node.intersectCodes),
+    text: normalizeText(node.text),
+    meta: canonicalJsonValue(node.meta),
+  };
+}
+
+function canonicalizeConceptCodeList(codes) {
+  if (!Array.isArray(codes) || codes.length === 0) return null;
+  const byCode = new Map();
+  for (const raw of codes) {
+    const entry = canonicalizeConceptEntry(raw);
+    if (!entry || !entry.code) continue;
+    const prev = byCode.get(entry.code);
+    if (!prev || compareCanonicalJson(entry, prev) < 0) {
+      byCode.set(entry.code, entry);
+    }
+  }
+  const out = [...byCode.values()];
+  out.sort(compareConceptEntries);
+  return out.length > 0 ? out : null;
+}
+
+function canonicalizeConceptEntry(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  const code = String(entry.code || '').trim();
+  if (!code) return null;
+  return {
+    code,
+    display: entry.display != null ? String(entry.display) : null,
+    designation: canonicalArray(entry.designation),
+    extension: canonicalArray(entry.extension),
+    meta: canonicalJsonValue(entry.meta),
+  };
+}
+
+function canonicalizeFilterClauseList(clauses) {
+  if (!Array.isArray(clauses) || clauses.length === 0) return null;
+  const bySig = new Map();
+  for (const raw of clauses) {
+    if (!raw || typeof raw !== 'object') continue;
+    const clause = {
+      property: raw.property != null ? String(raw.property) : null,
+      op: raw.op != null ? String(raw.op) : null,
+      value: raw.value != null ? String(raw.value) : null,
+      meta: canonicalJsonValue(raw.meta),
+    };
+    const sig = JSON.stringify([clause.property, clause.op, clause.value]);
+    const prev = bySig.get(sig);
+    if (!prev || compareCanonicalJson(clause, prev) < 0) {
+      bySig.set(sig, clause);
+    }
+  }
+  const out = [...bySig.values()];
+  out.sort((a, b) => compareCanonicalJson(
+    [a.property, a.op, a.value, a.meta],
+    [b.property, b.op, b.value, b.meta]
+  ));
+  return out.length > 0 ? out : null;
+}
+
+function canonicalArray(value) {
+  if (!Array.isArray(value) || value.length === 0) return [];
+  const out = value.map(canonicalJsonValue);
+  out.sort(compareCanonicalJson);
+  return out;
+}
+
+function canonicalJsonValue(value) {
+  if (Array.isArray(value)) return canonicalArray(value);
+  if (value == null || typeof value !== 'object') return value ?? null;
+  const out = {};
+  for (const key of Object.keys(value).sort()) {
+    const normalized = canonicalJsonValue(value[key]);
+    if (normalized !== undefined) out[key] = normalized;
+  }
+  return out;
+}
+
+function canonicalStructuralForm(node) {
+  if (!node || typeof node !== 'object') return node;
+  switch (node.kind) {
+  case 'empty':
+    return { kind: 'empty' };
+  case 'selector':
+    return {
+      kind: 'selector',
+      system: String(node.system || ''),
+      version: node.version || null,
+      lockedDate: node.lockedDate || null,
+      shape: canonicalShape(node.shape),
+      conceptCodes: (node.conceptCodes || []).map(c => ({
+        code: String(c.code || ''),
+        display: c.display != null ? String(c.display) : null,
+        designation: canonicalJsonValue(c.designation),
+        extension: canonicalJsonValue(c.extension),
+      })),
+      filterClauses: (node.filterClauses || []).map(c => ({
+        property: c.property != null ? String(c.property) : null,
+        op: c.op != null ? String(c.op) : null,
+        value: c.value != null ? String(c.value) : null,
+      })),
+      intersectCodes: normalizeIntersectCodes(node.intersectCodes),
+      text: normalizeText(node.text),
+    };
+  case 'import':
+    return {
+      kind: 'import',
+      url: String(node.url || ''),
+      version: node.version || null,
+      resolved: node.resolved ? canonicalStructuralForm(node.resolved) : null,
+    };
+  case 'union':
+  case 'intersect':
+    return {
+      kind: node.kind,
+      items: (node.items || []).map(canonicalStructuralForm),
+    };
+  case 'diff':
+    return {
+      kind: 'diff',
+      left: canonicalStructuralForm(node.left),
+      right: canonicalStructuralForm(node.right),
+    };
+  default:
+    return canonicalJsonValue(node);
+  }
+}
+
+function annotateNodeIds(node, path = 'n') {
+  if (!node || typeof node !== 'object') return node;
+  switch (node.kind) {
+  case 'empty':
+  case 'selector':
+    return { ...node, nodeId: path };
+  case 'import':
+    return {
+      ...node,
+      nodeId: path,
+      resolved: node.resolved ? annotateNodeIds(node.resolved, `${path}.r`) : null,
+    };
+  case 'union':
+  case 'intersect':
+    return {
+      ...node,
+      nodeId: path,
+      items: (node.items || []).map((item, i) => annotateNodeIds(item, `${path}.${i}`)),
+    };
+  case 'diff':
+    return {
+      ...node,
+      nodeId: path,
+      left: annotateNodeIds(node.left, `${path}.l`),
+      right: annotateNodeIds(node.right, `${path}.r`),
+    };
+  default:
+    return { ...node, nodeId: path };
+  }
+}
+
+function compareExprCanonical(a, b) {
+  return compareCanonicalJson(canonicalStructuralForm(a), canonicalStructuralForm(b));
+}
+
+function compareCanonicalJson(a, b) {
+  const aj = JSON.stringify(a);
+  const bj = JSON.stringify(b);
+  return aj < bj ? -1 : aj > bj ? 1 : 0;
+}
+
+function compareConceptEntries(a, b) {
+  const ac = String(a?.code || '');
+  const bc = String(b?.code || '');
+  if (ac < bc) return -1;
+  if (ac > bc) return 1;
+  return compareCanonicalJson(a, b);
+}
+
 module.exports = {
   flatten,
   optimize,
+  canonicalizeIR,
+  canonicalIRHash,
   collectSystems,
   projectToSystem,
   analyzePartitionSafety,

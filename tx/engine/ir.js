@@ -19,6 +19,7 @@ function empty() { return { kind: 'empty' }; }
 function selector({
   system,
   version = null,
+  lockedDate = null,
   shape,
   conceptCodes = null,
   filterClauses = null,
@@ -26,7 +27,7 @@ function selector({
   text = null,
   meta = null,
 }) {
-  return { kind: 'selector', system, version, shape, conceptCodes, filterClauses, intersectCodes, text, meta };
+  return { kind: 'selector', system, version, lockedDate, shape, conceptCodes, filterClauses, intersectCodes, text, meta };
 }
 
 function importRef({ url, version = null, meta = null }) {

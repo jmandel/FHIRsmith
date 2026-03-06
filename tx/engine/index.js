@@ -12,7 +12,18 @@
 const IR = require('./ir');
 const { buildIRFromValueSet, buildIRFromCompose, buildComponentExpr } = require('./build-ir');
 const { resolveImports, buildIRFromExpansion } = require('./resolve-imports');
-const { optimize, flatten, collectSystems, projectToSystem, splitDiffRoot, flattenUnionToList } = require('./rewrite');
+const { interpretScopedIR } = require('./scoped-ir-interpreter');
+const { renderCanonicalIRText, renderIRPlanText } = require('./ir-debug');
+const {
+  optimize,
+  flatten,
+  canonicalizeIR,
+  canonicalIRHash,
+  collectSystems,
+  projectToSystem,
+  splitDiffRoot,
+  flattenUnionToList,
+} = require('./rewrite');
 const membership = require('./membership');
 
 const orchestrator = require('./orchestrator');
@@ -28,8 +39,13 @@ module.exports = {
   buildComponentExpr,
   resolveImports,
   buildIRFromExpansion,
+  interpretScopedIR,
+  renderCanonicalIRText,
+  renderIRPlanText,
   optimize,
   flatten,
+  canonicalizeIR,
+  canonicalIRHash,
 
   // IR utilities
   collectSystems,

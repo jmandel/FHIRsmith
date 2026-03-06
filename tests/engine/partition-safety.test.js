@@ -1,6 +1,7 @@
 'use strict';
 
 const IR = require('../../tx/engine/ir');
+const { interpretScopedIR } = require('../../tx/engine/scoped-ir-interpreter');
 const {
   analyzePartitionSafety,
   analyzeProjectedSubtree,
@@ -39,26 +40,11 @@ function setDiff(a, b) {
 }
 
 function evalExpr(expr) {
-  if (!expr) return new Set();
-  switch (expr.kind) {
-  case 'empty':
-    return new Set();
-  case 'selector':
-    return new Set(expr.meta?.evalTokens || []);
-  case 'import':
-    return expr.resolved ? evalExpr(expr.resolved) : new Set();
-  case 'union':
-    return (expr.items || []).reduce((acc, it) => setUnion(acc, evalExpr(it)), new Set());
-  case 'intersect': {
-    const items = (expr.items || []);
-    if (items.length === 0) return new Set();
-    return items.slice(1).reduce((acc, it) => setIntersect(acc, evalExpr(it)), evalExpr(items[0]));
-  }
-  case 'diff':
-    return setDiff(evalExpr(expr.left), evalExpr(expr.right));
-  default:
-    return new Set();
-  }
+  return interpretScopedIR(expr, {
+    evaluateSelector(selectorNode) {
+      return new Set(selectorNode.meta?.evalTokens || []);
+    },
+  });
 }
 
 function evalPartitioned(expr) {

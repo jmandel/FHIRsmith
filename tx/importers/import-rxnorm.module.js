@@ -5,6 +5,49 @@ const path = require('path');
 const readline = require('readline');
 const chalk = require('chalk');
 
+function normalizeIsoDate(raw) {
+  const v = String(raw || '').trim();
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+function mmddyyyyToIso(raw) {
+  const v = String(raw || '').trim();
+  if (!/^\d{8}$/.test(v)) return null;
+  const mo = Number(v.slice(0, 2));
+  const d = Number(v.slice(2, 4));
+  const y = Number(v.slice(4, 8));
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${v.slice(4, 8)}-${v.slice(0, 2)}-${v.slice(2, 4)}`;
+}
+
+function deriveRxNormReleaseDate(version, sourceDir) {
+  const directIso = normalizeIsoDate(version);
+  if (directIso) return directIso;
+  const directMdy = mmddyyyyToIso(version);
+  if (directMdy) return directMdy;
+
+  const v = String(version || '');
+  const mdyToken = v.match(/(\d{8})/);
+  if (mdyToken) {
+    const iso = mmddyyyyToIso(mdyToken[1]);
+    if (iso) return iso;
+  }
+
+  const fromPath = String(sourceDir || '').match(/(\d{8})/);
+  if (fromPath) {
+    const iso = mmddyyyyToIso(fromPath[1]);
+    if (iso) return iso;
+  }
+
+  return null;
+}
+
 class RxNormModule extends BaseTerminologyModule {
   constructor() {
     super();
@@ -489,6 +532,7 @@ class RxNormImporter {
     try {
       await this.checkFiles();
       await this.createTables(db);
+      await this.seedMetadata(db);
       await this.loadRXNSAB(db);
       await this.loadRXNATOMARCHIVE(db);
       await this.loadRXNCUI(db);
@@ -531,6 +575,7 @@ class RxNormImporter {
       'DROP TABLE IF EXISTS RXNATOMARCHIVE',
       'DROP TABLE IF EXISTS RXNCUI',
       'DROP TABLE IF EXISTS RXNSAB',
+      'DROP TABLE IF EXISTS RXNVer',
 
       // Create RXNCONSO table
       `CREATE TABLE RXNCONSO (
@@ -625,6 +670,10 @@ class RxNormImporter {
                                cardinality VARCHAR(8),
                                cui2 VARCHAR(8),
                                PRIMARY KEY (cui1)
+       )`,
+      `CREATE TABLE RXNVer (
+                               version VARCHAR(40) NOT NULL,
+                               release_date VARCHAR(10)
        )`
     ];
 
@@ -641,6 +690,21 @@ class RxNormImporter {
         if (this.options.verbose) console.log('Database tables created');
         resolve();
       });
+    });
+  }
+
+  async seedMetadata(db) {
+    this.updateProgress(0, 'Metadata');
+    const releaseDate = deriveRxNormReleaseDate(this.version, this.sourceDir);
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO RXNVer (version, release_date) VALUES (?, ?)',
+        [this.version || 'unknown', releaseDate],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
     });
   }
 

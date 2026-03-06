@@ -113,6 +113,22 @@ describe('Library error handling', () => {
     expect(library.codeSystemFactories.has('urn:ietf:bcp:47')).toBe(true);
   }, 30000);
 
+  test('supports object-form YAML sources with options', async () => {
+    await fs.writeFile(yamlPath, [
+      'base:',
+      '  url: https://storage.googleapis.com/tx-fhir-org',
+      'sources:',
+      '  - source: internal:lang',
+      '    options:',
+      '      note: ignored-for-internal',
+    ].join('\n'));
+
+    const { library } = createLibrary(yamlPath);
+    await library.load();
+
+    expect(library.codeSystemFactories.has('urn:ietf:bcp:47')).toBe(true);
+  }, 30000);
+
   test('fails fast on missing ${ENV_VAR} in YAML', async () => {
     await fs.writeFile(yamlPath, [
       'base:',

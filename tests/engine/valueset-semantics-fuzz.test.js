@@ -2,6 +2,7 @@
 
 const { buildIRFromValueSet } = require('../../tx/engine/build-ir');
 const { resolveImports } = require('../../tx/engine/resolve-imports');
+const { interpretScopedIR } = require('../../tx/engine/scoped-ir-interpreter');
 const {
   optimize,
   collectSystems,
@@ -112,6 +113,12 @@ function parseRef(ref) {
   if (!raw.includes('|')) return { url: raw, version: null };
   const i = raw.indexOf('|');
   return { url: raw.slice(0, i), version: raw.slice(i + 1) || null };
+}
+
+function normalizeVersion(version) {
+  if (version == null || version === '') return null;
+  const v = String(version);
+  return v === '*' ? null : v;
 }
 
 function descendants(system, code, includeSelf) {
@@ -225,7 +232,7 @@ function buildRandomComponent(rng, prevUrls) {
   const mode = rng.pick(['concept', 'filter', 'whole']);
   const comp = { system };
   if (rng.chance(0.35)) {
-    comp.version = rng.pick(SYSTEM_VERSIONS[system]);
+    comp.version = rng.pick([...SYSTEM_VERSIONS[system], '*']);
   }
 
   if (mode === 'concept') {
@@ -265,7 +272,7 @@ function buildRandomComponent(rng, prevUrls) {
     comp.filter = clauses;
   }
 
-  if (!comp.version && canImport && rng.chance(0.35)) {
+  if (canImport && rng.chance(0.35)) {
     comp.valueSet = pickDistinct(rng, prevUrls, rng.int(1, Math.min(2, prevUrls.length)));
   }
 
@@ -298,10 +305,14 @@ function buildRandomLibrary(seed) {
       exclude.push(c);
     }
 
+    const compose = { include, ...(exclude.length > 0 ? { exclude } : {}) };
+    if (rng.chance(0.12)) {
+      compose.lockedDate = `202${rng.int(0, 5)}-0${rng.int(1, 9)}-1${rng.int(0, 8)}`;
+    }
     const vs = {
       resourceType: 'ValueSet',
       url,
-      compose: { include, ...(exclude.length > 0 ? { exclude } : {}) },
+      compose,
     };
     list.push(vs);
     byUrl.set(url, vs);
@@ -331,6 +342,39 @@ function countVersionedComponents(byUrl) {
   return n;
 }
 
+function countWildcardVersionComponents(byUrl) {
+  let n = 0;
+  for (const vs of byUrl.values()) {
+    const include = Array.isArray(vs?.compose?.include) ? vs.compose.include : [];
+    const exclude = Array.isArray(vs?.compose?.exclude) ? vs.compose.exclude : [];
+    for (const c of [...include, ...exclude]) {
+      if (String(c?.version || '') === '*') n += 1;
+    }
+  }
+  return n;
+}
+
+function countLockedDateComposes(byUrl) {
+  let n = 0;
+  for (const vs of byUrl.values()) {
+    if (vs?.compose?.lockedDate) n += 1;
+  }
+  return n;
+}
+
+function countVersionedImportedComponents(byUrl) {
+  let n = 0;
+  for (const vs of byUrl.values()) {
+    const include = Array.isArray(vs?.compose?.include) ? vs.compose.include : [];
+    const exclude = Array.isArray(vs?.compose?.exclude) ? vs.compose.exclude : [];
+    for (const c of [...include, ...exclude]) {
+      if (!c?.version) continue;
+      if (Array.isArray(c.valueSet) && c.valueSet.length > 0) n += 1;
+    }
+  }
+  return n;
+}
+
 function evalComponentDirect(cset, evalRef) {
   if (!cset.system) {
     const refs = cset.valueSet || [];
@@ -344,7 +388,7 @@ function evalComponentDirect(cset, evalRef) {
   }
 
   const system = String(cset.system);
-  const version = cset.version ? String(cset.version) : null;
+  const version = normalizeVersion(cset.version);
   let set;
   if (Array.isArray(cset.concept) && cset.concept.length > 0) {
     set = new Set();
@@ -406,49 +450,62 @@ function evaluateValueSetDirect(vs, byUrl) {
   return evalUrl(vs.url);
 }
 
+function evaluateSelectorDirect(node) {
+  const system = String(node.system || '');
+  const version = normalizeVersion(node.version);
+  if (!CATALOG.has(system)) return new Set();
+  if (node.shape === 'concept') {
+    const out = new Set();
+    for (const cc of node.conceptCodes || []) {
+      const code = String(cc.code || '');
+      if (CATALOG.get(system).byCode.has(code)) out.add(tokenOf(system, code, version));
+    }
+    return out;
+  }
+  if (node.shape === 'filter') {
+    let out = allTokensForSystem(system, version);
+    for (const clause of node.filterClauses || []) {
+      out = intersect(out, tokensForClause(system, clause, version));
+    }
+    if (Array.isArray(node.intersectCodes) && node.intersectCodes.length > 0) {
+      const allow = new Set(node.intersectCodes.map(code => tokenOf(system, String(code), version)));
+      out = intersect(out, allow);
+    }
+    return out;
+  }
+  return allTokensForSystem(system, version);
+}
+
 function evaluateIR(node) {
-  if (!node) return new Set();
+  return interpretScopedIR(node, { evaluateSelector: evaluateSelectorDirect });
+}
+
+function bindLockedDateVersionsInIR(node, resolveVersionAtDate) {
+  if (!node || typeof node !== 'object') return node;
   switch (node.kind) {
   case 'empty':
-    return new Set();
+    return node;
   case 'selector': {
-    const system = String(node.system || '');
-    const version = node.version ? String(node.version) : null;
-    if (!CATALOG.has(system)) return new Set();
-    if (node.shape === 'concept') {
-      const out = new Set();
-      for (const cc of node.conceptCodes || []) {
-        const code = String(cc.code || '');
-        if (CATALOG.get(system).byCode.has(code)) out.add(tokenOf(system, code, version));
-      }
-      return out;
-    }
-    if (node.shape === 'filter') {
-      let out = allTokensForSystem(system, version);
-      for (const clause of node.filterClauses || []) {
-        out = intersect(out, tokensForClause(system, clause, version));
-      }
-      if (Array.isArray(node.intersectCodes) && node.intersectCodes.length > 0) {
-        const allow = new Set(node.intersectCodes.map(code => tokenOf(system, String(code), version)));
-        out = intersect(out, allow);
-      }
-      return out;
-    }
-    return allTokensForSystem(system, version);
+    if (node.version || !node.lockedDate) return node;
+    const resolved = resolveVersionAtDate(String(node.system || ''), String(node.lockedDate || ''));
+    const ver = resolved == null ? null : String(resolved).trim();
+    if (!ver) return node;
+    return { ...node, version: ver, lockedDate: null };
   }
   case 'import':
-    return node.resolved ? evaluateIR(node.resolved) : new Set();
+    return node.resolved ? { ...node, resolved: bindLockedDateVersionsInIR(node.resolved, resolveVersionAtDate) } : node;
   case 'union':
-    return (node.items || []).reduce((acc, it) => unionInto(acc, evaluateIR(it)), new Set());
-  case 'intersect': {
-    const items = node.items || [];
-    if (items.length === 0) return new Set();
-    return items.slice(1).reduce((acc, it) => intersect(acc, evaluateIR(it)), evaluateIR(items[0]));
-  }
+    return { ...node, items: (node.items || []).map(it => bindLockedDateVersionsInIR(it, resolveVersionAtDate)) };
+  case 'intersect':
+    return { ...node, items: (node.items || []).map(it => bindLockedDateVersionsInIR(it, resolveVersionAtDate)) };
   case 'diff':
-    return diff(evaluateIR(node.left), evaluateIR(node.right));
+    return {
+      ...node,
+      left: bindLockedDateVersionsInIR(node.left, resolveVersionAtDate),
+      right: bindLockedDateVersionsInIR(node.right, resolveVersionAtDate),
+    };
   default:
-    return new Set();
+    return node;
   }
 }
 
@@ -628,6 +685,218 @@ describe('IR semantic fuzz (recursive compositional ValueSets)', () => {
       versioned += countVersionedComponents(byUrl);
     }
     expect(versioned).toBeGreaterThan(0);
+  });
+
+  test('random corpus generation includes wildcard versions and lockedDate', () => {
+    let wildcard = 0;
+    let lockedDate = 0;
+    for (let seed = 1; seed <= 80; seed++) {
+      const { byUrl } = buildRandomLibrary(seed);
+      wildcard += countWildcardVersionComponents(byUrl);
+      lockedDate += countLockedDateComposes(byUrl);
+    }
+    expect(wildcard).toBeGreaterThan(0);
+    expect(lockedDate).toBeGreaterThan(0);
+  });
+
+  test('random corpus generation includes versioned components constrained by imports', () => {
+    let versionedImported = 0;
+    for (let seed = 1; seed <= 80; seed++) {
+      const { byUrl } = buildRandomLibrary(seed);
+      versionedImported += countVersionedImportedComponents(byUrl);
+    }
+    expect(versionedImported).toBeGreaterThan(0);
+  });
+
+  test('compose.inactive=false is enforced end-to-end even when request activeOnly=false', async () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      const { root, byUrl } = buildRandomLibrary(1000 + seed);
+      root.compose = root.compose || {};
+      root.compose.inactive = false;
+
+      const rawIR = buildIRFromValueSet(root);
+      const resolvedIR = await resolveImports(rawIR, async (url) => byUrl.get(url) || null, { maxDepth: 50 });
+      const optimizedIR = optimize(resolvedIR);
+      const expectedFiltered = applyRequestFilters(evaluateIR(optimizedIR), { activeOnly: true, text: null });
+
+      const providers = new Map([
+        ['urn:sys:A', new ToyProvider('urn:sys:A')],
+        ['urn:sys:B', new ToyProvider('urn:sys:B')],
+      ]);
+
+      const fullResult = await expandViaIR(root, {
+        findProvider: async (system) => providers.get(system) || null,
+        resolveValueSet: async (url) => byUrl.get(url) || null,
+        activeOnly: false,
+        text: null,
+        offset: 0,
+        count: 1000,
+      });
+      if (!fullResult) {
+        throw new Error(`seed ${seed}: expandViaIR returned null unexpectedly`);
+      }
+
+      const actualFull = sorted(flattenContains(fullResult.expansion.contains || []));
+      if (JSON.stringify(actualFull) !== JSON.stringify(sorted(expectedFiltered))) {
+        throw new Error(
+          `seed ${seed}: compose.inactive=false mismatch\n`
+          + `root=${JSON.stringify(root)}\n`
+          + `expectedFiltered=${JSON.stringify(sorted(expectedFiltered))}\n`
+          + `actualFull=${JSON.stringify(actualFull)}\n`
+          + `optimizedIR=${JSON.stringify(optimizedIR)}`
+        );
+      }
+    }
+  });
+
+  test('compose.inactive=true does not force activeOnly when request activeOnly=false', async () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      const { root, byUrl } = buildRandomLibrary(2000 + seed);
+      root.compose = root.compose || {};
+      root.compose.inactive = true;
+
+      const rawIR = buildIRFromValueSet(root);
+      const resolvedIR = await resolveImports(rawIR, async (url) => byUrl.get(url) || null, { maxDepth: 50 });
+      const optimizedIR = optimize(resolvedIR);
+      const expectedFiltered = applyRequestFilters(evaluateIR(optimizedIR), { activeOnly: false, text: null });
+
+      const providers = new Map([
+        ['urn:sys:A', new ToyProvider('urn:sys:A')],
+        ['urn:sys:B', new ToyProvider('urn:sys:B')],
+      ]);
+
+      const fullResult = await expandViaIR(root, {
+        findProvider: async (system) => providers.get(system) || null,
+        resolveValueSet: async (url) => byUrl.get(url) || null,
+        activeOnly: false,
+        text: null,
+        offset: 0,
+        count: 1000,
+      });
+      if (!fullResult) {
+        throw new Error(`seed ${seed}: expandViaIR returned null unexpectedly`);
+      }
+
+      const actualFull = sorted(flattenContains(fullResult.expansion.contains || []));
+      if (JSON.stringify(actualFull) !== JSON.stringify(sorted(expectedFiltered))) {
+        throw new Error(
+          `seed ${seed}: compose.inactive=true mismatch\n`
+          + `root=${JSON.stringify(root)}\n`
+          + `expectedFiltered=${JSON.stringify(sorted(expectedFiltered))}\n`
+          + `actualFull=${JSON.stringify(actualFull)}\n`
+          + `optimizedIR=${JSON.stringify(optimizedIR)}`
+        );
+      }
+    }
+  });
+
+  test('lockedDate resolver semantics hold end-to-end with nested differing lock scopes', async () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      const { root, byUrl } = buildRandomLibrary(3000 + seed);
+      const urls = [...byUrl.keys()].sort();
+      if (urls.length < 2) continue;
+      const child = byUrl.get(urls[urls.length - 2]);
+
+      root.compose = root.compose || {};
+      root.compose.include = Array.isArray(root.compose.include) ? root.compose.include : [];
+      root.compose.lockedDate = '2021-01-01';
+      if (!root.compose.include.some(c => Array.isArray(c?.valueSet) && c.valueSet.includes(child.url))) {
+        root.compose.include.push({ valueSet: [child.url] });
+      }
+      if (!root.compose.include.some(c => c?.system && !c?.version)) {
+        root.compose.include.push({ system: 'urn:sys:A', concept: [{ code: 'A-100' }] });
+      }
+
+      child.compose = child.compose || {};
+      child.compose.include = Array.isArray(child.compose.include) ? child.compose.include : [];
+      child.compose.lockedDate = '2024-01-01';
+      if (!child.compose.include.some(c => c?.system && !c?.version)) {
+        child.compose.include.push({ system: 'urn:sys:A', concept: [{ code: 'A-110' }] });
+      }
+
+      const resolveVersionAtDate = (system, lockedDate) => {
+        if (!SYSTEM_VERSIONS[system]) return null;
+        return lockedDate < '2023-01-01'
+          ? SYSTEM_VERSIONS[system][0]
+          : SYSTEM_VERSIONS[system][1];
+      };
+
+      const rawIR = buildIRFromValueSet(root);
+      const resolvedIR = await resolveImports(rawIR, async (url) => byUrl.get(url) || null, { maxDepth: 50 });
+      const boundIR = bindLockedDateVersionsInIR(resolvedIR, resolveVersionAtDate);
+      const optimizedIR = optimize(boundIR);
+      const expectedFiltered = applyRequestFilters(evaluateIR(optimizedIR), { activeOnly: false, text: null });
+
+      const providers = new Map([
+        ['urn:sys:A', new ToyProvider('urn:sys:A')],
+        ['urn:sys:B', new ToyProvider('urn:sys:B')],
+      ]);
+
+      const fullResult = await expandViaIR(root, {
+        findProvider: async (system) => providers.get(system) || null,
+        resolveValueSet: async (url) => byUrl.get(url) || null,
+        resolveVersionAtDate: async (system, lockedDate) => resolveVersionAtDate(system, lockedDate),
+        activeOnly: false,
+        text: null,
+        offset: 0,
+        count: 1000,
+      });
+      if (!fullResult) {
+        throw new Error(`seed ${seed}: expandViaIR returned null unexpectedly`);
+      }
+
+      const actualFull = sorted(flattenContains(fullResult.expansion.contains || []));
+      if (JSON.stringify(actualFull) !== JSON.stringify(sorted(expectedFiltered))) {
+        throw new Error(
+          `seed ${seed}: lockedDate resolution mismatch\n`
+          + `root=${JSON.stringify(root)}\n`
+          + `expectedFiltered=${JSON.stringify(sorted(expectedFiltered))}\n`
+          + `actualFull=${JSON.stringify(actualFull)}\n`
+          + `optimizedIR=${JSON.stringify(optimizedIR)}`
+        );
+      }
+    }
+  });
+
+  test('lockedDate unresolved falls back to unversioned selector semantics', async () => {
+    for (let seed = 1; seed <= 16; seed++) {
+      const { root, byUrl } = buildRandomLibrary(4000 + seed);
+      root.compose = root.compose || {};
+      root.compose.lockedDate = '2022-07-01';
+
+      const rawIR = buildIRFromValueSet(root);
+      const resolvedIR = await resolveImports(rawIR, async (url) => byUrl.get(url) || null, { maxDepth: 50 });
+      const boundIR = bindLockedDateVersionsInIR(resolvedIR, () => null);
+      const optimizedIR = optimize(boundIR);
+      const expectedFiltered = applyRequestFilters(evaluateIR(optimizedIR), { activeOnly: false, text: null });
+
+      const providers = new Map([
+        ['urn:sys:A', new ToyProvider('urn:sys:A')],
+        ['urn:sys:B', new ToyProvider('urn:sys:B')],
+      ]);
+
+      const fullResult = await expandViaIR(root, {
+        findProvider: async (system) => providers.get(system) || null,
+        resolveValueSet: async (url) => byUrl.get(url) || null,
+        resolveVersionAtDate: async () => null,
+        activeOnly: false,
+        text: null,
+        offset: 0,
+        count: 1000,
+      });
+      if (!fullResult) throw new Error(`seed ${seed}: expandViaIR returned null unexpectedly`);
+
+      const actualFull = sorted(flattenContains(fullResult.expansion.contains || []));
+      if (JSON.stringify(actualFull) !== JSON.stringify(sorted(expectedFiltered))) {
+        throw new Error(
+          `seed ${seed}: lockedDate unresolved fallback mismatch\n`
+          + `root=${JSON.stringify(root)}\n`
+          + `expectedFiltered=${JSON.stringify(sorted(expectedFiltered))}\n`
+          + `actualFull=${JSON.stringify(actualFull)}\n`
+          + `optimizedIR=${JSON.stringify(optimizedIR)}`
+        );
+      }
+    }
   });
 
   test(`fuzzes ${seedCount} random seeds with independent reference semantics`, async () => {

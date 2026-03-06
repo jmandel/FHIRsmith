@@ -53,6 +53,23 @@ describe('canHandleValueSet', () => {
     expect(canHandleValueSet({ compose: { include: [] } })).toBe(true);
   });
 
+  test('accepts compose.lockedDate for IR path', () => {
+    expect(canHandleValueSet({
+      compose: {
+        lockedDate: '2021-01-01',
+        include: [{ system: 'http://snomed.info/sct' }],
+      },
+    })).toBe(true);
+  });
+
+  test('accepts wildcard component version "*" for IR path', () => {
+    expect(canHandleValueSet({
+      compose: {
+        include: [{ system: 'http://snomed.info/sct', version: '*' }],
+      },
+    })).toBe(true);
+  });
+
   test('rejects invalid include/exclude components', () => {
     // vsd-1: cannot have both concept and filter
     expect(canHandleValueSet({
@@ -135,6 +152,317 @@ describe('expandViaIR debug plan text', () => {
     expect(result.debug?.planText).toContain('text-filter: "diabetes"');
     expect(result.debug?.planText).toContain('pagination: offset=0 count=2000');
     expect(result.debug?.planText).toContain('selector whole http://snomed.info/sct');
+  });
+});
+
+describe('expandViaIR semantic guards', () => {
+  function codesFromIR(node) {
+    if (!node) return new Set();
+    switch (node.kind) {
+      case 'empty':
+        return new Set();
+      case 'selector':
+        return new Set((node.conceptCodes || []).map(c => String(c.code || '')).filter(Boolean));
+      case 'import':
+        return node.resolved ? codesFromIR(node.resolved) : new Set();
+      case 'union': {
+        const out = new Set();
+        for (const child of node.items || []) {
+          for (const code of codesFromIR(child)) out.add(code);
+        }
+        return out;
+      }
+      case 'intersect': {
+        const items = node.items || [];
+        if (items.length === 0) return new Set();
+        const first = codesFromIR(items[0]);
+        const out = new Set(first);
+        for (const child of items.slice(1)) {
+          const right = codesFromIR(child);
+          for (const code of [...out]) if (!right.has(code)) out.delete(code);
+        }
+        return out;
+      }
+      case 'diff': {
+        const left = codesFromIR(node.left);
+        const right = codesFromIR(node.right);
+        const out = new Set(left);
+        for (const code of right) out.delete(code);
+        return out;
+      }
+      default:
+        return new Set();
+    }
+  }
+
+  test('compose.inactive=false enforces active-only membership semantics', async () => {
+    const mockProvider = {
+      version: () => null,
+      countForIR: async (_subtree, opts = {}) => (opts.activeOnly ? 1 : 2),
+      executeIR: async (_subtree, opts = {}) => {
+        const all = [
+          { code: 'A1', display: 'Active One', active: true },
+          { code: 'I1', display: 'Inactive One', active: false },
+        ];
+        return { candidates: opts.activeOnly ? all.filter(c => c.active) : all, unclosed: null };
+      },
+    };
+    const findProviderMock = async (system) => (
+      system === 'http://example.org/cs' ? mockProvider : null
+    );
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:compose-inactive-false',
+      compose: {
+        inactive: false,
+        include: [{ system: 'http://example.org/cs' }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider: findProviderMock,
+      activeOnly: false,
+      count: 10,
+      debugPlan: true,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(1);
+    expect(result.expansion.contains.map(c => c.code)).toEqual(['A1']);
+    expect(result.debug?.planText).toContain('active-only: true');
+  });
+
+  test('compose.inactive=true does not force active-only membership semantics', async () => {
+    const mockProvider = {
+      version: () => null,
+      countForIR: async (_subtree, opts = {}) => (opts.activeOnly ? 1 : 2),
+      executeIR: async (_subtree, opts = {}) => {
+        const all = [
+          { code: 'A1', display: 'Active One', active: true },
+          { code: 'I1', display: 'Inactive One', active: false },
+        ];
+        return { candidates: opts.activeOnly ? all.filter(c => c.active) : all, unclosed: null };
+      },
+    };
+    const findProviderMock = async (system) => (
+      system === 'http://example.org/cs' ? mockProvider : null
+    );
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:compose-inactive-true',
+      compose: {
+        inactive: true,
+        include: [{ system: 'http://example.org/cs' }],
+      },
+    };
+
+    const resultNoReqFilter = await expandViaIR(vs, {
+      findProvider: findProviderMock,
+      activeOnly: false,
+      count: 10,
+      debugPlan: true,
+    });
+
+    expect(resultNoReqFilter).toBeTruthy();
+    expect(resultNoReqFilter.expansion.total).toBe(2);
+    expect(resultNoReqFilter.expansion.contains.map(c => c.code).sort()).toEqual(['A1', 'I1']);
+    expect(resultNoReqFilter.debug?.planText).not.toContain('active-only: true');
+
+    const resultReqFilter = await expandViaIR(vs, {
+      findProvider: findProviderMock,
+      activeOnly: true,
+      count: 10,
+      debugPlan: true,
+    });
+    expect(resultReqFilter).toBeTruthy();
+    expect(resultReqFilter.expansion.total).toBe(1);
+    expect(resultReqFilter.expansion.contains.map(c => c.code)).toEqual(['A1']);
+    expect(resultReqFilter.debug?.planText).toContain('active-only: true');
+  });
+
+  test('single-system execution uses provider total when executeIR returns one', async () => {
+    const mockProvider = {
+      version: () => null,
+      countForIR: async () => {
+        throw new Error('countForIR should not be called when executeIR returns total');
+      },
+      executeIR: async () => ({
+        candidates: Array.from({ length: 10 }, (_, i) => ({
+          code: `A${i}`,
+          display: `Alpha ${i}`,
+          active: true,
+        })),
+        total: 123,
+        unclosed: null,
+      }),
+    };
+    const findProviderMock = async (system) => (
+      system === 'http://example.org/cs' ? mockProvider : null
+    );
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:provider-total',
+      compose: {
+        include: [{ system: 'http://example.org/cs' }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider: findProviderMock,
+      count: 10,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(123);
+    expect(result.expansion.contains).toHaveLength(10);
+  });
+
+  test('lockedDate ValueSet is handled by IR when called directly', async () => {
+    const mockProvider = {
+      version: () => null,
+      countForIR: async () => 1,
+      executeIR: async () => ({ candidates: [{ code: 'X', display: 'X' }], unclosed: null }),
+    };
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:locked-date-direct',
+      compose: {
+        lockedDate: '2021-01-01',
+        include: [{ system: 'http://example.org/cs' }],
+      },
+    };
+    const result = await expandViaIR(vs, {
+      findProvider: async () => mockProvider,
+      count: 10,
+    });
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(1);
+    expect(result.expansion.contains.map(c => c.code)).toEqual(['X']);
+  });
+
+  test('lockedDate resolver binds concrete version before provider dispatch', async () => {
+    const providerCalls = [];
+    const mockProvider = {
+      version: () => 'A.v1',
+      countForIR: async (subtree) => codesFromIR(subtree).size || 1,
+      executeIR: async (subtree) => {
+        const codes = [...codesFromIR(subtree)];
+        return {
+          candidates: (codes.length > 0 ? codes : ['X']).map(code => ({ code, display: code, active: true })),
+          unclosed: null,
+        };
+      },
+    };
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:locked-date-bind',
+      compose: {
+        lockedDate: '2021-01-01',
+        include: [{ system: 'http://example.org/cs', concept: [{ code: 'A' }] }],
+      },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider: async (system, version) => {
+        providerCalls.push({ system, version });
+        return mockProvider;
+      },
+      resolveVersionAtDate: async (system, lockedDate) => {
+        expect(system).toBe('http://example.org/cs');
+        expect(lockedDate).toBe('2021-01-01');
+        return 'A.v1';
+      },
+      count: 10,
+      debugPlan: true,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(1);
+    expect(providerCalls.some(c => c.system === 'http://example.org/cs' && c.version === 'A.v1')).toBe(true);
+    expect(result.debug?.planText).toContain('selector concept http://example.org/cs|A.v1');
+  });
+
+  test('nested imports can resolve different versions from different lockedDate scopes', async () => {
+    const providerCalls = [];
+    const childUrl = 'http://example.org/vs/child';
+    const root = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/vs/root',
+      compose: {
+        lockedDate: '2021-01-01',
+        include: [
+          { system: 'http://example.org/cs', concept: [{ code: 'A' }] },
+          { valueSet: [childUrl] },
+        ],
+      },
+    };
+    const child = {
+      resourceType: 'ValueSet',
+      url: childUrl,
+      compose: {
+        lockedDate: '2023-01-01',
+        include: [
+          { system: 'http://example.org/cs', concept: [{ code: 'B' }] },
+        ],
+      },
+    };
+
+    const findProvider = async (system, version) => {
+      providerCalls.push({ system, version });
+      return {
+        version: () => version,
+        countForIR: async (subtree) => codesFromIR(subtree).size || 1,
+        executeIR: async (subtree) => {
+          const codes = [...codesFromIR(subtree)];
+          return {
+            candidates: codes.map(code => ({ code, display: code, active: true })),
+            unclosed: null,
+          };
+        },
+      };
+    };
+
+    const result = await expandViaIR(root, {
+      findProvider,
+      resolveValueSet: async (url) => (url === childUrl ? child : null),
+      resolveVersionAtDate: async (_system, lockedDate) => (
+        lockedDate === '2021-01-01' ? 'A.v1' : (lockedDate === '2023-01-01' ? 'A.v2' : null)
+      ),
+      count: 10,
+    });
+
+    expect(result).toBeTruthy();
+    const uniqueVersions = new Set(providerCalls.map(c => c.version));
+    expect(uniqueVersions.has('A.v1')).toBe(true);
+    expect(uniqueVersions.has('A.v2')).toBe(true);
+    const codes = result.expansion.contains.map(c => c.code).sort();
+    expect(codes).toEqual(['A', 'B']);
+  });
+
+  test('version "*" is handled as unversioned selector semantics', async () => {
+    const mockProvider = {
+      version: () => null,
+      countForIR: async () => 1,
+      executeIR: async () => ({ candidates: [{ code: 'W1', display: 'Wildcard' }], unclosed: null }),
+    };
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:version-star-direct',
+      compose: {
+        include: [{ system: 'http://example.org/cs', version: '*' }],
+      },
+    };
+    const result = await expandViaIR(vs, {
+      findProvider: async (system, version) => {
+        expect(system).toBe('http://example.org/cs');
+        expect(version == null || version === '').toBe(true);
+        return mockProvider;
+      },
+      count: 10,
+    });
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(1);
+    expect(result.expansion.contains[0].code).toBe('W1');
   });
 });
 

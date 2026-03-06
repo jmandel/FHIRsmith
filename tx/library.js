@@ -232,14 +232,27 @@ class Library {
   }
 
   async processSource(source, packageManager, mode) {
-    // Parse the source string
-    const colonIndex = source.indexOf(':');
-    if (colonIndex === -1) {
-      throw new Error(`Invalid source format: ${source}`);
+    let sourceSpec = source;
+    let sourceOptions = {};
+    if (source && typeof source === 'object' && !Array.isArray(source)) {
+      sourceOptions = source.options || {};
+      if (typeof source.source === 'string') {
+        sourceSpec = source.source;
+      } else if (typeof source.type === 'string') {
+        sourceSpec = `${source.type}:${source.details || source.path || ''}`;
+      } else {
+        throw new Error(`Invalid source object: ${JSON.stringify(source)}`);
+      }
     }
 
-    let type = source.substring(0, colonIndex);
-    const details = source.substring(colonIndex + 1);
+    // Parse the source string
+    const colonIndex = String(sourceSpec).indexOf(':');
+    if (colonIndex === -1) {
+      throw new Error(`Invalid source format: ${sourceSpec}`);
+    }
+
+    let type = String(sourceSpec).substring(0, colonIndex);
+    const details = String(sourceSpec).substring(colonIndex + 1);
 
     // Handle special markers (like ! for default)
     let isDefault = false;
@@ -303,7 +316,7 @@ class Library {
         break;
         
       case 'sqlite-v0':
-        await this.loadSqliteV0(details, isDefault, mode);
+        await this.loadSqliteV0(details, isDefault, mode, sourceOptions);
         break;
 
       default:
@@ -467,7 +480,7 @@ class Library {
     this.registerProvider(omopFN, omop, isDefault);
   }
 
-  async loadSqliteV0(details, isDefault, mode) {
+  async loadSqliteV0(details, isDefault, mode, options = {}) {
     let dbPath;
     if (path.isAbsolute(details)) {
       // Absolute path — use directly
@@ -478,7 +491,7 @@ class Library {
     if (mode === "fetch" || mode === "npm") {
       return;
     }
-    const factory = await SqliteV0FactoryProvider.createFromMetadata(this.i18n, dbPath);
+    const factory = await SqliteV0FactoryProvider.createFromMetadata(this.i18n, dbPath, options);
     this.registerProvider(dbPath, factory, isDefault);
   }
 

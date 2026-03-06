@@ -78,6 +78,12 @@ class CodeSystemProvider {
    */
   version() { throw new Error("Must override"); }
 
+  /**
+   * Optional normalized release date (YYYY-MM-DD) for this version.
+   * Used for lockedDate-based version resolution when available.
+   */
+  releaseDate() { return null; }
+
   vurl() {
     if (this.version()) {
       return this.system()+ "|"+ this.version();

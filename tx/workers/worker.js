@@ -8,6 +8,63 @@ const {Languages} = require("../../library/languages");
 const {ConceptMap} = require("../library/conceptmap");
 const {Renderer} = require("../library/renderer");
 
+function parseISODatePrefix(value) {
+  const raw = String(value || '').trim();
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return Date.UTC(y, mo - 1, d);
+}
+
+function parseYYYYMMDD(raw) {
+  const s = String(raw || '').trim();
+  if (!/^\d{8}$/.test(s)) return null;
+  const y = Number(s.slice(0, 4));
+  const mo = Number(s.slice(4, 6));
+  const d = Number(s.slice(6, 8));
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return Date.UTC(y, mo - 1, d);
+}
+
+function parseMMDDYYYY(raw) {
+  const s = String(raw || '').trim();
+  if (!/^\d{8}$/.test(s)) return null;
+  const mo = Number(s.slice(0, 2));
+  const d = Number(s.slice(2, 4));
+  const y = Number(s.slice(4, 8));
+  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return Date.UTC(y, mo - 1, d);
+}
+
+function parseVersionDate(version) {
+  const v = String(version || '').trim();
+  if (!v) return null;
+  const directIso = parseISODatePrefix(v);
+  if (directIso != null) return directIso;
+  const directYmd = parseYYYYMMDD(v);
+  if (directYmd != null) return directYmd;
+  const directMdy = parseMMDDYYYY(v);
+  if (directMdy != null) return directMdy;
+
+  const mIso = v.match(/(\d{4}-\d{2}-\d{2})/);
+  if (mIso) {
+    const iso = parseISODatePrefix(mIso[1]);
+    if (iso != null) return iso;
+  }
+  const mDigits = v.match(/(\d{8})/);
+  if (mDigits) {
+    const ymd = parseYYYYMMDD(mDigits[1]);
+    if (ymd != null) return ymd;
+    const mdy = parseMMDDYYYY(mDigits[1]);
+    if (mdy != null) return mdy;
+  }
+  return null;
+}
+
 /**
  * Custom error for terminology setup issues
  */
@@ -215,6 +272,65 @@ class TerminologyWorker {
     }
 
     return Array.from(versions).sort();
+  }
+
+  /**
+   * Resolve an unversioned code system reference to a concrete version
+   * constrained by ValueSet.compose.lockedDate semantics.
+   *
+   * Returns the latest known version whose parsed publication date is <= lockedDate.
+   * If no dated versions are available, returns null.
+   */
+  async resolveCodeSystemVersionAtDate(url, lockedDate) {
+    if (!url || !lockedDate) return null;
+    const targetUtc = parseISODatePrefix(lockedDate);
+    if (targetUtc == null) return null;
+
+    // Prefer explicit factory metadata when available.
+    // This is authoritative for sqlite-v0 factories that expose releaseDate().
+    const byVersion = new Map();
+    const factories = this.provider?.codeSystemFactories?.values
+      ? this.provider.codeSystemFactories.values()
+      : [];
+    for (const factory of factories) {
+      if (!factory || typeof factory.system !== 'function' || factory.system() !== url) continue;
+      const version = (typeof factory.version === 'function') ? factory.version() : null;
+      if (!version) continue;
+      const releaseDate = (typeof factory.releaseDate === 'function') ? factory.releaseDate() : null;
+      const releaseUtc = parseISODatePrefix(releaseDate);
+      if (releaseUtc == null) continue;
+      const existing = byVersion.get(version);
+      if (!existing || existing.utc < releaseUtc) {
+        byVersion.set(version, { version, utc: releaseUtc });
+      }
+    }
+    if (byVersion.size > 0) {
+      const datedFactories = [...byVersion.values()]
+        .sort((a, b) => (a.utc - b.utc) || String(a.version).localeCompare(String(b.version)));
+      let best = null;
+      for (const row of datedFactories) {
+        if (row.utc <= targetUtc) best = row.version;
+        else break;
+      }
+      if (best) return best;
+    }
+
+    const versions = await this.listVersions(url);
+    if (!Array.isArray(versions) || versions.length === 0) return null;
+
+    const dated = versions
+      .map(version => ({ version, utc: parseVersionDate(version) }))
+      .filter(x => x.utc != null)
+      .sort((a, b) => (a.utc - b.utc) || String(a.version).localeCompare(String(b.version)));
+
+    if (dated.length === 0) return null;
+
+    let best = null;
+    for (const row of dated) {
+      if (row.utc <= targetUtc) best = row.version;
+      else break;
+    }
+    return best;
   }
 
   async listDisplaysFromCodeSystem(displays, cs, c) {

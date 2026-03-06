@@ -1054,6 +1054,10 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
     return this._sharedData._version;
   }
 
+  releaseDate() {
+    return this._sharedData?.releaseDate || null;
+  }
+
   name() {
     return 'LOINC';
   }
@@ -1081,6 +1085,7 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
         statusKeys: new Map(),
         statusCodes: new Map(),
         _version: '',
+        releaseDate: null,
         root: '',
         firstCodeKey: 0
       };
@@ -1301,7 +1306,7 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
 
   async #loadConfig(db) {
     return new Promise((resolve, reject) => {
-      db.all('SELECT ConfigKey, Value FROM Config WHERE ConfigKey IN (2, 3)', (err, rows) => {
+      db.all('SELECT ConfigKey, Value FROM Config WHERE ConfigKey IN (2, 3, 4)', (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -1310,6 +1315,8 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
               this._sharedData._version = row.Value;
             } else if (row.ConfigKey === 3) {
               this._sharedData.root = row.Value;
+            } else if (row.ConfigKey === 4) {
+              this._sharedData.releaseDate = row.Value;
             }
           }
           resolve();

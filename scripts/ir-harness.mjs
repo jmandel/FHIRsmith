@@ -208,6 +208,59 @@ function collectTraceNotes(spans, out = []) {
   return out;
 }
 
+function collectTraceSpans(spans, out = []) {
+  for (const span of spans || []) {
+    if (!span) continue;
+    out.push(span);
+    collectTraceSpans(span.children, out);
+  }
+  return out;
+}
+
+function requireTrace(traceJson, label = 'request') {
+  if (!traceJson) {
+    throw new Error(`Missing structured trace payload for ${label}`);
+  }
+  if (traceJson.parseError) {
+    throw new Error(`Invalid structured trace payload for ${label}: ${traceJson.parseError}`);
+  }
+  return traceJson;
+}
+
+function traceSpansByName(traceJson, name) {
+  const trace = requireTrace(traceJson, String(name || 'trace'));
+  return collectTraceSpans(trace.spans).filter(span => span?.name === name);
+}
+
+function traceHasSpan(traceJson, name) {
+  return traceSpansByName(traceJson, name).length > 0;
+}
+
+function traceHasAnySpan(traceJson, names) {
+  return (names || []).some(name => traceHasSpan(traceJson, name));
+}
+
+function assertCompilerMaterializationTrace(traceJson, label = 'request') {
+  assert(traceHasSpan(traceJson, 'executeIR:compiler'),
+    `${label} should use compiler-backed materialization`);
+}
+
+function assertCountOnlyTraceBehavior(result, traceJson, label = 'count-only request') {
+  assert(result?.expansion?.total != null, `${label} should report a total`);
+  eq(codes(result).length, 0, `${label} should not materialize contains`);
+  assert(traceHasAnySpan(traceJson, ['countForIR', 'countForIR:lazy', 'countForIR:compiler']),
+    `${label} should include a count trace span`);
+  assert(!traceHasSpan(traceJson, 'executeIR:compiler'),
+    `${label} should not materialize result rows`);
+}
+
+function assertBulkDesignationTrace(result, traceJson, label = 'designation request') {
+  assert(codes(result).some(c => Array.isArray(c.designation) && c.designation.length > 0),
+    `${label} should return at least one designation`);
+  assert(traceHasSpan(traceJson, 'bulkDesignations'),
+    `${label} should use bulk designation decoration`);
+}
+
 function strictIRTraceCheck(traceJson) {
   if (!traceJson) {
     return { ok: false, message: 'STRICT IR mode: missing structured trace payload for IR request' };
@@ -499,10 +552,15 @@ async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, 
   };
 }
 
-async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
+async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = null) {
   lastExpandCall = { vsJson, opts };
-  const forceTrace = WANT_TRACE || (STRICT_IR_NO_FALLBACK && engine === 'ir');
-  const { responseJson: body, ms, traceJson } = await executeExpandRequest(vsJson, opts, engine, forceTrace);
+  const shouldForceTrace = forceTrace ?? (WANT_TRACE || (STRICT_IR_NO_FALLBACK && engine === 'ir'));
+  const {
+    responseJson: body,
+    ms,
+    traceJson,
+    irPlanText,
+  } = await executeExpandRequest(vsJson, opts, engine, shouldForceTrace);
   if (!body) {
     throw new Error('Non-JSON response from terminology server');
   }
@@ -524,7 +582,7 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE) {
       semanticParityWaivedTests.add(currentTestName);
     }
   }
-  return { result: body, ms };
+  return { result: body, ms, traceJson, irPlanText };
 }
 
 function codes(result) {
@@ -552,18 +610,36 @@ function expansionExtensions(result, url) {
   return (result.expansion?.extension || []).filter(e => e.url === url);
 }
 
+function inlineVS(url, include, exclude = null, overrides = {}) {
+  const includeList = Array.isArray(include) ? include : [include];
+  const excludeList = exclude == null ? null : (Array.isArray(exclude) ? exclude : [exclude]);
+  return {
+    resourceType: 'ValueSet',
+    url,
+    status: 'active',
+    compose: {
+      include: includeList,
+      ...(excludeList ? { exclude: excludeList } : {}),
+    },
+    ...overrides,
+  };
+}
+
 const ALLOWED_TEST_CATEGORIES = new Set([
   'Baseline Fixtures',
   'Compose Overrides',
   'Composition Semantics',
   'Concept Enumerations',
+  'Clinical Workloads',
   'Cross-Source Coverage',
   'Designations & Language',
   'Exclusions',
   'Expansion Metadata',
   'Filter Semantics',
   'Hierarchy',
+  'Lab Workloads',
   'Multi-System Composition',
+  'Medication Workloads',
   'Pagination',
   'Pagination Safety',
   'Parameter Handling',
@@ -600,6 +676,7 @@ function normalizeTestDef(def) {
       rawName: def,
       name: def,
       category: currentCategory || 'Uncategorized',
+      perfOnly: false,
     };
   }
   const rawName = String(def?.rawName || def?.name || '').trim();
@@ -609,6 +686,7 @@ function normalizeTestDef(def) {
     rawName: rawName || name,
     name: name || rawName,
     category: String(def?.category || currentCategory || 'Uncategorized').trim(),
+    perfOnly: !!def?.perfOnly,
   };
 }
 
@@ -617,6 +695,10 @@ async function test(def, fn) {
   validateTestMeta(meta);
   const filterHaystack = `${meta.rawName} ${meta.name} ${meta.category}`.toLowerCase();
   if (FILTERS.length > 0 && !FILTERS.some(f => filterHaystack.includes(f.toLowerCase()))) {
+    skipped++;
+    return;
+  }
+  if (meta.perfOnly && !PERF_MODE) {
     skipped++;
     return;
   }
@@ -688,6 +770,10 @@ function findParams(result, name) {
 const perfRows = [];  // { name, category, irMs, upstreamMs, thirdMs, irErr, upstreamErr, thirdErr, detailHref, inputHref }
 let currentCategory = '';
 let lastExpandCall = null;  // { vsJson, opts } from most recent expand()
+
+function setPerfTarget(vsJson, opts = {}) {
+  lastExpandCall = { vsJson, opts };
+}
 
 function median(arr) {
   const s = [...arr].sort((a, b) => a - b);
@@ -3266,6 +3352,667 @@ async function run() {
     const irCodes = codes(ir).map(c => c.code).sort();
     const legCodes = codes(legacy).map(c => c.code).sort();
     eq(JSON.stringify(irCodes), JSON.stringify(legCodes), 'same codes when flat');
+  });
+
+  // ── imported scale / runtime-shape coverage ───────────────────────────
+  console.log('\n=== Imported Scale & Runtime Shape ==='); currentCategory = 'Imported scale';
+
+  await test({ id: 167, rawName: 'stress: imported same-system intersection matches direct diabetes subset', name: 'Imported SNOMED intersection scales like direct diabetes subset', category: 'Stress & Scale' }, async () => {
+    const importedClinical = inlineVS('http://example.org/vs/imported-sct-clinical-finding', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const importedDiabetes = inlineVS('http://example.org/vs/imported-sct-diabetes', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    });
+    const importedRoot = vs({
+      system: SYS.SCT,
+      valueSet: [importedClinical.url, importedDiabetes.url],
+    });
+    const directDiabetes = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    });
+
+    const { result: directTotal } = await expand(directDiabetes, { activeOnly: true, count: 0 });
+    const { result: directPage } = await expand(directDiabetes, { activeOnly: true, count: 20 });
+    const targetOpts = { txResources: [importedClinical, importedDiabetes], activeOnly: true, count: 20 };
+    const { result } = await expand(
+      importedRoot,
+      targetOpts,
+    );
+    eq(result.expansion.total, directTotal.expansion.total, 'imported intersection total matches direct');
+    eq(codes(result).length, 20, 'page size');
+    eq(
+      JSON.stringify(codes(result).map(c => c.code)),
+      JSON.stringify(codes(directPage).map(c => c.code)),
+      'imported first page matches direct first page',
+    );
+    setPerfTarget(importedRoot, targetOpts);
+  });
+
+  await test({ id: 168, rawName: 'stress: imported same-system diff preserves deep pagination', name: 'Imported SNOMED diff preserves deep pagination', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const importedClinical = inlineVS('http://example.org/vs/imported-sct-clinical-finding-deep', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const importedDiabetes = inlineVS('http://example.org/vs/imported-sct-diabetes-deep', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    });
+    const importedDiff = vs(
+      { valueSet: [importedClinical.url] },
+      { valueSet: [importedDiabetes.url] },
+    );
+    const directDiff = vs(
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '404684003' }] },
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+    );
+
+    const fullOpts = {
+      txResources: [importedClinical, importedDiabetes],
+      activeOnly: true,
+      count: 0,
+    };
+    const { result: full } = await expand(importedDiff, fullOpts);
+    assert(full.expansion.total > 40, `expected imported diff to return enough rows for deep pagination, got ${full.expansion.total}`);
+
+    const offset = Math.max(0, full.expansion.total - 40);
+    const targetOpts = { txResources: [importedClinical, importedDiabetes], activeOnly: true, offset, count: 20 };
+    const { result: importedPage, traceJson } = await expand(
+      importedDiff,
+      targetOpts,
+      'ir',
+      true,
+    );
+    const { result: directPage } = await expand(directDiff, { activeOnly: true, offset, count: 20 });
+
+    eq(importedPage.expansion.total, full.expansion.total, 'paged total stable');
+    eq(codes(importedPage).length, 20, 'deep page size');
+    eq(
+      JSON.stringify(codes(importedPage).map(c => c.code)),
+      JSON.stringify(codes(directPage).map(c => c.code)),
+      'imported diff page matches direct diff page',
+    );
+    assertCompilerMaterializationTrace(traceJson, 'imported diff benchmark');
+    setPerfTarget(importedDiff, targetOpts);
+  });
+
+  await test({ id: 169, rawName: 'stress: imported multi-system union crosses large-system boundary', name: 'Imported large-system union crosses pagination boundary cleanly', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const importedLoincActive = inlineVS('http://example.org/vs/imported-loinc-active', {
+      system: SYS.LOINC,
+      filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }],
+    });
+    const importedClinical = inlineVS('http://example.org/vs/imported-sct-clinical-finding-boundary', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const importedUnion = vs([
+      { valueSet: [importedLoincActive.url] },
+      { valueSet: [importedClinical.url] },
+    ]);
+
+    const { result: loincOnly } = await expand(
+      vs({ system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] }),
+      { activeOnly: true, count: 0 },
+    );
+    const { result: snomedOnly } = await expand(
+      vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '404684003' }] }),
+      { activeOnly: true, count: 0 },
+    );
+
+    const boundaryOffset = Math.max(0, loincOnly.expansion.total - 50);
+    const targetOpts = {
+      txResources: [importedLoincActive, importedClinical],
+      activeOnly: true,
+      offset: boundaryOffset,
+      count: 120,
+    };
+    const { result, traceJson } = await expand(
+      importedUnion,
+      targetOpts,
+      'ir',
+      true,
+    );
+
+    eq(result.expansion.total, loincOnly.expansion.total + snomedOnly.expansion.total, 'union total matches direct totals');
+    eq(codes(result).length, 120, 'boundary page size');
+    const systems = new Set(codes(result).map(c => c.system));
+    assert(systems.has(SYS.LOINC), 'boundary page should include LOINC tail');
+    assert(systems.has(SYS.SCT), 'boundary page should include SNOMED head');
+    assertCompilerMaterializationTrace(traceJson, 'multi-system imported union benchmark');
+    setPerfTarget(importedUnion, targetOpts);
+  });
+
+  await test({ id: 170, rawName: 'stress: multi-clause LOINC filter scales without fallback', name: 'Multi-clause LOINC filter scales without fallback', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const loincCombo = vs({
+      system: SYS.LOINC,
+      filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+      ],
+    });
+
+    const { result: totalOnly } = await expand(loincCombo, { count: 0 });
+    const targetOpts = { count: 100 };
+    const { result, traceJson } = await expand(loincCombo, targetOpts, 'ir', true);
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count=0');
+    eq(codes(result).length, Math.min(100, totalOnly.expansion.total), 'page size');
+    assert(codes(result).every(c => c.system === SYS.LOINC), 'all results should be LOINC');
+    assertCompilerMaterializationTrace(traceJson, 'multi-clause LOINC benchmark');
+    setPerfTarget(loincCombo, targetOpts);
+  });
+
+  await test({ id: 171, rawName: 'stress: large LOINC designation page hits bulk decoration', name: 'Large LOINC designation page hits bulk decoration', category: 'Designations & Language', perfOnly: true }, async () => {
+    const loincActive = vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }],
+    });
+    const targetOpts = { count: 100, includeDesignations: true };
+    const { result, traceJson } = await expand(
+      loincActive,
+      targetOpts,
+      'ir',
+      true,
+    );
+    eq(codes(result).length, 100, 'page size');
+    assertBulkDesignationTrace(result, traceJson, 'LOINC designation benchmark');
+    setPerfTarget(loincActive, targetOpts);
+  });
+
+  await test({ id: 172, rawName: 'stress: large SNOMED designation filter page uses displayLanguage and bulk decoration', name: 'Large SNOMED designation-filter page uses displayLanguage and bulk decoration', category: 'Designations & Language', perfOnly: true }, async () => {
+    const targetVS = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const targetOpts = {
+      activeOnly: true,
+      count: 50,
+      includeDesignations: true,
+      params: [
+        { name: 'designation', valueString: 'http://snomed.info/sct|900000000000003001' },
+        { name: 'displayLanguage', valueCode: 'en' },
+      ],
+    };
+    const { result, traceJson } = await expand(
+      targetVS,
+      targetOpts,
+      'ir',
+      true,
+    );
+    eq(codes(result).length, 50, 'page size');
+    assert(hasExpansionParam(result, 'displayLanguage', 'en'), 'displayLanguage should be echoed');
+    for (const entry of codes(result)) {
+      const desigs = entry.designation || [];
+      assert(desigs.length >= 1, `expected FSN designation for ${entry.code}`);
+      assert(desigs.every(d => d.use?.code === '900000000000003001'),
+        `designation filter should keep only FSNs for ${entry.code}`);
+    }
+    assertBulkDesignationTrace(result, traceJson, 'SNOMED designation benchmark');
+    setPerfTarget(targetVS, targetOpts);
+  });
+
+  await test({ id: 173, rawName: 'stress: compose.inactive on large SNOMED set matches request-level semantics', name: 'compose.inactive on large SNOMED set matches request-level semantics', category: 'Parameter Handling' }, async () => {
+    const baseComponent = { system: SYS.SCT, filter: [{ property: 'code', op: 'regex', value: '^7[0-9]{4,}' }] };
+    const baseVS = vs(baseComponent);
+    const composeInactiveFalse = inlineVS(
+      'http://example.org/vs/compose-inactive-false-large',
+      baseComponent,
+      null,
+      { compose: { inactive: false, include: [baseComponent] } },
+    );
+    const composeInactiveTrue = inlineVS(
+      'http://example.org/vs/compose-inactive-true-large',
+      baseComponent,
+      null,
+      { compose: { inactive: true, include: [baseComponent] } },
+    );
+
+    const { result: allCodesResult } = await expand(baseVS, { count: 0, activeOnly: false });
+    const { result: requestActiveOnly } = await expand(baseVS, { count: 0, activeOnly: true });
+    const { result: composeFalse } = await expand(composeInactiveFalse, { count: 0, activeOnly: false });
+    const { result: composeTrue } = await expand(composeInactiveTrue, { count: 0, activeOnly: false });
+
+    assert(allCodesResult.expansion.total > requestActiveOnly.expansion.total,
+      `expected inactive concepts in the large SNOMED set, got all=${allCodesResult.expansion.total} active=${requestActiveOnly.expansion.total}`);
+    eq(composeFalse.expansion.total, requestActiveOnly.expansion.total, 'compose.inactive=false should match activeOnly=true');
+    eq(composeTrue.expansion.total, allCodesResult.expansion.total, 'compose.inactive=true should preserve unfiltered total');
+  });
+
+  await test({ id: 174, rawName: 'stress: imported valueSet plus sibling filter scales like direct same-component intersection', name: 'Imported valueSet + sibling filter scales like direct same-component intersection', category: 'Stress & Scale' }, async () => {
+    const importedClinical = inlineVS('http://example.org/vs/imported-sct-clinical-finding-sibling-filter', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const importedFiltered = inlineVS('http://example.org/vs/imported-sct-clinical-finding-regex', {
+      system: SYS.SCT,
+      valueSet: [importedClinical.url],
+      filter: [{ property: 'code', op: 'regex', value: '^7[0-9]{4,}' }],
+    });
+    const direct = vs({
+      system: SYS.SCT,
+      filter: [
+        { property: 'concept', op: 'is-a', value: '404684003' },
+        { property: 'code', op: 'regex', value: '^7[0-9]{4,}' },
+      ],
+    });
+
+    const { result: directTotal } = await expand(direct, { activeOnly: true, count: 0 });
+    const offset = Math.max(0, Math.floor(directTotal.expansion.total / 2) - 10);
+    const targetOpts = { txResources: [importedClinical], activeOnly: true, offset, count: 20 };
+    const { result } = await expand(
+      importedFiltered,
+      targetOpts,
+    );
+    const { result: directPage } = await expand(direct, { activeOnly: true, offset, count: 20 });
+
+    eq(result.expansion.total, directTotal.expansion.total, 'imported sibling filter total matches direct');
+    eq(codes(result).length, Math.min(20, directTotal.expansion.total - offset), 'page size');
+    eq(
+      JSON.stringify(codes(result).map(c => c.code)),
+      JSON.stringify(codes(directPage).map(c => c.code)),
+      'imported sibling-filter page matches direct page',
+    );
+    setPerfTarget(importedFiltered, targetOpts);
+  });
+
+  await test({ id: 175, rawName: 'stress: deep same-system text filter pagination stays stable under large offset', name: 'Deep same-system text filter pagination stays stable under large offset', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const clinicalFinding = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+
+    const { result: filteredCount } = await expand(clinicalFinding, {
+      activeOnly: true,
+      filter: 'disease',
+      count: 0,
+    });
+
+    const offset = Math.max(0, Math.floor(filteredCount.expansion.total / 2) - 25);
+    const targetOpts = { activeOnly: true, filter: 'disease', offset, count: 50 };
+    const { result: p1, traceJson } = await expand(
+      clinicalFinding,
+      targetOpts,
+      'ir',
+      true,
+    );
+    const { result: p2 } = await expand(clinicalFinding, {
+      activeOnly: true,
+      filter: 'disease',
+      offset: offset + 25,
+      count: 50,
+    });
+
+    eq(p1.expansion.total, filteredCount.expansion.total, 'paged total matches count=0 total');
+    eq(codes(p1).length, 50, 'first page size');
+    eq(codes(p2).length, 50, 'second page size');
+    eq(
+      JSON.stringify(codes(p1).slice(25).map(c => c.code)),
+      JSON.stringify(codes(p2).slice(0, 25).map(c => c.code)),
+      'adjacent deep pages should overlap exactly on the shared slice',
+    );
+    assertCompilerMaterializationTrace(traceJson, 'deep SNOMED text benchmark');
+    setPerfTarget(clinicalFinding, targetOpts);
+  });
+
+  await test({ id: 176, rawName: 'stress: large overlapping same-system union deduplicates without changing the superset page', name: 'Large overlapping same-system union deduplicates without changing the superset page', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const largeUnion = vs([
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '404684003' }] },
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+    ]);
+    const directClinical = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+
+    const { result: directTotal } = await expand(directClinical, { activeOnly: true, count: 0 });
+    const offset = Math.max(0, Math.floor(directTotal.expansion.total / 2) - 50);
+    const targetOpts = { activeOnly: true, offset, count: 100 };
+    const { result, traceJson } = await expand(
+      largeUnion,
+      targetOpts,
+      'ir',
+      true,
+    );
+    const { result: directPage } = await expand(directClinical, { activeOnly: true, offset, count: 100 });
+
+    eq(result.expansion.total, directTotal.expansion.total, 'overlapping union total should collapse to the superset total');
+    eq(codes(result).length, 100, 'page size');
+    eq(new Set(codes(result).map(c => c.code)).size, codes(result).length, 'deduplicated union page should not contain duplicate codes');
+    eq(
+      JSON.stringify(codes(result).map(c => c.code)),
+      JSON.stringify(codes(directPage).map(c => c.code)),
+      'overlapping union page should match the superset page',
+    );
+    assertCompilerMaterializationTrace(traceJson, 'overlapping union benchmark');
+    setPerfTarget(largeUnion, targetOpts);
+  });
+
+  await test({ id: 177, rawName: 'stress: count-only large SNOMED regex stays on count path', name: 'Count-only large SNOMED regex stays on the count path', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const regexVS = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'code', op: 'regex', value: '^7[0-9]{4,}' }],
+    });
+    const targetOpts = { activeOnly: true, count: 0 };
+    const { result, traceJson } = await expand(regexVS, targetOpts, 'ir', true);
+
+    assertCountOnlyTraceBehavior(result, traceJson, 'SNOMED regex count benchmark');
+    setPerfTarget(regexVS, targetOpts);
+  });
+
+  await test({ id: 178, rawName: 'stress: count-only imported diff stays on count path', name: 'Count-only imported diff stays on the count path', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const importedClinical = inlineVS('http://example.org/vs/imported-sct-clinical-finding-count-only', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const importedDiabetes = inlineVS('http://example.org/vs/imported-sct-diabetes-count-only', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    });
+    const importedDiff = vs(
+      { valueSet: [importedClinical.url] },
+      { valueSet: [importedDiabetes.url] },
+    );
+
+    const targetOpts = { txResources: [importedClinical, importedDiabetes], activeOnly: true, count: 0 };
+    const { result, traceJson } = await expand(
+      importedDiff,
+      targetOpts,
+      'ir',
+      true,
+    );
+
+    assertCountOnlyTraceBehavior(result, traceJson, 'imported diff count benchmark');
+    setPerfTarget(importedDiff, targetOpts);
+  });
+
+  await test({ id: 179, rawName: 'stress: count-only multi-clause LOINC filter stays on count path', name: 'Count-only multi-clause LOINC filter stays on the count path', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const loincCombo = vs({
+      system: SYS.LOINC,
+      filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+      ],
+    });
+    const targetOpts = { count: 0 };
+    const { result, traceJson } = await expand(loincCombo, targetOpts, 'ir', true);
+
+    assertCountOnlyTraceBehavior(result, traceJson, 'multi-clause LOINC count benchmark');
+    setPerfTarget(loincCombo, targetOpts);
+  });
+
+  await test({ id: 180, rawName: 'stress: imported diff plus runtime text filter preserves deep pagination', name: 'Imported diff plus runtime text filter preserves deep pagination', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const importedClinical = inlineVS('http://example.org/vs/imported-sct-clinical-finding-text-diff', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const importedDiabetes = inlineVS('http://example.org/vs/imported-sct-diabetes-text-diff', {
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+    });
+    const importedDiff = vs(
+      { valueSet: [importedClinical.url] },
+      { valueSet: [importedDiabetes.url] },
+    );
+    const directDiff = vs(
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '404684003' }] },
+      { system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] },
+    );
+
+    const { result: filteredCount } = await expand(importedDiff, {
+      txResources: [importedClinical, importedDiabetes],
+      activeOnly: true,
+      filter: 'disease',
+      count: 0,
+    });
+
+    const offset = Math.max(0, Math.floor(filteredCount.expansion.total / 2) - 25);
+    const targetOpts = {
+      txResources: [importedClinical, importedDiabetes],
+      activeOnly: true,
+      filter: 'disease',
+      offset,
+      count: 50,
+    };
+    const { result, traceJson } = await expand(
+      importedDiff,
+      targetOpts,
+      'ir',
+      true,
+    );
+    const { result: directPage } = await expand(directDiff, {
+      activeOnly: true,
+      filter: 'disease',
+      offset,
+      count: 50,
+    });
+
+    eq(result.expansion.total, filteredCount.expansion.total, 'paged total matches count-only filtered total');
+    eq(codes(result).length, 50, 'page size');
+    eq(
+      JSON.stringify(codes(result).map(c => c.code)),
+      JSON.stringify(codes(directPage).map(c => c.code)),
+      'imported diff text-filtered page matches direct diff page',
+    );
+    assertCompilerMaterializationTrace(traceJson, 'text-filtered imported diff benchmark');
+    setPerfTarget(importedDiff, targetOpts);
+  });
+
+  await test({ id: 181, rawName: 'stress: deep LOINC text filter pagination stays stable under large offset', name: 'Deep LOINC text filter pagination stays stable under large offset', category: 'Stress & Scale', perfOnly: true }, async () => {
+    const loincActive = vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }],
+    });
+
+    const { result: filteredCount } = await expand(loincActive, {
+      filter: 'blood',
+      count: 0,
+    });
+
+    const offset = Math.max(0, Math.floor(filteredCount.expansion.total / 2) - 25);
+    const targetOpts = { filter: 'blood', offset, count: 50 };
+    const { result: p1, traceJson } = await expand(
+      loincActive,
+      targetOpts,
+      'ir',
+      true,
+    );
+    const { result: p2 } = await expand(loincActive, {
+      filter: 'blood',
+      offset: offset + 25,
+      count: 50,
+    });
+
+    eq(p1.expansion.total, filteredCount.expansion.total, 'paged total matches count-only total');
+    eq(codes(p1).length, 50, 'first page size');
+    eq(codes(p2).length, 50, 'second page size');
+    eq(
+      JSON.stringify(codes(p1).slice(25).map(c => c.code)),
+      JSON.stringify(codes(p2).slice(0, 25).map(c => c.code)),
+      'adjacent deep pages should overlap exactly on the shared slice',
+    );
+    assertCompilerMaterializationTrace(traceJson, 'deep LOINC text benchmark');
+    setPerfTarget(loincActive, targetOpts);
+  });
+
+  await test({ id: 182, rawName: 'stress: very large LOINC designation page hits bulk decoration once', name: 'Very large LOINC designation page hits bulk decoration once', category: 'Designations & Language', perfOnly: true }, async () => {
+    const loincActive = vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }],
+    });
+    const targetOpts = { count: 1000, includeDesignations: true };
+    const { result, traceJson } = await expand(
+      loincActive,
+      targetOpts,
+      'ir',
+      true,
+    );
+
+    eq(codes(result).length, 1000, 'page size');
+    assertBulkDesignationTrace(result, traceJson, 'very large LOINC designation benchmark');
+    setPerfTarget(loincActive, targetOpts);
+  });
+
+  // ── real-world workload bench tranche ─────────────────────────────────
+
+  await test({ id: 183, rawName: 'clinical workload: SNOMED diagnosis search pain first 50', name: 'SNOMED diagnosis search "pain" first 50', category: 'Clinical Workloads', perfOnly: true }, async () => {
+    const diagnosisPicker = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const countOpts = { activeOnly: true, filter: 'pain', count: 0 };
+    const { result: totalOnly } = await expand(diagnosisPicker, countOpts);
+    const targetOpts = { activeOnly: true, filter: 'pain', count: 50 };
+    const { result, traceJson } = await expand(diagnosisPicker, targetOpts, 'ir', true);
+
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count-only total');
+    eq(codes(result).length, Math.min(50, totalOnly.expansion.total), 'page size');
+    assert(codes(result).every(c => c.system === SYS.SCT), 'all results should be SNOMED');
+    assertCompilerMaterializationTrace(traceJson, 'diagnosis pain search benchmark');
+    setPerfTarget(diagnosisPicker, targetOpts);
+  });
+
+  await test({ id: 184, rawName: 'clinical workload: SNOMED anatomy refset arm search first 50', name: 'SNOMED anatomy refset "arm" search first 50', category: 'Clinical Workloads', perfOnly: true }, async () => {
+    const anatomySubset = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'in', value: 'http://snomed.info/sct?fhir_vs=refset/723264001' }],
+    });
+    const countOpts = { activeOnly: true, filter: 'arm', count: 0 };
+    const { result: totalOnly } = await expand(anatomySubset, countOpts);
+    const targetOpts = { activeOnly: true, filter: 'arm', count: 50 };
+    const { result, traceJson } = await expand(anatomySubset, targetOpts, 'ir', true);
+
+    assert(totalOnly.expansion.total >= 50, `expected anatomy refset arm search to be bench-sized, got ${totalOnly.expansion.total}`);
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count-only total');
+    eq(codes(result).length, 50, 'page size');
+    assert(codes(result).every(c => c.system === SYS.SCT), 'all results should be SNOMED');
+    assertCompilerMaterializationTrace(traceJson, 'anatomy refset search benchmark');
+    setPerfTarget(anatomySubset, targetOpts);
+  });
+
+  await test({ id: 185, rawName: 'lab workload: active chemistry glucose search first 50', name: 'LOINC active chemistry "glucose" search first 50', category: 'Lab Workloads', perfOnly: true }, async () => {
+    const activeChemLabs = vs({
+      system: SYS.LOINC,
+      filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+      ],
+    });
+    const countOpts = { activeOnly: true, filter: 'glucose', count: 0 };
+    const { result: totalOnly } = await expand(activeChemLabs, countOpts);
+    const targetOpts = { activeOnly: true, filter: 'glucose', count: 50 };
+    const { result, traceJson } = await expand(activeChemLabs, targetOpts, 'ir', true);
+
+    assert(totalOnly.expansion.total >= 50, `expected active chemistry glucose search to be bench-sized, got ${totalOnly.expansion.total}`);
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count-only total');
+    eq(codes(result).length, 50, 'page size');
+    assert(codes(result).every(c => c.system === SYS.LOINC), 'all results should be LOINC');
+    assertCompilerMaterializationTrace(traceJson, 'active chemistry glucose benchmark');
+    setPerfTarget(activeChemLabs, targetOpts);
+  });
+
+  await test({ id: 186, rawName: 'lab workload: active quantitative LOINC browse first 100', name: 'LOINC active quantitative browse first 100', category: 'Lab Workloads', perfOnly: true }, async () => {
+    const quantitativeLabs = vs({
+      system: SYS.LOINC,
+      filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'SCALE_TYP', op: '=', value: 'Qn' },
+      ],
+    });
+    const { result: totalOnly } = await expand(quantitativeLabs, { activeOnly: true, count: 0 });
+    const targetOpts = { activeOnly: true, count: 100 };
+    const { result, traceJson } = await expand(quantitativeLabs, targetOpts, 'ir', true);
+
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count-only total');
+    eq(codes(result).length, 100, 'page size');
+    assert(codes(result).every(c => c.system === SYS.LOINC), 'all results should be LOINC');
+    assertCompilerMaterializationTrace(traceJson, 'quantitative lab browse benchmark');
+    setPerfTarget(quantitativeLabs, targetOpts);
+  });
+
+  await test({ id: 187, rawName: 'lab workload: imported active chemistry glucose search matches direct page', name: 'Imported active chemistry lab set "glucose" search matches direct page', category: 'ValueSet Imports', perfOnly: true }, async () => {
+    const importedChemLabs = inlineVS('http://example.org/vs/imported-active-chem-labs', {
+      system: SYS.LOINC,
+      filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+      ],
+    });
+    const importedRoot = vs({ valueSet: [importedChemLabs.url] });
+    const directLabs = vs({
+      system: SYS.LOINC,
+      filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'CLASS', op: '=', value: 'CHEM' },
+      ],
+    });
+    const { result: directTotal } = await expand(directLabs, { activeOnly: true, filter: 'glucose', count: 0 });
+    const { result: directPage } = await expand(directLabs, { activeOnly: true, filter: 'glucose', count: 50 });
+    const targetOpts = { txResources: [importedChemLabs], activeOnly: true, filter: 'glucose', count: 50 };
+    const { result, traceJson } = await expand(importedRoot, targetOpts, 'ir', true);
+
+    eq(result.expansion.total, directTotal.expansion.total, 'imported total matches direct total');
+    eq(codes(result).length, 50, 'page size');
+    eq(
+      JSON.stringify(codes(result).map(c => c.code)),
+      JSON.stringify(codes(directPage).map(c => c.code)),
+      'imported page matches direct page',
+    );
+    assertCompilerMaterializationTrace(traceJson, 'imported chemistry glucose benchmark');
+    setPerfTarget(importedRoot, targetOpts);
+  });
+
+  await test({ id: 188, rawName: 'medication workload: RxNorm SCD browse first 100 active', name: 'RxNorm clinical drug browse first 100 active', category: 'Medication Workloads', perfOnly: true }, async () => {
+    const clinicalDrugs = vs({
+      system: SYS.RXNORM,
+      filter: [{ property: 'TTY', op: '=', value: 'SCD' }],
+    });
+    const { result: totalOnly } = await expand(clinicalDrugs, { activeOnly: true, count: 0 });
+    const targetOpts = { activeOnly: true, count: 100 };
+    const { result, traceJson } = await expand(clinicalDrugs, targetOpts, 'ir', true);
+
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count-only total');
+    eq(codes(result).length, 100, 'page size');
+    assert(codes(result).every(c => c.system === SYS.RXNORM), 'all results should be RxNorm');
+    assertCompilerMaterializationTrace(traceJson, 'RxNorm clinical drug browse benchmark');
+    setPerfTarget(clinicalDrugs, targetOpts);
+  });
+
+  await test({ id: 189, rawName: 'medication workload: RxNorm SCD metformin search first 50 active', name: 'RxNorm clinical drug "metformin" search first 50 active', category: 'Medication Workloads', perfOnly: true }, async () => {
+    const clinicalDrugs = vs({
+      system: SYS.RXNORM,
+      filter: [{ property: 'TTY', op: '=', value: 'SCD' }],
+    });
+    const countOpts = { activeOnly: true, filter: 'metformin', count: 0 };
+    const { result: totalOnly } = await expand(clinicalDrugs, countOpts);
+    const targetOpts = { activeOnly: true, filter: 'metformin', count: 50 };
+    const { result, traceJson } = await expand(clinicalDrugs, targetOpts, 'ir', true);
+
+    assert(totalOnly.expansion.total >= 50, `expected metformin SCD search to be bench-sized, got ${totalOnly.expansion.total}`);
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count-only total');
+    eq(codes(result).length, 50, 'page size');
+    assert(codes(result).every(c => c.system === SYS.RXNORM), 'all results should be RxNorm');
+    assertCompilerMaterializationTrace(traceJson, 'RxNorm metformin benchmark');
+    setPerfTarget(clinicalDrugs, targetOpts);
+  });
+
+  await test({ id: 190, rawName: 'medication workload: RxNorm SCD insulin search first 50 active', name: 'RxNorm clinical drug "insulin" search first 50 active', category: 'Medication Workloads', perfOnly: true }, async () => {
+    const clinicalDrugs = vs({
+      system: SYS.RXNORM,
+      filter: [{ property: 'TTY', op: '=', value: 'SCD' }],
+    });
+    const countOpts = { activeOnly: true, filter: 'insulin', count: 0 };
+    const { result: totalOnly } = await expand(clinicalDrugs, countOpts);
+    const targetOpts = { activeOnly: true, filter: 'insulin', count: 50 };
+    const { result, traceJson } = await expand(clinicalDrugs, targetOpts, 'ir', true);
+
+    assert(totalOnly.expansion.total >= 50, `expected insulin SCD search to be bench-sized, got ${totalOnly.expansion.total}`);
+    eq(result.expansion.total, totalOnly.expansion.total, 'paged total matches count-only total');
+    eq(codes(result).length, 50, 'page size');
+    assert(codes(result).every(c => c.system === SYS.RXNORM), 'all results should be RxNorm');
+    assertCompilerMaterializationTrace(traceJson, 'RxNorm insulin benchmark');
+    setPerfTarget(clinicalDrugs, targetOpts);
   });
 
   // ── summary ──────────────────────────────────────────────────────────

@@ -513,7 +513,9 @@ Use it for:
 | File | What it does |
 |------|-------------|
 | `cs-sqlite-v0.js` | Generic code system provider — implements both the standard filter protocol and `executeIR()` for the IR engine |
-| `sqlite-v0-sql.js` | Builds SQL queries from expansion plan subtrees (used only by the IR engine path) |
+| `sqlite-v0-compiler.js` | Provider-private compiler from scoped IR to normalized plans, SQL AST, rendered SQL, and execution-ready queries |
+| `sqlite-v0-sql-ast.js` | Structured SQL AST lowering for sqlite-v0 physical plans |
+| `sqlite-v0-sql-emit.js` | Deterministic SQL renderer for sqlite-v0 SQL AST |
 
 ### IR expansion engine (`tx/engine/`)
 
@@ -541,10 +543,20 @@ Use it for:
 
 ## See also
 
-- `docs/ir-engine-gap-plan.md` — Phase-by-phase implementation history
-  and test cross-reference
-- `docs/ir-fuzzing.md` — Detailed fuzz/direct-oracle workflow and diagnostics
-- `docs/legacy-expansion-gap.md` — Hierarchical vs flat expansion
-  differences
+- [supplement-architecture.md](supplement-architecture.md) — Detailed design
+  for explicit supplement resolution, overlay semantics, generic fallback, and
+  native optimization in the new runtime path
+- [sqlite-v0-execution-compiler.md](sqlite-v0-execution-compiler.md) —
+  Standalone architecture note for how sqlite-v0 lowers scoped IR into plans,
+  SQL AST, and runtime SQL, including the multi-oracle testing strategy
+- [ir-engine-gap-plan.md](ir-engine-gap-plan.md) — Phase-by-phase
+  implementation history and test cross-reference
+- [sqlite-v0-provider-compiler-plan.md](sqlite-v0-provider-compiler-plan.md)
+  — Detailed staged design and checklist for the sqlite-v0
+  provider-private execution compiler
+- [ir-fuzzing.md](ir-fuzzing.md) — Detailed fuzz/direct-oracle workflow and
+  diagnostics
+- [legacy-expansion-gap.md](legacy-expansion-gap.md) — Hierarchical vs flat
+  expansion differences
 - `scripts/ir-harness.mjs` — HTTP test harness (source of truth)
 - `scripts/ir-rewrite-tests.mjs` — Simplification unit tests
