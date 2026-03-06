@@ -305,6 +305,7 @@ async function expandViaIR(vsJson, opts = {}) {
     designations = [],
     excludeNested = false,
     limit = 0,
+    exactTotal = true,
     debugPlan = false,
     resolveVersionAtDate = null,
   } = opts;
@@ -313,9 +314,14 @@ async function expandViaIR(vsJson, opts = {}) {
   const effectiveActiveOnly = activeOnly || composeInactive === false;
 
   const warnings = [];
+  const shouldOmitLazyTotal = !exactTotal
+    && offset > 0
+    && count > 0
+    && offset >= Math.max(100, count * 5);
   const orchestrateSpan = trace.begin('orchestrate', {
     url: vsJson.url, systems: Object.keys(vsJson.compose?.include || []).length,
-    activeOnly: effectiveActiveOnly, text, offset, count,
+    activeOnly: effectiveActiveOnly, text, offset, count, exactTotal,
+    omitLazyTotal: shouldOmitLazyTotal,
   });
 
   try {
@@ -533,6 +539,8 @@ async function expandViaIR(vsJson, opts = {}) {
     } else if (flatCount > 0 && flatCount < count) {
       deferredTotal = offset + flatCount;
       trace.note('total:inferred', { offset, returned: flatCount, total: deferredTotal });
+    } else if (shouldOmitLazyTotal) {
+      trace.note('total:omitted', { offset, returned: flatCount, exactTotal: false });
     } else if (typeof r.irProvider.countForIR === 'function') {
       // Full page or empty page past end — need exact count.
       const cntSpan = trace.begin('countForIR:lazy', { system: r.system });

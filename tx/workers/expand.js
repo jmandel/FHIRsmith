@@ -2142,6 +2142,7 @@ class ExpandWorker extends TerminologyWorker {
         excludeNested: !!params.excludeNested,
         properties: params.properties || [],
         designations: params.designations || [],
+        exactTotal: params.exactTotal !== false,
         // Enforce limit only when no explicit pagination requested
         limit: (params.offset < 0 && params.count < 0)
           ? (params.limit > 0 ? Math.min(params.limit, EXTERNAL_DEFAULT_LIMIT) : EXTERNAL_DEFAULT_LIMIT)

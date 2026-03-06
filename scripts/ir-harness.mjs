@@ -109,6 +109,14 @@ const SYS = {
   MIME: 'urn:ietf:bcp:13',
   UCUM: 'http://unitsofmeasure.org',
 };
+const EXACT_TOTAL_PARAM = Object.freeze({ name: '_exactTotal', valueBoolean: true });
+
+function withExactTotal(opts = {}) {
+  return {
+    ...opts,
+    params: [...(opts.params || []), EXACT_TOTAL_PARAM],
+  };
+}
 
 // ── helpers ────────────────────────────────────────────────────────────
 let passed = 0, failed = 0, skipped = 0;
@@ -1093,7 +1101,7 @@ async function run() {
     const allCodes = new Set();
     for (let off = 0; off < 200; off += 30) {
       const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
-        { count: 30, offset: off, activeOnly: true });
+        withExactTotal({ count: 30, offset: off, activeOnly: true }));
       eq(result.expansion.total, 124, 'total stable across pages');
       for (const c of codes(result)) {
         assert(!allCodes.has(c.code), `duplicate code ${c.code} at offset ${off}`);
@@ -1105,7 +1113,7 @@ async function run() {
 
   await test({ id: 6, rawName: 'LOINC STATUS=ACTIVE high offset (1000,20)', name: 'LOINC STATUS=ACTIVE high offset (1000,20)', category: 'Pagination' }, async () => {
     const { result } = await expand(vs({ system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] }),
-      { count: 20, offset: 1000 });
+      withExactTotal({ count: 20, offset: 1000 }));
     assert(result.expansion.total > 90000, `total ${result.expansion.total}`);
     eq(codes(result).length, 20, 'page size');
   });
@@ -1509,7 +1517,7 @@ async function run() {
   });
 
   await test({ id: 42, rawName: 'pagination-safety: offset beyond end returns empty', name: 'Offset beyond end returns empty page', category: 'Pagination Safety' }, async () => {
-    const { result } = await expand(vs({ system: SYS.GENDER }), { count: 10, offset: 100 });
+    const { result } = await expand(vs({ system: SYS.GENDER }), withExactTotal({ count: 10, offset: 100 }));
     eq(result.expansion.total, 4, 'total');
     eq(codes(result).length, 0, 'no codes past end');
   });
@@ -1518,7 +1526,7 @@ async function run() {
     const { result, ms } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
-    }), { count: 10000, offset: 110000, activeOnly: true });
+    }), withExactTotal({ count: 10000, offset: 110000, activeOnly: true }));
     eq(result.expansion.total, 124412, 'total');
     eq(codes(result).length, 10000, 'page size');
     assert(codes(result).every(c => c.code && c.display), 'all have code+display');
@@ -1532,7 +1540,7 @@ async function run() {
     const { result } = await expand(vs({
       system: SYS.SCT,
       filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
-    }), { count: 10000, offset: 120000, activeOnly: true });
+    }), withExactTotal({ count: 10000, offset: 120000, activeOnly: true }));
     eq(result.expansion.total, 124412, 'total');
     eq(codes(result).length, 4412, 'partial last page');
   });
@@ -2550,7 +2558,7 @@ async function run() {
   });
 
   await test({ id: 117, rawName: 'pagination: US states offset beyond end', name: 'US states offset beyond end returns empty', category: 'Pagination' }, async () => {
-    const { result } = await expand(vs({system:SYS.USPS}), {count:10, offset:100});
+    const { result } = await expand(vs({system:SYS.USPS}), withExactTotal({count:10, offset:100}));
     const c = codes(result);
     assert(c.length === 0, `expected 0, got ${c.length}`);
     assert(result.expansion.total === 62, `total should be 62, got ${result.expansion.total}`);
@@ -2972,8 +2980,8 @@ async function run() {
   await test({ id: 144, rawName: 'stress: deep SNOMED is-a pagination stable across adjacent pages', name: 'Deep SNOMED is-a pagination stable across adjacent pages', category: 'Stress & Scale' }, async () => {
     // Two overlapping pages deep into Clinical finding hierarchy
     const isA404684003 = vs({system:SYS.SCT, filter:[{property:'concept',op:'is-a',value:'404684003'}]});
-    const { result: p1 } = await expand(isA404684003, { offset: 50000, count: 20 });
-    const { result: p2 } = await expand(isA404684003, { offset: 50010, count: 20 });
+    const { result: p1 } = await expand(isA404684003, withExactTotal({ offset: 50000, count: 20 }));
+    const { result: p2 } = await expand(isA404684003, withExactTotal({ offset: 50010, count: 20 }));
 
     assert(p1.expansion.total === p2.expansion.total, `totals should match: ${p1.expansion.total} vs ${p2.expansion.total}`);
     assert(p1.expansion.total > 100000, `Clinical finding total should be >100k, got ${p1.expansion.total}`);
@@ -3419,7 +3427,7 @@ async function run() {
     assert(full.expansion.total > 40, `expected imported diff to return enough rows for deep pagination, got ${full.expansion.total}`);
 
     const offset = Math.max(0, full.expansion.total - 40);
-    const targetOpts = { txResources: [importedClinical, importedDiabetes], activeOnly: true, offset, count: 20 };
+    const targetOpts = withExactTotal({ txResources: [importedClinical, importedDiabetes], activeOnly: true, offset, count: 20 });
     const { result: importedPage, traceJson } = await expand(
       importedDiff,
       targetOpts,
@@ -3600,7 +3608,7 @@ async function run() {
 
     const { result: directTotal } = await expand(direct, { activeOnly: true, count: 0 });
     const offset = Math.max(0, Math.floor(directTotal.expansion.total / 2) - 10);
-    const targetOpts = { txResources: [importedClinical], activeOnly: true, offset, count: 20 };
+    const targetOpts = withExactTotal({ txResources: [importedClinical], activeOnly: true, offset, count: 20 });
     const { result } = await expand(
       importedFiltered,
       targetOpts,
@@ -3630,7 +3638,7 @@ async function run() {
     });
 
     const offset = Math.max(0, Math.floor(filteredCount.expansion.total / 2) - 25);
-    const targetOpts = { activeOnly: true, filter: 'disease', offset, count: 50 };
+    const targetOpts = withExactTotal({ activeOnly: true, filter: 'disease', offset, count: 50 });
     const { result: p1, traceJson } = await expand(
       clinicalFinding,
       targetOpts,
@@ -3668,7 +3676,7 @@ async function run() {
 
     const { result: directTotal } = await expand(directClinical, { activeOnly: true, count: 0 });
     const offset = Math.max(0, Math.floor(directTotal.expansion.total / 2) - 50);
-    const targetOpts = { activeOnly: true, offset, count: 100 };
+    const targetOpts = withExactTotal({ activeOnly: true, offset, count: 100 });
     const { result, traceJson } = await expand(
       largeUnion,
       targetOpts,
@@ -3768,13 +3776,13 @@ async function run() {
     });
 
     const offset = Math.max(0, Math.floor(filteredCount.expansion.total / 2) - 25);
-    const targetOpts = {
+    const targetOpts = withExactTotal({
       txResources: [importedClinical, importedDiabetes],
       activeOnly: true,
       filter: 'disease',
       offset,
       count: 50,
-    };
+    });
     const { result, traceJson } = await expand(
       importedDiff,
       targetOpts,
@@ -3811,7 +3819,7 @@ async function run() {
     });
 
     const offset = Math.max(0, Math.floor(filteredCount.expansion.total / 2) - 25);
-    const targetOpts = { filter: 'blood', offset, count: 50 };
+    const targetOpts = withExactTotal({ filter: 'blood', offset, count: 50 });
     const { result: p1, traceJson } = await expand(
       loincActive,
       targetOpts,
@@ -4012,6 +4020,90 @@ async function run() {
     eq(codes(result).length, 50, 'page size');
     assert(codes(result).every(c => c.system === SYS.RXNORM), 'all results should be RxNorm');
     assertCompilerMaterializationTrace(traceJson, 'RxNorm insulin benchmark');
+    setPerfTarget(clinicalDrugs, targetOpts);
+  });
+
+  await test({ id: 191, rawName: 'clinical workload: SNOMED clinical finding browse later page without exact total', name: 'SNOMED clinical finding browse later page without exact total', category: 'Clinical Workloads', perfOnly: true }, async () => {
+    const clinicalFinding = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const targetOpts = {
+      activeOnly: true,
+      offset: 5000,
+      count: 100,
+    };
+    const { result, traceJson } = await expand(clinicalFinding, targetOpts, 'ir', true);
+
+    assert(result.expansion.total == null, 'later-page best-effort browse should omit total');
+    eq(codes(result).length, 100, 'page size');
+    assert(codes(result).every(c => c.system === SYS.SCT), 'all results should be SNOMED');
+    assertCompilerMaterializationTrace(traceJson, 'clinical finding later-page browse benchmark');
+    assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'later-page best-effort browse should skip lazy count');
+    setPerfTarget(clinicalFinding, targetOpts);
+  });
+
+  await test({ id: 192, rawName: 'clinical workload: SNOMED diagnosis search pain later page without exact total', name: 'SNOMED diagnosis search \"pain\" later page without exact total', category: 'Clinical Workloads', perfOnly: true }, async () => {
+    const diagnosisPicker = vs({
+      system: SYS.SCT,
+      filter: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+    });
+    const targetOpts = {
+      activeOnly: true,
+      filter: 'pain',
+      offset: 500,
+      count: 50,
+    };
+    const { result, traceJson } = await expand(diagnosisPicker, targetOpts, 'ir', true);
+
+    assert(result.expansion.total == null, 'later-page diagnosis search should omit total');
+    eq(codes(result).length, 50, 'page size');
+    assert(codes(result).every(c => c.system === SYS.SCT), 'all results should be SNOMED');
+    assertCompilerMaterializationTrace(traceJson, 'diagnosis pain later-page benchmark');
+    assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'later-page diagnosis search should skip lazy count');
+    setPerfTarget(diagnosisPicker, targetOpts);
+  });
+
+  await test({ id: 193, rawName: 'lab workload: active quantitative LOINC browse later page without exact total', name: 'LOINC active quantitative browse later page without exact total', category: 'Lab Workloads', perfOnly: true }, async () => {
+    const quantitativeLabs = vs({
+      system: SYS.LOINC,
+      filter: [
+        { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        { property: 'SCALE_TYP', op: '=', value: 'Qn' },
+      ],
+    });
+    const targetOpts = {
+      activeOnly: true,
+      offset: 5000,
+      count: 100,
+    };
+    const { result, traceJson } = await expand(quantitativeLabs, targetOpts, 'ir', true);
+
+    assert(result.expansion.total == null, 'later-page quantitative browse should omit total');
+    eq(codes(result).length, 100, 'page size');
+    assert(codes(result).every(c => c.system === SYS.LOINC), 'all results should be LOINC');
+    assertCompilerMaterializationTrace(traceJson, 'quantitative lab later-page benchmark');
+    assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'later-page quantitative browse should skip lazy count');
+    setPerfTarget(quantitativeLabs, targetOpts);
+  });
+
+  await test({ id: 194, rawName: 'medication workload: RxNorm SCD browse later page without exact total', name: 'RxNorm clinical drug browse later page without exact total', category: 'Medication Workloads', perfOnly: true }, async () => {
+    const clinicalDrugs = vs({
+      system: SYS.RXNORM,
+      filter: [{ property: 'TTY', op: '=', value: 'SCD' }],
+    });
+    const targetOpts = {
+      activeOnly: true,
+      offset: 1000,
+      count: 100,
+    };
+    const { result, traceJson } = await expand(clinicalDrugs, targetOpts, 'ir', true);
+
+    assert(result.expansion.total == null, 'later-page RxNorm browse should omit total');
+    eq(codes(result).length, 100, 'page size');
+    assert(codes(result).every(c => c.system === SYS.RXNORM), 'all results should be RxNorm');
+    assertCompilerMaterializationTrace(traceJson, 'RxNorm later-page browse benchmark');
+    assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'later-page RxNorm browse should skip lazy count');
     setPerfTarget(clinicalDrugs, targetOpts);
   });
 

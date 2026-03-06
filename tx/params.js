@@ -66,6 +66,7 @@ class TxParameters {
     this.FDisplayWarning = false;
     this.FMembershipOnly = false;
     this.FDiagnostics = false;
+    this.FExactTotal = false;
 
     this.hasActiveOnly = false;
     this.hasExcludeNested = false;
@@ -262,6 +263,11 @@ class TxParameters {
           this._trace = strToBool(getValuePrimitive(p), true);
           break;
         }
+        case '_exactTotal':
+        case '_exact-total': {
+          this.exactTotal = strToBool(getValuePrimitive(p), true);
+          break;
+        }
       }
     }
 
@@ -397,6 +403,14 @@ class TxParameters {
   set membershipOnly(value) {
     this.FMembershipOnly = value;
     this.hasMembershipOnly = true;
+  }
+
+  get exactTotal() {
+    return this.FExactTotal;
+  }
+
+  set exactTotal(value) {
+    this.FExactTotal = value;
   }
 
   get versionRules() {
@@ -566,6 +580,7 @@ class TxParameters {
     if (this._engine) {
       s = s + 'engine:' + this._engine + '|';
     }
+    s = s + 'exact-total:' + (this.FExactTotal ? '1' : '0') + '|';
 
     return s;
   }
@@ -599,6 +614,7 @@ class TxParameters {
     this.FDefaultToLatestVersion = other.FDefaultToLatestVersion;
     this.FDisplayWarning = other.FDisplayWarning;
     this.FDiagnostics = other.FDiagnostics;
+    this.FExactTotal = other.FExactTotal;
     this.hasActiveOnly = other.hasActiveOnly;
     this.hasExcludeNested = other.hasExcludeNested;
     this.hasGenerateNarrative = other.hasGenerateNarrative;

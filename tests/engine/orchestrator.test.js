@@ -640,6 +640,81 @@ describeIfDBs('expandViaIR', () => {
     expect(page1.expansion.total).toBe(page2.expansion.total);
   });
 
+  test('deep later single-system pages can omit total when exactTotal is disabled', async () => {
+    let countCalls = 0;
+    const mockProvider = {
+      version: () => null,
+      countForIR: async () => {
+        countCalls += 1;
+        return 100;
+      },
+      executeIR: async (_subtree, opts = {}) => {
+        const out = [];
+        const start = opts.offset || 0;
+        for (let i = 0; i < (opts.count || 0); i++) {
+          out.push({ code: `C${start + i}`, display: `Code ${start + i}`, active: true });
+        }
+        return { candidates: out, unclosed: null };
+      },
+    };
+    const findProviderMock = async (system) => (
+      system === 'http://example.org/cs' ? mockProvider : null
+    );
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:later-page-best-effort-total',
+      compose: { include: [{ system: 'http://example.org/cs' }] },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider: findProviderMock,
+      offset: 100,
+      count: 5,
+      exactTotal: false,
+    });
+
+    expect(result.expansion.contains.length).toBe(5);
+    expect(result.expansion.total).toBeNull();
+    expect(countCalls).toBe(0);
+  });
+
+  test('later single-system pages still compute exact total by default', async () => {
+    let countCalls = 0;
+    const mockProvider = {
+      version: () => null,
+      countForIR: async () => {
+        countCalls += 1;
+        return 100;
+      },
+      executeIR: async (_subtree, opts = {}) => {
+        const out = [];
+        const start = opts.offset || 0;
+        for (let i = 0; i < (opts.count || 0); i++) {
+          out.push({ code: `C${start + i}`, display: `Code ${start + i}`, active: true });
+        }
+        return { candidates: out, unclosed: null };
+      },
+    };
+    const findProviderMock = async (system) => (
+      system === 'http://example.org/cs' ? mockProvider : null
+    );
+    const vs = {
+      resourceType: 'ValueSet',
+      url: 'test:later-page-exact-total-default',
+      compose: { include: [{ system: 'http://example.org/cs' }] },
+    };
+
+    const result = await expandViaIR(vs, {
+      findProvider: findProviderMock,
+      offset: 10,
+      count: 5,
+    });
+
+    expect(result.expansion.contains.length).toBe(5);
+    expect(result.expansion.total).toBe(100);
+    expect(countCalls).toBe(1);
+  });
+
   test('text search filter', async () => {
     const vs = {
       resourceType: 'ValueSet',
