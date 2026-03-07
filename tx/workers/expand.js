@@ -18,17 +18,11 @@ const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const crypto = require('crypto');
 const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
-const {
-  dedupeSupplementRefs,
-  makeSupplementRef,
-  supplementRefKey,
-} = require('../supplements/types');
 
-// IR engine (opt-in via EXPAND_IR_ENGINE=1)
-let _irEngine;
-function getIREngine() {
-  if (!_irEngine) _irEngine = require('../engine/orchestrator');
-  return _irEngine;
+let _irExpandEntry;
+function getIRExpandEntry() {
+  if (!_irExpandEntry) _irExpandEntry = require('../engine/expand-entry');
+  return _irExpandEntry;
 }
 
 // Trace infrastructure (lazy-loaded)
@@ -44,108 +38,6 @@ const INTERNAL_DEFAULT_LIMIT = 10000;
 const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
 const TRACE_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace';
-const IR_PLAN_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan';
-
-function collectExplicitSupplementRefs(vsJson, params) {
-  const refs = [];
-  let order = 0;
-  for (const canonical of params?.supplements || []) {
-    if (canonical) refs.push(makeSupplementRef(canonical, 'useSupplement', order++));
-  }
-  for (const ext of Extensions.list(vsJson, 'http://hl7.org/fhir/StructureDefinition/valueset-supplement')) {
-    const canonical = getValuePrimitive(ext);
-    if (canonical) refs.push(makeSupplementRef(canonical, 'valueset-extension', order++));
-  }
-  return dedupeSupplementRefs(refs);
-}
-
-function maybeIssueFromIRError(error) {
-  const message = error?.message || String(error);
-  const unsupportedFilterMatch = /^Unsupported filter property: (.+)$/.exec(message);
-  if (unsupportedFilterMatch) {
-    return new Issue(
-      'error',
-      'not-supported',
-      null,
-      null,
-      `The filter property "${unsupportedFilterMatch[1]}" is not supported by the IR engine`,
-      null,
-      422
-    );
-  }
-  const unknownPropertyMatch = /^sqlite-v0 base membership compilation failed: unknown-property (.+)$/.exec(message);
-  if (unknownPropertyMatch) {
-    try {
-      const detail = JSON.parse(unknownPropertyMatch[1]);
-      if (detail?.property) {
-        return new Issue(
-          'error',
-          'not-supported',
-          null,
-          null,
-          `The filter "${detail.property} ${detail.op} ${detail.value}" was not understood by the IR engine`,
-          null,
-          422
-        );
-      }
-    } catch {
-      // Fall through to generic handling below.
-    }
-    return new Issue(
-      'error',
-      'not-supported',
-      null,
-      null,
-      message,
-      null,
-      422
-    );
-  }
-  const genericFilterMatch = /^The filter (.+) was not understood$/.exec(message);
-  if (genericFilterMatch) {
-    return new Issue(
-      'error',
-      'not-supported',
-      null,
-      null,
-      `The filter ${genericFilterMatch[1]} was not understood by the IR engine`,
-      null,
-      422
-    );
-  }
-  return null;
-}
-
-function providerRuntimeScopeLabel(system, version) {
-  const s = String(system || '').trim();
-  const v = String(version || '').trim();
-  return v ? `${s}|${v}` : s;
-}
-
-function issueFromIRProviderRuntimeError(error, system, version) {
-  if (error instanceof Issue) return error;
-  const message = error?.message || String(error);
-  if (message.includes('Ambiguous supplement')) {
-    return new Issue(
-      'error',
-      'invalid',
-      null,
-      'VALUESET_SUPPLEMENT_AMBIGUOUS',
-      message,
-      'invalid',
-      422
-    );
-  }
-  return new Issue(
-    'error',
-    'processing',
-    null,
-    'IR_SUPPLEMENT_RUNTIME_FAILURE',
-    `IR supplement/provider runtime failed for ${providerRuntimeScopeLabel(system, version)}: ${message}`,
-    'processing',
-    500
-  );
-}
 
 /**
  * Total status for expansion
@@ -2106,49 +1998,49 @@ class ExpandWorker extends TerminologyWorker {
     const wantTrace = !!params._trace;
     let irAttempt = null;
     if (useIR) {
-      const irStartedAt = performance.now();
-      try {
-        const irResult = await this._tryIRExpansion(valueSet, params);
-        const irMs = performance.now() - irStartedAt;
-        if (irResult?.expansion) return irResult.expansion;
-        if (strictIR) {
-          throw new Issue(
-            'error',
-            'not-supported',
-            null,
-            null,
-            `IR engine cannot handle this ValueSet (${irResult?.reason || 'ir-returned-null'})`,
-            null,
-            422
-          );
-        }
-        irAttempt = {
-          attempted: true,
-          used: false,
-          ms: Math.round(irMs * 100) / 100,
-          reason: irResult?.reason || 'ir-returned-null',
-        };
-        if (irResult?.warnings?.length) irAttempt.warnings = irResult.warnings;
-      } catch (e) {
-        const irMs = performance.now() - irStartedAt;
-        // Structured errors should propagate, not fall back to legacy
-        if (e.isTooCostly) {
-          throw new Issue('error', 'too-costly', null, null, e.message, null, 422)
-            .withDiagnostics(this.opContext?.diagnostics?.());
-        }
-        if (e instanceof Issue) throw e;
-        const normalizedIRError = maybeIssueFromIRError(e);
-        if (strictIR && normalizedIRError) throw normalizedIRError;
-        if (strictIR) throw e;
-        irAttempt = {
-          attempted: true,
-          used: false,
-          ms: Math.round(irMs * 100) / 100,
-          reason: 'ir-error',
-          error: e?.message || String(e),
-        };
-        this.opContext?.log?.(`IR engine failed, falling back to legacy: ${e.message}`);
-      }
+      const { maybeExpandValueSetViaIR } = getIRExpandEntry();
+      const irResult = await maybeExpandValueSetViaIR({
+        valueSet,
+        params,
+        strictIR,
+        externalDefaultLimit: EXTERNAL_DEFAULT_LIMIT,
+        traceExtensionUrl: TRACE_EXTENSION_URL,
+        services: {
+          findBaseProvider: async (system, version) => (
+            await this.findCodeSystemWithSupplements(
+              system, version, params, ['complete', 'fragment'],
+              false, true, false, false, []
+            )
+          ),
+          buildSupplementRegistry: async () => await this.buildSupplementRegistryForIR(),
+          resolveSupplementSet: async (target, refs, registry) => (
+            await this.resolveSupplementsForIRBaseScope(target, refs, registry)
+          ),
+          bindIRScope: async (provider, supplementSet) => (
+            await this.bindIRScopeForExpansion(provider, supplementSet)
+          ),
+          resolveValueSet: async (url, version) => {
+            try {
+              const vs = await this.findValueSet(url, version);
+              return vs?.jsonObj || vs;
+            } catch {
+              return null;
+            }
+          },
+          resolveVersionAtDate: async (system, lockedDate) => {
+            try {
+              if (typeof this.resolveCodeSystemVersionAtDate !== 'function') return null;
+              return await this.resolveCodeSystemVersionAtDate(system, lockedDate, params);
+            } catch {
+              return null;
+            }
+          },
+          log: message => this.opContext?.log?.(message),
+          diagnostics: () => this.opContext?.diagnostics?.(),
+        },
+      });
+      if (irResult?.expansion) return irResult.expansion;
+      irAttempt = irResult?.irAttempt || null;
     }
 
     const filter = new SearchFilterText(params.filter);
@@ -2201,167 +2093,6 @@ class ExpandWorker extends TerminologyWorker {
     }
 
     return await expander.expand(valueSet, filter);
-  }
-
-  /**
-   * Try expanding via the IR engine. Returns null if IR can't handle this ValueSet.
-   * @private
-   */
-  async _tryIRExpansion(valueSet, params) {
-    const { canHandleValueSet, expandViaIR, buildExpandedValueSet } = getIREngine();
-    const { ExpandTrace, traceStore, formatTraceSummary } = getExpandTrace();
-    const vsJson = valueSet.jsonObj || valueSet;
-
-    if (!canHandleValueSet(vsJson)) {
-      return { expansion: null, reason: 'canHandleValueSet=false' };
-    }
-
-    const wantTrace = !!params._trace;
-    const traceObj = wantTrace ? new ExpandTrace() : null;
-
-    const runExpansion = async () => {
-      const worker = this;
-
-      const supplementRefs = collectExplicitSupplementRefs(vsJson, params);
-      const supplementRegistry = supplementRefs.length > 0
-        ? await worker.buildSupplementRegistryForIR()
-        : null;
-      const matchedSupplementRefKeys = new Set();
-      const supplementSetCache = new Map();
-
-      async function getSupplementSet(system, version) {
-        if (!supplementRegistry) {
-          return { items: [], matchedRefKeys: [] };
-        }
-        const key = `${String(system || '')}\x00${String(version || '')}`;
-        if (supplementSetCache.has(key)) return supplementSetCache.get(key);
-        const supplementSet = await worker.resolveSupplementsForIRBaseScope(
-          { system, version: version || null },
-          supplementRefs,
-          supplementRegistry
-        );
-        for (const refKey of supplementSet.matchedRefKeys || []) {
-          matchedSupplementRefKeys.add(refKey);
-        }
-        supplementSetCache.set(key, supplementSet);
-        return supplementSet;
-      }
-
-      const result = await expandViaIR(vsJson, {
-        findProvider: async (system, version) => {
-          try {
-            const provider = await worker.findCodeSystemWithSupplements(
-              system, version, params, ['complete', 'fragment'],
-              false, true, false, false, []
-            );
-            if (!provider) return provider;
-            const resolvedSystem = system || (typeof provider.system === 'function' ? provider.system() : null);
-            const resolvedVersion = version || (typeof provider.version === 'function' ? provider.version() : null) || null;
-            const supplementSet = await getSupplementSet(resolvedSystem, resolvedVersion);
-            return await worker.bindIRScopeForExpansion(provider, supplementSet);
-          } catch (e) {
-            throw issueFromIRProviderRuntimeError(e, system, version);
-          }
-        },
-        resolveValueSet: async (url, version) => {
-          try {
-            const vs = await worker.findValueSet(url, version);
-            return vs?.jsonObj || vs;
-          } catch {
-            return null;
-          }
-        },
-        resolveVersionAtDate: async (system, lockedDate) => {
-          try {
-            if (typeof worker.resolveCodeSystemVersionAtDate !== 'function') return null;
-            return await worker.resolveCodeSystemVersionAtDate(system, lockedDate, params);
-          } catch {
-            return null;
-          }
-        },
-        activeOnly: !!params.activeOnly,
-        text: params.filter || null,
-        offset: Math.max(params.offset || 0, 0),
-        count: params.count >= 0 ? params.count : (params.limit > 0 ? params.limit : EXTERNAL_DEFAULT_LIMIT),
-        includeDesignations: !!params.includeDesignations,
-        excludeNested: !!params.excludeNested,
-        properties: params.properties || [],
-        designations: params.designations || [],
-        exactTotal: params.exactTotal !== false,
-        allowIncompleteExpansion: !!params.incompleteOK || !!params.limitedExpansion,
-        // Enforce limit only when no explicit pagination requested
-        limit: (params.offset < 0 && params.count < 0)
-          ? (params.limit > 0 ? Math.min(params.limit, EXTERNAL_DEFAULT_LIMIT) : EXTERNAL_DEFAULT_LIMIT)
-          : 0,
-        debugPlan: wantTrace,
-      });
-
-      if (!result) {
-        return { expansion: null, reason: 'expandViaIR returned null' };
-      }
-
-      // Check for warnings about unsupported systems
-      if (result.warnings?.some(w => w.includes('Systems without IR support'))) {
-        return {
-          expansion: null,
-          reason: 'systems-without-ir-support',
-          warnings: result.warnings,
-        }; // Fall back to legacy for complete expansion
-      }
-
-      if (supplementRefs.length > 0) {
-        const unresolved = supplementRefs
-          .filter(ref => !matchedSupplementRefKeys.has(supplementRefKey(ref)))
-          .map(ref => ref.canonical);
-        if (unresolved.length > 0) {
-          throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING',
-            `Required supplement(s) not found: ${unresolved.join(', ')}`,
-            'not-found', 422);
-        }
-      }
-
-      const expansion = buildExpandedValueSet(vsJson, result.expansion, {
-        offset: params.offset,
-        count: params.count,
-        activeOnly: params.activeOnly,
-        filter: params.filter,
-        includeDefinition: params.includeDefinition,
-        includeDesignations: params.includeDesignations,
-        designations: params.designations || [],
-        displayLanguage: params.DisplayLanguages?.asString?.(true) || null,
-        properties: params.properties || [],
-        sourceVS: vsJson,
-      });
-
-      // Attach compact IR plan text for diagnostics/perf detail capture.
-      if (wantTrace && result?.debug?.planText && expansion?.expansion) {
-        expansion.expansion.extension = expansion.expansion.extension || [];
-        expansion.expansion.extension.push({
-          url: IR_PLAN_EXTENSION_URL,
-          valueString: String(result.debug.planText),
-        });
-      }
-
-      // Attach trace to the expansion sub-object (not the top-level ValueSet)
-      if (wantTrace && traceObj && expansion?.expansion) {
-        const traceJson = traceObj.toJSON();
-        expansion.expansion.extension = expansion.expansion.extension || [];
-        expansion.expansion.extension.push({
-          url: TRACE_EXTENSION_URL,
-          valueString: JSON.stringify(traceJson),
-        });
-        const summary = formatTraceSummary(traceJson);
-        this.opContext?.log?.(`[IR trace] ${summary}`);
-      }
-
-      return { expansion };
-    };
-
-    // Run inside traceStore if tracing is active
-    if (wantTrace && traceObj) {
-      return traceStore.run(traceObj, runExpansion);
-    }
-    return runExpansion();
   }
 
   /**
