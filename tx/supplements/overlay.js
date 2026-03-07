@@ -31,7 +31,7 @@ function buildSupplementOverlay(supplementSet) {
   const byCode = new Map();
   const propertyCodes = new Set();
   for (const item of supplementSet?.items || []) {
-    const supplement = item?.overlaySource?.codeSystem;
+    const supplement = item?.overlaySource;
     if (!(supplement instanceof CodeSystem)) continue;
     for (const def of supplement.property || supplement.jsonObj?.property || []) {
       if (def?.code) propertyCodes.add(String(def.code));

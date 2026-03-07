@@ -55,13 +55,13 @@ function makeResolvedSupplementItem(chosen, target) {
     _overlayResolved: false,
     _nativeResolved: false,
     async materializeOverlaySource() {
-      if (this.overlaySource?.codeSystem) return this.overlaySource;
+      if (this.overlaySource) return this.overlaySource;
       if (this._overlayResolved) return this.overlaySource;
       this._overlayResolved = true;
       const codeSystem = typeof chosen.materializeCodeSystem === 'function'
         ? await chosen.materializeCodeSystem(target)
         : null;
-      this.overlaySource = codeSystem ? { kind: 'codesystem-resource', codeSystem } : null;
+      this.overlaySource = codeSystem || null;
       return this.overlaySource;
     },
     async materializeNativeBindingSource() {
@@ -77,7 +77,7 @@ function makeResolvedSupplementItem(chosen, target) {
 
 async function materializeSupplementItemOverlaySource(item) {
   if (!item || typeof item !== 'object') return null;
-  if (item.overlaySource?.codeSystem) return item.overlaySource;
+  if (item.overlaySource) return item.overlaySource;
   if (typeof item.materializeOverlaySource === 'function') {
     return await item.materializeOverlaySource();
   }

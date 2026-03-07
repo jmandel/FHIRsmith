@@ -56,9 +56,8 @@ describe('sqlite supplement source registry', () => {
         dbPath,
       }));
       await materializeSupplementSetOverlaySources(result);
-      expect(result.items[0].overlaySource).toEqual(expect.objectContaining({
-        kind: 'codesystem-resource',
-      }));
+      expect(result.items[0].overlaySource).toEqual(expect.any(Object));
+      expect(result.items[0].overlaySource.url).toBe(resource.url);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -103,7 +102,7 @@ describe('sqlite supplement source registry', () => {
 
       await materializeSupplementItemOverlaySource(result.items[0]);
       expect(materializeCodeSystem).toHaveBeenCalledTimes(1);
-      expect(result.items[0].overlaySource?.codeSystem?.url).toBe(resource.url);
+      expect(result.items[0].overlaySource?.url).toBe(resource.url);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

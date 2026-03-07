@@ -14,6 +14,7 @@ const {
   selectSupplementEntriesForBaseScope,
 } = require('../supplements/resolver');
 const { dedupeSupplementRefs, makeSupplementRef } = require('../supplements/types');
+const { bindIRScope } = require('../engine/ir-bound-scope');
 
 function parseISODatePrefix(value) {
   const raw = String(value || '').trim();
@@ -313,6 +314,10 @@ class TerminologyWorker {
     return await materializeSupplementSetOverlaySources(supplementSet);
   }
 
+  async bindIRScopeForExpansion(provider, supplementSet) {
+    return await bindIRScope(provider, supplementSet);
+  }
+
   async resolveSupplementCodeSystemsForBaseScope(target, statedSupplements, registry = null) {
     const refs = dedupeSupplementRefs(
       Array.from(statedSupplements || []).map((canonical, index) =>
@@ -322,8 +327,17 @@ class TerminologyWorker {
     const supplementSet = await this.resolveSupplementsForIRBaseScope(target, refs, registry);
     await this.materializeSupplementSetOverlaySources(supplementSet);
     return (supplementSet?.items || [])
-      .map(item => item?.overlaySource?.codeSystem)
+      .map(item => item?.overlaySource)
       .filter(codeSystem => codeSystem instanceof CodeSystem);
+  }
+
+  async createCodeSystemProviderWithSupplementRuntime(codeSystem, statedSupplements) {
+    const codeSystemObj = codeSystem instanceof CodeSystem ? codeSystem : new CodeSystem(codeSystem);
+    const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
+      { system: codeSystemObj.system(), version: codeSystemObj.version() || null },
+      statedSupplements
+    );
+    return await this.provider.createCodeSystemProvider(this.opContext, codeSystemObj, supplements);
   }
 
   async assertLegacyExpansionSupplementsSupported(url, version = '', statedSupplements, registry = null) {
@@ -410,7 +424,7 @@ class TerminologyWorker {
 
     await this.materializeSupplementSetOverlaySources(supplementSet);
     const supplements = (supplementSet?.items || [])
-      .map(item => item?.overlaySource?.codeSystem)
+      .map(item => item?.overlaySource)
       .filter(codeSystem => codeSystem instanceof CodeSystem);
     return await this._findCodeSystemWithResolvedSupplements(
       url, targetVersion, params, kinds, op, nullOk, checkVer, supplements

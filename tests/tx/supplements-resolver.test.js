@@ -47,7 +47,7 @@ describe('SupplementRegistry and SupplementResolver', () => {
     expect(result.unresolvedRefs).toEqual([]);
     expect(result.items).toHaveLength(1);
     expect(result.items[0].descriptor.sourceKind).toBe('inline');
-    expect(result.items[0].overlaySource.codeSystem).toBe(supplement);
+    expect(result.items[0].overlaySource).toBe(supplement);
   });
 
   test('normalizes raw inline CodeSystem JSON resources before supplement resolution', async () => {
@@ -67,8 +67,8 @@ describe('SupplementRegistry and SupplementResolver', () => {
     expect(result.unresolvedRefs).toEqual([]);
     expect(result.items).toHaveLength(1);
     expect(result.items[0].descriptor.sourceKind).toBe('inline');
-    expect(result.items[0].overlaySource.codeSystem).toBeInstanceOf(CodeSystem);
-    expect(result.items[0].overlaySource.codeSystem.url).toBe(supplement.url);
+    expect(result.items[0].overlaySource).toBeInstanceOf(CodeSystem);
+    expect(result.items[0].overlaySource.url).toBe(supplement.url);
   });
 
   test('prefers inline supplement over registered supplement for the same canonical', async () => {
@@ -95,7 +95,7 @@ describe('SupplementRegistry and SupplementResolver', () => {
     });
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].overlaySource.codeSystem).toBe(inline);
+    expect(result.items[0].overlaySource).toBe(inline);
   });
 
   test('resolves registered supplement without inline tx-resource', async () => {
@@ -206,6 +206,6 @@ describe('SupplementRegistry and SupplementResolver', () => {
     expect(factory.registerSupplements).toHaveBeenCalledTimes(1);
     expect(factory.fillOutSupplement).toHaveBeenCalledTimes(1);
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].overlaySource.codeSystem.getConceptByCode('A')).toBeDefined();
+    expect(result.items[0].overlaySource.getConceptByCode('A')).toBeDefined();
   });
 });

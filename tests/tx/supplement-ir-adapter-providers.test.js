@@ -49,7 +49,7 @@ describe('supplement-aware IR adapter-backed providers', () => {
     });
 
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const subtree = IR.selector({
@@ -88,7 +88,7 @@ describe('supplement-aware IR adapter-backed providers', () => {
     });
 
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const subtree = IR.selector({

@@ -203,7 +203,7 @@ base scope:
       "requestRef": {
         "canonical": "http://example.org/fhir/CodeSystem/microscope-dice/example-org-base/d20"
       },
-      "overlaySourceKind": "codesystem-resource",
+      "overlaySourceUrl": "http://example.org/fhir/CodeSystem/microscope-dice/example-org-base/d20",
       "nativeBindingSource": {
         "kind": "sqlite-sidecar",
         "dbPath": "/tmp/sqlite-v0-supp-config-o2a71h/d20.supp.db"

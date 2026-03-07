@@ -10,6 +10,16 @@ again in each patch.
 For a worked request-level walkthrough, see
 [supplement-microscope.md](supplement-microscope.md).
 
+Current implementation note:
+- IR expand now runs through explicit phase modules
+  (`ir-expansion-plan.js`, `ir-expansion-execution.js`,
+  `ir-expansion-response.js`) with supplement ownership hanging off a
+  request-scoped bound scope rather than provider side-channel state.
+- lookup/validate now partially reuse the same seam via a shared worker
+  helper for supplement-aware `CodeSystemProvider` construction on
+  resource-backed code systems, though they do not yet consume the full
+  bound-scope object used by IR expand.
+
 ## Scope
 
 This design is for the new supplement runtime used by the IR engine and later
@@ -394,7 +404,7 @@ type ResolvedSupplement = {
   descriptor: SupplementDescriptor,
   target: BaseScope,
   requestRef: SupplementRef,
-  overlaySource: SupplementOverlaySource,
+  overlaySource: CodeSystem | null,
   nativeBindingSource?: NativeSupplementBindingSource | null,
 };
 ```
@@ -946,7 +956,7 @@ an optional hook:
 ```js
 class CodeSystemProvider {
   async bindSupplementSet(supplementSet) {
-    return null; // generic path by default
+    return null; // use the generic supplement-aware IR path by default
   }
 }
 ```
@@ -954,7 +964,9 @@ class CodeSystemProvider {
 If implemented, the provider returns a provider-specific optimized view or
 binding handle.
 
-If not implemented, the generic supplement-aware wrapper remains correct.
+If not implemented, the generic supplement-aware IR wrapper remains correct.
+This is not a fallback to the legacy expander; it is the non-native supplement
+path inside the IR runtime.
 
 ## Old expander relationship
 
@@ -1013,7 +1025,7 @@ type ResolvedSupplement = {
   descriptor: SupplementDescriptor,
   target: BaseScope,
   requestRef: SupplementRef,
-  overlaySource: object,
+  overlaySource: CodeSystem | null,
   nativeBindingSource?: object | null,
 };
 
@@ -1254,9 +1266,8 @@ Status: effectively complete for IR expand
 Implemented notes:
 
 - `tx/supplements/overlay.js`
-- orchestrator decoration now merges supplement designations, properties, and
-  extensions from resolved supplement sets instead of relying on ad hoc
-  provider-specific supplement decoration
+- request-scoped supplement decoration is now owned by the bound IR scope, not
+  by late orchestrator/provider side-channel inspection
 - deterministic `used-supplement` reporting on the IR path
 
 Implementation note:
@@ -1284,7 +1295,8 @@ Implementation rule:
 
 Exit:
 
-- IR path no longer relies on ad hoc provider supplement merging for decoration
+- IR path no longer relies on ad hoc provider supplement merging for
+  decoration; decoration is delegated through the bound scope
 
 ### Phase 3: generic supplement-aware IR execution
 
@@ -1302,14 +1314,19 @@ Implemented notes:
 - the current path is correctness-first and generic: it runs the base scoped IR
   normally, then evaluates supplement-touched semantics against merged
   base+supplement values by code
-- when a provider reports `_irAllSupplementsNativeBound === true`, the
-  orchestrator skips generic overlay decoration so native-bound supplement
-  properties/designations are not applied twice
+- the bound IR scope now owns supplement decoration coverage:
+  `native-complete` or `overlay-complete`
+- native-bound supplement properties/designations are no longer applied twice,
+  because late overlay decoration no longer keys off orchestrator/provider
+  side-channel inspection
 - the supplement wrapper no longer carries its own duplicate union/intersect/
   diff/paging/hierarchy executor; it now reuses the shared generic IR executor
   core from `tx/engine/generic-ir-executor.js`, with supplement-specific hooks
   for clause partitioning, merged property lookup, and supplement-aware text
   matching
+- wrapper option forwarding is now pinned by contract tests:
+  `allowIncompleteExpansion` forwards, while top-level text/paging stays
+  top-level
 - adapter-backed providers are covered through the same path via the IR
   supplement wrapper over legacy/provider filter protocols; current targeted
   coverage includes US states numeric property filtering and UCUM designation

@@ -103,7 +103,7 @@ describe('supplement-aware IR provider', () => {
       { code: 'A', property: [{ code: 'rank', valueInteger: 1 }] },
     ]);
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const subtree = IR.selector({
@@ -128,7 +128,7 @@ describe('supplement-aware IR provider', () => {
       { code: 'C', property: [{ code: 'rank', valueInteger: 1 }] },
     ]);
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const subtree = IR.selector({
@@ -154,7 +154,7 @@ describe('supplement-aware IR provider', () => {
       { code: 'A', designation: [{ language: 'fr', value: 'Pomme' }] },
     ]);
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const subtree = IR.selector({
@@ -205,8 +205,8 @@ describe('supplement-aware IR provider', () => {
 
     const wrapped = wrapIRProviderWithSupplements(provider, {
       items: [
-        { overlaySource: { codeSystem: d20 } },
-        { overlaySource: { codeSystem: d8 } },
+        { overlaySource: d20 },
+        { overlaySource: d8 },
       ],
     });
 
@@ -237,7 +237,7 @@ describe('supplement-aware IR provider', () => {
       { code: 'D', property: [{ code: 'rank', valueInteger: 2 }] },
     ]);
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const ranked = IR.selector({
@@ -316,7 +316,7 @@ describe('supplement-aware IR provider', () => {
       { code: 'C', property: [{ code: 'rank', valueInteger: 1 }] },
     ]);
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const subtree = IR.selector({
@@ -339,7 +339,7 @@ describe('supplement-aware IR provider', () => {
       { code: 'A', property: [{ code: 'parent', valueCode: 'root' }] },
     ]);
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     const subtree = IR.selector({
@@ -379,7 +379,7 @@ describe('supplement-aware IR provider', () => {
       { code: 'A', property: [{ code: 'rank', valueInteger: 1 }] },
     ]);
     const wrapped = wrapIRProviderWithSupplements(provider, {
-      items: [{ overlaySource: { codeSystem: supplement } }],
+      items: [{ overlaySource: supplement }],
     });
 
     await wrapped.executeIR(IR.selector({
@@ -407,5 +407,67 @@ describe('supplement-aware IR provider', () => {
 
     expect(calls).toHaveLength(3);
     expect(calls.every(call => call.opts.allowIncompleteExpansion === true)).toBe(true);
+  });
+
+  test('keeps text and paging top-level instead of forwarding them to leaf provider execution', async () => {
+    const calls = [];
+    const provider = {
+      system() { return 'http://example.org/base'; },
+      version() { return '1'; },
+      async properties() { return []; },
+      async executeIR(node, opts = {}) {
+        calls.push({ node, opts });
+        return {
+          candidates: [
+            { code: 'A', display: 'Alpha', active: true },
+            { code: 'B', display: 'Bravo', active: true },
+          ],
+        };
+      },
+      async membershipForIR() {
+        return { has: () => true };
+      },
+      async countForIR() { return 2; },
+    };
+    const supplement = makeSupplement([
+      { code: 'A', property: [{ code: 'rank', valueInteger: 1 }] },
+    ]);
+    const wrapped = wrapIRProviderWithSupplements(provider, {
+      items: [{ overlaySource: supplement }],
+    });
+
+    await wrapped.executeIR(IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'whole',
+    }), {
+      text: 'alp',
+      offset: 1,
+      count: 1,
+      activeOnly: true,
+      allowIncompleteExpansion: true,
+    });
+
+    await wrapped.executeIR(IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'filter',
+      filterClauses: [{ property: 'rank', op: '=', value: '1' }],
+    }), {
+      text: 'alp',
+      offset: 1,
+      count: 1,
+      activeOnly: true,
+      allowIncompleteExpansion: true,
+    });
+
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call.opts.activeOnly).toBe(true);
+      expect(call.opts.allowIncompleteExpansion).toBe(true);
+      expect(call.opts.text).toBeUndefined();
+      expect(call.opts.offset).toBeUndefined();
+      expect(call.opts.count).toBeUndefined();
+    }
   });
 });

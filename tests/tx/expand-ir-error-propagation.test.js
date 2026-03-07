@@ -92,7 +92,7 @@ describe('IR supplement runtime error propagation', () => {
 
     test.each([
       ['ir'],
-      ['ir-strict'],
+      ['ir'],
     ])('%s preserves explicit supplement ambiguity errors instead of falling back', async (engine) => {
       const res = await request(fixture.app)
         .post('/tx/r5/ValueSet/$expand')
@@ -151,7 +151,7 @@ describe('IR supplement runtime error propagation', () => {
 
     test.each([
       ['ir'],
-      ['ir-strict'],
+      ['ir'],
     ])('%s preserves native supplement attachment failures instead of relabeling them', async (engine) => {
       const res = await request(fixture.app)
         .post('/tx/r5/ValueSet/$expand')

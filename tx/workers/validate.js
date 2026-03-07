@@ -21,7 +21,6 @@ const {Parameters} = require("../library/parameters");
 const {Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText} = require("../library/designations");
 const ValueSet = require("../library/valueset");
 const {ValueSetExpander} = require("./expand");
-const {FhirCodeSystemProvider} = require("../cs/cs-cs");
 const {CodeSystem} = require("../library/codesystem");
 
 const DEV_IGNORE_VALUESET = false; // todo: what's going on with this (ported from pascal)
@@ -1970,12 +1969,10 @@ class ValidateWorker extends TerminologyWorker {
         return res.status(422).json(this.operationOutcome('error', 'not-found',
           `CodeSystem/${id} not found`));
       }
-      const codeSystemObj = new CodeSystem(codeSystem);
-      const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
-        { system: codeSystemObj.system(), version: codeSystemObj.version() || null },
+      const csp = await this.createCodeSystemProviderWithSupplementRuntime(
+        codeSystem,
         this.requiredSupplements
       );
-      const csp = new FhirCodeSystemProvider(this.opContext, codeSystemObj, supplements);
 
       // Extract coded value
       let mode = { mode : null }
@@ -2111,12 +2108,10 @@ class ValidateWorker extends TerminologyWorker {
     // Check for codeSystem resource parameter
     const csResource = this.getResourceParam(params, 'codeSystem');
     if (csResource) {
-      const codeSystem = new CodeSystem(csResource);
-      const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
-        { system: codeSystem.system(), version: codeSystem.version() || null },
+      return await this.createCodeSystemProviderWithSupplementRuntime(
+        csResource,
         this.requiredSupplements
       );
-      return new FhirCodeSystemProvider(this.opContext, codeSystem, supplements);
     }
     let path = coded == null ? null : mode.issuePath+".system";
     let fromCoded = false;
@@ -2145,11 +2140,10 @@ class ValidateWorker extends TerminologyWorker {
     // First check additional resources
     const fromAdditional = this.findInAdditionalResources(url, version, 'CodeSystem', false);
     if (fromAdditional) {
-      const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
-        { system: url, version: version || null },
+      return await this.createCodeSystemProviderWithSupplementRuntime(
+        fromAdditional,
         this.requiredSupplements
       );
-      return this.provider.createCodeSystemProvider(this.opContext, fromAdditional, supplements);
     } else {
       let csp = await this.findCodeSystem(
         url, version, txParams, ['complete', 'fragment'], null, true, false, true, this.requiredSupplements

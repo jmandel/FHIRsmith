@@ -2160,27 +2160,34 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(irPaged.totals).toEqual([expected.length]);
     });
 
-    test('should include explicit fallback details in trace when IR cannot handle shape', async () => {
-      const res = await request(app)
-        .post('/tx/r5/ValueSet/$expand')
-        .set('Accept', 'application/json')
-        .set('Content-Type', 'application/json')
-        .send({
-          resourceType: 'Parameters',
-          parameter: [
-            { name: '_engine', valueCode: 'ir' },
-            { name: '_trace', valueBoolean: true },
-            {
-              name: 'valueSet',
-              resource: {
-                resourceType: 'ValueSet',
-                expansion: {
-                  contains: [{ system: 'http://example.org/cs', code: 'x', display: 'X' }]
+    test('should include explicit fallback details in trace when opportunistic IR cannot handle shape', async () => {
+      const priorExpandIREngine = process.env.EXPAND_IR_ENGINE;
+      process.env.EXPAND_IR_ENGINE = '1';
+      let res;
+      try {
+        res = await request(app)
+          .post('/tx/r5/ValueSet/$expand')
+          .set('Accept', 'application/json')
+          .set('Content-Type', 'application/json')
+          .send({
+            resourceType: 'Parameters',
+            parameter: [
+              { name: '_trace', valueBoolean: true },
+              {
+                name: 'valueSet',
+                resource: {
+                  resourceType: 'ValueSet',
+                  expansion: {
+                    contains: [{ system: 'http://example.org/cs', code: 'x', display: 'X' }]
+                  }
                 }
               }
-            }
-          ]
-        });
+            ]
+          });
+      } finally {
+        if (priorExpandIREngine == null) delete process.env.EXPAND_IR_ENGINE;
+        else process.env.EXPAND_IR_ENGINE = priorExpandIREngine;
+      }
 
       expect(res.status).toBe(200);
       const expansion = res.body.expansion;
@@ -2212,7 +2219,7 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(selection.data.irAttempt.reason).toBe('canHandleValueSet=false');
     });
 
-    test('should error instead of falling back when ir-strict cannot handle shape', async () => {
+    test('should error instead of falling back when ir cannot handle shape', async () => {
       const res = await request(app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
@@ -2220,7 +2227,7 @@ describe('ValueSet $expand - Real-World Patterns', () => {
         .send({
           resourceType: 'Parameters',
           parameter: [
-            { name: '_engine', valueCode: 'ir-strict' },
+            { name: '_engine', valueCode: 'ir' },
             {
               name: 'valueSet',
               resource: {
@@ -2240,7 +2247,7 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(res.body.issue[0].details.text).toContain('canHandleValueSet=false');
     });
 
-    test('should return not-supported when ir-strict hits an unsupported filter property', async () => {
+    test('should return not-supported when ir hits an unsupported filter property', async () => {
       const res = await request(app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
@@ -2248,7 +2255,7 @@ describe('ValueSet $expand - Real-World Patterns', () => {
         .send({
           resourceType: 'Parameters',
           parameter: [
-            { name: '_engine', valueCode: 'ir-strict' },
+            { name: '_engine', valueCode: 'ir' },
             {
               name: 'valueSet',
               resource: {

@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { buildSupplementOverlay, mergeSupplementOverlayIntoCandidates } = require('../supplements/overlay');
+const { decorateCandidatesByBoundScope } = require('./ir-bound-scope');
 const { getValueName } = require('../../library/utilities');
 
 const KNOWN_EXPANSION_PROPERTY_URIS = new Map([
@@ -49,24 +49,6 @@ function mergeExpansionPropertyDefinition(defs, prop) {
   defs.set(code, next);
 }
 
-function attachPropertyDefinition(prop, propertyDefsByCode) {
-  if (!prop || typeof prop !== 'object') return prop;
-  if (!propertyDefsByCode || propertyDefsByCode.size === 0) return prop;
-  const def = propertyDefsByCode.get(String(prop.code || ''));
-  if (!def) return prop;
-  if (prop.definition?.type && prop.definition?.description && prop.definition?.uri) return prop;
-  return {
-    ...prop,
-    definition: {
-      ...(def.uri ? { uri: def.uri } : {}),
-      ...(def.description ? { description: def.description } : {}),
-      ...(def.display ? { display: def.display } : {}),
-      ...(def.type ? { type: def.type } : {}),
-      ...(prop.definition || {}),
-    },
-  };
-}
-
 function enrichCandidate(c, resolved) {
   const emitVersion = !!resolved.version;
   const containsVersion = emitVersion ? (resolved.provVersion || resolved.version) : null;
@@ -78,7 +60,7 @@ function enrichCandidate(c, resolved) {
     definition: c.definition,
     active: c.active,
     conceptId: c.conceptId,
-    _provider: resolved.provider,
+    _boundScope: resolved.boundScope,
     _composeOverrideVersion: resolved.provVersion || resolved.version || null,
   };
   if (c._parentCode) entry._parentCode = c._parentCode;
@@ -129,119 +111,113 @@ function nestContains(contains, candidates) {
 }
 
 async function decorateCandidates(candidates, opts = {}) {
-  const { includeDesignations = false, properties = [] } = opts;
-  if (!includeDesignations && properties.length === 0) return;
+  await decorateCandidatesByBoundScope(candidates, opts);
+}
 
-  const byProvider = new Map();
-  for (const c of candidates) {
-    if (!c._provider) continue;
-    if (!byProvider.has(c._provider)) byProvider.set(c._provider, []);
-    byProvider.get(c._provider).push(c);
-  }
+async function renderIRExpansionResult(execution, resolved, opts = {}) {
+  const {
+    offset = 0,
+    count = 1000,
+    includeDesignations = false,
+    properties = [],
+    designations = [],
+    excludeNested = false,
+    warnings = [],
+    usedSystems = new Set(),
+    usedValueSets = new Set(),
+    providerMeta = [],
+    planText = null,
+  } = opts;
 
-  for (const [provider, provCandidates] of byProvider) {
-    const propertyDefsByCode = typeof provider.propertyDefinitions === 'function'
-      ? new Map((provider.propertyDefinitions() || []).map(def => [String(def.code || ''), def]))
-      : new Map();
+  const {
+    candidates: paged,
+    total,
+    deferredTotal,
+  } = execution;
 
-    if (typeof provider.bulkDesignations === 'function' && includeDesignations) {
-      const conceptIds = provCandidates.filter(c => c.conceptId).map(c => c.conceptId);
-      const designMap = provider.bulkDesignations(conceptIds);
+  const composeOverrides = collectComposeOverrides(resolved);
 
-      for (const c of provCandidates) {
-        const desigs = designMap.get(c.conceptId) || [];
-        c._designations = desigs
-          .filter(d => d.active && d.value)
-          .map(d => {
-            const obj = {};
-            if (d.language) obj.language = d.language;
-            if (d.use) obj.use = d.use;
-            if (d.value) obj.value = d.value;
-            return obj;
-          });
-      }
-    }
+  await decorateCandidates(paged, { includeDesignations, properties });
+  applyComposeOverrides(paged, composeOverrides, includeDesignations);
 
-    if (!provider.bulkDesignations && typeof provider.designations === 'function' && includeDesignations) {
-      for (const c of provCandidates) {
-        const ctx = c._context || c.code;
-        if (!ctx) continue;
-        const collector = makeDesignationCollector();
-        try {
-          await provider.designations(ctx, collector);
-        } catch {
-          continue;
-        }
-        c._designations = collector.result();
-      }
-    }
+  const expansionPropertyDefs = new Map();
+  const contains = paged.map(c => {
+    const entry = {
+      system: c.system,
+      code: c.code,
+    };
+    if (c.version) entry.version = c.version;
+    if (c.display) entry.display = c.display;
+    if (c.active === false) entry.inactive = true;
 
-    if (typeof provider.bulkProperties === 'function' && properties.length > 0) {
-      const conceptIds = provCandidates.filter(c => c.conceptId).map(c => c.conceptId);
-      const propMap = provider.bulkProperties(conceptIds);
-      const extMap = typeof provider.bulkExtensions === 'function'
-        ? provider.bulkExtensions(conceptIds)
-        : new Map();
-
-      for (const c of provCandidates) {
-        const allProps = propMap.get(c.conceptId) || [];
-        c._properties = allProps
-          .filter(p => properties.includes(p.code) || properties.includes('*'))
-          .map(p => attachPropertyDefinition(p, propertyDefsByCode));
-
-        if (properties.includes('definition') && c.definition) {
-          c._properties.push({ code: 'definition', value: c.definition });
-        }
-        const exts = extMap.get(c.conceptId) || [];
-        if (exts.length > 0) {
-          if (!c._extensions) c._extensions = [];
-          c._extensions.push(...exts);
-        }
-      }
-    } else if (properties.length > 0) {
-      for (const c of provCandidates) {
-        if (!c._properties) c._properties = [];
-        if (properties.includes('definition') && c.definition) {
-          c._properties.push({ code: 'definition', value: c.definition });
-        }
-        const ctx = c._context || c.code;
-        if (typeof provider.properties === 'function' && ctx) {
-          try {
-            const props = await provider.properties(ctx);
-            if (props?.length > 0) {
-              for (const p of props) {
-                if (properties.includes(p.code) || properties.includes('*')) {
-                  c._properties.push(attachPropertyDefinition(p, propertyDefsByCode));
-                }
-              }
-            }
-          } catch {
-            // skip
-          }
-        }
-        if (typeof provider.extensions === 'function' && ctx) {
-          try {
-            const exts = await provider.extensions(ctx);
-            if (exts?.length > 0) {
-              if (!c._extensions) c._extensions = [];
-              c._extensions.push(...exts);
-            }
-          } catch {
-            // skip
-          }
-        }
-      }
-    }
-
-    const supplementSet = provider?._irSupplementSet || null;
-    if (supplementSet?.items?.length > 0 && provider?._irAllSupplementsNativeBound !== true) {
-      const overlay = buildSupplementOverlay(supplementSet);
-      mergeSupplementOverlayIntoCandidates(provCandidates, overlay, {
-        includeDesignations,
-        properties,
+    if (includeDesignations) {
+      let allDesigs = [];
+      if (c._designations?.length > 0) allDesigs.push(...c._designations);
+      if (c._composeDesignations?.length > 0) allDesigs.push(...c._composeDesignations);
+      const primaryDisplay = entry.display;
+      allDesigs = allDesigs.filter(d => {
+        if (!d.value || d.value !== primaryDisplay) return true;
+        const isDisplayUse = !d.use
+          || (d.use.system === 'http://terminology.hl7.org/CodeSystem/designation-usage'
+              && d.use.code === 'display');
+        const isEnOrEmpty = !d.language || d.language.startsWith('en');
+        return !(isDisplayUse && isEnOrEmpty);
       });
+      if (designations.length > 0) {
+        allDesigs = filterDesignations(allDesigs, designations);
+      }
+      if (allDesigs.length > 0) entry.designation = allDesigs;
     }
+
+    if (c._extensions?.length > 0) {
+      if (!entry.extension) entry.extension = [];
+      entry.extension.push(...c._extensions);
+    }
+
+    if (c._properties?.length > 0) {
+      for (const prop of c._properties) {
+        mergeExpansionPropertyDefinition(expansionPropertyDefs, prop);
+        const serialized = serializeExpansionProperty(prop);
+        if (!serialized) continue;
+        if (!entry.property) entry.property = [];
+        entry.property.push(serialized);
+      }
+    }
+
+    return entry;
+  });
+
+  const canNest = !excludeNested && offset === 0
+    && (count < 0 || count >= (total ?? deferredTotal ?? contains.length));
+  if (canNest && paged.some(c => c._parentCode)) {
+    nestContains(contains, paged);
   }
+
+  const usedSupplements = new Set();
+  for (const r of resolved) {
+    const supps = typeof r.boundScope?.usedSupplements === 'function'
+      ? r.boundScope.usedSupplements()
+      : [];
+    for (const s of supps) usedSupplements.add(s);
+  }
+
+  return {
+    expansion: {
+      total,
+      offset: offset > 0 ? offset : undefined,
+      contains,
+      property: expansionPropertyDefs.size > 0 ? [...expansionPropertyDefs.values()] : undefined,
+      usedSystems: [...usedSystems],
+      usedValueSets: [...usedValueSets],
+      usedSupplements: [...usedSupplements],
+      providerMeta,
+      unclosedMessages: execution.unclosedMessages,
+      limitedExpansion: execution.limitedExpansion,
+      tooCostly: execution.tooCostly,
+    },
+    warnings,
+    debug: planText ? { planText } : undefined,
+  };
 }
 
 function collectComposeOverrides(resolvedList) {
@@ -314,22 +290,6 @@ function filterDesignations(desigs, designationSpecs) {
     }
     return false;
   });
-}
-
-function makeDesignationCollector() {
-  const list = [];
-  return {
-    addDesignation(isDisplay, status, lang, use, value, extensions) {
-      if (!value) return;
-      const obj = {};
-      if (lang) obj.language = typeof lang === 'string' ? lang : lang.code || String(lang);
-      if (use) obj.use = use;
-      obj.value = value;
-      if (extensions?.length > 0) obj.extension = extensions;
-      list.push(obj);
-    },
-    result() { return list; },
-  };
 }
 
 function buildExpandedValueSet(vsJson, expansion, params = {}) {
@@ -449,7 +409,6 @@ module.exports = {
   addParamIfAbsent,
   appendAll,
   applyComposeOverrides,
-  attachPropertyDefinition,
   buildExpandedValueSet,
   collectComposeOverrides,
   decorateCandidates,
@@ -457,5 +416,6 @@ module.exports = {
   flattenCandidates,
   mergeExpansionPropertyDefinition,
   nestContains,
+  renderIRExpansionResult,
   serializeExpansionProperty,
 };

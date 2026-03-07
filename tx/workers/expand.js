@@ -23,7 +23,6 @@ const {
   makeSupplementRef,
   supplementRefKey,
 } = require('../supplements/types');
-const { wrapIRProviderWithSupplements } = require('../supplements/ir-provider');
 
 // IR engine (opt-in via EXPAND_IR_ENGINE=1)
 let _irEngine;
@@ -2097,11 +2096,12 @@ class ExpandWorker extends TerminologyWorker {
       params.limit = EXTERNAL_DEFAULT_LIMIT; // can't ask for more than this externally, though you can internally
     }
 
-    // Try IR engine first (opt-in via EXPAND_IR_ENGINE=1)
-    // Per-request override: _engine=ir / _engine=ir-strict are strict IR-only,
+    // Try IR engine first (opt-in via EXPAND_IR_ENGINE=1).
+    // Per-request override: _engine=ir is strict IR-only.
+    // _engine=ir-strict is accepted as a deprecated alias for compatibility.
     // _engine=legacy forces legacy.
-    const engineOverride = params._engine;
-    const strictIR = engineOverride === 'ir' || engineOverride === 'ir-strict';
+    const engineOverride = params._engine === 'ir-strict' ? 'ir' : params._engine;
+    const strictIR = engineOverride === 'ir';
     const useIR = strictIR || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
     const wantTrace = !!params._trace;
     let irAttempt = null;
@@ -2258,20 +2258,7 @@ class ExpandWorker extends TerminologyWorker {
             const resolvedSystem = system || (typeof provider.system === 'function' ? provider.system() : null);
             const resolvedVersion = version || (typeof provider.version === 'function' ? provider.version() : null) || null;
             const supplementSet = await getSupplementSet(resolvedSystem, resolvedVersion);
-            if (typeof provider.attachIRSupplements === 'function') {
-              await provider.attachIRSupplements(supplementSet);
-            } else {
-              provider._irSupplementSet = supplementSet;
-            }
-            const hasOverlaySupplements = (supplementSet?.items || []).some(item => item?.overlaySource?.codeSystem);
-            const fullyNativeSupplements = provider._irAllSupplementsNativeBound === true;
-            if (hasOverlaySupplements && !fullyNativeSupplements) {
-              const wrapped = wrapIRProviderWithSupplements(provider, supplementSet);
-              wrapped._irSupplementSet = supplementSet;
-              return wrapped;
-            }
-            provider._irSupplementSet = supplementSet;
-            return provider;
+            return await worker.bindIRScopeForExpansion(provider, supplementSet);
           } catch (e) {
             throw issueFromIRProviderRuntimeError(e, system, version);
           }

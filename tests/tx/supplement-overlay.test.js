@@ -33,8 +33,8 @@ describe('supplement overlay', () => {
 
     const overlay = buildSupplementOverlay({
       items: [
-        { overlaySource: { codeSystem: supp1 } },
-        { overlaySource: { codeSystem: supp2 } },
+        { overlaySource: supp1 },
+        { overlaySource: supp2 },
       ],
     });
 
@@ -72,7 +72,7 @@ describe('supplement overlay', () => {
     });
 
     const overlay = buildSupplementOverlay({
-      items: [{ overlaySource: { codeSystem: supp } }],
+      items: [{ overlaySource: supp }],
     });
 
     expect(overlayTouchesProperty(overlay, 'rank')).toBe(true);

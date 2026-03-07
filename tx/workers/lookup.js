@@ -8,7 +8,6 @@
 //
 
 const { TerminologyWorker } = require('./worker');
-const { FhirCodeSystemProvider } = require('../cs/cs-cs');
 const { Designations} = require("../library/designations");
 const {TxParameters} = require("../params");
 const {Parameters} = require("../library/parameters");
@@ -216,14 +215,10 @@ class LookupWorker extends TerminologyWorker {
           'Must provide code parameter or coding parameter with code'));
       }
 
-      // Load any supplements
-      const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
-        { system: codeSystem.url, version: codeSystem.version || null },
+      const csProvider = await this.createCodeSystemProviderWithSupplementRuntime(
+        codeSystem,
         txp.supplements
       );
-
-      // Create a FhirCodeSystemProvider for this CodeSystem
-      const csProvider = new FhirCodeSystemProvider(this.opContext, codeSystem, supplements);
 
       // Perform the lookup
       const result = await this.doLookup(csProvider, code, txp);

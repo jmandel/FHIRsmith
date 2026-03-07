@@ -208,29 +208,37 @@ All the new pipeline logic lives in `tx/engine/`. Existing providers
 | `EXPAND_IR_ENGINE` env | `_engine` param | What happens |
 |------------------------|-----------------|--------------|
 | not set | _(none)_ | Original expander only (status quo) |
-| not set | `ir` | Try IR first, then fall back to original |
-| not set | `ir-strict` | IR engine only; `422` if it can't handle the VS |
-| `1` | _(none)_ | Try IR first, fall back to original |
-| `1` | `ir` | Try IR first, then fall back to original |
-| `1` | `ir-strict` | IR engine only; `422` if it can't handle the VS |
+| not set | `ir` | IR engine only; `422` if it can't handle the VS |
+| `1` | _(none)_ | Opportunistic IR: try IR first, fall back to original |
+| `1` | `ir` | IR engine only; `422` if it can't handle the VS |
 | `1` | `legacy` | Original expander only |
 
 The systemd service on tx-dev.fhir.org sets `EXPAND_IR_ENGINE=1`.
-Per-request `_engine=ir`, `_engine=ir-strict`, or `_engine=legacy`
-overrides. (`legacy` refers to the original expander.)
+Per-request `_engine=ir` or `_engine=legacy` overrides. (`legacy` refers to
+the original expander.)
+
+`_engine=ir-strict` is still accepted as a deprecated alias for compatibility,
+but it is not a distinct mode anymore.
+
+For cutover/readiness work, use `_engine=ir`. We do not want silent fallback
+when we are explicitly asking whether the IR path is ready.
 
 ### Fallback rules
+
+Fallback only applies in the opportunistic mode (`EXPAND_IR_ENGINE=1`
+with no explicit `_engine=ir` override):
 
 1. Does the ValueSet have a usable `compose`? If not → original
    expander.
 2. Can we find a provider for every code system in the compose? If not
    → original expander.
 3. If execution throws a `too-costly` error, that propagates to the
-   caller (same as the original expander). Any other error is logged,
-   and we fall back to the original expander.
+   caller (same as the original expander). Any other runtime failure is
+   treated as an error when IR was explicitly requested.
 
-So with `EXPAND_IR_ENGINE=1`, the IR engine handles what it can and the
-original expander handles the rest.
+So with `EXPAND_IR_ENGINE=1` and no explicit engine override, the IR
+engine handles what it can and the original expander handles the rest.
+With `_engine=ir`, no silent fallback is acceptable.
 
 ---
 
@@ -389,10 +397,19 @@ provider execution:
 
 1. resolve requested supplement canonicals against the base
    `(system, version)` scope
-2. if the resolved provider supports native attachment (currently
-   sqlite-v0), attach the resolved supplement set directly
-3. otherwise materialize supplement `CodeSystem` overlays and pass them
-   through the existing `CodeSystem[]` supplement machinery
+2. bind one request-scoped IR runtime scope for that base provider and
+   supplement set
+3. run the IR expand phases through dedicated modules:
+   - `ir-expansion-plan.js`
+   - `ir-expansion-execution.js`
+   - `ir-expansion-response.js`
+   so `expandViaIR()` remains orchestration rather than a monolithic
+   implementation
+4. if the bound provider supports native attachment (currently
+   sqlite-v0), the bound scope uses native execution and native-complete
+   decoration
+5. otherwise the bound scope uses supplement-aware execution plus
+   overlay-complete decoration
 
 This keeps supplement semantics consistent across:
 
@@ -406,13 +423,15 @@ configured sqlite sidecars it now fails closed instead of silently
 ignoring the request. Supplement/runtime/provider failures in the IR
 path now also fail closed instead of being downgraded into a generic
 \"IR cannot handle this ValueSet\" miss. `$lookup` and `$validate-code`
-also reuse this same supplement runtime seam. On the IR path, typed
+also reuse this supplement runtime seam; resource-backed code system
+operations now share one worker helper for supplement-aware provider
+construction instead of duplicating supplement materialization logic.
+On the IR path, typed
 property values from both base sqlite-v0 data and supplements now survive
 response shaping as proper FHIR `value[x]` fields. Current boundary: the
-generic supplement fallback supports
-for simple overlay-backed property operators (`=`, `in`, `regex`,
-`exists`), while richer overlay-backed hierarchical operators remain an
-explicit fail-closed TODO.
+generic supplement fallback supports simple overlay-backed property
+operators (`=`, `in`, `regex`, `exists`), while richer overlay-backed
+hierarchical operators remain an explicit fail-closed TODO.
 `ValueSet.expansion.property` is emitted when expansion properties are
 requested.
 
@@ -582,6 +601,7 @@ Use it for:
 | `resolve-imports.js` | Fetches imported ValueSets and inlines them into the tree |
 | `rewrite.js` | Simplifies the tree: merge, deduplicate, partition by system |
 | `orchestrator.js` | Runs the pipeline: count → paginate → execute → decorate → build response |
+| `ir-bound-scope.js` | Binds one request-scoped IR runtime scope: execution facet, decoration facet, supplement accounting |
 | `ir-expansion-response.js` | IR expansion response shaping: candidate decoration, compose overrides, FHIR expansion building |
 | `legacy-ir-adapter.js` | Wraps filter-protocol providers so they can execute expansion plan trees |
 | `ir.js` | Node constructors for the expansion plan tree |

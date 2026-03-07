@@ -9,7 +9,7 @@ const {
 function nativeSupplementItemsFromSet(supplementSet) {
   return (supplementSet?.items || []).filter(item =>
     item?.nativeBindingSource?.kind === 'sqlite-sidecar'
-      || !!item?.overlaySource?.codeSystem
+      || !!item?.overlaySource
   );
 }
 
@@ -108,7 +108,7 @@ function quoteIdent(value) {
 }
 
 function aliasForBinding(item, index) {
-  const seed = `${item?.descriptor?.canonical || item?.nativeBindingSource?.dbPath || item?.overlaySource?.codeSystem?.url || 'supp'}\x00${index}`;
+  const seed = `${item?.descriptor?.canonical || item?.nativeBindingSource?.dbPath || item?.overlaySource?.url || 'supp'}\x00${index}`;
   const hash = crypto.createHash('sha1').update(seed).digest('hex').slice(0, 12);
   return `supp_${hash}`;
 }
@@ -117,7 +117,7 @@ function attachmentCacheKey(item, index) {
   if (item?.nativeBindingSource?.kind === 'sqlite-sidecar') {
     return `file:${item.nativeBindingSource.dbPath}`;
   }
-  return `inline:${item?.descriptor?.canonical || item?.overlaySource?.codeSystem?.url || 'supp'}:${index}`;
+  return `inline:${item?.descriptor?.canonical || item?.overlaySource?.url || 'supp'}:${index}`;
 }
 
 function bindNativeSupplements(db, supplementSet, attachmentState = new Map()) {
@@ -140,8 +140,8 @@ function bindNativeSupplements(db, supplementSet, attachmentState = new Map()) {
           propertyDefs: readSupplementSidecarPropertyDefs(dbPath),
           sourceKind: 'sqlite-sidecar',
         };
-      } else if (item?.overlaySource?.codeSystem) {
-        const rows = materializeSupplementInAttachedMemory(db, alias, item.overlaySource.codeSystem);
+      } else if (item?.overlaySource) {
+        const rows = materializeSupplementInAttachedMemory(db, alias, item.overlaySource);
         attached = {
           alias,
           dbPath: null,
