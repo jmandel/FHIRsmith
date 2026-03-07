@@ -7,7 +7,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path';
  *                                   [--strict-ir-no-fallback|--strict-ir]
  *                                   [--semantic-parity] [--strict-total-consistency]
  *
- * --perf   Run each test with both engines (5 runs each), collect median
+ * --perf   Run each test with both engines (1 run by default), collect median
  *          timings, write tmp/perf-table.html at the end (or --perf-out path).
  */
 const BASE = process.env.BASE_URL || 'http://localhost:8000';
@@ -70,8 +70,8 @@ const STRICT_TOTAL_CONSISTENCY = argv.includes('--strict-total-consistency')
   || SEMANTIC_PARITY
   || process.env.STRICT_TOTAL_CONSISTENCY === '1';
 const CHECK_PARENT_PARITY = process.env.SEMANTIC_PARITY_CHECK_PARENT === '1';
-const RUNS = parseInt(process.env.PERF_RUNS || '3', 10);
-const PERF_RUNS = parseInt(process.env.PERF_RUNS || '5', 10);
+const RUNS = parseInt(process.env.PERF_RUNS || '1', 10);
+const PERF_RUNS = parseInt(process.env.PERF_RUNS || '1', 10);
 const PERF_PRIMARY_LABEL = process.env.PERF_PRIMARY_LABEL || 'IR Branch + New Expander';
 const PERF_SECONDARY_LABEL = process.env.PERF_SECONDARY_LABEL || 'IR Branch + Upstream Expander';
 const PERF_THIRD_BASE_URL = (process.env.PERF_THIRD_BASE_URL || '').trim();
@@ -79,6 +79,7 @@ const PERF_THIRD_ENGINE = process.env.PERF_THIRD_ENGINE || 'legacy';
 const PERF_THIRD_LABEL = process.env.PERF_THIRD_LABEL || 'Upstream Providers + Upstream Expander';
 const PERF_THIRD_ENABLED = PERF_MODE && PERF_THIRD_BASE_URL.length > 0;
 const PERF_HTTP_TIMEOUT_MS = parseInt(process.env.PERF_HTTP_TIMEOUT_MS || '30000', 10);
+const PERF_THIRD_HTTP_TIMEOUT_MS = parseInt(process.env.PERF_THIRD_HTTP_TIMEOUT_MS || '5000', 10);
 const PERF_OUT_PATH = resolve(PERF_OUT);
 const PERF_OUT_BASE = basename(PERF_OUT_PATH, extname(PERF_OUT_PATH));
 const PERF_DETAILS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.details`);
@@ -513,12 +514,18 @@ async function assertSemanticParity(vsJson, opts = {}, irResult) {
   throw new Error(`SEMANTIC_PARITY mismatch: ${formatSemanticParityMismatch(cmp)}`);
 }
 
-async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE, baseUrl = BASE) {
+async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = WANT_TRACE, baseUrl = BASE, timeoutMs = PERF_HTTP_TIMEOUT_MS) {
   const expandUrl = baseUrl === BASE ? EXPAND : expandUrlForBase(baseUrl);
   const params = buildExpandParameters(vsJson, opts, engine, forceTrace);
   const requestBody = { resourceType: 'Parameters', parameter: params };
+  const request = {
+    method: 'POST',
+    url: expandUrl,
+    headers: { 'Content-Type': 'application/json' },
+    body: requestBody,
+  };
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PERF_HTTP_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const t0 = performance.now();
   let resp;
   try {
@@ -527,6 +534,17 @@ async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, 
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
+  } catch (e) {
+    return {
+      ms: performance.now() - t0,
+      request,
+      response: null,
+      responseText: null,
+      responseJson: null,
+      traceJson: null,
+      irPlanText: null,
+      error: e?.message || String(e),
+    };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -542,12 +560,7 @@ async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, 
   const irPlanText = extractIRPlanPayload(responseJson);
   return {
     ms,
-    request: {
-      method: 'POST',
-      url: expandUrl,
-      headers: { 'Content-Type': 'application/json' },
-      body: requestBody,
-    },
+    request,
     response: {
       ok: resp.ok,
       status: resp.status,
@@ -559,18 +572,21 @@ async function executeExpandRequest(vsJson, opts = {}, engine = DEFAULT_ENGINE, 
     responseJson,
     traceJson,
     irPlanText,
+    error: null,
   };
 }
 
-async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = null) {
-  lastExpandCall = { vsJson, opts };
-  const shouldForceTrace = forceTrace ?? (WANT_TRACE || (STRICT_IR_NO_FALLBACK && engine === 'ir'));
+async function validateExpandOutcome(outcome, vsJson, opts = {}, engine = DEFAULT_ENGINE) {
   const {
     responseJson: body,
     ms,
     traceJson,
     irPlanText,
-  } = await executeExpandRequest(vsJson, opts, engine, shouldForceTrace);
+    error,
+  } = outcome;
+  if (error) {
+    throw new Error(error);
+  }
   if (!body) {
     throw new Error('Non-JSON response from terminology server');
   }
@@ -595,6 +611,26 @@ async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = n
   return { result: body, ms, traceJson, irPlanText };
 }
 
+function buildDebugSample(outcome, error = null) {
+  return {
+    ok: !error,
+    ms: Math.round(outcome?.ms ?? 0),
+    error: error ? (error.message || String(error)) : undefined,
+    request: outcome?.request || null,
+    response: outcome?.response || null,
+    trace: outcome?.traceJson || null,
+    traceAvailable: !!outcome?.traceJson,
+    irPlanText: outcome?.irPlanText || null,
+  };
+}
+
+async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = null, baseUrl = BASE, timeoutMs = PERF_HTTP_TIMEOUT_MS) {
+  lastExpandCall = { vsJson, opts };
+  const shouldForceTrace = forceTrace ?? (WANT_TRACE || (STRICT_IR_NO_FALLBACK && engine === 'ir'));
+  const outcome = await executeExpandRequest(vsJson, opts, engine, shouldForceTrace, baseUrl, timeoutMs);
+  return validateExpandOutcome(outcome, vsJson, opts, engine);
+}
+
 function codes(result) {
   const out = [];
   const walk = (c) => { for (const x of c || []) { out.push(x); walk(x.contains); } };
@@ -604,6 +640,27 @@ function codes(result) {
 
 function findCode(result, code) {
   return codes(result).find(c => c.code === code);
+}
+
+function containsProperties(entry) {
+  if (!entry) return [];
+  if (Array.isArray(entry.property)) return entry.property;
+  const propExtUrl = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property';
+  const out = [];
+  for (const ext of entry.extension || []) {
+    if (ext?.url !== propExtUrl || !Array.isArray(ext.extension)) continue;
+    const code = ext.extension.find(e => e?.url === 'code')?.valueCode;
+    const valueExt = ext.extension.find(e => e?.url === 'value');
+    if (!code || !valueExt) continue;
+    const prop = { code };
+    for (const [k, v] of Object.entries(valueExt)) {
+      if (k.startsWith('value') && k !== 'value') {
+        prop[k] = v;
+      }
+    }
+    out.push(prop);
+  }
+  return out;
 }
 
 function expansionParams(result, name) {
@@ -793,18 +850,23 @@ function median(arr) {
   return s[Math.floor(s.length / 2)];
 }
 
-async function timeEngine(vsJson, opts, engine, runs) {
+async function timeEngine(vsJson, opts, engine, runs, baseUrl = BASE, timeoutMs = PERF_HTTP_TIMEOUT_MS) {
   const times = [];
+  let sample = null;
   for (let i = 0; i < runs; i++) {
+    const wantTrace = i === 0;
+    const outcome = await executeExpandRequest(vsJson, opts, engine, wantTrace, baseUrl, timeoutMs);
     try {
-      const { ms } = await expand(vsJson, opts, engine);
+      const { ms } = await validateExpandOutcome(outcome, vsJson, opts, engine);
       times.push(ms);
+      if (!sample) sample = buildDebugSample(outcome);
     } catch (e) {
+      if (!sample) sample = buildDebugSample(outcome, e);
       if (STRICT_IR_NO_FALLBACK && engine === 'ir') throw e;
-      return { ms: null, err: true };
+      return { ms: null, err: true, sample };
     }
   }
-  return { ms: Math.round(median(times)), err: false };
+  return { ms: Math.round(median(times)), err: false, sample };
 }
 
 function expandUrlForBase(baseUrl) {
@@ -812,45 +874,8 @@ function expandUrlForBase(baseUrl) {
 }
 
 async function timeEngineAtBase(vsJson, opts, engine, runs, baseUrl) {
-  const times = [];
-  const expandUrl = expandUrlForBase(baseUrl);
-  for (let i = 0; i < runs; i++) {
-    try {
-      const requestBody = {
-        resourceType: 'Parameters',
-        parameter: buildExpandParameters(vsJson, opts, engine, WANT_TRACE),
-      };
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), PERF_HTTP_TIMEOUT_MS);
-      const t0 = performance.now();
-      let resp;
-      try {
-        resp = await fetch(expandUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      const ms = performance.now() - t0;
-      const text = await resp.text();
-      let json = null;
-      try {
-        json = text ? JSON.parse(text) : null;
-      } catch {
-        json = null;
-      }
-      if (!resp.ok || !json || json.resourceType === 'OperationOutcome') {
-        return { ms: null, err: true };
-      }
-      times.push(ms);
-    } catch {
-      return { ms: null, err: true };
-    }
-  }
-  return { ms: Math.round(median(times)), err: false };
+  const timeoutMs = baseUrl === PERF_THIRD_BASE_URL ? PERF_THIRD_HTTP_TIMEOUT_MS : PERF_HTTP_TIMEOUT_MS;
+  return timeEngine(vsJson, opts, engine, runs, baseUrl, timeoutMs);
 }
 
 function safeSlug(name) {
@@ -859,6 +884,13 @@ function safeSlug(name) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80) || 'test';
+}
+
+function summarizePerfResult(result) {
+  return {
+    ms: result?.ms ?? null,
+    err: !!result?.err,
+  };
 }
 
 function escHtml(s) {
@@ -872,42 +904,6 @@ function serializeJsonForHtml(value) {
     .replace(/&/g, '\\u0026')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
-}
-
-async function captureEngineDebug(vsJson, opts, engine, baseUrl = BASE) {
-  const expandUrl = baseUrl === BASE ? EXPAND : expandUrlForBase(baseUrl);
-  const requestBody = {
-    resourceType: 'Parameters',
-    parameter: buildExpandParameters(vsJson, opts, engine, true),
-  };
-  const request = {
-    method: 'POST',
-    url: expandUrl,
-    headers: { 'Content-Type': 'application/json' },
-    body: requestBody,
-  };
-  try {
-    const details = await executeExpandRequest(vsJson, opts, engine, true, baseUrl);
-    return {
-      ok: true,
-      ms: Math.round(details.ms),
-      request,
-      response: details.response,
-      trace: details.traceJson,
-      traceAvailable: !!details.traceJson,
-      irPlanText: details.irPlanText,
-    };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e.message || String(e),
-      request,
-      response: null,
-      trace: null,
-      traceAvailable: false,
-      irPlanText: null,
-    };
-  }
 }
 
 function buildPerfDetailHtml(detailDoc) {
@@ -1035,13 +1031,9 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, primar
   const inputFilename = `${slug}.json`;
   const inputAbsPath = join(PERF_INPUTS_DIR, inputFilename);
   const inputRelPath = `${PERF_OUT_BASE}.inputs/${inputFilename}`;
-  // Capture sequentially so one engine's heavy request does not inflate the
-  // other engine's wall-time due server-side request queueing.
-  const secondaryDebug = await captureEngineDebug(vsJson, opts, 'legacy');
-  const primaryDebug = await captureEngineDebug(vsJson, opts, 'ir');
-  const thirdDebug = thirdPerf
-    ? await captureEngineDebug(vsJson, opts, PERF_THIRD_ENGINE, PERF_THIRD_BASE_URL)
-    : null;
+  const primaryDebug = primaryPerf?.sample || null;
+  const secondaryDebug = secondaryPerf?.sample || null;
+  const thirdDebug = thirdPerf?.sample || null;
   const payloadDoc = {
     schemaVersion: PERF_ARTIFACT_SCHEMA_VERSION,
     id: rowIndex,
@@ -1053,8 +1045,8 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, primar
       options: opts,
     },
     requests: {
-      primary: primaryDebug.request || null,
-      secondary: secondaryDebug.request || null,
+      primary: primaryDebug?.request || null,
+      secondary: secondaryDebug?.request || null,
       third: thirdDebug?.request || null,
     },
   };
@@ -1070,10 +1062,10 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, primar
       detailJson: detailJsonFilename,
     },
     targets: [
-      { key: 'primary', label: PERF_PRIMARY_LABEL, hasPlan: true, perf: primaryPerf, debug: primaryDebug },
-      { key: 'secondary', label: PERF_SECONDARY_LABEL, hasPlan: false, perf: secondaryPerf, debug: secondaryDebug },
+      { key: 'primary', label: PERF_PRIMARY_LABEL, hasPlan: true, perf: summarizePerfResult(primaryPerf), debug: primaryDebug },
+      { key: 'secondary', label: PERF_SECONDARY_LABEL, hasPlan: false, perf: summarizePerfResult(secondaryPerf), debug: secondaryDebug },
       ...(thirdPerf && thirdDebug
-        ? [{ key: 'third', label: PERF_THIRD_LABEL, hasPlan: false, perf: thirdPerf, debug: thirdDebug }]
+        ? [{ key: 'third', label: PERF_THIRD_LABEL, hasPlan: false, perf: summarizePerfResult(thirdPerf), debug: thirdDebug }]
         : []),
     ],
   };
@@ -2118,7 +2110,7 @@ async function run() {
     const all = codes(result);
     assert(all.length > 0, 'should have codes');
     for (const c of all) {
-      const props = c.property || [];
+      const props = containsProperties(c);
       const defProp = props.find(p => p.code === 'definition');
       assert(defProp, `code ${c.code} should have a definition property, got props: ${JSON.stringify(props)}`);
       assert(defProp.valueString && defProp.valueString.length > 0,

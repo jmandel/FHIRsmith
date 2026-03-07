@@ -1,21 +1,23 @@
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
 
 const {
   buildTempV0DbFile,
-  createTempTxApp,
   writeLibraryConfig,
 } = require('../support/sqlite-v0-supplement-fixtures');
+const {
+  createManagedTxFixture,
+  destroyManagedTxFixture,
+} = require('../support/tx-integration-fixtures');
 
 function findProperty(resource, conceptCode, propertyCode) {
   const concept = (resource?.expansion?.contains || []).find(item => item.code === conceptCode);
   return (concept?.property || []).find(item => item.code === propertyCode);
 }
 
-function buildTypedBaseDb() {
+function buildTypedBaseDb(dir) {
   return buildTempV0DbFile([
     {
       concept_id: 1,
@@ -34,6 +36,7 @@ function buildTypedBaseDb() {
       definition: 'Beta definition',
     },
   ], {
+    dir,
     system: 'http://example.org/base',
     version: '1',
     propertyDefs: [
@@ -103,27 +106,26 @@ function makeLegacyExpandBody() {
 }
 
 describe('sqlite-v0 typed base properties through expand', () => {
-  let dir;
-  let app;
-  let txModule;
+  let fixture;
 
   beforeAll(async () => {
-    const built = buildTypedBaseDb();
-    dir = built.dir;
-    const configPath = path.join(dir, 'library.yaml');
-    writeLibraryConfig(configPath, built.dbPath, []);
-    const loaded = await createTempTxApp(configPath);
-    app = loaded.app;
-    txModule = loaded.txModule;
+    fixture = await createManagedTxFixture({
+      prefix: 'sqlite-v0-supp-config-',
+      setup: async ({ dir }) => {
+        const built = buildTypedBaseDb(dir);
+        const configPath = path.join(dir, 'library.yaml');
+        writeLibraryConfig(configPath, built.dbPath, []);
+        return { configPath };
+      },
+    });
   });
 
   afterAll(async () => {
-    if (txModule) await txModule.shutdown();
-    if (dir) fs.rmSync(dir, { recursive: true, force: true });
+    await destroyManagedTxFixture(fixture);
   });
 
   test('IR expand preserves typed base sqlite-v0 literal properties and emits expansion.property metadata', async () => {
-      const res = await request(app)
+      const res = await request(fixture.app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
@@ -141,7 +143,7 @@ describe('sqlite-v0 typed base properties through expand', () => {
   }, 60000);
 
   test('legacy expand still serializes typed base sqlite-v0 literal properties correctly', async () => {
-      const res = await request(app)
+      const res = await request(fixture.app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')

@@ -484,6 +484,8 @@ node scripts/ir-harness.mjs "SNOMED"     # filter by name
 node scripts/ir-harness.mjs --perf       # performance comparison table
 scripts/run-ir-harness.sh --all --db-dir /home/jmandel/hobby/sct/cache
 # one-command start/wait/run/teardown wrapper; writes logs + perf artifacts under tmp/ir-harness-runs/
+npm run test:perf:matrix                 # default 2-column perf matrix, synthetic supplement rows included
+npm run test:perf:matrix:3col            # opt-in third upstream-providers column
 ```
 
 ### v0 SQLite perf snapshot (IR vs legacy, same providers)
@@ -541,6 +543,9 @@ splitting, cross-system empty elimination.
 | `hierarchy-regressions.test.js` | 2 | Edge cases: pagination window order, cross-system identity |
 | `partition-safety.test.js` | 8 | Validates expansion plan before execution (rejects unsafe partitions) |
 | `library-error-handling.test.js` | 6 | Library config loading, error reporting, env var substitution |
+
+Test-layer guidance, batched run commands, and the shared TX integration
+fixture pattern live in [testing.md](testing.md).
 
 ### IR Fuzz + Direct Oracle
 

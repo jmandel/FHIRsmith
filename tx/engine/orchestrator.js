@@ -240,6 +240,7 @@ function enrichCandidate(c, resolved) {
     system: resolved.system, version: containsVersion,
     code: c.code, display: c.display, definition: c.definition,
     active: c.active, conceptId: c.conceptId, _provider: resolved.provider,
+    _composeOverrideVersion: resolved.provVersion || resolved.version || null,
   };
   if (c._parentCode) entry._parentCode = c._parentCode;
   return entry;
@@ -663,14 +664,17 @@ async function expandViaIR(vsJson, opts = {}) {
 
   const paged = allCandidates;
 
-  // 8.5. Apply compose-level display/designation overrides from IR
+  // 8.5. Collect compose-level display/designation overrides from IR.
+  // Apply them after provider decoration so provider display/designation fetches
+  // cannot overwrite compose-level semantics.
   const composeOverrides = collectComposeOverrides(resolved);
-  applyComposeOverrides(paged, composeOverrides, includeDesignations);
 
   // 9. Decorate candidates (designations + properties)
   const decoSpan = trace.begin('bulkDesignations', { count: paged.length, includeDesignations });
   await decorateCandidates(paged, { includeDesignations, properties });
   decoSpan.end();
+
+  applyComposeOverrides(paged, composeOverrides, includeDesignations);
 
   // 10. Build contains entries
   const expansionPropertyDefs = new Map();
@@ -1103,7 +1107,11 @@ function walkIR(node, system, version, overrides) {
 function applyComposeOverrides(candidates, overrides, includeDesignations) {
   if (!overrides || overrides.size === 0) return;
   for (const c of candidates) {
-    const key = composeOverrideKey(c.system, c.version || null, c.code);
+    const key = composeOverrideKey(
+      c.system,
+      c._composeOverrideVersion ?? c.version ?? null,
+      c.code,
+    );
     const ov = overrides.get(key);
     if (!ov) continue;
     // Compose display overrides provider display

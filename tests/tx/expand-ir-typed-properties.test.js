@@ -1,7 +1,6 @@
 'use strict';
 
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const yaml = require('yaml');
 const request = require('supertest');
@@ -10,9 +9,12 @@ const { buildDiceSupplementBundle } = require('../../tx/supplements/synthetic');
 const { writeSupplementSidecar } = require('../../tx/supplements/sqlite-sidecar');
 const {
   buildTempV0DbFile,
-  createTempTxApp,
   makeBaseConcepts,
 } = require('../support/sqlite-v0-supplement-fixtures');
+const {
+  createManagedTxFixture,
+  destroyManagedTxFixture,
+} = require('../support/tx-integration-fixtures');
 
 function findProperty(resource, conceptCode, propertyCode) {
   const concept = (resource?.expansion?.contains || []).find(item => item.code === conceptCode);
@@ -20,9 +22,7 @@ function findProperty(resource, conceptCode, propertyCode) {
 }
 
 describe('IR $expand typed property output', () => {
-  let dir;
-  let app;
-  let txModule;
+  let fixture;
   let system;
   let d20;
   let targetConcept;
@@ -50,42 +50,38 @@ describe('IR $expand typed property output', () => {
     );
     expectedDamageType = targetConcept?.property?.find(prop => prop.code === 'damage-type')?.valueCode;
 
-    const built = buildTempV0DbFile(baseConcepts, { system, version });
-    dir = built.dir;
-    const dbPath = built.dbPath;
-    const d20Path = path.join(dir, 'd20.supp.db');
-    const configPath = path.join(dir, 'library.yaml');
-    writeSupplementSidecar(d20Path, d20);
-    fs.writeFileSync(configPath, yaml.stringify({
-      base: { url: 'https://storage.googleapis.com/tx-fhir-org' },
-      sources: [
-        {
-          source: `sqlite-v0:${dbPath}`,
-          options: { supplements: ['d20.supp.db'] },
-        },
-        'internal:usstates',
-      ],
-    }), 'utf8');
-
-    const loaded = await createTempTxApp(configPath);
-    app = loaded.app;
-    txModule = loaded.txModule;
+    fixture = await createManagedTxFixture({
+      prefix: 'sqlite-v0-supp-config-',
+      setup: async ({ dir }) => {
+        const built = buildTempV0DbFile(baseConcepts, { dir, system, version });
+        const dbPath = built.dbPath;
+        const d20Path = path.join(dir, 'd20.supp.db');
+        const configPath = path.join(dir, 'library.yaml');
+        writeSupplementSidecar(d20Path, d20);
+        fs.writeFileSync(configPath, yaml.stringify({
+          base: { url: 'https://storage.googleapis.com/tx-fhir-org' },
+          sources: [
+            {
+              source: `sqlite-v0:${dbPath}`,
+              options: { supplements: ['d20.supp.db'] },
+            },
+            'internal:usstates',
+          ],
+        }), 'utf8');
+        return { configPath };
+      },
+    });
   });
 
   afterAll(async () => {
-    if (txModule) {
-      await txModule.shutdown();
-    }
-    if (dir) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    await destroyManagedTxFixture(fixture);
   });
 
   test('configured sqlite supplement properties preserve typed value[x] and emit expansion.property metadata', async () => {
     expect(targetConcept).toBeTruthy();
     expect(expectedDamageType).toBeTruthy();
 
-    const res = await request(app)
+    const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
@@ -141,7 +137,7 @@ describe('IR $expand typed property output', () => {
       }],
     };
 
-    const res = await request(app)
+    const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')

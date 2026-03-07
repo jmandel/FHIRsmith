@@ -21,7 +21,7 @@ function makeBaseConcepts(count = 320) {
 }
 
 function buildTempV0DbFile(baseConcepts, opts = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sqlite-v0-supp-config-'));
+  const dir = opts.dir || fs.mkdtempSync(path.join(os.tmpdir(), 'sqlite-v0-supp-config-'));
   const dbPath = path.join(dir, 'base.v0.db');
   const db = new BetterSqlite3(dbPath);
   try {

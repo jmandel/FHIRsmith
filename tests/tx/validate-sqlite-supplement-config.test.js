@@ -8,19 +8,20 @@ const { buildDiceSupplementBundle } = require('../../tx/supplements/synthetic');
 const { writeSupplementSidecar } = require('../../tx/supplements/sqlite-sidecar');
 const {
   buildTempV0DbFile,
-  createTempTxApp,
   makeBaseConcepts,
   writeLibraryConfig,
 } = require('../support/sqlite-v0-supplement-fixtures');
+const {
+  createManagedTxFixture,
+  destroyManagedTxFixture,
+} = require('../support/tx-integration-fixtures');
 
 function paramValue(parameters, name, valueField) {
   return (parameters?.parameter || []).find(param => param.name === name)?.[valueField];
 }
 
 describe('ValueSet $validate-code with sqlite-v0 configured supplement sidecars', () => {
-  let dir;
-  let app;
-  let txModule;
+  let fixture;
   let system;
   let d20;
   let matchingCode;
@@ -50,26 +51,23 @@ describe('ValueSet $validate-code with sqlite-v0 configured supplement sidecars'
       !(concept.property || []).some(prop => prop.code === 'd20-roll' && prop.valueInteger === 20)
     )?.code;
 
-    const built = buildTempV0DbFile(baseConcepts, { system, version });
-    dir = built.dir;
-    const dbPath = built.dbPath;
-    const d20Path = path.join(dir, 'd20.supp.db');
-    const configPath = path.join(dir, 'library.yaml');
+    fixture = await createManagedTxFixture({
+      prefix: 'sqlite-v0-supp-config-',
+      setup: async ({ dir }) => {
+        const built = buildTempV0DbFile(baseConcepts, { dir, system, version });
+        const dbPath = built.dbPath;
+        const d20Path = path.join(dir, 'd20.supp.db');
+        const configPath = path.join(dir, 'library.yaml');
 
-    writeSupplementSidecar(d20Path, d20);
-    writeLibraryConfig(configPath, dbPath, ['d20.supp.db']);
-    const loaded = await createTempTxApp(configPath);
-    app = loaded.app;
-    txModule = loaded.txModule;
+        writeSupplementSidecar(d20Path, d20);
+        writeLibraryConfig(configPath, dbPath, ['d20.supp.db']);
+        return { configPath };
+      },
+    });
   });
 
   afterAll(async () => {
-    if (txModule) {
-      await txModule.shutdown();
-    }
-    if (dir) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    await destroyManagedTxFixture(fixture);
   });
 
   test('validate-code honors supplement-backed filters from a server-loaded sqlite sidecar', async () => {
@@ -89,7 +87,7 @@ describe('ValueSet $validate-code with sqlite-v0 configured supplement sidecars'
       },
     };
 
-    const positive = await request(app)
+    const positive = await request(fixture.app)
       .post('/tx/r5/ValueSet/$validate-code')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
@@ -106,7 +104,7 @@ describe('ValueSet $validate-code with sqlite-v0 configured supplement sidecars'
     expect(positive.status).toBe(200);
     expect(paramValue(positive.body, 'result', 'valueBoolean')).toBe(true);
 
-    const negative = await request(app)
+    const negative = await request(fixture.app)
       .post('/tx/r5/ValueSet/$validate-code')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
@@ -149,13 +147,13 @@ describe('ValueSet $validate-code with sqlite-v0 configured supplement sidecars'
       ],
     });
 
-    const sidecarRes = await request(app)
+    const sidecarRes = await request(fixture.app)
       .post('/tx/r5/ValueSet/$validate-code')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
       .send(requestBody(false));
 
-    const inlineRes = await request(app)
+    const inlineRes = await request(fixture.app)
       .post('/tx/r5/ValueSet/$validate-code')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')

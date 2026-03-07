@@ -1,12 +1,14 @@
 'use strict';
 
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const yaml = require('yaml');
 const request = require('supertest');
 
-const { createTempTxApp } = require('../support/sqlite-v0-supplement-fixtures');
+const {
+  createManagedTxFixture,
+  destroyManagedTxFixture,
+} = require('../support/tx-integration-fixtures');
 
 function makeSupplement({ url, targetSystem, targetVersion = null, concepts }) {
   return {
@@ -34,26 +36,21 @@ function writeAdapterLibraryConfig(configPath) {
 }
 
 describe('IR expand with adapter-backed inline supplements', () => {
-  let dir;
-  let app;
-  let txModule;
+  let fixture;
 
   beforeAll(async () => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tx-adapter-supp-'));
-    const configPath = path.join(dir, 'library.yaml');
-    writeAdapterLibraryConfig(configPath);
-    const loaded = await createTempTxApp(configPath);
-    app = loaded.app;
-    txModule = loaded.txModule;
+    fixture = await createManagedTxFixture({
+      prefix: 'tx-adapter-supp-',
+      setup: async ({ dir }) => {
+        const configPath = path.join(dir, 'library.yaml');
+        writeAdapterLibraryConfig(configPath);
+        return { configPath };
+      },
+    });
   });
 
   afterAll(async () => {
-    if (txModule) {
-      await txModule.shutdown();
-    }
-    if (dir) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    await destroyManagedTxFixture(fixture);
   });
 
   test('US states inline supplement numeric filter affects membership before paging', async () => {
@@ -70,7 +67,7 @@ describe('IR expand with adapter-backed inline supplements', () => {
       ],
     });
 
-    const res = await request(app)
+    const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
@@ -113,7 +110,7 @@ describe('IR expand with adapter-backed inline supplements', () => {
       ],
     });
 
-    const res = await request(app)
+    const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')

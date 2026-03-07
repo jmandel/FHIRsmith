@@ -24,6 +24,8 @@ Options:
   --library-source <path> Library YAML (default: tests/tx/fixtures/v0-test-library.yaml)
   --with-synthetic-supplements
                         Generate and register synthetic sqlite supplement sidecars for LOINC
+  --without-synthetic-supplements
+                        Disable synthetic sqlite supplement generation in perf mode
   --synthetic-supp-url-root <url>
                         Canonical root for generated synthetic supplements
                         (default: http://example.org/fhir/CodeSystem/harness-dice-supplement)
@@ -38,7 +40,7 @@ Options:
   --out-root <path>       Root output dir (default: tmp/ir-harness-runs)
   --out-dir <path>        Exact output dir (overrides --out-root timestamp)
   --perf-out <path>       Perf HTML output path (default: <out-dir>/perf-table.html)
-  --perf-runs <n>         PERF_RUNS value for --perf (default: 3)
+  --perf-runs <n>         PERF_RUNS value for --perf (default: 1)
   --filter <text>         Harness name filter (repeatable; OR-matched)
   --trace                 Pass --trace to harness
   --strict-ir-no-fallback (or --strict-ir) Fail if IR requests fall back to legacy
@@ -53,6 +55,7 @@ Examples:
   scripts/run-ir-harness.sh --ir --filter SNOMED --filter pagination
   scripts/run-ir-harness.sh --ir SNOMED pagination
   scripts/run-ir-harness.sh --db-dir /home/jmandel/hobby/sct/cache --all
+  scripts/run-ir-harness.sh --perf --db-dir /home/jmandel/hobby/sct/cache
   scripts/run-ir-harness.sh --perf --perf-third-upstream --db-dir /home/jmandel/hobby/sct/cache --upstream-db-dir /home/jmandel/hobby/FHIRsmith/data/terminology-cache
 EOF
 }
@@ -71,12 +74,13 @@ THIRD_PORT=8001
 OUT_ROOT="tmp/ir-harness-runs"
 OUT_DIR=""
 PERF_OUT=""
-PERF_RUNS_VALUE="${PERF_RUNS:-3}"
+PERF_RUNS_VALUE="${PERF_RUNS:-1}"
 TRACE=0
 STRICT_IR_NO_FALLBACK=0
 SEMANTIC_PARITY=0
 STRICT_TOTAL_CONSISTENCY=0
 WITH_SYNTHETIC_SUPPLEMENTS=0
+SYNTHETIC_SUPPLEMENTS_SET=0
 SYNTHETIC_SUPP_URL_ROOT="http://example.org/fhir/CodeSystem/harness-dice-supplement"
 SYNTHETIC_SUPP_DICE="d20,d8"
 FILTERS=()
@@ -137,6 +141,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --with-synthetic-supplements)
       WITH_SYNTHETIC_SUPPLEMENTS=1
+      SYNTHETIC_SUPPLEMENTS_SET=1
+      ;;
+    --without-synthetic-supplements)
+      WITH_SYNTHETIC_SUPPLEMENTS=0
+      SYNTHETIC_SUPPLEMENTS_SET=1
       ;;
     --synthetic-supp-url-root)
       SYNTHETIC_SUPP_URL_ROOT="$2"
@@ -262,6 +271,10 @@ if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
       exit 2
     fi
   done
+fi
+
+if [[ "$RUN_PERF" -eq 1 && "$SYNTHETIC_SUPPLEMENTS_SET" -eq 0 ]]; then
+  WITH_SYNTHETIC_SUPPLEMENTS=1
 fi
 
 if [[ -z "$OUT_DIR" ]]; then
@@ -584,6 +597,7 @@ if [[ "$RUN_PERF" -eq 1 ]]; then
     PERF_ENV+=(PERF_THIRD_BASE_URL="http://localhost:${THIRD_PORT}")
     PERF_ENV+=(PERF_THIRD_ENGINE="legacy")
     PERF_ENV+=(PERF_THIRD_LABEL="Upstream Providers + Upstream Expander")
+    PERF_ENV+=(PERF_THIRD_HTTP_TIMEOUT_MS="${PERF_THIRD_HTTP_TIMEOUT_MS:-5000}")
   fi
   run_harness "perf" "${PERF_ENV[@]}" node "$ROOT_DIR/scripts/ir-harness.mjs" "${HARNESS_ARGS[@]}" --perf --perf-out "$PERF_OUT"
 fi

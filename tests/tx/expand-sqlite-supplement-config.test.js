@@ -7,10 +7,13 @@ const { buildDiceSupplementBundle } = require('../../tx/supplements/synthetic');
 const { writeSupplementSidecar } = require('../../tx/supplements/sqlite-sidecar');
 const {
   buildTempV0DbFile,
-  createTempTxApp,
   makeBaseConcepts,
   writeLibraryConfig,
 } = require('../support/sqlite-v0-supplement-fixtures');
+const {
+  createManagedTxFixture,
+  destroyManagedTxFixture,
+} = require('../support/tx-integration-fixtures');
 
 function conceptHasInteger(resource, code, propertyCode, expectedValue) {
   const concept = (resource?.concept || []).find(item => item.code === code);
@@ -26,9 +29,7 @@ function conceptHasDesignation(resource, code, fragment) {
 }
 
 describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () => {
-  let dir;
-  let app;
-  let txModule;
+  let fixture;
   let system;
   let baseConcepts;
   let d20;
@@ -53,29 +54,25 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
     d20 = bundle.find(item => item.die === 'd20').resource;
     d8 = bundle.find(item => item.die === 'd8').resource;
 
-    const built = buildTempV0DbFile(baseConcepts, { system, version });
-    dir = built.dir;
-    const dbPath = built.dbPath;
-    const d20Path = path.join(dir, 'd20.supp.db');
-    const d8Path = path.join(dir, 'd8.supp.db');
-    const configPath = path.join(dir, 'library.yaml');
+    fixture = await createManagedTxFixture({
+      prefix: 'sqlite-v0-supp-config-',
+      setup: async ({ dir }) => {
+        const built = buildTempV0DbFile(baseConcepts, { dir, system, version });
+        const dbPath = built.dbPath;
+        const d20Path = path.join(dir, 'd20.supp.db');
+        const d8Path = path.join(dir, 'd8.supp.db');
+        const configPath = path.join(dir, 'library.yaml');
 
-    writeSupplementSidecar(d20Path, d20);
-    writeSupplementSidecar(d8Path, d8);
-    writeLibraryConfig(configPath, dbPath, ['d20.supp.db', 'd8.supp.db']);
-
-    const loaded = await createTempTxApp(configPath);
-    app = loaded.app;
-    txModule = loaded.txModule;
+        writeSupplementSidecar(d20Path, d20);
+        writeSupplementSidecar(d8Path, d8);
+        writeLibraryConfig(configPath, dbPath, ['d20.supp.db', 'd8.supp.db']);
+        return { configPath };
+      },
+    });
   });
 
   afterAll(async () => {
-    if (txModule) {
-      await txModule.shutdown();
-    }
-    if (dir) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    await destroyManagedTxFixture(fixture);
   });
 
   test('IR resolves server-loaded sqlite supplement sidecars from library config', async () => {
@@ -87,7 +84,7 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
       )
       .sort();
 
-    const res = await request(app)
+    const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
@@ -128,7 +125,7 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
       .filter(code => conceptHasDesignation(d8, code, 'critical success'))
       .sort();
 
-    const res = await request(app)
+    const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
@@ -180,13 +177,13 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
       ],
     });
 
-    const sidecarRes = await request(app)
+    const sidecarRes = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
       .send(requestBody(false));
 
-    const inlineRes = await request(app)
+    const inlineRes = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
@@ -202,7 +199,7 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
   }, 60000);
 
   test('legacy expand fails closed for configured sqlite supplement sidecars', async () => {
-    const res = await request(app)
+    const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')

@@ -1,19 +1,21 @@
 'use strict';
 
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const yaml = require('yaml');
 const request = require('supertest');
 
 const { buildDiceSupplementBundle } = require('../../tx/supplements/synthetic');
 const { writeSupplementSidecar } = require('../../tx/supplements/sqlite-sidecar');
-const { createTempTxApp } = require('../support/sqlite-v0-supplement-fixtures');
 const {
   buildTempV0DbFile,
   makeBaseConcepts,
   writeLibraryConfig,
 } = require('../support/sqlite-v0-supplement-fixtures');
+const {
+  createManagedTxFixture,
+  destroyManagedTxFixture,
+} = require('../support/tx-integration-fixtures');
 
 function writeAdapterLibraryConfig(configPath) {
   const config = {
@@ -71,33 +73,28 @@ function makeRequestBody(engine, supplements) {
 
 describe('IR supplement runtime error propagation', () => {
   describe('supplement ambiguity', () => {
-    let dir;
-    let app;
-    let txModule;
+    let fixture;
 
     beforeAll(async () => {
-      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tx-ir-error-prop-'));
-      const configPath = path.join(dir, 'library.yaml');
-      writeAdapterLibraryConfig(configPath);
-      const loaded = await createTempTxApp(configPath);
-      app = loaded.app;
-      txModule = loaded.txModule;
+      fixture = await createManagedTxFixture({
+        prefix: 'tx-ir-error-prop-',
+        setup: async ({ dir }) => {
+          const configPath = path.join(dir, 'library.yaml');
+          writeAdapterLibraryConfig(configPath);
+          return { configPath };
+        },
+      });
     });
 
     afterAll(async () => {
-      if (txModule) {
-        await txModule.shutdown();
-      }
-      if (dir) {
-        fs.rmSync(dir, { recursive: true, force: true });
-      }
+      await destroyManagedTxFixture(fixture);
     });
 
     test.each([
       ['ir'],
       ['ir-strict'],
     ])('%s preserves explicit supplement ambiguity errors instead of falling back', async (engine) => {
-      const res = await request(app)
+      const res = await request(fixture.app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
@@ -112,58 +109,51 @@ describe('IR supplement runtime error propagation', () => {
   });
 
   describe('native attachment failures', () => {
-    let dir;
-    let app;
-    let txModule;
+    let fixture;
     let d20;
-    let suppPath;
 
     beforeAll(async () => {
-      const system = 'http://example.org/base';
-      const version = '1';
-      const baseConcepts = makeBaseConcepts(60);
-      const base = {
-        system,
-        version,
-        name: 'Synthetic Base',
-        codes: baseConcepts.map(c => ({ code: c.code })),
-      };
-      const bundle = buildDiceSupplementBundle(base, {
-        dice: ['d20'],
-        urlRoot: 'http://example.org/fhir/CodeSystem/error-prop-dice',
-        version,
-        salt: 'ir-error-prop',
+      fixture = await createManagedTxFixture({
+        prefix: 'sqlite-v0-supp-config-',
+        setup: async ({ dir }) => {
+          const system = 'http://example.org/base';
+          const version = '1';
+          const baseConcepts = makeBaseConcepts(60);
+          const base = {
+            system,
+            version,
+            name: 'Synthetic Base',
+            codes: baseConcepts.map(c => ({ code: c.code })),
+          };
+          const bundle = buildDiceSupplementBundle(base, {
+            dice: ['d20'],
+            urlRoot: 'http://example.org/fhir/CodeSystem/error-prop-dice',
+            version,
+            salt: 'ir-error-prop',
+          });
+          d20 = bundle[0].resource;
+
+          const built = buildTempV0DbFile(baseConcepts, { dir, system, version });
+          const dbPath = built.dbPath;
+          const suppPath = path.join(dir, 'd20.supp.db');
+          const configPath = path.join(dir, 'library.yaml');
+          writeSupplementSidecar(suppPath, d20);
+          writeLibraryConfig(configPath, dbPath, ['d20.supp.db']);
+          fs.rmSync(suppPath, { force: true });
+          return { configPath };
+        },
       });
-      d20 = bundle[0].resource;
-
-      const built = buildTempV0DbFile(baseConcepts, { system, version });
-      dir = built.dir;
-      const dbPath = built.dbPath;
-      suppPath = path.join(dir, 'd20.supp.db');
-      const configPath = path.join(dir, 'library.yaml');
-
-      writeSupplementSidecar(suppPath, d20);
-      writeLibraryConfig(configPath, dbPath, ['d20.supp.db']);
-      const loaded = await createTempTxApp(configPath);
-      app = loaded.app;
-      txModule = loaded.txModule;
-      fs.rmSync(suppPath, { force: true });
     });
 
     afterAll(async () => {
-      if (txModule) {
-        await txModule.shutdown();
-      }
-      if (dir) {
-        fs.rmSync(dir, { recursive: true, force: true });
-      }
+      await destroyManagedTxFixture(fixture);
     });
 
     test.each([
       ['ir'],
       ['ir-strict'],
     ])('%s preserves native supplement attachment failures instead of relabeling them', async (engine) => {
-      const res = await request(app)
+      const res = await request(fixture.app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
