@@ -1,5 +1,9 @@
 const { CodeSystem } = require('../../tx/library/codesystem');
-const { buildSupplementOverlay, mergeSupplementOverlayIntoCandidates } = require('../../tx/supplements/overlay');
+const {
+  buildSupplementOverlay,
+  mergeSupplementOverlayIntoCandidates,
+  overlayTouchesProperty,
+} = require('../../tx/supplements/overlay');
 
 function supplement(url, concepts) {
   return new CodeSystem({
@@ -44,8 +48,8 @@ describe('supplement overlay', () => {
     expect(candidates[0]._designations.map(d => d.value).sort()).toEqual(['Alpha DE', 'Alpha FR']);
     expect(candidates[0]._properties).toEqual(
       expect.arrayContaining([
-        { code: 'rank', value: 1 },
-        { code: 'tag', value: 'chem' },
+        { code: 'rank', value: 1, valueInteger: 1 },
+        { code: 'tag', value: 'chem', valueString: 'chem' },
       ])
     );
     expect(candidates[0]._extensions).toEqual(
@@ -54,5 +58,24 @@ describe('supplement overlay', () => {
         expect.objectContaining({ url: 'http://example.org/ext', valueString: 'x' }),
       ])
     );
+  });
+
+  test('tracks declared property definitions even when no concept currently carries a value', () => {
+    const supp = new CodeSystem({
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/supp-def-only',
+      status: 'active',
+      content: 'supplement',
+      supplements: 'http://example.org/base',
+      property: [{ code: 'rank', type: 'integer' }],
+      concept: [{ code: 'A' }],
+    });
+
+    const overlay = buildSupplementOverlay({
+      items: [{ overlaySource: { codeSystem: supp } }],
+    });
+
+    expect(overlayTouchesProperty(overlay, 'rank')).toBe(true);
+    expect(overlay.byCode.get('A')?.properties || []).toEqual([]);
   });
 });

@@ -8,7 +8,53 @@ const {
   DiffMembership,
 } = require('./membership');
 
-function countWithChildren(candidates) {
+function candidateListOf(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.candidates)) return value.candidates;
+  return [];
+}
+
+function executionResult(candidates = [], meta = {}) {
+  return {
+    candidates: Array.isArray(candidates) ? candidates : [],
+    unclosed: meta?.unclosed || null,
+    limitedExpansion: !!meta?.limitedExpansion,
+    tooCostly: !!meta?.tooCostly,
+  };
+}
+
+function toExecutionResult(value) {
+  if (!value) return executionResult([]);
+  if (Array.isArray(value)) {
+    return executionResult(value, {
+      unclosed: value._unclosed || null,
+      limitedExpansion: !!value._limitedExpansion,
+      tooCostly: !!value._tooCostly,
+    });
+  }
+  if (Array.isArray(value.candidates)) {
+    return executionResult(value.candidates, {
+      unclosed: value.unclosed || null,
+      limitedExpansion: !!value.limitedExpansion,
+      tooCostly: !!value.tooCostly,
+    });
+  }
+  return executionResult([]);
+}
+
+function mergeExecutionMetadata(target, ...sources) {
+  const out = toExecutionResult(target);
+  for (const source of sources) {
+    const meta = toExecutionResult(source);
+    if (meta.unclosed && !out.unclosed) out.unclosed = meta.unclosed;
+    if (meta.limitedExpansion && !out.limitedExpansion) out.limitedExpansion = true;
+    if (meta.tooCostly && !out.tooCostly) out.tooCostly = true;
+  }
+  return out;
+}
+
+function countWithChildren(value) {
+  const candidates = candidateListOf(value);
   let n = candidates.length;
   for (const c of candidates || []) {
     if (c._children) n += countWithChildren(c._children);
@@ -16,7 +62,8 @@ function countWithChildren(candidates) {
   return n;
 }
 
-function hasHierarchyCandidates(candidates) {
+function hasHierarchyCandidates(value) {
+  const candidates = candidateListOf(value);
   return (candidates || []).some(c => c._children && c._children.length > 0);
 }
 
@@ -50,17 +97,12 @@ function dedupeHierarchyByCode(nodes, seen = new Set()) {
   return out;
 }
 
-function dedupeCandidatesForResult(candidates) {
-  const unclosed = candidates?._unclosed || null;
-  const limitedExpansion = !!candidates?._limitedExpansion;
-  const tooCostly = !!candidates?._tooCostly;
-  const deduped = hasHierarchyCandidates(candidates)
-    ? dedupeHierarchyByCode(candidates)
-    : dedupeCandidatesByCode(candidates);
-  if (unclosed) deduped._unclosed = unclosed;
-  if (limitedExpansion) deduped._limitedExpansion = true;
-  if (tooCostly) deduped._tooCostly = true;
-  return deduped;
+function dedupeCandidatesForResult(value) {
+  const result = toExecutionResult(value);
+  const deduped = hasHierarchyCandidates(result)
+    ? dedupeHierarchyByCode(result.candidates)
+    : dedupeCandidatesByCode(result.candidates);
+  return executionResult(deduped, result);
 }
 
 function flattenHierarchyCandidates(candidates, parentCode = null, out = []) {
@@ -74,29 +116,16 @@ function flattenHierarchyCandidates(candidates, parentCode = null, out = []) {
   return out;
 }
 
-function normalizeForSetOps(candidates) {
-  const out = hasHierarchyCandidates(candidates)
-    ? flattenHierarchyCandidates(candidates)
-    : [...(candidates || [])];
-  if (candidates?._unclosed && !out._unclosed) out._unclosed = candidates._unclosed;
-  if (candidates?._limitedExpansion && !out._limitedExpansion) out._limitedExpansion = true;
-  if (candidates?._tooCostly && !out._tooCostly) out._tooCostly = true;
-  return out;
+function normalizeForSetOps(value) {
+  const result = toExecutionResult(value);
+  const out = hasHierarchyCandidates(result)
+    ? flattenHierarchyCandidates(result.candidates)
+    : [...result.candidates];
+  return executionResult(out, result);
 }
 
 function propagateUnclosed(target, ...sources) {
-  for (const s of sources) {
-    if (s?._unclosed && !target._unclosed) {
-      target._unclosed = s._unclosed;
-    }
-    if (s?._limitedExpansion && !target._limitedExpansion) {
-      target._limitedExpansion = true;
-    }
-    if (s?._tooCostly && !target._tooCostly) {
-      target._tooCostly = true;
-    }
-  }
-  return target;
+  return mergeExecutionMetadata(target, ...sources);
 }
 
 function createGenericIRExecutor({
@@ -112,26 +141,25 @@ function createGenericIRExecutor({
   }
 
   async function executeNode(node, opts, state) {
-    if (!node) return [];
+    if (!node) return executionResult([]);
 
     switch (node.kind) {
       case 'empty':
-        return [];
+        return executionResult([]);
 
       case 'selector':
-        return await executeSelector(node, opts, state);
+        return toExecutionResult(await executeSelector(node, opts, state));
 
       case 'union': {
-        const results = [];
+        const results = executionResult([]);
         const seen = new Set();
         for (const child of node.items || []) {
-          const childResultRaw = await executeNode(child, opts, state);
-          const childResult = normalizeForSetOps(childResultRaw);
-          propagateUnclosed(results, childResultRaw, childResult);
-          for (const c of childResult) {
+          const childResult = normalizeForSetOps(await executeNode(child, opts, state));
+          mergeExecutionMetadata(results, childResult);
+          for (const c of childResult.candidates) {
             if (!seen.has(c.code)) {
               seen.add(c.code);
-              results.push(c);
+              results.candidates.push(c);
             }
           }
         }
@@ -140,41 +168,43 @@ function createGenericIRExecutor({
 
       case 'intersect': {
         const items = (node.items || []).filter(Boolean);
-        if (items.length === 0) return [];
-        if (items.some(it => it.kind === 'empty')) return [];
+        if (items.length === 0) return executionResult([]);
+        if (items.some(it => it.kind === 'empty')) return executionResult([]);
         if (items.length === 1) return await executeNode(items[0], opts, state);
 
-        const firstRaw = await executeNode(items[0], opts, state);
-        const first = normalizeForSetOps(firstRaw);
+        const first = normalizeForSetOps(await executeNode(items[0], opts, state));
         const memberships = await Promise.all(
           items.slice(1).map(child => buildMembership(child, state))
         );
-        const result = first.filter(c => memberships.every(m => m.has(c.code)));
-        return propagateUnclosed(result, firstRaw, first);
+        const result = executionResult(
+          first.candidates.filter(c => memberships.every(m => m.has(c.code))),
+          first
+        );
+        return result;
       }
 
       case 'diff': {
-        const leftRaw = await executeNode(node.left, opts, state);
-        const left = normalizeForSetOps(leftRaw);
+        const left = normalizeForSetOps(await executeNode(node.left, opts, state));
         if (!node.right || node.right.kind === 'empty') return left;
         const rightMembership = await buildMembership(node.right, state);
-        const result = left.filter(c => !rightMembership.has(c.code));
-        return propagateUnclosed(result, leftRaw, left);
+        return executionResult(
+          left.candidates.filter(c => !rightMembership.has(c.code)),
+          left
+        );
       }
 
       case 'import':
         if (node.resolved) return await executeNode(node.resolved, opts, state);
-        return [];
+        return executionResult([]);
 
       default:
-        return [];
+        return executionResult([]);
     }
   }
 
   async function defaultBuildSelectorMembership(node, state) {
-    const candidatesRaw = await executeSelector(node, {}, state);
-    const candidates = normalizeForSetOps(candidatesRaw);
-    return new SetMembership(new Set(candidates.map(c => c.code)));
+    const candidates = normalizeForSetOps(await executeSelector(node, {}, state));
+    return new SetMembership(new Set(candidates.candidates.map(c => c.code)));
   }
 
   async function buildMembership(node, state) {
@@ -216,45 +246,48 @@ function createGenericIRExecutor({
   return {
     async executeIR(subtree, opts = {}) {
       const state = createState();
-      let candidates = await executeNode(subtree, opts, state);
-      candidates = dedupeCandidatesForResult(candidates);
-      const unclosed = candidates._unclosed || null;
-      candidates = applyTextFilterCandidates(candidates, opts.text, state);
-      candidates.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+      let result = dedupeCandidatesForResult(await executeNode(subtree, opts, state));
+      const filtered = toExecutionResult(applyTextFilterCandidates(result.candidates, opts.text, state));
+      result = executionResult(filtered.candidates, {
+        unclosed: filtered.unclosed || result.unclosed,
+        limitedExpansion: filtered.limitedExpansion || result.limitedExpansion,
+        tooCostly: filtered.tooCostly || result.tooCostly,
+      });
+      result.candidates.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
       if (opts.offset > 0 || opts.count != null) {
         const off = opts.offset || 0;
-        if (hasHierarchyCandidates(candidates)) {
-          const total = countWithChildren(candidates);
+        if (hasHierarchyCandidates(result)) {
+          const total = countWithChildren(result);
           const lim = opts.count != null ? opts.count : total;
           const fullWindow = off === 0 && lim >= total;
           if (!fullWindow) {
-            const flat = flattenHierarchyCandidates(candidates);
-            candidates = flat.slice(off, off + lim);
+            const flat = flattenHierarchyCandidates(result.candidates);
+            result = executionResult(flat.slice(off, off + lim), result);
           }
         } else {
-          const lim = opts.count != null ? opts.count : candidates.length;
-          candidates = candidates.slice(off, off + lim);
+          const lim = opts.count != null ? opts.count : result.candidates.length;
+          result = executionResult(result.candidates.slice(off, off + lim), result);
         }
       }
-      const result = { candidates };
-      if (unclosed) result.unclosed = unclosed;
-      if (candidates._limitedExpansion) result.limitedExpansion = true;
-      if (candidates._tooCostly) result.tooCostly = true;
       return result;
     },
 
     async countForIR(subtree, opts = {}) {
       const state = createState();
-      let candidates = await executeNode(subtree, opts, state);
-      candidates = dedupeCandidatesForResult(candidates);
-      if (typeof onCountUnclosed === 'function' && candidates._unclosed) {
-        onCountUnclosed(candidates._unclosed);
+      let result = dedupeCandidatesForResult(await executeNode(subtree, opts, state));
+      if (typeof onCountUnclosed === 'function' && result.unclosed) {
+        onCountUnclosed(result.unclosed);
       }
       if (typeof onCountMetadata === 'function') {
-        onCountMetadata(candidates);
+        onCountMetadata(result);
       }
-      candidates = applyTextFilterCandidates(candidates, opts.text, state);
-      return countWithChildren(candidates);
+      const filtered = toExecutionResult(applyTextFilterCandidates(result.candidates, opts.text, state));
+      result = executionResult(filtered.candidates, {
+        unclosed: filtered.unclosed || result.unclosed,
+        limitedExpansion: filtered.limitedExpansion || result.limitedExpansion,
+        tooCostly: filtered.tooCostly || result.tooCostly,
+      });
+      return countWithChildren(result);
     },
 
     async membershipForIR(subtree) {
@@ -265,13 +298,16 @@ function createGenericIRExecutor({
 }
 
 module.exports = {
+  candidateListOf,
   countWithChildren,
   createGenericIRExecutor,
   dedupeCandidatesByCode,
   dedupeCandidatesForResult,
   dedupeHierarchyByCode,
+  executionResult,
   flattenHierarchyCandidates,
   hasHierarchyCandidates,
   normalizeForSetOps,
   propagateUnclosed,
+  toExecutionResult,
 };

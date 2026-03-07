@@ -17,6 +17,7 @@ const {
   createGenericIRExecutor,
   dedupeCandidatesByCode,
   dedupeHierarchyByCode,
+  executionResult,
   flattenHierarchyCandidates,
   hasHierarchyCandidates,
 } = require('./generic-ir-executor');
@@ -42,9 +43,9 @@ function wrapWithLegacyIR(provider) {
     onCountUnclosed: (unclosed) => {
       wrapper._discoveredUnclosed.push(unclosed);
     },
-    onCountMetadata: (candidates) => {
-      if (candidates?._limitedExpansion) wrapper._discoveredLimitedExpansion = true;
-      if (candidates?._tooCostly) wrapper._discoveredTooCostly = true;
+    onCountMetadata: (result) => {
+      if (result?.limitedExpansion) wrapper._discoveredLimitedExpansion = true;
+      if (result?.tooCostly) wrapper._discoveredTooCostly = true;
     },
   });
 
@@ -60,12 +61,10 @@ function applyTextFilterCandidates(candidates, text) {
   const base = hasHierarchyCandidates(candidates)
     ? flattenHierarchyCandidates(candidates)
     : candidates;
-  const filtered = base.filter(c =>
+  return base.filter(c =>
     (c.display || '').toLowerCase().includes(lower)
     || (c.code || '').toLowerCase().includes(lower)
   );
-  if (candidates._unclosed && !filtered._unclosed) filtered._unclosed = candidates._unclosed;
-  return filtered;
 }
 
 /**
@@ -164,18 +163,19 @@ async function executeSelector(provider, sel, opts) {
             _context: ctx.context,
           });
         }
-        results._unclosed = `The code System "${provider.system()}" has a grammar`
-          + ` and so has infinite members. This extension is based on ${specUrl}`;
-        return results;
+        return executionResult(results, {
+          unclosed: `The code System "${provider.system()}" has a grammar`
+            + ` and so has infinite members. This extension is based on ${specUrl}`,
+        });
       }
       const tc = typeof provider.totalCount === 'function' ? provider.totalCount() : null;
       if (tc === -1) {
         if (allowIncompleteExpansion) {
-          const results = [];
-          results._unclosed = `The code System "${provider.system()}" has a grammar, and cannot be enumerated directly`;
-          results._limitedExpansion = true;
-          results._tooCostly = true;
-          return results;
+          return executionResult([], {
+            unclosed: `The code System "${provider.system()}" has a grammar, and cannot be enumerated directly`,
+            limitedExpansion: true,
+            tooCostly: true,
+          });
         }
         const err = new Error(
           `The code System "${provider.system()}" has a grammar, and cannot be enumerated directly`

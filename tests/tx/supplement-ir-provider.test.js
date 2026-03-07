@@ -353,4 +353,59 @@ describe('supplement-aware IR provider', () => {
       "Supplement filter op 'is-a' is not supported for property 'parent'"
     );
   });
+
+  test('forwards allowIncompleteExpansion on the three base-provider delegation paths', async () => {
+    const calls = [];
+    const provider = {
+      system() { return 'http://example.org/base'; },
+      version() { return '1'; },
+      async properties() { return []; },
+      async executeIR(node, opts = {}) {
+        calls.push({ node, opts });
+        return {
+          candidates: [{ code: 'A', display: 'Alpha', active: true }],
+          limitedExpansion: !!opts.allowIncompleteExpansion,
+          unclosed: opts.allowIncompleteExpansion ? 'grammar shell' : null,
+        };
+      },
+      async membershipForIR(node) {
+        const result = await this.executeIR(node, {});
+        const codes = new Set((result.candidates || []).map(candidate => candidate.code));
+        return { has: code => codes.has(code) };
+      },
+      async countForIR() { return 1; },
+    };
+    const supplement = makeSupplement([
+      { code: 'A', property: [{ code: 'rank', valueInteger: 1 }] },
+    ]);
+    const wrapped = wrapIRProviderWithSupplements(provider, {
+      items: [{ overlaySource: { codeSystem: supplement } }],
+    });
+
+    await wrapped.executeIR(IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'whole',
+    }), { allowIncompleteExpansion: true });
+
+    await wrapped.executeIR(IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'filter',
+      filterClauses: [{ property: 'class', op: '=', value: 'chem' }],
+    }), { allowIncompleteExpansion: true });
+
+    await wrapped.executeIR(IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'filter',
+      filterClauses: [
+        { property: 'class', op: '=', value: 'chem' },
+        { property: 'rank', op: '=', value: '1' },
+      ],
+    }), { allowIncompleteExpansion: true });
+
+    expect(calls).toHaveLength(3);
+    expect(calls.every(call => call.opts.allowIncompleteExpansion === true)).toBe(true);
+  });
 });

@@ -198,6 +198,49 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
     expect(inlineRes.body.expansion?.total).toBe(sidecarRes.body.expansion?.total);
   }, 60000);
 
+  test('native-bound inline sqlite supplements are decorated only once', async () => {
+    const target = d20.concept.find(concept =>
+      (concept.designation || []).length > 0
+      && concept.property?.some(prop => prop.code === 'd20-roll')
+    );
+    expect(target).toBeTruthy();
+    const designationValue = target.designation[0].value;
+
+    const res = await request(fixture.app)
+      .post('/tx/r5/ValueSet/$expand')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send({
+        resourceType: 'Parameters',
+        parameter: [
+          { name: '_engine', valueCode: 'ir' },
+          { name: 'useSupplement', valueString: d20.url },
+          { name: 'tx-resource', resource: d20 },
+          { name: 'includeDesignations', valueBoolean: true },
+          { name: 'property', valueString: 'd20-roll' },
+          {
+            name: 'valueSet',
+            resource: {
+              resourceType: 'ValueSet',
+              status: 'active',
+              compose: {
+                include: [{
+                  system,
+                  concept: [{ code: target.code }],
+                }],
+              },
+            },
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    const concept = (res.body.expansion?.contains || []).find(item => item.code === target.code);
+    expect(concept).toBeTruthy();
+    expect((concept.property || []).filter(item => item.code === 'd20-roll')).toHaveLength(1);
+    expect((concept.designation || []).filter(item => item.value === designationValue)).toHaveLength(1);
+  }, 60000);
+
   test('legacy expand fails closed for configured sqlite supplement sidecars', async () => {
     const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')

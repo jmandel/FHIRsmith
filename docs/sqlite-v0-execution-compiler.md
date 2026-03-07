@@ -212,6 +212,10 @@ actually emits:
 
 No semantic decisions should happen here. By this stage, planning is done.
 
+Implementation split:
+- `tx/cs/sqlite-v0-sql-nodes.js` owns AST node constructors and structural-form helpers
+- `tx/cs/sqlite-v0-sql-ast.js` owns physical-plan-to-AST lowering
+
 ### 7. SQL emit
 
 The emitter renders SQL AST to:
@@ -350,6 +354,7 @@ Core provider/compiler files:
 - `tx/cs/sqlite-v0-terminal-builder.js`
 - `tx/cs/sqlite-v0-plan-normalize.js`
 - `tx/cs/sqlite-v0-physicalize.js`
+- `tx/cs/sqlite-v0-sql-nodes.js`
 - `tx/cs/sqlite-v0-sql-ast.js`
 - `tx/cs/sqlite-v0-sql-emit.js`
 - `tx/cs/sqlite-v0-format-plan.js`

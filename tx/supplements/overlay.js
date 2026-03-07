@@ -33,6 +33,9 @@ function buildSupplementOverlay(supplementSet) {
   for (const item of supplementSet?.items || []) {
     const supplement = item?.overlaySource?.codeSystem;
     if (!(supplement instanceof CodeSystem)) continue;
+    for (const def of supplement.property || supplement.jsonObj?.property || []) {
+      if (def?.code) propertyCodes.add(String(def.code));
+    }
     for (const concept of supplement.getAllConcepts?.() || []) {
       if (!concept?.code) continue;
       let entry = byCode.get(concept.code);

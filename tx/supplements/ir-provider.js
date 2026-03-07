@@ -3,9 +3,9 @@
 const IR = require('../engine/ir');
 const {
   createGenericIRExecutor,
+  executionResult,
   flattenHierarchyCandidates,
   hasHierarchyCandidates,
-  propagateUnclosed,
 } = require('../engine/generic-ir-executor');
 const { wrapWithLegacyIR } = require('../engine/legacy-ir-adapter');
 const { trace } = require('../engine/expand-trace');
@@ -43,9 +43,9 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
     onCountUnclosed: (unclosed) => {
       extras._discoveredUnclosed.push(unclosed);
     },
-    onCountMetadata: (candidates) => {
-      if (candidates?._limitedExpansion) extras._discoveredLimitedExpansion = true;
-      if (candidates?._tooCostly) extras._discoveredTooCostly = true;
+    onCountMetadata: (result) => {
+      if (result?.limitedExpansion) extras._discoveredLimitedExpansion = true;
+      if (result?.tooCostly) extras._discoveredTooCostly = true;
     },
   });
 
@@ -103,12 +103,10 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
 
 async function executeSelector(provider, baseIRProvider, overlay, sel, opts, state) {
   if (sel.shape !== 'filter') {
-    const result = await baseIRProvider.executeIR(sel, { activeOnly: !!opts.activeOnly });
-    const candidates = result?.candidates || [];
-    if (result?.unclosed && !candidates._unclosed) candidates._unclosed = result.unclosed;
-    if (result?.limitedExpansion && !candidates._limitedExpansion) candidates._limitedExpansion = true;
-    if (result?.tooCostly && !candidates._tooCostly) candidates._tooCostly = true;
-    return candidates;
+    return await baseIRProvider.executeIR(sel, {
+      activeOnly: !!opts.activeOnly,
+      allowIncompleteExpansion: !!opts.allowIncompleteExpansion,
+    });
   }
 
   const supplementClauses = [];
@@ -119,16 +117,17 @@ async function executeSelector(provider, baseIRProvider, overlay, sel, opts, sta
   }
 
   if (supplementClauses.length === 0) {
-    const result = await baseIRProvider.executeIR(sel, { activeOnly: !!opts.activeOnly });
-    const candidates = result?.candidates || [];
-    if (result?.unclosed && !candidates._unclosed) candidates._unclosed = result.unclosed;
-    if (result?.limitedExpansion && !candidates._limitedExpansion) candidates._limitedExpansion = true;
-    if (result?.tooCostly && !candidates._tooCostly) candidates._tooCostly = true;
-    return candidates;
+    return await baseIRProvider.executeIR(sel, {
+      activeOnly: !!opts.activeOnly,
+      allowIncompleteExpansion: !!opts.allowIncompleteExpansion,
+    });
   }
 
   const supportSelector = buildSupportSelector(sel, supportClauses);
-  const baseResult = await baseIRProvider.executeIR(supportSelector, { activeOnly: !!opts.activeOnly });
+  const baseResult = await baseIRProvider.executeIR(supportSelector, {
+    activeOnly: !!opts.activeOnly,
+    allowIncompleteExpansion: !!opts.allowIncompleteExpansion,
+  });
   const baseCandidates = baseResult?.candidates || [];
   const filtered = [];
   const enumerable = hasHierarchyCandidates(baseCandidates)
@@ -146,7 +145,7 @@ async function executeSelector(provider, baseIRProvider, overlay, sel, opts, sta
     before: enumerable.length,
     after: filtered.length,
   });
-  return propagateUnclosed(filtered, baseCandidates);
+  return executionResult(filtered, baseResult);
 }
 
 async function buildSelectorMembership(provider, baseIRProvider, overlay, node, state, defaultBuilder) {
@@ -289,9 +288,7 @@ function applySupplementTextFilterCandidates(candidates, overlay, text) {
   const base = hasHierarchyCandidates(candidates)
     ? flattenHierarchyCandidates(candidates)
     : candidates;
-  const filtered = base.filter(candidate => candidateMatchesText(candidate, overlay, lower));
-  if (candidates._unclosed && !filtered._unclosed) filtered._unclosed = candidates._unclosed;
-  return filtered;
+  return base.filter(candidate => candidateMatchesText(candidate, overlay, lower));
 }
 
 function candidateMatchesText(candidate, overlay, lower) {

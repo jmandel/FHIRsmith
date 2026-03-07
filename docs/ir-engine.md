@@ -409,7 +409,7 @@ path now also fail closed instead of being downgraded into a generic
 also reuse this same supplement runtime seam. On the IR path, typed
 property values from both base sqlite-v0 data and supplements now survive
 response shaping as proper FHIR `value[x]` fields. Current boundary: the
-generic supplement fallback is complete
+generic supplement fallback supports
 for simple overlay-backed property operators (`=`, `in`, `regex`,
 `exists`), while richer overlay-backed hierarchical operators remain an
 explicit fail-closed TODO.
@@ -570,7 +570,8 @@ Use it for:
 | `cs-sqlite-v0-specializations.js` | Bootstrap that loads registered sqlite-v0 specializations at startup |
 | `cs-sqlite-v0-loinc.js` | LOINC-specific sqlite-v0 subclass; owns `http://loinc.org/vs...` implicit ValueSet behavior |
 | `sqlite-v0-compiler.js` | Provider-private compiler from scoped IR to normalized plans, SQL AST, rendered SQL, and execution-ready queries |
-| `sqlite-v0-sql-ast.js` | Structured SQL AST lowering for sqlite-v0 physical plans |
+| `sqlite-v0-sql-ast.js` | Physical plan to SQL AST lowering for sqlite-v0 |
+| `sqlite-v0-sql-nodes.js` | SQL AST node constructors and structural-form helpers |
 | `sqlite-v0-sql-emit.js` | Deterministic SQL renderer for sqlite-v0 SQL AST |
 
 ### IR expansion engine (`tx/engine/`)
@@ -581,6 +582,7 @@ Use it for:
 | `resolve-imports.js` | Fetches imported ValueSets and inlines them into the tree |
 | `rewrite.js` | Simplifies the tree: merge, deduplicate, partition by system |
 | `orchestrator.js` | Runs the pipeline: count → paginate → execute → decorate → build response |
+| `ir-expansion-response.js` | IR expansion response shaping: candidate decoration, compose overrides, FHIR expansion building |
 | `legacy-ir-adapter.js` | Wraps filter-protocol providers so they can execute expansion plan trees |
 | `ir.js` | Node constructors for the expansion plan tree |
 | `membership.js` | "Does code X belong to set Y?" testers for intersect/diff |

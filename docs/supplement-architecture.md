@@ -94,7 +94,7 @@ If a supplement is available:
 
 Current boundary:
 
-- the generic overlay path is complete for simple overlay-backed property
+- the generic overlay path supports simple overlay-backed property
   operators: `=`, `in`, `regex`, `exists`
 - richer overlay-backed hierarchical operators on concept-valued supplement
   properties remain an explicit TODO
@@ -1302,6 +1302,9 @@ Implemented notes:
 - the current path is correctness-first and generic: it runs the base scoped IR
   normally, then evaluates supplement-touched semantics against merged
   base+supplement values by code
+- when a provider reports `_irAllSupplementsNativeBound === true`, the
+  orchestrator skips generic overlay decoration so native-bound supplement
+  properties/designations are not applied twice
 - the supplement wrapper no longer carries its own duplicate union/intersect/
   diff/paging/hierarchy executor; it now reuses the shared generic IR executor
   core from `tx/engine/generic-ir-executor.js`, with supplement-specific hooks

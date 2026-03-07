@@ -219,6 +219,42 @@ describe('expandViaIR compose override identity', () => {
   });
 });
 
+describe('expandViaIR sideband metadata propagation', () => {
+  test('preserves unclosed messages discovered during lazy countForIR', async () => {
+    const provider = {
+      _discoveredUnclosed: [],
+      version: () => null,
+      executeIR: async () => ({
+        candidates: [{ code: 'A', display: 'Alpha', active: true }],
+        unclosed: null,
+      }),
+      countForIR: async function countForIR() {
+        this._discoveredUnclosed.push('grammar shell from count');
+        return 1;
+      },
+    };
+
+    const result = await expandViaIR({
+      resourceType: 'ValueSet',
+      url: 'test:lazy-count-unclosed',
+      status: 'active',
+      compose: {
+        include: [{ system: 'http://example.org/cs', concept: [{ code: 'A' }] }],
+      },
+    }, {
+      findProvider: async (system) => (
+        system === 'http://example.org/cs' ? provider : null
+      ),
+      count: 1,
+      exactTotal: true,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(1);
+    expect(result.expansion.unclosedMessages).toContain('grammar shell from count');
+  });
+});
+
 describe('expandViaIR semantic guards', () => {
   function codesFromIR(node) {
     if (!node) return new Set();
