@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T05:39:00.023Z",
+  "rowIndex": 179,
+  "slug": "179-count-only-multi-clause-loinc-filter-stays-on-the-count-path",
+  "name": "Count-only multi-clause LOINC filter stays on the count path",
+  "category": "Stress & Scale",
+  "hrefs": {
+    "input": "../perf-table.inputs/179-count-only-multi-clause-loinc-filter-stays-on-the-count-path.json",
+    "detailJson": "179-count-only-multi-clause-loinc-filter-stays-on-the-count-path.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 93,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 93,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "CLASS",
+                            "op": "=",
+                            "value": "CHEM"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2929",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:38:31 GMT",
+            "etag": "W/\"b71-dtZx7AVEJRFEuiIqa8oGUEqj3gI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-994"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T05:38:31.496Z",
+              "identifier": "urn:uuid:efdaa28f-2c5e-425f-a191-37a3ca664ecf",
+              "total": 10067,
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: bfcb41346a7dc22feae60bbe38a7b43e9863178c\nruntime-constraints:\n  pagination: offset=0 count=0\n  total-only: true\noptimized-ir:\n  selector filter http://loinc.org CLASS = CHEM ; STATUS = ACTIVE [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":88.83,\"sqlCount\":1,\"sqlMs\":86.33,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":0,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_link\\\" \\\"l\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"source_concept_id\\\") INNER JOIN \\\"concept\\\" \\\"tgt\\\" ON (\\\"tgt\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"target_concept_id\\\") WHERE ((\\\"l\\\".\\\"property_id\\\" = @prop_id_1) AND (\\\"l\\\".\\\"edge_set_id\\\" = @edge_set_id_2) AND (\\\"l\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @link_cs_id_3) AND (\\\"tgt\\\".\\\"code\\\" COLLATE NOCASE IN (@prop_value_0) OR \\\"tgt\\\".\\\"display\\\" COLLATE NOCASE IN (@prop_value_0)))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_4) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_5) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_6) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_6))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\"\",\"params\":{\"prop_value_0\":\"CHEM\",\"prop_id_1\":8,\"edge_set_id_2\":1,\"link_cs_id_3\":1,\"prop_id_4\":37,\"literal_cs_id_5\":1,\"prop_value_6\":\"ACTIVE\"},\"rows\":10067,\"ms\":86.33,\"label\":\"countForIR\"}],\"ms\":86.94,\"result\":{\"count\":10067}}],\"ms\":87.03,\"result\":{\"count\":10067}}],\"ms\":88.67}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 88.83,
+          "sqlCount": 1,
+          "sqlMs": 86.33,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 0,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [
+                    {
+                      "name": "countForIR:compiler",
+                      "args": {
+                        "system": "http://loinc.org"
+                      },
+                      "children": [],
+                      "sql": [
+                        {
+                          "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_link\" \"l\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"l\".\"source_concept_id\") INNER JOIN \"concept\" \"tgt\" ON (\"tgt\".\"concept_id\" = \"l\".\"target_concept_id\") WHERE ((\"l\".\"property_id\" = @prop_id_1) AND (\"l\".\"edge_set_id\" = @edge_set_id_2) AND (\"l\".\"active\" = 1) AND (\"src\".\"cs_id\" = @link_cs_id_3) AND (\"tgt\".\"code\" COLLATE NOCASE IN (@prop_value_0) OR \"tgt\".\"display\" COLLATE NOCASE IN (@prop_value_0)))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL) INTERSECT SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_4) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_5) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_6) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_6))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\"",
+                          "params": {
+                            "prop_value_0": "CHEM",
+                            "prop_id_1": 8,
+                            "edge_set_id_2": 1,
+                            "link_cs_id_3": 1,
+                            "prop_id_4": 37,
+                            "literal_cs_id_5": 1,
+                            "prop_value_6": "ACTIVE"
+                          },
+                          "rows": 10067,
+                          "ms": 86.33,
+                          "label": "countForIR"
+                        }
+                      ],
+                      "ms": 86.94,
+                      "result": {
+                        "count": 10067
+                      }
+                    }
+                  ],
+                  "ms": 87.03,
+                  "result": {
+                    "count": 10067
+                  }
+                }
+              ],
+              "ms": 88.67
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: bfcb41346a7dc22feae60bbe38a7b43e9863178c\nruntime-constraints:\n  pagination: offset=0 count=0\n  total-only: true\noptimized-ir:\n  selector filter http://loinc.org CLASS = CHEM ; STATUS = ACTIVE [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1525,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "CLASS",
+                            "op": "=",
+                            "value": "CHEM"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "424",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:38:31 GMT",
+            "etag": "W/\"1a8-IKg8ydxm76At48HmjVISmNimBHI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-993"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set '??' expansion has too many codes to display (>1000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n1ms start working\n1ms compose #1\n3ms compose #2\n4ms prepare filters\n1214ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 28526,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8121/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "CLASS",
+                            "op": "=",
+                            "value": "CHEM"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "208",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:39:00 GMT",
+            "etag": "W/\"d0-csOs8wp1+NhoArC3aoOrPbagclg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-372"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "this.opContext.langs.langs is not iterable"
+                },
+                "diagnostics": "this.opContext.langs.langs is not iterable"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}

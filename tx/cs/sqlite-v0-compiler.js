@@ -7,13 +7,18 @@ const { buildMaterializePlan, buildCountPlan, buildProbePlan } = require('./sqli
 const { physicalizeTerminalPlan } = require('./sqlite-v0-physicalize');
 const { lowerPhysicalPlanToSqlAst } = require('./sqlite-v0-sql-ast');
 const { emitSqlAst } = require('./sqlite-v0-sql-emit');
+const { mergeSupplementPropertyDefinitions } = require('./sqlite-v0-supplements');
 const { analyzePartitionSafety, canonicalIRHash, collectSystems } = require('../engine/rewrite');
 
 class SqliteV0Compiler {
   constructor(opts = {}) {
-    this.propertyDefs = opts.propertyDefs instanceof Map ? opts.propertyDefs : new Map();
+    const basePropertyDefs = opts.propertyDefs instanceof Map ? opts.propertyDefs : new Map();
     this.runtime = opts.runtime || {};
     this.scope = Types.normalizeScope(opts.scope || null);
+    this.supplementBindings = Array.isArray(opts.supplementBindings) ? opts.supplementBindings : [];
+    this.propertyDefs = this.supplementBindings.length > 0
+      ? mergeSupplementPropertyDefinitions(basePropertyDefs, this.supplementBindings)
+      : basePropertyDefs;
     this.includeDebugArtifacts = opts.includeDebugArtifacts === true;
     this.cacheLimit = Number.isInteger(opts.cacheLimit) && opts.cacheLimit > 0 ? opts.cacheLimit : 256;
     this.baseCache = new Map();
@@ -48,6 +53,7 @@ class SqliteV0Compiler {
       propertyDefs: this.propertyDefs,
       runtime: this.runtime,
       scope: base.scope || this.scope,
+      supplementBindings: this.supplementBindings,
     });
     const sql = emitSqlAst(sqlAst, params);
     return {
@@ -84,6 +90,7 @@ class SqliteV0Compiler {
       propertyDefs: this.propertyDefs,
       runtime: this.runtime,
       scope: base.scope || this.scope,
+      supplementBindings: this.supplementBindings,
     });
     const sql = emitSqlAst(sqlAst, params);
     return {
@@ -116,6 +123,7 @@ class SqliteV0Compiler {
       propertyDefs: this.propertyDefs,
       runtime: this.runtime,
       scope: base.scope || this.scope,
+      supplementBindings: this.supplementBindings,
     });
     const sql = emitSqlAst(sqlAst, params);
     return {
@@ -147,9 +155,11 @@ class SqliteV0Compiler {
       propertyDefs: this.propertyDefs,
       runtime: this.runtime,
       scope,
+      supplementBindings: this.supplementBindings,
     });
     if (!lowered.ok) {
-      throw new Error(`sqlite-v0 base membership compilation failed: ${lowered.reason}`);
+      const detail = lowered.detail ? ` ${JSON.stringify(lowered.detail)}` : '';
+      throw new Error(`sqlite-v0 base membership compilation failed: ${lowered.reason}${detail}`);
     }
     const plan = normalizeMembershipPlan(lowered.plan);
     this.#remember(this.baseCache, cacheKey, plan);

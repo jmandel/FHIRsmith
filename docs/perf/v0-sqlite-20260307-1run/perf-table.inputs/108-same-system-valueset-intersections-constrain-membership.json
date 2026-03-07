@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "id": 108,
+  "slug": "108-same-system-valueset-intersections-constrain-membership",
+  "name": "Same-system ValueSet intersections constrain membership",
+  "category": "Composition Semantics",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "valueSet": [
+              "http://hl7.org/fhir/ValueSet/administrative-gender"
+            ],
+            "concept": [
+              {
+                "code": "male"
+              },
+              {
+                "code": "female"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {}
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8120/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "valueSet": [
+                      "http://hl7.org/fhir/ValueSet/administrative-gender"
+                    ],
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8120/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "valueSet": [
+                      "http://hl7.org/fhir/ValueSet/administrative-gender"
+                    ],
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8121/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "valueSet": [
+                      "http://hl7.org/fhir/ValueSet/administrative-gender"
+                    ],
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

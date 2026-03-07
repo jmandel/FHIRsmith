@@ -62,12 +62,19 @@ function renderColumns(columns) {
 function renderSource(source) {
   switch (source?.kind) {
   case 'table':
-    return source.alias ? `${quoteIdent(source.name)} ${quoteIdent(source.alias)}` : quoteIdent(source.name);
+    return renderTableSource(source);
   case 'subquery':
     return `(${renderQuery(source.query)}) ${quoteIdent(source.alias)}`;
   default:
     throw new Error(`Unknown SQL AST source kind ${String(source?.kind || '(missing)')}`);
   }
+}
+
+function renderTableSource(source) {
+  const tableName = source.schema
+    ? `${quoteIdent(source.schema)}.${quoteIdent(source.name)}`
+    : quoteIdent(source.name);
+  return source.alias ? `${tableName} ${quoteIdent(source.alias)}` : tableName;
 }
 
 function renderOrder(item) {

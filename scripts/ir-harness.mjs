@@ -84,6 +84,7 @@ const PERF_OUT_BASE = basename(PERF_OUT_PATH, extname(PERF_OUT_PATH));
 const PERF_DETAILS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.details`);
 const PERF_INPUTS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.inputs`);
 const PERF_CATALOG_PATH = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.catalog.json`);
+const PERF_ARTIFACT_SCHEMA_VERSION = 1;
 const TRACE_EXTENSION_URLS = new Set([
   'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace',
   'http://fhirsmith.org/StructureDefinition/expand-trace', // backwards compatibility
@@ -92,6 +93,7 @@ const IR_PLAN_EXTENSION_URLS = new Set([
   'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan',
   'http://fhirsmith.org/StructureDefinition/ir-plan', // backwards compatibility
 ]);
+const HARNESS_SQLITE_SUPP_URL_ROOT = (process.env.HARNESS_SQLITE_SUPP_URL_ROOT || '').trim();
 
 const SYS = {
   SCT: 'http://snomed.info/sct',
@@ -730,11 +732,13 @@ async function test(def, fn) {
       const rowIndex = meta.id ?? (perfRows.length + 1);
       let detailHref = null;
       let inputHref = null;
+      let detailJsonHref = null;
       let detailError = null;
       try {
         const detail = await capturePerfDetails(rowIndex, meta.name, meta.category, vsJson, opts, ir, upstream, third);
         detailHref = detail.href;
         inputHref = detail.inputHref;
+        detailJsonHref = detail.detailJsonHref;
       } catch (e) {
         detailError = e.message || String(e);
       }
@@ -750,6 +754,7 @@ async function test(def, fn) {
         upstreamErr: upstream.err,
         thirdErr: third?.err ?? null,
         detailHref,
+        detailJsonHref,
         inputHref,
         detailError,
       });
@@ -856,17 +861,17 @@ function safeSlug(name) {
     .slice(0, 80) || 'test';
 }
 
-function stringifyForLog(value) {
-  if (typeof value === 'string') return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
 function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function serializeJsonForHtml(value) {
+  return JSON.stringify(value, null, 2)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }
 
 async function captureEngineDebug(vsJson, opts, engine, baseUrl = BASE) {
@@ -905,70 +910,9 @@ async function captureEngineDebug(vsJson, opts, engine, baseUrl = BASE) {
   }
 }
 
-function buildPerfDetailHtml({ rowIndex, name, category, primaryPerf, secondaryPerf, thirdPerf, primaryDebug, secondaryDebug, thirdDebug, inputHref }) {
-  const toPerfStr = (p) => {
-    if (!p) return 'n/a';
-    return p.err ? '❌' : `${p.ms}ms`;
-  };
-  const targets = [
-    { key: 'primary', label: PERF_PRIMARY_LABEL, perf: primaryPerf, debug: primaryDebug, hasPlan: true },
-    { key: 'secondary', label: PERF_SECONDARY_LABEL, perf: secondaryPerf, debug: secondaryDebug, hasPlan: false },
-  ];
-  if (thirdPerf && thirdDebug) {
-    targets.push({ key: 'third', label: PERF_THIRD_LABEL, perf: thirdPerf, debug: thirdDebug, hasPlan: false });
-  }
-
-  const summaryPerf = targets.map(t => `${t.label}=${toPerfStr(t.perf)}`).join(' | ');
-  const sectionCell = (prefix, section, label, content) => `<section class="cell">
-    <details id="${prefix}-${section}" open>
-      <summary>${escHtml(label)}</summary>
-      <pre>${escHtml(content)}</pre>
-    </details>
-  </section>`;
-  const nav = targets.map(t => [
-    `<a href="#${t.key}-query">${escHtml(t.label)} query</a>`,
-    `<a href="#${t.key}-plan">${escHtml(t.label)} plan</a>`,
-    `<a href="#${t.key}-trace">${escHtml(t.label)} trace</a>`,
-    `<a href="#${t.key}-http">${escHtml(t.label)} response</a>`,
-  ].join(' ')).join(' ');
-
-  const cards = targets.map(t => {
-    const d = t.debug || {};
-    const traceMs = d?.trace?.totalMs;
-    const timing = d?.ok ? `${d.ms}ms capture wall` : 'capture failed';
-    const status = d?.response ? `${d.response.status} ${d.response.statusText || ''}`.trim() : 'n/a';
-    return `<section class="engine-card">
-      <h3>${escHtml(t.label)}</h3>
-      <p class="meta-mini">capture: ${escHtml(timing)}${traceMs != null ? ` · trace: ${escHtml(String(traceMs))}ms` : ''} · response: ${escHtml(status)}</p>
-    </section>`;
-  }).join('\n');
-
-  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
-    return targets.map((t) => {
-      const d = t.debug || {};
-      let content = '';
-      let label = '';
-      if (section === 'query') {
-        label = 'Query / HTTP Request';
-        content = stringifyForLog(d?.request || {});
-      } else if (section === 'plan') {
-        label = 'IR Plan';
-        content = t.hasPlan ? (d?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
-      } else if (section === 'trace') {
-        label = 'Structured Trace';
-        content = d?.traceAvailable ? stringifyForLog(d.trace) : 'No structured trace payload returned.';
-      } else {
-        label = 'HTTP Response';
-        content = stringifyForLog(d?.response || { error: d?.error || 'No response captured' });
-      }
-      return sectionCell(t.key, section, label, content);
-    }).join('\n');
-  }).join('\n');
-
-  const columns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
-
+function buildPerfDetailHtml(detailDoc) {
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Perf Detail: ${escHtml(name)}</title>
+<html><head><meta charset="utf-8"><title>Perf Detail: ${escHtml(detailDoc.name)}</title>
 <style>
   body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
   header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
@@ -976,7 +920,7 @@ function buildPerfDetailHtml({ rowIndex, name, category, primaryPerf, secondaryP
   .meta { color: #555; font-size: 0.9rem; }
   .links { margin-top: 6px; font-size: 0.9rem; }
   .links a { margin-right: 10px; }
-  .grid { display: grid; grid-template-columns: ${columns}; gap: 10px; padding: 10px; align-items: stretch; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
   .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
   .engine-card h3 { margin: 0 0 4px 0; }
   .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
@@ -984,20 +928,99 @@ function buildPerfDetailHtml({ rowIndex, name, category, primaryPerf, secondaryP
   details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
   summary { cursor: pointer; font-weight: 600; }
   pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
-  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr; } }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
 </style></head><body>
 <header>
-  <h1>#${rowIndex} ${escHtml(name)}</h1>
-  <div class="meta">Category: ${escHtml(category)} · Median perf: ${escHtml(summaryPerf)}</div>
-  <div class="links">
-    ${nav}
-    ${inputHref ? `<a href="${escHtml(inputHref)}" target="_blank" rel="noopener">Input payload</a>` : ''}
-  </div>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
 </header>
-<main class="grid">
-  ${cards}
-  ${sectionRows}
-</main>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">${serializeJsonForHtml(detailDoc)}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : \`\${perf.ms}ms\`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => \`\${target.label}=\${perfStr(target.perf)}\`).join(' | ');
+  document.title = \`Perf Detail: \${data.name}\`;
+  document.getElementById('perf-detail-title').textContent = \`#\${data.rowIndex} \${data.name}\`;
+  document.getElementById('perf-detail-meta').textContent = \`Category: \${data.category} · Median perf: \${summaryPerf}\`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(\`<a href="#\${target.key}-query">\${esc(target.label)} query</a>\`);
+    links.push(\`<a href="#\${target.key}-plan">\${esc(target.label)} plan</a>\`);
+    links.push(\`<a href="#\${target.key}-trace">\${esc(target.label)} trace</a>\`);
+    links.push(\`<a href="#\${target.key}-http">\${esc(target.label)} response</a>\`);
+  }
+  if (data.hrefs?.input) {
+    links.push(\`<a href="\${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>\`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(\`<a href="\${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>\`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? \`\${debug.ms}ms capture wall\` : 'capture failed';
+    const status = debug?.response ? \`\${debug.response.status} \${debug.response.statusText || ''}\`.trim() : 'n/a';
+    return \`<section class="engine-card">
+      <h3>\${esc(target.label)}</h3>
+      <p class="meta-mini">capture: \${esc(timing)}\${traceMs != null ? \` · trace: \${esc(String(traceMs))}ms\` : ''} · response: \${esc(status)}</p>
+    </section>\`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return \`<section class="cell">
+        <details id="\${target.key}-\${section}" open>
+          <summary>\${esc(label)}</summary>
+          <pre>\${esc(content)}</pre>
+        </details>
+      </section>\`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
 </body></html>`;
 }
 
@@ -1006,6 +1029,9 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, primar
   const filename = `${slug}.html`;
   const absPath = join(PERF_DETAILS_DIR, filename);
   const relPath = `${PERF_OUT_BASE}.details/${filename}`;
+  const detailJsonFilename = `${slug}.json`;
+  const detailJsonAbsPath = join(PERF_DETAILS_DIR, detailJsonFilename);
+  const detailJsonRelPath = `${PERF_OUT_BASE}.details/${detailJsonFilename}`;
   const inputFilename = `${slug}.json`;
   const inputAbsPath = join(PERF_INPUTS_DIR, inputFilename);
   const inputRelPath = `${PERF_OUT_BASE}.inputs/${inputFilename}`;
@@ -1017,6 +1043,7 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, primar
     ? await captureEngineDebug(vsJson, opts, PERF_THIRD_ENGINE, PERF_THIRD_BASE_URL)
     : null;
   const payloadDoc = {
+    schemaVersion: PERF_ARTIFACT_SCHEMA_VERSION,
     id: rowIndex,
     slug,
     name,
@@ -1031,20 +1058,29 @@ async function capturePerfDetails(rowIndex, name, category, vsJson, opts, primar
       third: thirdDebug?.request || null,
     },
   };
-  writeFileSync(inputAbsPath, JSON.stringify(payloadDoc, null, 2));
-  writeFileSync(absPath, buildPerfDetailHtml({
+  const detailDoc = {
+    schemaVersion: PERF_ARTIFACT_SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
     rowIndex,
+    slug,
     name,
     category,
-    primaryPerf,
-    secondaryPerf,
-    thirdPerf,
-    primaryDebug,
-    secondaryDebug,
-    thirdDebug,
-    inputHref: `../${PERF_OUT_BASE}.inputs/${inputFilename}`,
-  }));
-  return { href: relPath, inputHref: inputRelPath };
+    hrefs: {
+      input: `../${PERF_OUT_BASE}.inputs/${inputFilename}`,
+      detailJson: detailJsonFilename,
+    },
+    targets: [
+      { key: 'primary', label: PERF_PRIMARY_LABEL, hasPlan: true, perf: primaryPerf, debug: primaryDebug },
+      { key: 'secondary', label: PERF_SECONDARY_LABEL, hasPlan: false, perf: secondaryPerf, debug: secondaryDebug },
+      ...(thirdPerf && thirdDebug
+        ? [{ key: 'third', label: PERF_THIRD_LABEL, hasPlan: false, perf: thirdPerf, debug: thirdDebug }]
+        : []),
+    ],
+  };
+  writeFileSync(inputAbsPath, JSON.stringify(payloadDoc, null, 2));
+  writeFileSync(detailJsonAbsPath, JSON.stringify(detailDoc, null, 2));
+  writeFileSync(absPath, buildPerfDetailHtml(detailDoc));
+  return { href: relPath, inputHref: inputRelPath, detailJsonHref: detailJsonRelPath };
 }
 
 // ── tests ──────────────────────────────────────────────────────────────
@@ -2890,6 +2926,127 @@ async function run() {
     assert(enDes, 'expected supplement designation to be present');
   });
 
+  await test({ id: 195, rawName: 'supplement: inline supplement property filter paginates on LOINC v0', name: 'Inline supplement property filter paginates correctly on SQLite v0', category: 'Supplements' }, async () => {
+    const supp = {
+      resourceType: 'CodeSystem', url: 'http://example.org/loinc-supp-roll',
+      content: 'supplement', supplements: SYS.LOINC,
+      concept: [
+        { code: '2160-0', property: [{ code: 'd20-roll', valueInteger: 20 }] },
+        { code: '2345-7', property: [{ code: 'd20-roll', valueInteger: 20 }] },
+      ],
+    };
+    const { result } = await expand(
+      vs({ system: SYS.LOINC, filter: [{ property: 'd20-roll', op: '=', value: '20' }] }),
+      {
+        txResources: [supp],
+        count: 1,
+        offset: 1,
+        params: [{ name: 'useSupplement', valueString: supp.url }],
+      }
+    );
+    eq(result.expansion.total, 2, 'total');
+    eq(codes(result).length, 1, 'page size');
+    eq(codes(result)[0]?.code, '2345-7', 'second paged code');
+  });
+
+  await test({ id: 196, rawName: 'supplement: inline supplement numeric filter paginates on US states adapter', name: 'Inline supplement numeric filter paginates correctly on adapter-backed US states', category: 'Supplements' }, async () => {
+    const supp = {
+      resourceType: 'CodeSystem', url: 'http://example.org/usps-supp-roll',
+      content: 'supplement', supplements: SYS.USPS,
+      concept: [
+        { code: 'OK', property: [{ code: 'd20-roll', valueInteger: 20 }] },
+        { code: 'TX', property: [{ code: 'd20-roll', valueInteger: 20 }] },
+      ],
+    };
+    const { result } = await expand(
+      vs({ system: SYS.USPS, filter: [{ property: 'd20-roll', op: '=', value: '20' }] }),
+      {
+        txResources: [supp],
+        count: 1,
+        offset: 1,
+        params: [{ name: 'useSupplement', valueString: supp.url }],
+      }
+    );
+    eq(result.expansion.total, 2, 'total');
+    eq(codes(result).length, 1, 'page size');
+    eq(codes(result)[0]?.code, 'TX', 'second paged code');
+  });
+
+  await test({ id: 197, rawName: 'supplement: inline supplement text filter applies on UCUM adapter', name: 'Inline supplement designation text filter works on adapter-backed UCUM', category: 'Supplements' }, async () => {
+    const supp = {
+      resourceType: 'CodeSystem', url: 'http://example.org/ucum-supp-text',
+      content: 'supplement', supplements: SYS.UCUM,
+      concept: [
+        { code: 'm', designation: [{ language: 'en', value: 'Lone metre bonus' }] },
+        { code: 'cm', designation: [{ language: 'en', value: 'Grouped centimetre bonus' }] },
+      ],
+    };
+    const { result } = await expand(
+      vs({ system: SYS.UCUM, concept: [{ code: 'm' }, { code: 'cm' }, { code: 'kg' }] }),
+      {
+        filter: 'Lone metre bonus',
+        txResources: [supp],
+        params: [{ name: 'useSupplement', valueString: supp.url }],
+      }
+    );
+    eq(result.expansion.total, 1, 'total');
+    eq(codes(result).length, 1, 'filtered code count');
+    eq(codes(result)[0]?.code, 'm', 'filtered code');
+  });
+
+  if (HARNESS_SQLITE_SUPP_URL_ROOT) {
+    const harnessSuppUrl = (die) => `${HARNESS_SQLITE_SUPP_URL_ROOT}/loinc-org/${die}`;
+    const harnessSuppCanonical = (die) => `${harnessSuppUrl(die)}|1`;
+
+    await test({ id: 198, rawName: 'supplement: configured sqlite sidecars support multi-supplement distinct filters on LOINC v0', name: 'Configured sqlite sidecars support multi-supplement distinct filters on SQLite v0', category: 'Supplements' }, async () => {
+      const { result } = await expand(
+        vs({
+          system: SYS.LOINC,
+          filter: [
+            { property: 'd20-roll', op: '=', value: '20' },
+            { property: 'd8-roll', op: '=', value: '2' },
+          ],
+        }),
+        {
+          count: 5,
+          offset: 10,
+          includeDesignations: true,
+          params: [
+            { name: 'useSupplement', valueString: harnessSuppUrl('d20') },
+            { name: 'useSupplement', valueString: harnessSuppUrl('d8') },
+          ],
+        }
+      );
+      assert(result.expansion.total > 5000, `expected large intersected supplement total, got ${result.expansion.total}`);
+      const page = codes(result);
+      eq(page.length, 5, 'page size');
+      const usedSupp = expansionParams(result, 'used-supplement').map(p => p.valueUri).sort();
+      eq(JSON.stringify(usedSupp), JSON.stringify([harnessSuppCanonical('d20'), harnessSuppCanonical('d8')].sort()), 'used-supplement canonicals');
+      for (const concept of page) {
+        assert((concept.designation || []).some(d => d.value === 'D20 critical success'),
+          `expected D20 critical success designation on ${concept.code}`);
+      }
+    });
+
+    await test({ id: 199, rawName: 'supplement: configured sqlite sidecar designation text filter works on LOINC v0', name: 'Configured sqlite sidecar designation text filter works on SQLite v0', category: 'Supplements' }, async () => {
+      const { result } = await expand(
+        vs({ system: SYS.LOINC }),
+        {
+          filter: 'D20 critical success',
+          count: 5,
+          params: [
+            { name: 'useSupplement', valueString: harnessSuppUrl('d20') },
+          ],
+        }
+      );
+      assert(result.expansion.total > 10000, `expected many supplement text matches, got ${result.expansion.total}`);
+      eq(codes(result).length, 5, 'page size');
+      const usedSupp = expansionParams(result, 'used-supplement');
+      assert(usedSupp.some(p => p.valueUri === harnessSuppCanonical('d20')),
+        `expected used-supplement ${harnessSuppCanonical('d20')}`);
+    });
+  }
+
   // ── Phase 6: grammar-based provider handling ──
 
   await test({ id: 137, rawName: 'notClosed: UCUM expansion reports valueset-unclosed', name: 'UCUM expansion reports valueset-unclosed', category: 'Unclosed Expansion' }, async () => {
@@ -4118,10 +4275,23 @@ async function run() {
 
   if (PERF_MODE && perfRows.length > 0) {
     mkdirSync(dirname(PERF_OUT_PATH), { recursive: true });
-    writeFileSync(PERF_OUT_PATH, buildPerfHtml(perfRows));
+    const generatedAt = new Date();
+    const generatedAtDisplay = generatedAt.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+    const hasThird = perfRows.some(r => r.thirdMs != null || r.thirdErr != null);
     const catalog = {
-      generatedAt: new Date().toISOString(),
+      schemaVersion: PERF_ARTIFACT_SCHEMA_VERSION,
+      generatedAt: generatedAt.toISOString(),
+      generatedAtDisplay,
       perfRuns: PERF_RUNS,
+      hasThird,
+      labels: {
+        primary: PERF_PRIMARY_LABEL,
+        secondary: PERF_SECONDARY_LABEL,
+        third: PERF_THIRD_LABEL,
+      },
+      catalogHref: `${PERF_OUT_BASE}.catalog.json`,
+      detailsDirLabel: `${PERF_OUT_BASE}.details/`,
+      inputsDirLabel: `${PERF_OUT_BASE}.inputs/`,
       rows: perfRows.map(r => ({
         id: r.id,
         category: r.category,
@@ -4134,10 +4304,13 @@ async function run() {
         upstreamError: !!r.upstreamErr,
         thirdError: r.thirdErr == null ? null : !!r.thirdErr,
         detailHref: r.detailHref || null,
+        detailJsonHref: r.detailJsonHref || null,
         inputHref: r.inputHref || null,
+        detailError: r.detailError || null,
       })),
     };
     writeFileSync(PERF_CATALOG_PATH, JSON.stringify(catalog, null, 2));
+    writeFileSync(PERF_OUT_PATH, buildPerfHtml(catalog));
     console.log(`\nPerf table written to ${PERF_OUT_PATH} (${perfRows.length} rows)`);
     console.log(`Perf detail pages written to ${PERF_DETAILS_DIR}`);
     console.log(`Perf input payloads written to ${PERF_INPUTS_DIR}`);
@@ -4148,55 +4321,14 @@ async function run() {
 }
 
 // ── perf HTML builder ──────────────────────────────────────────────────
-function buildPerfHtml(rows) {
-  const ts = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
-  const hasThird = rows.some(r => r.thirdMs != null || r.thirdErr != null);
-
-  const tableRows = rows.map(r => {
-    const irStr = r.irErr ? '<span class="err">❌</span>' : `${r.irMs}ms`;
-    const upstreamStr = r.upstreamErr ? '<span class="err">❌</span>' : `${r.upstreamMs}ms`;
-    const thirdStr = hasThird
-      ? (r.thirdErr == null ? '<span class="muted">n/a</span>' : (r.thirdErr ? '<span class="err">❌</span>' : `${r.thirdMs}ms`))
-      : '';
-    let ratio = '', cls = 'even';
-    if (!r.irErr && !r.upstreamErr && r.irMs > 0 && r.upstreamMs > 0) {
-      const deltaMs = Math.abs(r.irMs - r.upstreamMs);
-      if (deltaMs <= 5) {
-        ratio = '≈';
-        cls = 'even';
-      } else if (r.irMs < r.upstreamMs) {
-        const x = (r.upstreamMs / r.irMs).toFixed(1);
-        ratio = x === '1.0' ? '≈' : `IR ×${x}`;
-        cls = x === '1.0' ? 'even' : 'ir-win';
-      } else {
-        const x = (r.irMs / r.upstreamMs).toFixed(1);
-        ratio = x === '1.0' ? '≈' : `Upstream ×${x}`;
-        cls = x === '1.0' ? 'even' : 'leg-win';
-      }
-    } else if (r.upstreamErr && !r.irErr) {
-      ratio = 'IR only'; cls = 'ir-only';
-    }
-    let action = '<span class="muted">n/a</span>';
-    if (r.detailHref) {
-      const href = escHtml(r.detailHref);
-      action = `<a href="${href}" target="_blank" rel="noopener">Execution details</a>`;
-    } else if (r.detailError) {
-      action = `<span class="err">${escHtml(r.detailError)}</span>`;
-    }
-    let inputAction = '<span class="muted">n/a</span>';
-    if (r.inputHref) {
-      const inputHref = escHtml(r.inputHref);
-      inputAction = `<a href="${inputHref}" target="_blank" rel="noopener">Input JSON</a>`;
-    }
-    return `<tr class="${cls}"><td>${escHtml(r.category)}</td><td>${escHtml(r.name)}</td><td class="num">${irStr}</td><td class="num">${upstreamStr}</td>${hasThird ? `<td class="num">${thirdStr}</td>` : ''}<td>${ratio}</td><td>${action}</td><td>${inputAction}</td></tr>`;
-  }).join('\n');
-
+function buildPerfHtml(catalogDoc) {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Perf Comparison Matrix</title>
 <style>
   body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 1300px; margin: 2em auto; padding: 0 1em; }
   h1 { font-size: 1.3em; }
   .meta { color: #666; font-size: 0.85em; margin-bottom: 1em; }
+  .meta a { margin-right: 10px; }
   table { border-collapse: collapse; width: 100%; }
   th, td { padding: 6px 10px; border: 1px solid #ddd; text-align: left; }
   th { background: #f5f5f5; }
@@ -4204,17 +4336,69 @@ function buildPerfHtml(rows) {
   .ir-win { background: #e8f5e9; }
   .leg-win { background: #fff3e0; }
   .ir-only { background: #e3f2fd; }
-  .even { }
   .err { color: #c62828; }
   .muted { color: #777; }
 </style></head><body>
 <h1>Performance Comparison Matrix</h1>
-<p class="meta">Generated ${ts} &middot; median of ${PERF_RUNS} runs &middot; _nocache=true &middot; details in ${escHtml(PERF_OUT_BASE)}.details/ &middot; inputs in ${escHtml(PERF_OUT_BASE)}.inputs/</p>
+<p class="meta" id="perf-table-meta"></p>
+<p class="meta" id="perf-table-links"></p>
 <table>
-<thead><tr><th>Category</th><th>Test</th><th>${escHtml(PERF_PRIMARY_LABEL)}</th><th>${escHtml(PERF_SECONDARY_LABEL)}</th>${hasThird ? `<th>${escHtml(PERF_THIRD_LABEL)}</th>` : ''}<th>Winner (${escHtml(PERF_PRIMARY_LABEL)} vs ${escHtml(PERF_SECONDARY_LABEL)})</th><th>Details</th><th>Inputs</th></tr></thead>
-<tbody>
-${tableRows}
-</tbody></table>
+<thead><tr id="perf-table-head"></tr></thead>
+<tbody id="perf-table-body"></tbody></table>
+<script type="application/json" id="perf-table-data">${serializeJsonForHtml(catalogDoc)}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-table-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const hasThird = !!data.hasThird;
+  const renderPerf = (ms, err, missing = false) => {
+    if (missing) return '<span class="muted">n/a</span>';
+    if (err) return '<span class="err">❌</span>';
+    return \`\${esc(String(ms))}ms\`;
+  };
+  const ratioForRow = (row) => {
+    if (!row.irError && !row.upstreamError && row.irMs > 0 && row.upstreamMs > 0) {
+      const deltaMs = Math.abs(row.irMs - row.upstreamMs);
+      if (deltaMs <= 5) return { text: '≈', cls: 'even' };
+      if (row.irMs < row.upstreamMs) {
+        const x = (row.upstreamMs / row.irMs).toFixed(1);
+        return { text: x === '1.0' ? '≈' : \`IR ×\${x}\`, cls: x === '1.0' ? 'even' : 'ir-win' };
+      }
+      const x = (row.irMs / row.upstreamMs).toFixed(1);
+      return { text: x === '1.0' ? '≈' : \`Upstream ×\${x}\`, cls: x === '1.0' ? 'even' : 'leg-win' };
+    }
+    if (row.upstreamError && !row.irError) return { text: 'IR only', cls: 'ir-only' };
+    return { text: '', cls: 'even' };
+  };
+
+  const labels = data.labels || {};
+  document.getElementById('perf-table-meta').innerHTML =
+    \`Generated \${esc(data.generatedAtDisplay)} &middot; median of \${esc(String(data.perfRuns))} runs &middot; _nocache=true &middot; details in \${esc(data.detailsDirLabel)} &middot; inputs in \${esc(data.inputsDirLabel)}\`;
+  document.getElementById('perf-table-links').innerHTML = data.catalogHref
+    ? \`<a href="\${esc(data.catalogHref)}" target="_blank" rel="noopener">Catalog JSON</a>\`
+    : '';
+
+  document.getElementById('perf-table-head').innerHTML =
+    \`<th>Category</th><th>Test</th><th>\${esc(labels.primary || '')}</th><th>\${esc(labels.secondary || '')}</th>\${hasThird ? \`<th>\${esc(labels.third || '')}</th>\` : ''}<th>Winner (\${esc(labels.primary || '')} vs \${esc(labels.secondary || '')})</th><th>Details</th><th>Inputs</th>\`;
+
+  document.getElementById('perf-table-body').innerHTML = (data.rows || []).map((row) => {
+    const ratio = ratioForRow(row);
+    const detailCell = row.detailHref
+      ? \`<a href="\${esc(row.detailHref)}" target="_blank" rel="noopener">Execution details</a>\`
+      : (row.detailError ? \`<span class="err">\${esc(row.detailError)}</span>\` : '<span class="muted">n/a</span>');
+    const inputCell = row.inputHref
+      ? \`<a href="\${esc(row.inputHref)}" target="_blank" rel="noopener">Input JSON</a>\`
+      : '<span class="muted">n/a</span>';
+    const thirdCell = hasThird
+      ? \`<td class="num">\${renderPerf(row.thirdMs, row.thirdError, row.thirdError == null)}</td>\`
+      : '';
+    return \`<tr class="\${ratio.cls}"><td>\${esc(row.category)}</td><td>\${esc(row.name)}</td><td class="num">\${renderPerf(row.irMs, row.irError)}</td><td class="num">\${renderPerf(row.upstreamMs, row.upstreamError)}</td>\${thirdCell}<td>\${esc(ratio.text)}</td><td>\${detailCell}</td><td>\${inputCell}</td></tr>\`;
+  }).join('');
+})();
+</script>
 </body></html>`;
 }
 

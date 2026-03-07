@@ -53,7 +53,7 @@ function inferScopeFromIr(node) {
   }
 }
 
-function buildSelectorMembershipPlan(selector, propertyDefs, runtime, scopeOverride = null) {
+function buildSelectorMembershipPlan(selector, propertyDefs, runtime, scopeOverride = null, opts = {}) {
   const meta = selector?.meta || null;
   const origin = originFromIrNode(selector);
   const scope = Types.normalizeScope(scopeOverride || inferScopeFromIr(selector));
@@ -77,7 +77,10 @@ function buildSelectorMembershipPlan(selector, propertyDefs, runtime, scopeOverr
     if (clauses.length === 0) return ok(Types.allConcepts({ scope, origin, meta }));
     const items = [];
     for (const clause of clauses) {
-      const lowered = lowerFilterClauseToSetPlan(clause, propertyDefs, runtime, { scope });
+      const lowered = lowerFilterClauseToSetPlan(clause, propertyDefs, runtime, {
+        scope,
+        supplementBindings: opts.supplementBindings || [],
+      });
       if (!lowered.ok) return lowered;
       items.push(lowered.plan);
     }
@@ -98,6 +101,7 @@ function buildSelectorMembershipPlan(selector, propertyDefs, runtime, scopeOverr
 function buildMembershipPlan(expr, opts = {}) {
   const propertyDefs = opts.propertyDefs instanceof Map ? opts.propertyDefs : new Map();
   const runtime = opts.runtime || {};
+  const supplementBindings = Array.isArray(opts.supplementBindings) ? opts.supplementBindings : [];
   const rootScope = Types.normalizeScope(opts.scope || inferScopeFromIr(expr));
 
   function build(node, scope = rootScope) {
@@ -108,7 +112,9 @@ function buildMembershipPlan(expr, opts = {}) {
     case 'empty':
       return ok(Types.emptySet({ scope, origin, meta }));
     case 'selector':
-      return buildSelectorMembershipPlan(node, propertyDefs, runtime, scope || inferScopeFromIr(node));
+      return buildSelectorMembershipPlan(node, propertyDefs, runtime, scope || inferScopeFromIr(node), {
+        supplementBindings,
+      });
     case 'import':
       if (!node.resolved) {
         return fail('unresolved-import', { url: node.url || null, version: node.version || null }, meta);

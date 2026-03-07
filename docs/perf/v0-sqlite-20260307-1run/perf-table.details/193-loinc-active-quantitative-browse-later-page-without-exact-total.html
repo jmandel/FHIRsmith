@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: LOINC active quantitative browse later page without exact total</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T05:42:36.570Z",
+  "rowIndex": 193,
+  "slug": "193-loinc-active-quantitative-browse-later-page-without-exact-total",
+  "name": "LOINC active quantitative browse later page without exact total",
+  "category": "Lab Workloads",
+  "hrefs": {
+    "input": "../perf-table.inputs/193-loinc-active-quantitative-browse-later-page-without-exact-total.json",
+    "detailJson": "193-loinc-active-quantitative-browse-later-page-without-exact-total.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 142,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 145,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Qn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "offset",
+                "valueInteger": 5000
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "15205",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:42:06 GMT",
+            "etag": "W/\"3b65-eOw08JWf0n8mqgk/RejX0XLKKWE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-1077"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T05:42:06.567Z",
+              "identifier": "urn:uuid:25989c02-0e3e-4a23-864d-3acc43a9ef0a",
+              "offset": 5000,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "15279-3",
+                  "display": "Cardamon IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1528-9",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --30 minutes post dose insulin IV"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15280-1",
+                  "display": "Mace IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15281-9",
+                  "display": "Horse Bot Fly IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15283-5",
+                  "display": "Silver Birch IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15284-3",
+                  "display": "Grey Alder IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15285-0",
+                  "display": "London Plane IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15286-8",
+                  "display": "Kidney - left Height by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15287-6",
+                  "display": "Kidney - left Width by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15288-4",
+                  "display": "Kidney - left Length by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15289-2",
+                  "display": "Kidney - right Height by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15290-0",
+                  "display": "Kidney - right Width by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15291-8",
+                  "display": "Kidney - right Length by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15292-6",
+                  "display": "Testis - left Height by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15293-4",
+                  "display": "Testis - left Width by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15294-2",
+                  "display": "Testis - left Length by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15295-9",
+                  "display": "Testis - right Height by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15296-7",
+                  "display": "Testis - right Width by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15297-5",
+                  "display": "Testis - right Length by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15298-3",
+                  "display": "Urinary bladder Height by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15299-1",
+                  "display": "Urinary bladder Width by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1530-5",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --3 hours post 100 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15300-7",
+                  "display": "Urinary bladder Length by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15301-5",
+                  "display": "Prostate Height by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15302-3",
+                  "display": "Prostate Width by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15303-1",
+                  "display": "Prostate Length by US"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15304-9",
+                  "display": "Kidney - left Volume by derived from height, width and length (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15305-6",
+                  "display": "Kidney - right Volume by derived from height, width and length (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15306-4",
+                  "display": "Testis - left Volume by derived from height, width and length (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15307-2",
+                  "display": "Testis - right Volume by derived from height, width and length (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15308-0",
+                  "display": "Prostate Volume by derived from height, width and length (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15309-8",
+                  "display": "Urinary bladder Volume by derived from height, width and length (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15310-6",
+                  "display": "Kidney - left Volume by derived.from ROT (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15311-4",
+                  "display": "Kidney - right Volume by derived.from ROT (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15312-2",
+                  "display": "Testis - left Volume by derived.from ROT (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15313-0",
+                  "display": "Testis - right Volume by derived.from ROT (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15314-8",
+                  "display": "Prostate Volume by derived.from ROT (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15315-5",
+                  "display": "Prostate Volume by derived by planimetry (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15316-3",
+                  "display": "Volume planimetry Stepsize by - Reported"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15317-1",
+                  "display": "Kidney - left Volume by derived by automated ultrasound testing (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15318-9",
+                  "display": "Kidney - right Volume by derived by automated ultrasound testing (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15319-7",
+                  "display": "Testis - left Volume by derived by automated ultrasound testing (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1532-1",
+                  "display": "Glucose [Mass/volume] in Urine --3 hours post 100 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15320-5",
+                  "display": "Testis - right Volume by derived by automated ultrasound testing (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15321-3",
+                  "display": "Urinary bladder Volume by derived by EMP (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15323-9",
+                  "display": "Prostate specific Ag/Prostate volume calculated from height, width and length"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15324-7",
+                  "display": "Prostate specific Ag/Prostate volume calculated from planimetry"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15325-4",
+                  "display": "Prostate specific Ag/Prostate volume calculated"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15326-2",
+                  "display": "Prostate Adenoma Volume by derived from height, width and length (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15327-0",
+                  "display": "Prostate Adenoma Volume by derived by planimetry (US)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15328-8",
+                  "display": "Penile cavernosal artery Peak systolic flow--baseline by US.doppler"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15329-6",
+                  "display": "Penile cavernosal artery Peak systolic flow--post XXX challenge by US.doppler"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1533-9",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --3 hours post 75 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15330-4",
+                  "display": "Penile cavernosal artery End diastolic blood flow--baseline by US.doppler"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15331-2",
+                  "display": "Penile cavernosal artery End diastolic blood flow--post XXX challenge by US.doppler"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15332-0",
+                  "display": "Penile cavernosal artery Resistance index--baseline by US.calculated"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15333-8",
+                  "display": "Penile cavernosal artery Resistance index--post XXX challenge by US.calculated"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15335-3",
+                  "display": "Penile cavernosal artery Pulsativity index by US.calculated"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15339-5",
+                  "display": "Berlin Beetle IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1534-7",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --3 minutes post 0.5 g/kg glucose IV"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15340-3",
+                  "display": "Italian Cedar IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15341-1",
+                  "display": "Black Fly IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15342-9",
+                  "display": "European Hornet IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15345-2",
+                  "display": "Aldosterone [Mass/volume] in Serum or Plasma --1 hour post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15346-0",
+                  "display": "Aldosterone [Mass/volume] in Serum or Plasma --30 minutes post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15347-8",
+                  "display": "Somatotropin [Mass/volume] in Serum or Plasma --30 minutes post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15348-6",
+                  "display": "Alkaline phosphatase.liver 1/Alkaline phosphatase.total in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15349-4",
+                  "display": "Alkaline phosphatase.liver 2/Alkaline phosphatase.total in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1535-4",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --40 minutes post 0.5 g/kg glucose IV"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15350-2",
+                  "display": "Amylase [Enzymatic activity/time] in 2 hour Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15355-1",
+                  "display": "Estrone sulfate [Mass/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15356-9",
+                  "display": "Globulin [Mass/time] in 24 hour Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15357-7",
+                  "display": "Iron [Mass/mass] in Tissue"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15359-3",
+                  "display": "dRVVT actual/normal (normalized LA screen)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1536-2",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --45 minutes post dose insulin IV"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15361-9",
+                  "display": "aPTT.factor substitution in Platelet poor plasma by Coagulation assay --immediately after 1:4 addition of normal plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15362-7",
+                  "display": "aPTT.inhibitor sensitive in Platelet poor plasma by Coagulation assay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15363-5",
+                  "display": "Busulfan [Mass/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15366-8",
+                  "display": "Dextroamphetamine [Mass/volume] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15367-6",
+                  "display": "Ganciclovir [Mass/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15369-2",
+                  "display": "Lithium.saliva/Lithium.serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1537-0",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --4 hours post 100 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15372-6",
+                  "display": "Nordiazepam [Mass/volume] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15373-4",
+                  "display": "Phenyltoloxamine [Mass/volume] in Blood"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15375-9",
+                  "display": "Valproate Free [Mass/volume] in Saliva (oral fluid)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15376-7",
+                  "display": "Spermatozoa Abnormal/Spermatozoa in Semen"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1538-8",
+                  "display": "Glucose [Mass/volume] in Urine --4 hours post 100 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1539-6",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --4 hours post 75 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15399-9",
+                  "display": "Neuronal nuclear IgG Ab [Units/volume] in Serum by Immunofluorescence"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1540-4",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --5 hours post 100 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15404-7",
+                  "display": "Levomethamphetamine/Amphetamines.total in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15408-8",
+                  "display": "Thallium [Mass/mass] in Hair"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15409-6",
+                  "display": "Thallium [Mass/mass] in Nail"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1541-2",
+                  "display": "Glucose [Mass/volume] in Urine --5 hours post 100 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15411-2",
+                  "display": "Ergosterol [Mass/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1542-0",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --5 hours post 75 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1543-8",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --5 minutes post 0.5 g/kg glucose IV"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "15432-8",
+                  "display": "Testosterone Free/Testosterone.total in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1544-6",
+                  "display": "Glucose [Mass/volume] in Serum or Plasma --6 hours post 100 g glucose PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1546-1",
+                  "display": "Glucose [Mass/volume] in Urine --6 hours post 100 g glucose PO"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 5000
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: a3fdd443b1e2a180ab9c0923c6aab5326b9c0dbd\nruntime-constraints:\n  active-only: true\n  pagination: offset=5000 count=100\noptimized-ir:\n  selector filter http://loinc.org SCALE_TYP = Qn ; STATUS = ACTIVE [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":140.56,\"sqlCount\":1,\"sqlMs\":137.5,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":null,\"offset\":5000,\"count\":100,\"exactTotal\":false,\"omitLazyTotal\":true},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":5000,\"count\":100,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":5000,\"sysCount\":100},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.37,\"execMs\":137.5},\"t\":140.22}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_link\\\" \\\"l\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"source_concept_id\\\") INNER JOIN \\\"concept\\\" \\\"tgt\\\" ON (\\\"tgt\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"target_concept_id\\\") WHERE ((\\\"l\\\".\\\"property_id\\\" = @prop_id_1) AND (\\\"l\\\".\\\"edge_set_id\\\" = @edge_set_id_2) AND (\\\"l\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @link_cs_id_3) AND (\\\"tgt\\\".\\\"code\\\" COLLATE NOCASE IN (@prop_value_0) OR \\\"tgt\\\".\\\"display\\\" COLLATE NOCASE IN (@prop_value_0)))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_4) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_5) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_6) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_6))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 100 OFFSET 5000\",\"params\":{\"prop_value_0\":\"Qn\",\"prop_id_1\":6,\"edge_set_id_2\":1,\"link_cs_id_3\":1,\"prop_id_4\":37,\"literal_cs_id_5\":1,\"prop_value_6\":\"ACTIVE\"},\"rows\":100,\"ms\":137.5,\"label\":\"executeIR\"}],\"ms\":138.55,\"result\":{\"candidates\":100,\"total\":null}}],\"ms\":138.64,\"result\":{\"candidates\":100}},{\"name\":\"note\",\"message\":\"total:omitted\",\"data\":{\"offset\":5000,\"returned\":100,\"exactTotal\":false},\"t\":140.37}],\"ms\":138.71,\"result\":{\"paged\":100}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":100,\"includeDesignations\":false},\"children\":[],\"ms\":0.01}],\"ms\":140.4,\"result\":{\"total\":null,\"contains\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 140.56,
+          "sqlCount": 1,
+          "sqlMs": 137.5,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": null,
+                "offset": 5000,
+                "count": 100,
+                "exactTotal": false,
+                "omitLazyTotal": true
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 5000,
+                    "count": 100,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 5000,
+                        "sysCount": 100
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.37,
+                                "execMs": 137.5
+                              },
+                              "t": 140.22
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_link\" \"l\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"l\".\"source_concept_id\") INNER JOIN \"concept\" \"tgt\" ON (\"tgt\".\"concept_id\" = \"l\".\"target_concept_id\") WHERE ((\"l\".\"property_id\" = @prop_id_1) AND (\"l\".\"edge_set_id\" = @edge_set_id_2) AND (\"l\".\"active\" = 1) AND (\"src\".\"cs_id\" = @link_cs_id_3) AND (\"tgt\".\"code\" COLLATE NOCASE IN (@prop_value_0) OR \"tgt\".\"display\" COLLATE NOCASE IN (@prop_value_0)))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL) INTERSECT SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_4) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_5) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_6) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_6))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE (\"c\".\"active\" = 1) ORDER BY \"c\".\"code\" ASC LIMIT 100 OFFSET 5000",
+                              "params": {
+                                "prop_value_0": "Qn",
+                                "prop_id_1": 6,
+                                "edge_set_id_2": 1,
+                                "link_cs_id_3": 1,
+                                "prop_id_4": 37,
+                                "literal_cs_id_5": 1,
+                                "prop_value_6": "ACTIVE"
+                              },
+                              "rows": 100,
+                              "ms": 137.5,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 138.55,
+                          "result": {
+                            "candidates": 100,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 138.64,
+                      "result": {
+                        "candidates": 100
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:omitted",
+                      "data": {
+                        "offset": 5000,
+                        "returned": 100,
+                        "exactTotal": false
+                      },
+                      "t": 140.37
+                    }
+                  ],
+                  "ms": 138.71,
+                  "result": {
+                    "paged": 100
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 100,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01
+                }
+              ],
+              "ms": 140.4,
+              "result": {
+                "total": null,
+                "contains": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: a3fdd443b1e2a180ab9c0923c6aab5326b9c0dbd\nruntime-constraints:\n  active-only: true\n  pagination: offset=5000 count=100\noptimized-ir:\n  selector filter http://loinc.org SCALE_TYP = Qn ; STATUS = ACTIVE [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1630,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Qn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "offset",
+                "valueInteger": 5000
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "424",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:42:06 GMT",
+            "etag": "W/\"1a8-HfcBSvXluxS6ukmZmCA3PH4EaU0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-1076"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set '??' expansion has too many codes to display (\u003e1000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n1ms start working\n1ms compose #1\n3ms compose #2\n4ms prepare filters\n1335ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8121/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Qn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "offset",
+                "valueInteger": 5000
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

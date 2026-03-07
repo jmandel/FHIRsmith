@@ -121,14 +121,18 @@ class LookupWorker extends TerminologyWorker {
         }
 
         // Allow complete or fragment content modes, nullOk = true to handle not-found ourselves
-        csProvider = await this.findCodeSystem(coding.system, coding.version || '', txp, ['complete', 'fragment'], true);
+        csProvider = await this.findCodeSystemWithSupplementRuntime(
+          coding.system, coding.version || '', txp, ['complete', 'fragment'], null, true, false, false, txp.supplements
+        );
         this.seeSourceProvider(csProvider, coding.system);
         code = coding.code;
 
       } else if (params.has('system') && params.has('code')) {
         // system + code parameters
-        csProvider = await this.findCodeSystem(params.get('system'), params.get('version') || '', txp, ['complete', 'fragment'],
-          null, true, false, false, txp.supplements);
+        csProvider = await this.findCodeSystemWithSupplementRuntime(
+          params.get('system'), params.get('version') || '', txp, ['complete', 'fragment'],
+          null, true, false, false, txp.supplements
+        );
         this.seeSourceProvider(csProvider, params.get('system'));
         code = params.get('code');
 
@@ -213,7 +217,10 @@ class LookupWorker extends TerminologyWorker {
       }
 
       // Load any supplements
-      const supplements = this.loadSupplements(codeSystem.url, codeSystem.version, txp.supplements);
+      const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
+        { system: codeSystem.url, version: codeSystem.version || null },
+        txp.supplements
+      );
 
       // Create a FhirCodeSystemProvider for this CodeSystem
       const csProvider = new FhirCodeSystemProvider(this.opContext, codeSystem, supplements);

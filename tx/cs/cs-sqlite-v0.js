@@ -15,6 +15,7 @@
  */
 
 const BetterSqlite3 = require('better-sqlite3');
+const path = require('path');
 const { CodeSystem, CodeSystemContentMode } = require('../library/codesystem');
 const { CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api');
 const { BaseCSServices } = require('./cs-base');
@@ -23,6 +24,7 @@ const { VersionUtilities } = require('../../library/version-utilities');
 const { supportsFilterClause } = require('./sqlite-v0-clause-lowering');
 const { createSqliteV0Compiler } = require('./sqlite-v0-compiler');
 const { formatMembershipPlan, formatPhysicalPlan, formatSqlAst, formatTerminalPlan } = require('./sqlite-v0-format-plan');
+const { bindNativeSupplements, mergeSupplementPropertyDefinitions } = require('./sqlite-v0-supplements');
 const { trace } = require('../engine/expand-trace');
 
 // ── Helper functions (ported from codex) ────────────────────────────
@@ -63,6 +65,35 @@ function toFtsMatchText(text) {
   return `"${String(text || '').replace(/"/g, '""')}"`;
 }
 
+function typedLiteralProperty(code, row, propDef) {
+  const sourceType = String(propDef?.source_type || '').trim().toLowerCase();
+  if (sourceType === 'boolean' && row.value_bool != null) {
+    return { code, valueBoolean: !!row.value_bool };
+  }
+  if (sourceType === 'integer' && row.value_num != null) {
+    return { code, valueInteger: Number(row.value_num) };
+  }
+  if (sourceType === 'decimal' && row.value_num != null) {
+    return { code, valueDecimal: Number(row.value_num) };
+  }
+  if (sourceType === 'code') {
+    return { code, valueCode: row.value_text ?? row.value_raw ?? '' };
+  }
+  if (sourceType === 'uri') {
+    return { code, valueUri: row.value_text ?? row.value_raw ?? '' };
+  }
+  if (sourceType === 'canonical') {
+    return { code, valueCanonical: row.value_text ?? row.value_raw ?? '' };
+  }
+  if (sourceType === 'date') {
+    return { code, valueDate: row.value_text ?? row.value_raw ?? '' };
+  }
+  if (sourceType === 'datetime') {
+    return { code, valueDateTime: row.value_text ?? row.value_raw ?? '' };
+  }
+  return { code, valueString: row.value_text ?? row.value_raw ?? (row.value_num != null ? String(row.value_num) : '') };
+}
+
 function sanitizeName(system) {
   return (system || 'CS').replace(/[^A-Za-z0-9]/g, '').slice(0, 40) || 'CS';
 }
@@ -86,8 +117,9 @@ function registerRegexpFunction(db) {
   });
 }
 
-function openV0Database(dbPath) {
-  const db = new BetterSqlite3(dbPath, { readonly: true });
+function openV0Database(dbPath, opts = {}) {
+  const readonly = opts.readonly !== false;
+  const db = new BetterSqlite3(dbPath, { readonly, fileMustExist: true });
   db.pragma('cache_size = 10000');
   db.pragma('temp_store = MEMORY');
   db.pragma('mmap_size = 268435456');
@@ -145,6 +177,25 @@ function normalizeInlineTotal(raw) {
   if (raw == null) return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
+}
+
+function normalizeSqliteSupplementSources(sources, dbPath) {
+  const baseDir = dbPath ? path.dirname(dbPath) : process.cwd();
+  const out = [];
+  for (const source of sources || []) {
+    if (!source) continue;
+    if (typeof source === 'string') {
+      out.push(path.isAbsolute(source) ? source : path.resolve(baseDir, source));
+      continue;
+    }
+    if (typeof source === 'object' && source.dbPath) {
+      out.push({
+        ...source,
+        dbPath: path.isAbsolute(source.dbPath) ? source.dbPath : path.resolve(baseDir, source.dbPath),
+      });
+    }
+  }
+  return out;
 }
 
 function extractReleaseDate(meta) {
@@ -262,16 +313,53 @@ class SqliteV0Provider extends BaseCSServices {
   #stmts;      // prepared statements cache
   #compiler = null;
   #options;
+  #nativeSupplementBindings = [];
+  #nativeSupplementAttachmentState = new Map();
+  #supplementSignature = '';
+  #reachabilityEstimateCache = new Map();
+  _irSupplementSet = null;
+  _irAllSupplementsNativeBound = false;
 
   constructor(opContext, supplements, db, meta, runtime, propDefs, options = {}) {
     super(opContext, supplements);
     this.#db = db;
     this.#meta = meta;
-    this.#runtime = runtime;
+    this.#runtime = {
+      ...runtime,
+      planner: {
+        ...(runtime?.planner || {}),
+        estimateSingleSeedClosureCount: (code, includeSelf = true) =>
+          this.#estimateSingleSeedClosureCount(code, includeSelf),
+      },
+    };
     this.#propDefs = propDefs;
     this.#closureOk = !!runtime.hierarchy?.closure?.enabled;
     this.#stmts = {};
     this.#options = options || {};
+  }
+
+  #estimateSingleSeedClosureCount(code, includeSelf = true) {
+    const normalizedCode = String(code || '');
+    const key = `${normalizedCode}|${includeSelf !== false ? 'self' : 'no-self'}`;
+    if (this.#reachabilityEstimateCache.has(key)) {
+      return this.#reachabilityEstimateCache.get(key);
+    }
+    const stmtKey = includeSelf === false ? 'estimateReachabilityCountNoSelf' : 'estimateReachabilityCount';
+    const sql = includeSelf === false
+      ? `SELECT COUNT(*) AS cnt
+           FROM closure cl
+           INNER JOIN concept seed ON seed.concept_id = cl.ancestor_id
+          WHERE seed.cs_id = @cs
+            AND seed.code = @code
+            AND cl.descendant_id != cl.ancestor_id`
+      : `SELECT COUNT(*) AS cnt
+           FROM closure cl
+           INNER JOIN concept seed ON seed.concept_id = cl.ancestor_id
+          WHERE seed.cs_id = @cs
+            AND seed.code = @code`;
+    const count = this.#prep(stmtKey, sql).get({ cs: this.#meta.csId, code: normalizedCode }).cnt;
+    this.#reachabilityEstimateCache.set(key, count);
+    return count;
   }
 
   // ── metadata ─────────────────────────────────────────────────────
@@ -293,6 +381,40 @@ class SqliteV0Provider extends BaseCSServices {
   isNotClosed() { return false; }
   hasParents()  { return this.#closureOk; }
 
+  hasSupplement(url) {
+    if (super.hasSupplement(url)) return true;
+    return (this._irSupplementSet?.items || []).some(item =>
+      item?.descriptor?.canonical === url
+      || item?.descriptor?.url === url
+    );
+  }
+
+  listSupplements() {
+    const out = new Set(super.listSupplements());
+    for (const item of this._irSupplementSet?.items || []) {
+      if (item?.descriptor?.canonical) out.add(item.descriptor.canonical);
+      else if (item?.descriptor?.url) out.add(item.descriptor.url);
+    }
+    return Array.from(out);
+  }
+
+  async attachIRSupplements(supplementSet) {
+    this._irSupplementSet = supplementSet || { items: [] };
+    const { signature, bindings } = bindNativeSupplements(
+      this.#db,
+      supplementSet,
+      this.#nativeSupplementAttachmentState
+    );
+    const requested = (supplementSet?.items || []).length;
+    this._irAllSupplementsNativeBound = requested === 0 || bindings.length === requested;
+    if (signature !== this.#supplementSignature) {
+      this.#nativeSupplementBindings = bindings;
+      this.#supplementSignature = signature;
+      this.#compiler = null;
+    }
+    return this;
+  }
+
   #irCompilerConfig() {
     const flags = this.#runtime?.behaviorFlags?.irCompiler || {};
     return {
@@ -302,17 +424,24 @@ class SqliteV0Provider extends BaseCSServices {
 
   #compilerFor() {
     if (!this.#compiler) {
+      const effectivePropDefs = this.#effectivePropDefs();
       this.#compiler = createSqliteV0Compiler({
-        propertyDefs: this.#propDefs,
+        propertyDefs: effectivePropDefs,
         runtime: this.#runtime,
         scope: {
           csId: this.#meta.csId,
           system: this.#meta.baseUri,
           version: this.version(),
         },
+        supplementBindings: this.#nativeSupplementBindings,
       });
     }
     return this.#compiler;
+  }
+
+  #effectivePropDefs() {
+    if (!this.#nativeSupplementBindings.length) return this.#propDefs;
+    return mergeSupplementPropertyDefinitions(this.#propDefs, this.#nativeSupplementBindings);
   }
 
   #traceCompiledArtifacts(label, compiled, cfg) {
@@ -411,7 +540,7 @@ class SqliteV0Provider extends BaseCSServices {
 
   propertyDefinitions() {
     const defs = [];
-    for (const [code, pd] of this.#propDefs) {
+    for (const [code, pd] of this.#effectivePropDefs()) {
       defs.push({
         code,
         type: pd.value_kind === 'concept' ? 'Coding' : 'string',
@@ -520,6 +649,100 @@ class SqliteV0Provider extends BaseCSServices {
     return row ? row.code : null;
   }
 
+  #conceptIdBatchParams(prefix, ids) {
+    const params = {};
+    const placeholders = ids.map((id, index) => {
+      const key = `${prefix}${index}`;
+      params[key] = id;
+      return `@${key}`;
+    }).join(',');
+    return { params, placeholders };
+  }
+
+  #nativeSupplementDesignationRowsForConceptIds(conceptIds) {
+    if (!this.#nativeSupplementBindings.length || !conceptIds?.length) return [];
+    const rows = [];
+    const batchSize = 500;
+    for (let i = 0; i < conceptIds.length; i += batchSize) {
+      const batch = conceptIds.slice(i, i + batchSize);
+      const { params, placeholders } = this.#conceptIdBatchParams('sid', batch);
+      for (const binding of this.#nativeSupplementBindings) {
+        rows.push(...this.#db.prepare(`
+          SELECT c.concept_id, sd.language_code, sd.use_system, sd.use_code, sd.term, sd.active, sd.preferred
+            FROM "${binding.alias}".supplement_designation sd
+            JOIN concept c
+              ON c.code = sd.source_code
+           WHERE c.concept_id IN (${placeholders})
+        `).all(params));
+      }
+    }
+    return rows;
+  }
+
+  #nativeSupplementPropertyRowsForConceptIds(conceptIds) {
+    if (!this.#nativeSupplementBindings.length || !conceptIds?.length) {
+      return { links: [], literals: [] };
+    }
+    const links = [];
+    const literals = [];
+    const batchSize = 500;
+    for (let i = 0; i < conceptIds.length; i += batchSize) {
+      const batch = conceptIds.slice(i, i + batchSize);
+      const { params, placeholders } = this.#conceptIdBatchParams('spid', batch);
+      for (const binding of this.#nativeSupplementBindings) {
+        links.push(...this.#db.prepare(`
+          SELECT src.concept_id AS source_concept_id,
+                 sl.property_code,
+                 tgt.code AS target_code,
+                 tgt.display AS target_display
+            FROM "${binding.alias}".supplement_link sl
+            JOIN concept src
+              ON src.code = sl.source_code
+            JOIN concept tgt
+              ON tgt.code = sl.target_code
+             AND tgt.cs_id = src.cs_id
+           WHERE src.concept_id IN (${placeholders})
+             AND (sl.target_system IS NULL OR sl.target_system = @system)
+             AND sl.active = 1
+        `).all({ ...params, system: this.system() }));
+        literals.push(...this.#db.prepare(`
+          SELECT src.concept_id AS source_concept_id,
+                 sl.property_code,
+                 sl.value_raw,
+                 sl.value_text,
+                 sl.value_num,
+                 sl.value_bool
+            FROM "${binding.alias}".supplement_literal sl
+            JOIN concept src
+              ON src.code = sl.source_code
+           WHERE src.concept_id IN (${placeholders})
+             AND sl.active = 1
+        `).all(params));
+      }
+    }
+    return { links, literals };
+  }
+
+  #nativeSupplementExtensionRowsForConceptIds(conceptIds) {
+    if (!this.#nativeSupplementBindings.length || !conceptIds?.length) return [];
+    const rows = [];
+    const batchSize = 500;
+    for (let i = 0; i < conceptIds.length; i += batchSize) {
+      const batch = conceptIds.slice(i, i + batchSize);
+      const { params, placeholders } = this.#conceptIdBatchParams('seid', batch);
+      for (const binding of this.#nativeSupplementBindings) {
+        rows.push(...this.#db.prepare(`
+          SELECT c.concept_id, se.value_json
+            FROM "${binding.alias}".supplement_extension se
+            JOIN concept c
+              ON c.code = se.source_code
+           WHERE c.concept_id IN (${placeholders})
+        `).all(params));
+      }
+    }
+    return rows;
+  }
+
   // ── designations ────────────────────────────────────────────────
 
   async designations(context, displays) {
@@ -549,6 +772,15 @@ class SqliteV0Provider extends BaseCSServices {
 
     // Supplement designations
     this._listSupplementDesignations(ctx.code, displays);
+
+    if (this.#nativeSupplementBindings.length > 0) {
+      for (const row of this.#nativeSupplementDesignationRowsForConceptIds([ctx.concept_id])) {
+        const use = row.use_system
+          ? { system: row.use_system, code: row.use_code || null }
+          : (row.use_code ? { system: this.system(), code: row.use_code } : null);
+        displays.addDesignation(false, row.active ? 'active' : 'inactive', row.language_code, use, row.term);
+      }
+    }
   }
 
   // ── properties ──────────────────────────────────────────────────
@@ -586,10 +818,107 @@ class SqliteV0Provider extends BaseCSServices {
       }
     }
 
+    if (this.supplements?.length > 0) {
+      for (const supplement of this.supplements) {
+        const concept = supplement.getConceptByCode(ctx.code);
+        if (!concept) continue;
+        for (const prop of concept.property || []) {
+          props.push({ ...prop });
+        }
+      }
+    }
+
+    if (this.#nativeSupplementBindings.length > 0) {
+      const suppRows = this.#nativeSupplementPropertyRowsForConceptIds([ctx.concept_id]);
+      const effectivePropDefs = this.#effectivePropDefs();
+      for (const link of suppRows.links) {
+        props.push({
+          code: link.property_code,
+          value: { system: this.system(), code: link.target_code, display: link.target_display },
+        });
+      }
+      for (const lit of suppRows.literals) {
+        const property = typedLiteralProperty(
+          lit.property_code,
+          lit,
+          effectivePropDefs.get(lit.property_code)
+        );
+        if (property) props.push(property);
+      }
+    }
+
     return props;
   }
 
-  async extensions() { return null; }
+  async extensions(context) {
+    const ctx = await this.#ctx(context);
+    const result = [];
+    if (this.supplements?.length > 0) {
+      for (const supplement of this.supplements) {
+        const concept = supplement.getConceptByCode(ctx.code);
+        if (concept?.extension) {
+          result.push(...concept.extension);
+        }
+      }
+    }
+    if (!this.#nativeSupplementBindings.length) return result.length > 0 ? result : null;
+    const rows = this.#nativeSupplementExtensionRowsForConceptIds([ctx.concept_id]);
+    for (const row of rows) {
+      try {
+        result.push(JSON.parse(row.value_json));
+      } catch {
+        // ignore malformed extension payloads in native supplements
+      }
+    }
+    return result.length > 0 ? result : null;
+  }
+
+  async extendLookup(ctxt, props, params) {
+    if (!this._hasProp(props, 'property', true)) {
+      return;
+    }
+    const properties = await this.properties(ctxt);
+    for (const property of properties || []) {
+      const parts = [{ name: 'code', valueCode: property.code }];
+
+      if (property.valueCoding) {
+        parts.push({ name: 'value', valueCoding: property.valueCoding });
+      } else if (property.valueCode != null) {
+        parts.push({ name: 'value', valueCode: property.valueCode });
+      } else if (property.valueString != null) {
+        parts.push({ name: 'value', valueString: property.valueString });
+      } else if (property.valueInteger != null) {
+        parts.push({ name: 'value', valueInteger: property.valueInteger });
+      } else if (property.valueDecimal != null) {
+        parts.push({ name: 'value', valueDecimal: property.valueDecimal });
+      } else if (property.valueBoolean != null) {
+        parts.push({ name: 'value', valueBoolean: property.valueBoolean });
+      } else if (property.valueDateTime) {
+        parts.push({ name: 'value', valueDateTime: property.valueDateTime });
+      } else if (property.valueDate) {
+        parts.push({ name: 'value', valueDate: property.valueDate });
+      } else if (property.valueUri) {
+        parts.push({ name: 'value', valueUri: property.valueUri });
+      } else if (property.valueCanonical) {
+        parts.push({ name: 'value', valueCanonical: property.valueCanonical });
+      } else if (property.value && typeof property.value === 'object' && property.value.code) {
+        parts.push({
+          name: 'value',
+          valueCoding: {
+            system: property.value.system || this.system(),
+            code: property.value.code,
+            ...(property.value.display ? { display: property.value.display } : {}),
+          },
+        });
+      } else if (property.value != null) {
+        parts.push({ name: 'value', valueString: String(property.value) });
+      } else {
+        continue;
+      }
+
+      params.push({ name: 'property', part: parts });
+    }
+  }
 
   // ── filter protocol ─────────────────────────────────────────────
 
@@ -598,7 +927,7 @@ class SqliteV0Provider extends BaseCSServices {
       property: prop,
       op,
       value,
-    }, this.#propDefs, this.#runtime);
+    }, this.#effectivePropDefs(), this.#runtime);
   }
 
   async getPrepContext(iterate) {
@@ -898,7 +1227,7 @@ class SqliteV0Provider extends BaseCSServices {
     const propCfg = this.#resolvePropertyFilterConfig(property);
     if (!propCfg) return null;
 
-    const propDef = this.#propDefs.get(propCfg.propertyCode);
+    const propDef = this.#effectivePropDefs().get(propCfg.propertyCode);
     if (!propDef) return null;
 
     if (op === '=') {
@@ -933,7 +1262,7 @@ class SqliteV0Provider extends BaseCSServices {
   /** Find codes matching property = candidates (literal + link sources). */
   #propertyEqualsCodes(propCfg, candidates) {
     const codeSet = new Set();
-    if (propCfg.sources.includes('literal')) {
+    if (propCfg.sources.includes('literal') && Number.isInteger(propCfg.propertyId)) {
       const placeholders = candidates.map((_, i) => `@pc${i}`).join(',');
       const p = { pid: propCfg.propertyId, cs: this.#meta.csId };
       candidates.forEach((c, i) => { p[`pc${i}`] = c; });
@@ -945,7 +1274,7 @@ class SqliteV0Provider extends BaseCSServices {
       ).all(p);
       for (const r of rows) codeSet.add(r.code);
     }
-    if (propCfg.sources.includes('link')) {
+    if (propCfg.sources.includes('link') && Number.isInteger(propCfg.propertyId)) {
       const placeholders = candidates.map((_, i) => `@lc${i}`).join(',');
       const p = { pid: propCfg.propertyId, cs: this.#meta.csId };
       candidates.forEach((c, i) => { p[`lc${i}`] = c; });
@@ -961,6 +1290,7 @@ class SqliteV0Provider extends BaseCSServices {
       ).all(p);
       for (const r of rows) codeSet.add(r.code);
     }
+    for (const code of this.#nativePropertyEqualsCodes(propCfg, candidates)) codeSet.add(code);
     return [...codeSet].sort();
   }
 
@@ -970,7 +1300,7 @@ class SqliteV0Provider extends BaseCSServices {
     try { regex = new RegExp(String(pattern || '')); }
     catch (e) { throw new Error(`Invalid regex '${pattern}': ${e.message}`); }
     const codeSet = new Set();
-    if (propCfg.sources.includes('literal')) {
+    if (propCfg.sources.includes('literal') && Number.isInteger(propCfg.propertyId)) {
       const rows = this.#db.prepare(
         `SELECT c.code, COALESCE(cl.value_text, cl.value_raw) AS value FROM concept_literal cl
          JOIN concept c ON c.concept_id = cl.source_concept_id
@@ -978,7 +1308,7 @@ class SqliteV0Provider extends BaseCSServices {
       ).all({ pid: propCfg.propertyId, cs: this.#meta.csId });
       for (const r of rows) if (regex.test(r.value)) codeSet.add(r.code);
     }
-    if (propCfg.sources.includes('link')) {
+    if (propCfg.sources.includes('link') && Number.isInteger(propCfg.propertyId)) {
       const rows = this.#db.prepare(
         `SELECT src.code, tgt.code AS tc, tgt.display AS td FROM concept_link l
          JOIN concept src ON src.concept_id = l.source_concept_id
@@ -990,6 +1320,7 @@ class SqliteV0Provider extends BaseCSServices {
           codeSet.add(r.code);
       }
     }
+    for (const code of this.#nativePropertyRegexCodes(propCfg, regex)) codeSet.add(code);
     return [...codeSet].sort();
   }
 
@@ -997,24 +1328,149 @@ class SqliteV0Provider extends BaseCSServices {
   #propertyExistsCodes(propCfg, value) {
     const expectExists = String(value ?? 'true').toLowerCase() !== 'false';
     const codeSet = new Set();
-    if (propCfg.sources.includes('literal')) {
+    if (propCfg.sources.includes('literal') && Number.isInteger(propCfg.propertyId)) {
       const rows = this.#db.prepare(
         `SELECT DISTINCT c.code FROM concept_literal cl JOIN concept c ON c.concept_id = cl.source_concept_id
          WHERE cl.property_id = @pid AND cl.active = 1 AND c.cs_id = @cs`
       ).all({ pid: propCfg.propertyId, cs: this.#meta.csId });
       for (const r of rows) codeSet.add(r.code);
     }
-    if (propCfg.sources.includes('link')) {
+    if (propCfg.sources.includes('link') && Number.isInteger(propCfg.propertyId)) {
       const rows = this.#db.prepare(
         `SELECT DISTINCT src.code FROM concept_link l JOIN concept src ON src.concept_id = l.source_concept_id
          WHERE l.property_id = @pid AND l.active = 1 AND src.cs_id = @cs`
       ).all({ pid: propCfg.propertyId, cs: this.#meta.csId });
       for (const r of rows) codeSet.add(r.code);
     }
+    for (const code of this.#nativePropertyExistsCodes(propCfg)) codeSet.add(code);
     if (expectExists) return [...codeSet].sort();
     // Invert: all codes minus those that have the property
     const all = this.#db.prepare('SELECT code FROM concept WHERE cs_id = @cs').all({ cs: this.#meta.csId });
     return all.map(r => r.code).filter(c => !codeSet.has(c)).sort();
+  }
+
+  #nativePropertyEqualsCodes(propCfg, candidates) {
+    if (!this.#nativeSupplementBindings.length) return [];
+    const codeSet = new Set();
+    const normalized = candidates.map(v => String(v ?? '').trim()).filter(Boolean);
+    if (normalized.length === 0) return [];
+    const placeholders = normalized.map((_, i) => `@nv${i}`).join(',');
+    for (const binding of this.#nativeSupplementBindings) {
+      if (propCfg.sources.includes('literal')) {
+        const rows = this.#db.prepare(
+          `SELECT DISTINCT c.code
+             FROM "${binding.alias}".supplement_literal sl
+             JOIN concept c ON c.code = sl.source_code
+            WHERE c.cs_id = @cs
+              AND sl.property_code = @prop
+              AND sl.active = 1
+              AND COALESCE(
+                sl.value_text,
+                sl.value_raw,
+                CASE WHEN sl.value_num IS NOT NULL THEN CAST(sl.value_num AS TEXT) ELSE NULL END,
+                CASE WHEN sl.value_bool = 1 THEN 'true' WHEN sl.value_bool = 0 THEN 'false' ELSE NULL END
+              ) COLLATE NOCASE IN (${placeholders})`
+        ).all({
+          cs: this.#meta.csId,
+          prop: propCfg.propertyCode,
+          ...Object.fromEntries(normalized.map((value, i) => [`nv${i}`, value])),
+        });
+        for (const row of rows) codeSet.add(row.code);
+      }
+      if (propCfg.sources.includes('link')) {
+        let targetSql = `sl.target_code COLLATE NOCASE IN (${placeholders})`;
+        if (propCfg.linkMatch === 'code-or-display') {
+          targetSql += ` OR tgt.display COLLATE NOCASE IN (${placeholders})`;
+        }
+        const rows = this.#db.prepare(
+          `SELECT DISTINCT src.code
+             FROM "${binding.alias}".supplement_link sl
+             JOIN concept src ON src.code = sl.source_code
+             LEFT JOIN concept tgt ON tgt.code = sl.target_code AND tgt.cs_id = @cs
+            WHERE src.cs_id = @cs
+              AND sl.property_code = @prop
+              AND sl.active = 1
+              AND (${targetSql})`
+        ).all({
+          cs: this.#meta.csId,
+          prop: propCfg.propertyCode,
+          ...Object.fromEntries(normalized.map((value, i) => [`nv${i}`, value])),
+        });
+        for (const row of rows) codeSet.add(row.code);
+      }
+    }
+    return [...codeSet].sort();
+  }
+
+  #nativePropertyRegexCodes(propCfg, regex) {
+    if (!this.#nativeSupplementBindings.length) return [];
+    const codeSet = new Set();
+    for (const binding of this.#nativeSupplementBindings) {
+      if (propCfg.sources.includes('literal')) {
+        const rows = this.#db.prepare(
+          `SELECT c.code,
+                  COALESCE(
+                    sl.value_text,
+                    sl.value_raw,
+                    CASE WHEN sl.value_num IS NOT NULL THEN CAST(sl.value_num AS TEXT) ELSE NULL END,
+                    CASE WHEN sl.value_bool = 1 THEN 'true' WHEN sl.value_bool = 0 THEN 'false' ELSE NULL END
+                  ) AS value
+             FROM "${binding.alias}".supplement_literal sl
+             JOIN concept c ON c.code = sl.source_code
+            WHERE c.cs_id = @cs
+              AND sl.property_code = @prop
+              AND sl.active = 1`
+        ).all({ cs: this.#meta.csId, prop: propCfg.propertyCode });
+        for (const row of rows) if (row.value && regex.test(row.value)) codeSet.add(row.code);
+      }
+      if (propCfg.sources.includes('link')) {
+        const rows = this.#db.prepare(
+          `SELECT src.code, sl.target_code AS tc, tgt.display AS td
+             FROM "${binding.alias}".supplement_link sl
+             JOIN concept src ON src.code = sl.source_code
+             LEFT JOIN concept tgt ON tgt.code = sl.target_code AND tgt.cs_id = @cs
+            WHERE src.cs_id = @cs
+              AND sl.property_code = @prop
+              AND sl.active = 1`
+        ).all({ cs: this.#meta.csId, prop: propCfg.propertyCode });
+        for (const row of rows) {
+          if ((row.tc && regex.test(row.tc)) || (propCfg.linkMatch === 'code-or-display' && row.td && regex.test(row.td))) {
+            codeSet.add(row.code);
+          }
+        }
+      }
+    }
+    return [...codeSet].sort();
+  }
+
+  #nativePropertyExistsCodes(propCfg) {
+    if (!this.#nativeSupplementBindings.length) return [];
+    const codeSet = new Set();
+    for (const binding of this.#nativeSupplementBindings) {
+      if (propCfg.sources.includes('literal')) {
+        const rows = this.#db.prepare(
+          `SELECT DISTINCT c.code
+             FROM "${binding.alias}".supplement_literal sl
+             JOIN concept c ON c.code = sl.source_code
+            WHERE c.cs_id = @cs
+              AND sl.property_code = @prop
+              AND sl.active = 1`
+        ).all({ cs: this.#meta.csId, prop: propCfg.propertyCode });
+        for (const row of rows) codeSet.add(row.code);
+      }
+      if (propCfg.sources.includes('link')) {
+        const rows = this.#db.prepare(
+          `SELECT DISTINCT src.code
+             FROM "${binding.alias}".supplement_link sl
+             JOIN concept src ON src.code = sl.source_code
+            WHERE src.cs_id = @cs
+              AND sl.property_code = @prop
+              AND sl.active = 1`
+        ).all({ cs: this.#meta.csId, prop: propCfg.propertyCode });
+        for (const row of rows) codeSet.add(row.code);
+      }
+    }
+    return [...codeSet].sort();
   }
 
   /** Run special property handler (e.g. LOINC answers-for derived-link-filter). */
@@ -1071,8 +1527,9 @@ class SqliteV0Provider extends BaseCSServices {
   #resolvePropertyFilterConfig(propertyCode) {
     if (!propertyCode) return null;
     const filtersCfg = this.#runtime.filters?.properties;
+    const effectivePropDefs = this.#effectivePropDefs();
     if (!filtersCfg) {
-      const propDef = this.#propDefs.get(propertyCode);
+      const propDef = effectivePropDefs.get(propertyCode);
       if (!propDef) return null;
       return {
         propertyId: propDef.property_id, propertyCode,
@@ -1087,7 +1544,7 @@ class SqliteV0Provider extends BaseCSServices {
     const byCode = filtersCfg.byCode || {};
     const specific = byCode[resolvedCode] || byCode[rawCode] || null;
     if (!specific && filtersCfg.allPropertiesFilterable !== true) return null;
-    const propDef = this.#propDefs.get(resolvedCode);
+    const propDef = effectivePropDefs.get(resolvedCode);
     if (!propDef) return null;
     const operators = Array.isArray(specific?.operators) && specific.operators.length > 0
       ? specific.operators
@@ -1254,6 +1711,17 @@ class SqliteV0Provider extends BaseCSServices {
       }
     }
 
+    for (const row of this.#nativeSupplementDesignationRowsForConceptIds(conceptIds)) {
+      if (!result.has(row.concept_id)) result.set(row.concept_id, []);
+      result.get(row.concept_id).push({
+        language: row.language_code || null,
+        use: row.use_system ? { system: row.use_system, code: row.use_code || null } : (row.use_code ? { system: this.system(), code: row.use_code } : null),
+        value: row.term,
+        active: !!row.active,
+        preferred: !!row.preferred,
+      });
+    }
+
     return result;
   }
 
@@ -1297,6 +1765,88 @@ class SqliteV0Provider extends BaseCSServices {
           if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
           result.get(row.source_concept_id).push({ code: row.property_code, value });
         }
+      }
+    }
+    if (this.supplements?.length > 0 && conceptIds.length > 0) {
+      const batchSize = 500;
+      const codeMap = new Map();
+      for (let i = 0; i < conceptIds.length; i += batchSize) {
+        const batch = conceptIds.slice(i, i + batchSize);
+        const placeholders = batch.map((_, j) => `@cid${i + j}`).join(',');
+        const params = {};
+        batch.forEach((id, j) => { params[`cid${i + j}`] = id; });
+        const rows = this.#db.prepare(
+          `SELECT concept_id, code FROM concept WHERE concept_id IN (${placeholders})`
+        ).all(params);
+        for (const row of rows) codeMap.set(row.concept_id, row.code);
+      }
+      for (const [conceptId, code] of codeMap) {
+        for (const supplement of this.supplements) {
+          const concept = supplement.getConceptByCode(code);
+          if (!concept) continue;
+          if (!result.has(conceptId)) result.set(conceptId, []);
+          for (const prop of concept.property || []) {
+            result.get(conceptId).push({ ...prop });
+          }
+        }
+      }
+    }
+    const suppRows = this.#nativeSupplementPropertyRowsForConceptIds(conceptIds);
+    const effectivePropDefs = this.#effectivePropDefs();
+    for (const row of suppRows.links) {
+      if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
+      result.get(row.source_concept_id).push({
+        code: row.property_code,
+        value: { system: this.system(), code: row.target_code, display: row.target_display },
+      });
+    }
+    for (const row of suppRows.literals) {
+      const property = typedLiteralProperty(
+        row.property_code,
+        row,
+        effectivePropDefs.get(row.property_code)
+      );
+      if (property) {
+        if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
+        result.get(row.source_concept_id).push(property);
+      }
+    }
+    return result;
+  }
+
+  bulkExtensions(conceptIds) {
+    if (!conceptIds || conceptIds.length === 0) return new Map();
+    const result = new Map();
+    if (this.supplements?.length > 0) {
+      const batchSize = 500;
+      const codeMap = new Map();
+      for (let i = 0; i < conceptIds.length; i += batchSize) {
+        const batch = conceptIds.slice(i, i + batchSize);
+        const placeholders = batch.map((_, j) => `@cid${i + j}`).join(',');
+        const params = {};
+        batch.forEach((id, j) => { params[`cid${i + j}`] = id; });
+        const rows = this.#db.prepare(
+          `SELECT concept_id, code FROM concept WHERE concept_id IN (${placeholders})`
+        ).all(params);
+        for (const row of rows) codeMap.set(row.concept_id, row.code);
+      }
+      for (const [conceptId, code] of codeMap) {
+        for (const supplement of this.supplements) {
+          const concept = supplement.getConceptByCode(code);
+          if (!concept?.extension?.length) continue;
+          if (!result.has(conceptId)) result.set(conceptId, []);
+          result.get(conceptId).push(...concept.extension);
+        }
+      }
+    }
+    if (!this.#nativeSupplementBindings.length) return result;
+    for (const row of this.#nativeSupplementExtensionRowsForConceptIds(conceptIds)) {
+      try {
+        const ext = JSON.parse(row.value_json);
+        if (!result.has(row.concept_id)) result.set(row.concept_id, []);
+        result.get(row.concept_id).push(ext);
+      } catch {
+        // ignore malformed extension payloads
       }
     }
     return result;
@@ -1394,7 +1944,10 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
   constructor(i18n, dbPath, options = {}) {
     super(i18n);
     this._dbPath = dbPath;
-    this._options = options;
+    this._options = {
+      ...options,
+      supplements: normalizeSqliteSupplementSources(options.supplements, dbPath),
+    };
   }
 
   async load() {
@@ -1487,9 +2040,13 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
     return true;
   }
 
+  async registerSqliteSupplements() {
+    return this._options?.supplements || [];
+  }
+
   async build(opContext, supplements) {
     this.recordUse();
-    const db = openV0Database(this._dbPath);
+    const db = openV0Database(this._dbPath, { readonly: false });
     return new SqliteV0Provider(opContext, supplements, db, this._meta, this._runtime, this._propDefs, this._options);
   }
 

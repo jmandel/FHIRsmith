@@ -22,6 +22,13 @@ Options:
   --port <n>              Server port (default: 8000)
   --db-dir <path>         V0 DB directory (or env FHIRSMITH_V0_DB_DIR / V0_DB_DIR)
   --library-source <path> Library YAML (default: tests/tx/fixtures/v0-test-library.yaml)
+  --with-synthetic-supplements
+                        Generate and register synthetic sqlite supplement sidecars for LOINC
+  --synthetic-supp-url-root <url>
+                        Canonical root for generated synthetic supplements
+                        (default: http://example.org/fhir/CodeSystem/harness-dice-supplement)
+  --synthetic-supp-dice <list>
+                        Comma-separated dice specs to generate (default: d20,d8)
   --perf-third-upstream   In --perf mode, add third timing column from a second server
   --third-port <n>        Second server port (default: 8001)
   --third-library-source <path>
@@ -69,6 +76,9 @@ TRACE=0
 STRICT_IR_NO_FALLBACK=0
 SEMANTIC_PARITY=0
 STRICT_TOTAL_CONSISTENCY=0
+WITH_SYNTHETIC_SUPPLEMENTS=0
+SYNTHETIC_SUPP_URL_ROOT="http://example.org/fhir/CodeSystem/harness-dice-supplement"
+SYNTHETIC_SUPP_DICE="d20,d8"
 FILTERS=()
 
 MODE_SET=0
@@ -123,6 +133,17 @@ while [[ $# -gt 0 ]]; do
       ;;
     --library-source)
       LIBRARY_SOURCE="$2"
+      shift
+      ;;
+    --with-synthetic-supplements)
+      WITH_SYNTHETIC_SUPPLEMENTS=1
+      ;;
+    --synthetic-supp-url-root)
+      SYNTHETIC_SUPP_URL_ROOT="$2"
+      shift
+      ;;
+    --synthetic-supp-dice)
+      SYNTHETIC_SUPP_DICE="$2"
       shift
       ;;
     --perf-third-upstream)
@@ -260,6 +281,89 @@ THIRD_DATA_DIR="$OUT_DIR/data-third"
 if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
   mkdir -p "$THIRD_DATA_DIR"
   ln -sfn "$UPSTREAM_DB_DIR" "$THIRD_DATA_DIR/terminology-cache"
+fi
+
+HARNESS_SQLITE_SUPP_URL_ROOT_VALUE=""
+SYNTHETIC_SUPP_DIR=""
+SYNTHETIC_SUPP_MANIFEST=""
+
+generate_synthetic_supplement_library() {
+  SYNTHETIC_SUPP_DIR="$OUT_DIR/synthetic-supplements/loinc"
+  SYNTHETIC_SUPP_MANIFEST="$SYNTHETIC_SUPP_DIR/manifest.json"
+  HARNESS_SQLITE_SUPP_URL_ROOT_VALUE="${SYNTHETIC_SUPP_URL_ROOT%/}"
+  mkdir -p "$SYNTHETIC_SUPP_DIR"
+
+  echo "Generating synthetic sqlite supplements (${SYNTHETIC_SUPP_DICE}) ..."
+  node "$ROOT_DIR/scripts/generate-dice-supplements.mjs" \
+    --db "$DB_DIR/loinc_281_full.v0.db" \
+    --out-dir "$SYNTHETIC_SUPP_DIR" \
+    --dice "$SYNTHETIC_SUPP_DICE" \
+    --formats sqlite \
+    --url-root "$HARNESS_SQLITE_SUPP_URL_ROOT_VALUE" \
+    > "$SYNTHETIC_SUPP_DIR/generation.json"
+
+  local generated_library="$OUT_DIR/library.synthetic-supplements.yaml"
+  node - "$LIBRARY_SOURCE" "$generated_library" "$SYNTHETIC_SUPP_MANIFEST" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const yaml = require('yaml');
+
+const [libraryPath, outPath, manifestPath] = process.argv.slice(2);
+const config = yaml.parse(fs.readFileSync(libraryPath, 'utf8'));
+const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const manifestDir = path.dirname(manifestPath);
+const sqliteFiles = (manifest.supplements || [])
+  .map(item => item.sqliteFile ? path.resolve(manifestDir, item.sqliteFile) : null)
+  .filter(Boolean);
+
+let patched = false;
+config.sources = (config.sources || []).map((entry) => {
+  let sourceSpec = null;
+  let clone = null;
+  let options = {};
+
+  if (typeof entry === 'string') {
+    sourceSpec = entry;
+    clone = {};
+  } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+    if (typeof entry.source === 'string') {
+      sourceSpec = entry.source;
+      clone = { ...entry };
+      options = { ...(entry.options || {}) };
+    } else if (typeof entry.type === 'string') {
+      sourceSpec = `${entry.type}:${entry.details || entry.path || ''}`;
+      clone = { ...entry };
+      options = { ...(entry.options || {}) };
+    }
+  }
+
+  if (!sourceSpec) return entry;
+  if (/^sqlite-v0!?:/.test(sourceSpec) && /loinc_.*\.v0\.db(?:$|[|?#])/.test(sourceSpec)) {
+    patched = true;
+    return {
+      ...clone,
+      source: sourceSpec,
+      options: {
+        ...options,
+        supplements: sqliteFiles,
+      },
+    };
+  }
+  return entry;
+});
+
+if (!patched) {
+  throw new Error(`Did not find a LOINC sqlite-v0 source in ${libraryPath}`);
+}
+
+fs.writeFileSync(outPath, yaml.stringify(config), 'utf8');
+NODE
+
+  LIBRARY_SOURCE="$generated_library"
+}
+
+if [[ "$WITH_SYNTHETIC_SUPPLEMENTS" -eq 1 ]]; then
+  generate_synthetic_supplement_library
 fi
 
 if curl -fsS "http://localhost:${PORT}/r4/metadata" >/dev/null 2>&1; then
@@ -409,6 +513,31 @@ if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
   fi
 fi
 
+warm_perf_backend() {
+  local base_url="$1"
+  local engine="$2"
+  local label="$3"
+  local -a urls=(
+    "http%3A%2F%2Fsnomed.info%2Fsct%3Ffhir_vs%3Disa%2F73211009"
+    "http%3A%2F%2Floinc.org%3Ffhir_vs%3Dall"
+    "http%3A%2F%2Fwww.nlm.nih.gov%2Fresearch%2Fumls%2Frxnorm%3Ffhir_vs%3Dall"
+  )
+  for url in "${urls[@]}"; do
+    curl -fsS --max-time 30 \
+      "${base_url}/r4/ValueSet/\$expand?url=${url}&count=1&_nocache=true&_engine=${engine}" \
+      >/dev/null 2>&1 || true
+  done
+  echo "Warmed ${label} (${engine})"
+}
+
+if [[ "$RUN_PERF" -eq 1 ]]; then
+  warm_perf_backend "http://localhost:${PORT}" "ir" "primary backend"
+  warm_perf_backend "http://localhost:${PORT}" "legacy" "primary backend"
+  if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
+    warm_perf_backend "http://localhost:${THIRD_PORT}" "legacy" "third backend"
+  fi
+fi
+
 HARNESS_ARGS=()
 for f in "${FILTERS[@]}"; do
   HARNESS_ARGS+=(--filter "$f")
@@ -430,8 +559,12 @@ run_harness() {
   local mode="$1"
   shift
   local log_file="$OUT_DIR/harness-${mode}.log"
+  local -a env_args=("BASE_URL=http://localhost:${PORT}")
+  if [[ "$mode" != "legacy" && -n "$HARNESS_SQLITE_SUPP_URL_ROOT_VALUE" ]]; then
+    env_args+=("HARNESS_SQLITE_SUPP_URL_ROOT=$HARNESS_SQLITE_SUPP_URL_ROOT_VALUE")
+  fi
   echo "== ${mode^^} harness =="
-  BASE_URL="http://localhost:${PORT}" "$@" | tee "$log_file"
+  env "${env_args[@]}" "$@" | tee "$log_file"
 }
 
 if [[ "$RUN_IR" -eq 1 ]]; then
@@ -459,6 +592,11 @@ echo
 echo "Completed."
 echo "Run directory: $OUT_DIR"
 echo "Server log: $OUT_DIR/server.log"
+if [[ -n "$SYNTHETIC_SUPP_DIR" ]]; then
+  echo "Synthetic supplements: $SYNTHETIC_SUPP_DIR"
+  echo "Synthetic supplement manifest: $SYNTHETIC_SUPP_MANIFEST"
+  echo "Synthetic supplement URL root: $HARNESS_SQLITE_SUPP_URL_ROOT_VALUE"
+fi
 if [[ "$PERF_THIRD_UPSTREAM" -eq 1 ]]; then
   echo "Third server log: $OUT_DIR/server-third.log"
 fi

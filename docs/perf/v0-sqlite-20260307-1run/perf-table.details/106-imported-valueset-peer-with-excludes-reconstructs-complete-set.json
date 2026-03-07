@@ -1,0 +1,706 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T05:23:31.647Z",
+  "rowIndex": 106,
+  "slug": "106-imported-valueset-peer-with-excludes-reconstructs-complete-set",
+  "name": "Imported ValueSet peer with excludes reconstructs complete set",
+  "category": "Pagination Safety",
+  "hrefs": {
+    "input": "../perf-table.inputs/106-imported-valueset-peer-with-excludes-reconstructs-complete-set.json",
+    "detailJson": "106-imported-valueset-peer-with-excludes-reconstructs-complete-set.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 7,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/pgsafe-1772861011602"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender"
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://example.org/cs/pgsafe-1772861011602",
+                        "concept": [
+                          {
+                            "code": "b"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "unknown"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 6
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/pgsafe-1772861011602",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "a",
+                      "display": "A"
+                    },
+                    {
+                      "code": "b",
+                      "display": "B"
+                    },
+                    {
+                      "code": "c",
+                      "display": "C"
+                    },
+                    {
+                      "code": "d",
+                      "display": "D"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/pgsafe-1772861011602",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/pgsafe-1772861011602"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2148",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:23:31 GMT",
+            "etag": "W/\"864-dKf2fSU15rp+ajd58Cr1aFo73O8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-580"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T05:23:31.640Z",
+              "identifier": "urn:uuid:f6c20e98-d0a5-404e-8fe3-01438b63f4eb",
+              "total": 6,
+              "offset": 6,
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 6
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 1
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/pgsafe-1772861011602"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/pgsafe-1772861011602"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/pgsafe-1772861011602, http://hl7.org/fhir/administrative-gender\ncanonical-ir-hash: cf2a87138cf9f055c439ddbf24d3c309f112b9ba\nruntime-constraints:\n  pagination: offset=6 count=1\noptimized-ir:\n  union [2] [n]\n    diff [n.0]\n      selector whole http://example.org/cs/pgsafe-1772861011602 [n.0.l]\n      selector concept http://example.org/cs/pgsafe-1772861011602 [1] b [n.0.r]\n    diff [n.1]\n      selector whole http://hl7.org/fhir/administrative-gender [n.1.l]\n      selector concept http://hl7.org/fhir/administrative-gender [1] unknown [n.1.r]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":4.37,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":6,\"count\":1,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://example.org/cs/pgsafe-1772861011602\"},\"children\":[],\"ms\":0.1,\"result\":{\"count\":3}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.07,\"result\":{\"count\":3}},{\"name\":\"pagination\",\"args\":{\"total\":6,\"offset\":6,\"count\":1,\"systems\":2},\"children\":[],\"ms\":0,\"result\":{\"paged\":0}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":0,\"includeDesignations\":false},\"children\":[],\"ms\":0}],\"ms\":4.27,\"result\":{\"total\":6,\"contains\":0}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 4.37,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": false,
+                "text": null,
+                "offset": 6,
+                "count": 1,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://example.org/cs/pgsafe-1772861011602"
+                  },
+                  "children": [],
+                  "ms": 0.1,
+                  "result": {
+                    "count": 3
+                  }
+                },
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  "children": [],
+                  "ms": 0.07,
+                  "result": {
+                    "count": 3
+                  }
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 6,
+                    "offset": 6,
+                    "count": 1,
+                    "systems": 2
+                  },
+                  "children": [],
+                  "ms": 0,
+                  "result": {
+                    "paged": 0
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 0,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0
+                }
+              ],
+              "ms": 4.27,
+              "result": {
+                "total": 6,
+                "contains": 0
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/pgsafe-1772861011602, http://hl7.org/fhir/administrative-gender\ncanonical-ir-hash: cf2a87138cf9f055c439ddbf24d3c309f112b9ba\nruntime-constraints:\n  pagination: offset=6 count=1\noptimized-ir:\n  union [2] [n]\n    diff [n.0]\n      selector whole http://example.org/cs/pgsafe-1772861011602 [n.0.l]\n      selector concept http://example.org/cs/pgsafe-1772861011602 [1] b [n.0.r]\n    diff [n.1]\n      selector whole http://hl7.org/fhir/administrative-gender [n.1.l]\n      selector concept http://hl7.org/fhir/administrative-gender [1] unknown [n.1.r]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/pgsafe-1772861011602"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender"
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://example.org/cs/pgsafe-1772861011602",
+                        "concept": [
+                          {
+                            "code": "b"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "unknown"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 6
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/pgsafe-1772861011602",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "a",
+                      "display": "A"
+                    },
+                    {
+                      "code": "b",
+                      "display": "B"
+                    },
+                    {
+                      "code": "c",
+                      "display": "C"
+                    },
+                    {
+                      "code": "d",
+                      "display": "D"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/pgsafe-1772861011602",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/pgsafe-1772861011602"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1072",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:23:31 GMT",
+            "etag": "W/\"430-MzceqHG73GzrG/gFE4/p+IB47SI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-579"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T05:23:31.632Z",
+              "identifier": "urn:uuid:e73fff61-c17a-4d49-8731-9a04a44cf9d4",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 6
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 1
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/pgsafe-1772861011602"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/pgsafe-1772861011602"
+                }
+              ],
+              "offset": 6,
+              "total": 6,
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.06,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":1,\"offset\":6,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.03,\"result\":{\"ms\":1.02,\"total\":6,\"returned\":0}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.06,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 1,
+                "offset": 6,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1.03,
+              "result": {
+                "ms": 1.02,
+                "total": 6,
+                "returned": 0
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8121/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/pgsafe-1772861011602"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender"
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://example.org/cs/pgsafe-1772861011602",
+                        "concept": [
+                          {
+                            "code": "b"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "unknown"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 6
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/pgsafe-1772861011602",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "a",
+                      "display": "A"
+                    },
+                    {
+                      "code": "b",
+                      "display": "B"
+                    },
+                    {
+                      "code": "c",
+                      "display": "C"
+                    },
+                    {
+                      "code": "d",
+                      "display": "D"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/pgsafe-1772861011602",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/pgsafe-1772861011602"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1069",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:23:31 GMT",
+            "etag": "W/\"42d-yAZ5FmJ9HF3XXvLIyC0/1aS42ro\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-216"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T05:23:31.645Z",
+              "identifier": "urn:uuid:2ac09284-70d0-4bab-92ec-8b9fb4b74dbc",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 6
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 1
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/pgsafe-1772861011602"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/pgsafe-1772861011602"
+                }
+              ],
+              "offset": 6,
+              "total": 6,
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.02,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":1,\"offset\":6,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1,\"result\":{\"ms\":0.99,\"total\":6,\"returned\":0}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.02,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 1,
+                "offset": 6,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1,
+              "result": {
+                "ms": 0.99,
+                "total": 6,
+                "returned": 0
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

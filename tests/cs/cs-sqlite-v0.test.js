@@ -469,6 +469,122 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       provider.close();
     });
 
+    test('deep pagination on same-system reachability diff preserves semantics', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.diff(
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+        }),
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        })
+      );
+      const total = provider.countForIR(subtree, { activeOnly: true });
+      expect(total).toBeGreaterThan(100000);
+      const result = provider.executeIR(subtree, { activeOnly: true, offset: total - 20, count: 20 });
+      expect(result.total == null || result.total === total).toBe(true);
+      expect(result.candidates).toHaveLength(20);
+      const codes = result.candidates.map(c => c.code);
+      expect([...codes].sort()).toEqual(codes);
+      expect(new Set(codes).has('73211009')).toBe(false);
+      expect(new Set(codes).has('44054006')).toBe(false);
+      expect(new Set(codes).has('46635009')).toBe(false);
+      provider.close();
+    });
+
+    test('same-system reachability intersection preserves subset semantics', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.intersect([
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+        }),
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        }),
+      ]);
+      const total = provider.countForIR(subtree, { activeOnly: true });
+      expect(total).toBeGreaterThan(100);
+      const membership = provider.membershipForIR(subtree);
+      expect(membership.has('73211009')).toBe(true);
+      expect(membership.has('44054006')).toBe(true);
+      expect(membership.has('46635009')).toBe(true);
+      const result = provider.executeIR(subtree, { activeOnly: true, offset: total - 20, count: 20 });
+      const codes = result.candidates.map(c => c.code);
+      expect(result.candidates).toHaveLength(20);
+      expect([...codes].sort()).toEqual(codes);
+      provider.close();
+    });
+
+    test('same-system reachability intersected with code regex preserves semantics', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.intersect([
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+        }),
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'code', op: 'regex', value: '^7[0-9]{4,}$' }],
+        }),
+      ]);
+
+      const total = provider.countForIR(subtree, { activeOnly: true });
+      expect(total).toBeGreaterThan(1000);
+
+      const result = provider.executeIR(subtree, { activeOnly: true, offset: Math.floor(total / 2), count: 25 });
+      expect(result.candidates).toHaveLength(25);
+      for (const c of result.candidates) {
+        expect(c.code.startsWith('7')).toBe(true);
+      }
+      const codes = result.candidates.map(c => c.code);
+      expect([...codes].sort()).toEqual(codes);
+      provider.close();
+    });
+
+    test('same-system reachability diff with runtime text preserves deep-page semantics', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const subtree = IR.diff(
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '404684003' }],
+        }),
+        IR.selector({
+          system: 'http://snomed.info/sct',
+          shape: 'filter',
+          filterClauses: [{ property: 'concept', op: 'is-a', value: '73211009' }],
+        })
+      );
+
+      const plainTotal = provider.countForIR(subtree, { activeOnly: true });
+      const textTotal = provider.countForIR(subtree, { activeOnly: true, text: 'disease' });
+      expect(textTotal).toBeGreaterThan(1000);
+      expect(textTotal).toBeLessThan(plainTotal);
+
+      const result = provider.executeIR(subtree, {
+        activeOnly: true,
+        text: 'disease',
+        offset: Math.floor(textTotal / 2),
+        count: 25,
+      });
+      expect(result.candidates).toHaveLength(25);
+      const codes = result.candidates.map(c => c.code);
+      expect([...codes].sort()).toEqual(codes);
+      expect(new Set(codes).has('73211009')).toBe(false);
+      expect(new Set(codes).has('44054006')).toBe(false);
+      provider.close();
+    });
+
     test('executeIR LOINC with property filter', async () => {
       const provider = await loincFactory.build(makeOpContext(), null);
       const subtree = IR.selector({
@@ -483,6 +599,27 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
         expect(c.code).toBeTruthy();
         expect(c.display).toBeTruthy();
       }
+      provider.close();
+    });
+
+    test('same-system mixed property intersections preserve semantics', async () => {
+      const provider = await loincFactory.build(makeOpContext(), null);
+      const subtree = IR.selector({
+        system: 'http://loinc.org',
+        shape: 'filter',
+        filterClauses: [
+          { property: 'SCALE_TYP', op: '=', value: 'Qn' },
+          { property: 'STATUS', op: '=', value: 'ACTIVE' },
+        ],
+      });
+
+      const total = provider.countForIR(subtree, { activeOnly: true });
+      expect(total).toBeGreaterThan(10000);
+
+      const result = provider.executeIR(subtree, { activeOnly: true, count: 100 });
+      expect(result.candidates).toHaveLength(100);
+      const codes = result.candidates.map(c => c.code);
+      expect([...codes].sort()).toEqual(codes);
       provider.close();
     });
 
@@ -530,6 +667,21 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
 
       expect(irCodes).toEqual(legacySortedCodes);
       expect(irResult.candidates.length).toBe(legacySortedCodes.length);
+      provider.close();
+    });
+
+    test('executeIR explicit concept membership with text search matches legacy filter semantics', async () => {
+      const provider = await sctFactory.build(makeOpContext(), null);
+      const codes = ['73211009', '44054006', '46635009'];
+      const subtree = IR.selector({
+        system: 'http://snomed.info/sct',
+        shape: 'concept',
+        conceptCodes: codes.map(code => ({ code })),
+      });
+
+      const irResult = provider.executeIR(subtree, { text: 'type', count: 50 });
+      const irCodes = [...new Set(irResult.candidates.map(c => c.code))].sort();
+      expect(irCodes).toEqual(['44054006', '46635009']);
       provider.close();
     });
 

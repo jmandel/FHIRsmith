@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "id": 131,
+  "slug": "131-missing-valueset-supplement-extension-fails-expansion",
+  "name": "Missing ValueSet supplement extension fails expansion",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs-s6",
+            "concept": [
+              {
+                "code": "Y"
+              }
+            ]
+          }
+        ]
+      },
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+          "valueCanonical": "http://example.org/missing-supp"
+        }
+      ]
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s6",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "Y",
+              "display": "Yankee"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8120/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s6",
+                    "concept": [
+                      {
+                        "code": "Y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+                  "valueCanonical": "http://example.org/missing-supp"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s6",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "Y",
+                  "display": "Yankee"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8120/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s6",
+                    "concept": [
+                      {
+                        "code": "Y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+                  "valueCanonical": "http://example.org/missing-supp"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s6",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "Y",
+                  "display": "Yankee"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8121/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s6",
+                    "concept": [
+                      {
+                        "code": "Y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+                  "valueCanonical": "http://example.org/missing-supp"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s6",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "Y",
+                  "display": "Yankee"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

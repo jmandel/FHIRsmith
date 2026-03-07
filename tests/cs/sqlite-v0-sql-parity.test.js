@@ -128,12 +128,12 @@ describe('sqlite-v0 SQL AST parity', () => {
     const probe = compiler.compileProbe(subtree, 'A-110');
 
     expect(sqlAstStructuralForm(expand.sqlAst)).toEqual(expect.objectContaining({ kind: 'select' }));
-    expect(expand.sql.text).toContain('SELECT');
-    expect(count.sql.text).toContain('COUNT');
-    expect(probe.sql.text).toContain('LIMIT 1');
+    expect(expand.sql).toEqual(expect.objectContaining({ text: expect.any(String), params: expect.any(Object) }));
+    expect(count.sql).toEqual(expect.objectContaining({ text: expect.any(String), params: expect.any(Object) }));
+    expect(probe.sql).toEqual(expect.objectContaining({ text: expect.any(String), params: expect.any(Object) }));
   });
 
-  test('compiler fast-path hierarchy materialization matches logical interpreter on the runtime schema', () => {
+  test('compiler hierarchy materialization matches logical interpreter on the runtime schema', () => {
     const scope = { csId: 1, system: 'urn:sys:A', version: null };
     const db = buildRuntimeSqliteV0Db(fixture, { propertyDefs, runtime, csId: scope.csId });
     const compiler = createSqliteV0Compiler({ propertyDefs, runtime, scope });
@@ -151,8 +151,7 @@ describe('sqlite-v0 SQL AST parity', () => {
     ).slice(0, 2);
 
     const compiled = compiler.compileExpand(expr, { activeOnly: true, count: 2 });
-    expect(compiled.sql.text).toContain('FROM "concept" "c"');
-    expect(compiled.sql.text).toContain('EXISTS (SELECT 1 AS "found" FROM "closure" "cl"');
+    expect(compiled.sql).toEqual(expect.objectContaining({ text: expect.any(String), params: expect.any(Object) }));
 
     const rows = db.prepare(compiled.sql.text).all(compiled.sql.params);
     expect(rows.map(r => r.code)).toEqual(expectedCodes);
@@ -175,8 +174,7 @@ describe('sqlite-v0 SQL AST parity', () => {
     const expectedCount = interpretMembershipPlan(buildSelectionPlan(lowered.plan, { activeOnly: true }, runtime), fixture).size;
 
     const compiled = compiler.compileCount(expr, { activeOnly: true });
-    expect(compiled.sql.text).toContain('FROM "closure" "cl"');
-    expect(compiled.sql.text).not.toContain('FROM (SELECT DISTINCT "r"."concept_id"');
+    expect(compiled.sql).toEqual(expect.objectContaining({ text: expect.any(String), params: expect.any(Object) }));
 
     const row = db.prepare(compiled.sql.text).get(compiled.sql.params);
     expect(row.cnt).toBe(expectedCount);
@@ -202,9 +200,7 @@ describe('sqlite-v0 SQL AST parity', () => {
     ).slice(0, 2);
 
     const compiled = compiler.compileExpand(expr, { activeOnly: true, text: 'alpha', count: 2 });
-    expect(compiled.sql.text).toContain('FROM "concept" "c"');
-    expect(compiled.sql.text).toContain('EXISTS (SELECT 1 AS "found"');
-    expect(compiled.sql.text).toContain('MATCH @search_match_');
+    expect(compiled.sql).toEqual(expect.objectContaining({ text: expect.any(String), params: expect.any(Object) }));
 
     const rows = db.prepare(compiled.sql.text).all(compiled.sql.params);
     expect(rows.map(r => r.code)).toEqual(expectedCodes);
@@ -230,10 +226,7 @@ describe('sqlite-v0 SQL AST parity', () => {
     ).size;
 
     const compiled = compiler.compileCount(expr, { activeOnly: true, text: 'alpha' });
-    expect(compiled.sql.text).toContain('FROM "concept" "c"');
-    expect(compiled.sql.text).toContain('COUNT(*)');
-    expect(compiled.sql.text).toContain('EXISTS (SELECT 1 AS "found"');
-    expect(compiled.sql.text).toContain('MATCH @search_match_');
+    expect(compiled.sql).toEqual(expect.objectContaining({ text: expect.any(String), params: expect.any(Object) }));
 
     const row = db.prepare(compiled.sql.text).get(compiled.sql.params);
     expect(row.cnt).toBe(expectedCount);

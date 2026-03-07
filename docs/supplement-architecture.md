@@ -24,6 +24,11 @@ The legacy expander should keep its current supplement behavior for now. The new
 supplement system is meant to become the correct path we grow into over time,
 not a wrenching change to `expand.js`.
 
+One narrow exception is acceptable and now implemented: when a requested
+supplement is only resolvable through the new supplement runtime (for example, a
+configured sqlite sidecar), legacy `$expand` fails closed with `422` instead of
+returning a misleading `200` that omits supplement semantics.
+
 ## Problem statement
 
 FHIR supplements are CodeSystems with `content = supplement` that add
@@ -140,6 +145,33 @@ unversioned base are in scope.
 2. Annotating IR nodes with supplement provenance
 3. Auto-activating supplements from server config
 4. Making supplement semantics depend on storage backend
+5. Introducing a new process-wide normalized supplement cache in the first cut
+
+## Initial scope simplification
+
+To keep the first implementation tractable:
+
+- request-scoped inline supplements may stay as JSON `CodeSystem` resources
+- server-loaded supplements should start as sqlite-native sidecars only
+- we should not add a new process-wide supplement row cache in the first cut
+
+That means:
+
+- inline/request supplements pay parse/materialization cost per request
+- raw `tx-resource` supplement JSON is normalized into `CodeSystem` objects at
+  the supplement registry boundary, not pre-cached across requests
+- generic overlay remains the default semantic path for inline supplements, but
+  sqlite-v0 may opportunistically materialize them once per provider/request
+  into an attached `:memory:` supplement schema and use the native SQL path
+- server-loaded/sqlite supplements are resolved by descriptor and attached for
+  the request/provider lifetime
+- server-loaded sqlite sidecars resolve their native binding eagerly, but defer
+  `CodeSystem` overlay materialization until a generic consumer actually needs
+  it
+- no new server-global cache invalidation or eviction policy is needed to begin
+
+This is a deliberate narrowing of the initial design, not a permanent
+restriction.
 
 ## High-level architecture
 
@@ -171,9 +203,108 @@ So:
 - providers/execution adapters are told which supplements are in play
 - supplement-aware execution decides how to apply them
 
+For adapter-backed providers that do not natively execute IR, the generic path
+works by wrapping the provider with the IR supplement adapter. That adapter:
+
+- keeps non-supplement clauses in the base query path
+- routes supplement-touched semantics through merged base+overlay evaluation
+- preserves count and paging correctness before slicing
+
+## Currently demonstrated generality
+
+The current implementation intentionally demonstrates supplements across three
+different execution shapes.
+
+### 1. IR + sqlite-v0 + configured sqlite sidecar
+
+This is the native server-loaded supplement path.
+
+What it proves:
+
+- supplement activation by canonical URL
+- native sqlite attachment and pushdown
+- supplement-backed property filtering
+- supplement-backed text/designation matching
+
+Primary tests:
+
+- `tests/tx/expand-sqlite-supplement-config.test.js`
+- `tests/tx/lookup-sqlite-supplement-config.test.js`
+- `tests/tx/validate-sqlite-supplement-config.test.js`
+- `tests/cs/sqlite-v0-native-supplements.test.js`
+
+### 2. IR + sqlite-v0 + inline `tx-resource` supplement
+
+This is the request-scoped supplement path for the same sqlite base provider.
+
+What it proves:
+
+- the same canonical supplement can be supplied inline instead of coming from
+  server configuration
+- inline and configured sqlite sidecar supplements are semantically equivalent
+  for the new runtime
+
+Primary tests:
+
+- `tests/tx/expand-sqlite-supplement-config.test.js`
+  - inline-vs-sidecar expansion equivalence
+- `tests/tx/lookup-sqlite-supplement-config.test.js`
+  - inline-vs-sidecar lookup equivalence
+- `tests/tx/validate-sqlite-supplement-config.test.js`
+  - inline-vs-sidecar validate-code equivalence
+
+### 3. IR + non-sqlite provider + inline `tx-resource` supplement
+
+This is the generic supplement-aware IR path over adapter-backed providers.
+
+What it proves:
+
+- supplement semantics are not sqlite-specific
+- adapter-backed providers can participate through the same supplement runtime
+- supplement-backed filtering and text/designation matching still work without
+  native sqlite pushdown
+
+Primary tests:
+
+- `tests/tx/expand-adapter-supplement-runtime.test.js`
+- `tests/tx/supplement-ir-adapter-providers.test.js`
+
+Current covered providers:
+
+- `internal:usstates`
+  - numeric supplement property filtering
+  - count/paging correctness
+- `ucum`
+  - supplement designation text filtering
+
+### Legacy contrast
+
+The legacy expander is not the target supplement path.
+
+Current explicit stance:
+
+- legacy may continue to support the older inline `CodeSystem[]` supplement
+  behavior it already had
+- legacy is not being upgraded to the new supplement runtime
+- when a supplement request depends on configured sqlite sidecars, legacy
+  `$expand` now fails closed instead of returning a misleading success
+
 ## Proposed module layout
 
-Add a new lower-level area:
+This is an eventual decomposition target, not an instruction to pre-create a
+large supplement subtree.
+
+Implementation rule:
+
+- only create files when a phase has real code that needs them
+- prefer plain object shapes and functions first
+- split modules only when code pressure, test isolation, or provider-specific
+  branching makes the seam real
+
+So the list below is a map of likely future seams, not a ceremony-first file
+plan.
+
+Add a new lower-level area over time:
 
 ```text
 tx/
@@ -601,14 +732,199 @@ Native pushdown should be opt-in at the provider layer.
 For sqlite-v0, supplement pushdown can eventually happen by lowering supplement
 data into provider-private query plans:
 
-- inline temp tables
-- attached supplement DBs
+- inline temp tables for request-scoped supplements
+- attached supplement DBs for server-loaded sqlite supplements
 - joined views
 - provider-local indexed projections
 
 The important rule is:
 
 - native pushdown must produce the same result as generic overlay evaluation
+
+### Supplement-native storage keys
+
+For sqlite-backed supplement sources, the supplement asset must **not** be
+stored in base-runtime identifiers such as:
+
+- `concept_id`
+- `property_id`
+- `designation_id`
+
+Those identifiers are local to one base sqlite-v0 build and are not stable
+across external supplement files.
+
+So supplement-native storage must be keyed by stable terminology identity:
+
+- target base `system`
+- target base `version`
+- source `code`
+- `property_code`
+- concept-valued `target_code`
+
+At runtime, a concrete base scope binds supplement rows back onto the active
+base DB by joining `code -> concept_id` and `property_code -> property_def`.
+
+That gives a clean separation:
+
+- on disk: supplement data is portable across compatible base DB builds
+- at runtime: supplement rows can be lowered into the same logical row shapes
+  as base `designation`, `concept_literal`, and `concept_link`
+
+This is also what allows a query to ask for property `X` without knowing in
+advance whether `X` comes from:
+
+- the base DB
+- one active supplement
+- several active supplements
+
+The runtime should query the unified logical property/designation relations and
+let additive multi-valued semantics fall out naturally.
+
+### Initial server-loaded storage policy
+
+For the first native sqlite supplement slice, server-loaded supplements should
+be sqlite sidecars, not server-loaded JSON resources.
+
+That keeps the initial runtime simple:
+
+- registered descriptor -> sqlite supplement file path
+- request/provider bind step -> `ATTACH` or equivalent request-lifetime binding
+- planner lowers supplement-backed queries against attached supplement tables
+
+Later, if needed, server-loaded JSON supplements can be normalized into a cached
+overlay or converted offline into sqlite sidecars. That should be a later
+phase, not part of the initial native path.
+
+### Initial sqlite sidecar schema
+
+The first native sidecar schema should stay deliberately small and query-shaped.
+
+Tables:
+
+- `supplement_info`
+  - one row per sidecar
+  - `url`, `version`, `canonical`
+  - `target_system`, `target_version`
+  - `name`, `title`, `language`
+- `supplement_property_def`
+  - keyed by `property_code`
+  - `value_kind` (`literal` or `concept`)
+  - `is_hierarchy`
+  - `display`
+  - `source_type`
+- `supplement_designation`
+  - keyed by `source_code`
+  - `language_code`, `use_system`, `use_code`, `term`, `preferred`, `active`
+- `supplement_literal`
+  - keyed by `source_code` + `property_code`
+  - `value_raw`, `value_text`, `value_num`, `value_bool`
+  - `group_id`, `active`
+- `supplement_link`
+  - keyed by `source_code` + `property_code` + `target_code`
+  - `target_system`
+  - `group_id`, `active`
+- `supplement_extension`
+  - keyed by `source_code`
+  - `url`, `value_json`
+
+Indexes:
+
+- source-oriented indexes for designation/property/extension lookup
+- property-oriented indexes for filter pushdown
+- target-code index for future concept-valued property joins
+- FTS tables for designation/literal text:
+  - `search_fts_designation`
+  - `search_fts_literal`
+
+This schema is keyed by stable terminology identity:
+
+- source `code`
+- `property_code`
+- target `code`
+
+It intentionally does **not** store base-runtime identifiers such as
+`concept_id` or `property_id`.
+
+### Runtime binding shape
+
+At query time, a sqlite-v0 provider with base scope `(system, version, cs_id)`
+binds an attached supplement sidecar by joining codes back to the active base
+DB:
+
+- `supplement_designation.source_code -> concept.code`
+- `supplement_literal.source_code -> concept.code`
+- `supplement_link.source_code -> concept.code`
+- `supplement_link.target_code -> concept.code`
+
+So the planner can expose unified logical relations such as:
+
+- base `designation` `UNION ALL` bound supplement designations
+- base `concept_literal` `UNION ALL` bound supplement literal properties
+- base `concept_link` `UNION ALL` bound supplement concept-valued properties
+
+That is the crucial property of the design:
+
+- queries do not need to know whether a property came from base or supplement
+- additive multi-valued semantics fall out of the combined rowsets
+- distinct supplement properties and shared supplement/base properties use the
+  same query shapes
+
+### Native planner source pruning
+
+Once a concrete supplement set is bound for a request, sqlite-v0 should build a
+small per-request manifest for property planning:
+
+- base `property_def`
+- each active sidecar's `supplement_property_def`
+- each active inline supplement materialized into sqlite for that request
+
+For a clause on property `P`, the planner should ask three static questions
+before choosing any SQL shape:
+
+1. does the base DB define `P` at all?
+2. which active supplement bindings define `P`?
+3. in each relevant source, is `P` `literal` or `concept` valued?
+
+The clause semantics stay the same:
+
+- a concept matches if **any relevant source** has **any value** for `P` that
+  satisfies the clause
+
+But the SQL should only touch relevant sources. That means, for example:
+
+- `d20-roll = 20` should touch only the `d20` supplement literal rows
+- `CLASS = CHEM` on LOINC should touch only the base DB
+- a shared additive property such as `damage-type` should touch base if present
+  plus every active supplement that also defines it
+
+The planner should also reject malformed mixed-kind definitions:
+
+- if one active source says `P` is literal-valued and another says `P` is
+  concept-valued, that is a configuration/runtime error, not something to guess
+  through
+
+Status:
+
+- correctness already works without this pruning because the current native path
+  queries unified logical relations
+- performance tuning now relies on this manifest as a first planning step,
+  because the supplement-sensitive worst cases were caused by touching
+  irrelevant source families or irrelevant supplement bindings
+- current implementation status:
+  - the manifest is now consulted during clause lowering, so impossible source
+    branches are not constructed in the first place
+  - native SQL lowering also prunes supplement bindings by property presence and
+    value kind
+  - static manifest lookups are effectively free compared to query execution in
+    practice, so this pruning does not need a separate cache
+  - on real LOINC `d20` / `d8` sidecars, the best current page/count shapes for
+    supplement-only literal equality filters are set-oriented source-code
+    queries built from those pruned sources
+  - the main remaining performance lever after pruning is SQL shape, not more
+    aggressive property-manifest caching
+  - extra covering indexes on `supplement_literal` did not materially improve
+    the winning pruned shapes in local benchmarks, so index growth should stay
+    secondary to shape choice
 
 ### Provider hook
 
@@ -795,6 +1111,7 @@ Cover:
 - `useSupplement`
 - `valueset-supplement` extension
 - inline resource precedence
+- raw inline `CodeSystem` JSON normalization
 - ambiguity errors
 - version-pinned resolution
 - binding to lockedDate-resolved base versions
@@ -837,10 +1154,34 @@ Expand current supplement coverage to include:
 - sqlite-native supplement-backed property filtering
 - mixed multiple supplements
 - count/paging parity
+- adapter-backed providers using the generic supplement IR path
+
+### 6. Synthetic scale fixtures
+
+We should keep at least one large deterministic supplement generator around so
+native pushdown work is exercised against something closer to real scale than
+handwritten toy fixtures.
+
+Current direction:
+
+- a D20 supplement and a D8 supplement generated over a real base sqlite-v0 DB
+- distinct properties such as `d20-roll` and `d8-roll`
+- shared additive properties such as `dice-band`, `damage-type`, and sparse
+  `party-role`
+- generator entrypoint: `scripts/generate-dice-supplements.mjs`
+
+This is useful because it gives:
+
+- guaranteed fractional selectivity such as roughly `1/20` for `d20-roll = 20`
+- mixed multi-supplement queries using both distinct and shared properties
+- a realistic way to compare generic overlay execution with later native
+  pushdown strategies
 
 ## Phased rollout
 
 ### Phase 0: freeze semantics and write the seams
+
+Status: complete
 
 Deliverables:
 
@@ -854,6 +1195,21 @@ Exit:
 
 ### Phase 1: supplement registry + resolver for IR expand
 
+Status: complete
+
+Implemented notes:
+
+- `tx/supplements/types.js`
+- `tx/supplements/registry.js`
+- `tx/supplements/resolver.js`
+- worker-side IR integration in `tx/workers/worker.js` and
+  `tx/workers/expand.js`
+- request-level tests for inline, registered, version-pinned, and ambiguous
+  supplement resolution
+- raw inline `CodeSystem` JSON resources are normalized at registry ingress, so
+  request-scoped `tx-resource` supplements resolve the same way as in-memory
+  `CodeSystem` instances
+
 Deliverables:
 
 - `tx/supplements/types.js`
@@ -861,6 +1217,12 @@ Deliverables:
 - `tx/supplements/resolver.js`
 - IR orchestrator integration
 - inline + registered CodeSystem supplement resolution
+
+Implementation shape:
+
+- keep this phase intentionally small
+- plain object contracts are preferred over class hierarchies
+- do not pre-create later-phase modules in this phase
 
 Scope:
 
@@ -875,6 +1237,22 @@ Exit:
 
 ### Phase 2: generic supplement-aware provider view
 
+Status: effectively complete for IR expand
+
+Implemented notes:
+
+- `tx/supplements/overlay.js`
+- orchestrator decoration now merges supplement designations, properties, and
+  extensions from resolved supplement sets instead of relying on ad hoc
+  provider-specific supplement decoration
+- deterministic `used-supplement` reporting on the IR path
+
+Implementation note:
+
+- the seam exists in code, but it is intentionally flatter than the original
+  document sketch; there is no separate `aware-view.js` yet because the real
+  code pressure has not justified another layer
+
 Deliverables:
 
 - `tx/supplements/overlay.js`
@@ -887,11 +1265,31 @@ Scope:
 - inline and registered CodeSystem supplements
 - generic overlay keyed by code
 
+Implementation rule:
+
+- only add these files once Phase 1 code has shown the need for them
+- if the real code collapses some of these seams, collapse the design too
+
 Exit:
 
 - IR path no longer relies on ad hoc provider supplement merging for decoration
 
 ### Phase 3: generic supplement-aware IR execution
+
+Status: complete for the generic correctness path
+
+Implemented notes:
+
+- `tx/supplements/ir-provider.js`
+- supplement-backed property filters now affect membership before count/paging
+- supplement designation text is visible to IR-path text filtering
+- the current path is correctness-first and generic: it runs the base scoped IR
+  normally, then evaluates supplement-touched semantics against merged
+  base+supplement values by code
+- adapter-backed providers are covered through the same path via the IR
+  supplement wrapper over legacy/provider filter protocols; current targeted
+  coverage includes US states numeric property filtering and UCUM designation
+  text matching
 
 Deliverables:
 
@@ -911,8 +1309,78 @@ Exit:
 
 ### Phase 4: sqlite-v0 native supplement bindings
 
+Status: complete for the first sqlite-native slice
+
+Current target:
+
+- keep Phase 3 as the semantic oracle
+- add a native sqlite-v0 supplement binding seam
+- push supplement-backed property filters and supplement designation text into
+  sqlite-v0 execution when the provider can do so without changing semantics
+
+Implementation notes:
+
+- this phase should not replace the generic supplement path
+- the generic path remains the parity reference and fallback
+- the first native slice should stay narrow:
+  - inline/request JSON supplements are still request-scoped, but sqlite-v0 may
+    materialize them into attached `:memory:` supplement DBs for native
+    execution
+  - server-loaded supplements start as sqlite sidecars
+  - sidecars bind by `code` / `property_code`, not base row ids
+- concrete work already in place:
+  - `tx/supplements/sqlite-sidecar.js`
+  - `tx/supplements/source-sqlite.js`
+  - `tx/cs/sqlite-v0-supplements.js`
+  - `scripts/generate-dice-supplements.mjs --formats sqlite`
+  - sqlite-v0 provider attachment via `attachIRSupplements(...)`
+  - inline supplement `CodeSystem` resources can be materialized into attached
+    in-memory supplement schemas on sqlite-v0
+  - merged property-definition view for planner support and `doesFilter(...)`
+  - unified base+supplement literal/link/designation/search sources in the
+    sqlite-v0 compiler path
+  - parity tests proving server-side sqlite supplement filters and text search
+    match the generic overlay path for the same supplement content
+  - parity tests proving inline `CodeSystem` supplements can take either the
+    generic overlay path or the sqlite-v0 in-memory native path with the same
+    results
+  - strict IR harness coverage now includes inline supplement-backed property
+    filtering on sqlite-v0 with paging, so the native path is exercised in the
+    same no-fallback matrix as the rest of the execution engine
+  - strict IR harness coverage now also includes configured server-loaded
+    sqlite sidecars on real LOINC v0 data via `scripts/run-ir-harness.sh
+    --with-synthetic-supplements`
+  - attached-query tests proving distinct-property and multi-supplement
+    shared-property query shapes
+  - manual attached-query probes against full LOINC synthetic sidecars,
+    including `EXPLAIN QUERY PLAN` checks for numeric and text property filters
+- the current harness-side distinct-property query uses a known intersecting
+  pair from the deterministic generator:
+  - `d20-roll = 20`
+  - `d8-roll = 2`
+  This avoids depending on an accidental empty intersection.
+- sqlite-native supplement resolution now keeps sidecar overlay materialization
+  lazy:
+  - native sqlite bindings are resolved eagerly
+  - full overlay `CodeSystem` materialization happens only when a generic
+    consumer such as lookup/validate explicitly asks for it
+- current native supplement performance work is centered on static
+  property/source pruning from base `property_def` plus active
+  `supplement_property_def`
+- clause lowering now uses that manifest to avoid constructing impossible
+  literal/link branches for supplement-backed property filters
+- for supplement-only literal equality filters, the winning native shapes so
+  far are:
+  - page/materialize: intersect pruned `source_code` sets first, then join back
+    to `concept` for ordering and paging
+  - count: count from the same pruned set-oriented membership, rather than
+    reintroducing unrelated source families
+- next implementation step is broader performance characterization, not more
+  speculative storage design
+
 Deliverables:
 
+- `tx/supplements/sqlite-sidecar.js`
 - `source-sqlite.js`
 - provider `bindSupplementSet(...)` hook
 - sqlite-v0 native supplement clause lowering/pushdown
@@ -925,9 +1393,60 @@ Scope:
 
 Exit:
 
-- sqlite-v0 native supplement queries outperform generic overlay for large cases
+- sqlite-v0 native supplement queries are semantically aligned with the generic
+  overlay path and can now be tuned further for performance
 
 ### Phase 5: server-loaded supplement sources
+
+Status: complete for the first sqlite-sidecar cut
+
+Implemented notes:
+
+- registered `CodeSystem` supplements can already be requested by canonical
+- lazy factory fill-out/materialization already works through
+  `registerSupplements()` / `fillOutSupplement()`
+- initial native direction is now explicit:
+  - server-loaded native supplements start as sqlite sidecars
+  - server-loaded JSON supplements are not required in the first cut
+- sqlite sidecars are now a real supplement source type in the registry and
+  resolver via `tx/supplements/source-sqlite.js`
+- factories can advertise sqlite sidecars through
+  `registerSqliteSupplements()`
+- native sqlite sidecars are now consumable by the sqlite-v0 provider at IR
+  execution time through `attachIRSupplements(...)`
+- library/provider config wiring is now live for sqlite-v0 via
+  `options.supplements` on the `sqlite-v0:` source
+- sqlite sidecars now materialize back into `CodeSystem` overlays as well as
+  native bindings, so the same descriptor can be reused outside the IR-native
+  path
+- sqlite sidecar overlay materialization is now explicit and lazy:
+  - native sqlite-v0 expand/lookup/validate can stay on the native binding path
+    without paying sidecar -> `CodeSystem` conversion
+  - generic consumers can still request the overlay on demand
+  - targeted tests pin this behavior in:
+    - `tests/tx/supplement-sqlite-source.test.js`
+    - `tests/tx/supplements-resolver.test.js`
+- legacy `$expand` now fails closed for requested configured sqlite sidecars
+  instead of returning a misleading success that omits supplement semantics
+- request-level tests now cover server-loaded sqlite supplement resolution from
+  config in `$expand`, `$lookup`, and `$validate-code`
+- harness/perf runner support is now live for generated server-loaded sqlite
+  supplements:
+  - `scripts/run-ir-harness.sh --with-synthetic-supplements`
+  - generates deterministic LOINC `d20` / `d8` sidecars under the run output
+  - patches the active library YAML so the LOINC `sqlite-v0:` source gets
+    `options.supplements`
+  - exposes the generated supplement canonical root to the harness through
+    `HARNESS_SQLITE_SUPP_URL_ROOT`
+- a full supplement-aware perf run now exists at:
+  - `tmp/ir-harness-runs/perf-supp-20260306/perf-table.html`
+  - that run covers both inline supplement rows and configured sqlite-sidecar
+    rows in the same matrix
+
+Still missing:
+
+- nothing essential for the initial server-loaded sqlite-sidecar scope
+- later work can add non-sqlite server-loaded supplement source kinds if needed
 
 Deliverables:
 
@@ -941,15 +1460,66 @@ Exit:
 
 ### Phase 6: reuse in lookup / validate / subsumes
 
+Status: complete for the current supplement-sensitive operation scope
+
+Implementation note:
+
+- this phase should consume the supplement runtime below the operation layer;
+  it should not recreate supplement-specific logic inside each operation
+
+Implemented notes:
+
+- `findCodeSystemWithSupplementRuntime(...)` now resolves the full supplement
+  set for a concrete base scope and:
+  - attaches it natively for sqlite-v0 providers through `attachIRSupplements`
+  - falls back to classic `CodeSystem[]` supplement attachment for providers
+    that do not support native attachment
+- `$lookup` now uses the supplement runtime below the operation layer
+- `$validate-code` now uses the supplement runtime below the operation layer
+- sqlite-v0 legacy filter execution now unions supplement-backed literal/link
+  rows into property filtering, so `$validate-code` sees supplement-backed
+  membership correctly
+- sqlite-v0 reports native-attached supplements through `hasSupplement()` /
+  `listSupplements()` so shared supplement guards work the same way for native
+  and non-native attachment
+- request-level tests now prove configured sqlite sidecars and inline
+  `tx-resource` supplements of the same canonical are equivalent through:
+  - `$expand`
+  - `$lookup`
+  - `$validate-code`
+- request-level IR tests now prove adapter-backed providers also participate
+  through the same supplement runtime:
+  - `internal:usstates` inline supplement numeric filters affect membership
+    before paging
+  - `ucum` inline supplement designations affect IR text filtering
+- strict IR harness coverage now includes those same adapter-backed supplement
+  query shapes
+
+Deliberate non-work in this phase:
+
+- `$subsumes` is intentionally unchanged
+  - current supplement semantics do not alter code identity or hierarchy
+  - additive designations/properties/extensions cannot change a subsumption
+    result
+  - if we ever introduce a supplement form that can alter hierarchy semantics,
+    this assumption must be revisited explicitly
+- `$related` does not need separate supplement wiring because it delegates to
+  ValueSet comparison/expansion logic, which already uses the new supplement
+  runtime on the IR path
+- `locate` is an internal provider surface rather than a separate request
+  operation; supplement-aware locate behavior is already exercised through
+  expand/lookup/validate flows
+
 Deliverables:
 
 - lookup integration
 - validate-code integration
-- subsumes integration where relevant
+- explicit decision on subsumes non-integration
 
 Exit:
 
-- supplement resolution and overlay semantics are shared below operations
+- supplement resolution and overlay semantics are shared below the operation
+  layer for all supplement-sensitive request flows in current scope
 
 ## Definition of done
 
@@ -961,7 +1531,8 @@ This supplement architecture is complete when:
 4. sqlite native pushdown is an optimization, not a requirement
 5. server-loaded supplements can participate without inline `tx-resource`
 6. lookup/validate can reuse the same supplement runtime later
-7. the legacy expander remains untouched during this migration
+7. the legacy expander is not refactored during this migration, aside from
+   narrow fail-closed guards that prevent silent wrong answers
 
 ## Related documents
 

@@ -18,6 +18,12 @@ const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const crypto = require('crypto');
 const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
+const {
+  dedupeSupplementRefs,
+  makeSupplementRef,
+  supplementRefKey,
+} = require('../supplements/types');
+const { wrapIRProviderWithSupplements } = require('../supplements/ir-provider');
 
 // IR engine (opt-in via EXPAND_IR_ENGINE=1)
 let _irEngine;
@@ -40,6 +46,19 @@ const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
 const TRACE_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace';
 const IR_PLAN_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan';
+
+function collectExplicitSupplementRefs(vsJson, params) {
+  const refs = [];
+  let order = 0;
+  for (const canonical of params?.supplements || []) {
+    if (canonical) refs.push(makeSupplementRef(canonical, 'useSupplement', order++));
+  }
+  for (const ext of Extensions.list(vsJson, 'http://hl7.org/fhir/StructureDefinition/valueset-supplement')) {
+    const canonical = getValuePrimitive(ext);
+    if (canonical) refs.push(makeSupplementRef(canonical, 'valueset-extension', order++));
+  }
+  return dedupeSupplementRefs(refs);
+}
 
 /**
  * Total status for expansion
@@ -2099,21 +2118,65 @@ class ExpandWorker extends TerminologyWorker {
     const runExpansion = async () => {
       const worker = this;
 
-      // Collect required supplements from useSupplement params + VS extension
-      const requiredSupplements = new Set(params.supplements || []);
-      for (const ext of Extensions.list(vsJson, 'http://hl7.org/fhir/StructureDefinition/valueset-supplement')) {
-        const v = getValuePrimitive(ext);
-        if (v) requiredSupplements.add(v);
+      const supplementRefs = collectExplicitSupplementRefs(vsJson, params);
+      const supplementRegistry = supplementRefs.length > 0
+        ? await worker.buildSupplementRegistryForIR()
+        : null;
+      const matchedSupplementRefKeys = new Set();
+      const supplementSetCache = new Map();
+
+      async function getSupplementSet(system, version) {
+        if (!supplementRegistry) {
+          return { items: [], matchedRefKeys: [] };
+        }
+        const key = `${String(system || '')}\x00${String(version || '')}`;
+        if (supplementSetCache.has(key)) return supplementSetCache.get(key);
+        const supplementSet = await worker.resolveSupplementsForIRBaseScope(
+          { system, version: version || null },
+          supplementRefs,
+          supplementRegistry
+        );
+        for (const refKey of supplementSet.matchedRefKeys || []) {
+          matchedSupplementRefKeys.add(refKey);
+        }
+        supplementSetCache.set(key, supplementSet);
+        return supplementSet;
       }
-      const statedSupplements = requiredSupplements.size > 0 ? requiredSupplements : null;
 
       const result = await expandViaIR(vsJson, {
         findProvider: async (system, version) => {
           try {
-            return await worker.findCodeSystem(
+            const provider = await worker.findCodeSystemWithSupplements(
               system, version, params, ['complete', 'fragment'],
-              false, true, false, false, statedSupplements
+              false, true, false, false, []
             );
+            if (!provider) return provider;
+            const resolvedSystem = system || (typeof provider.system === 'function' ? provider.system() : null);
+            const resolvedVersion = version || (typeof provider.version === 'function' ? provider.version() : null) || null;
+            let supplementSet;
+            try {
+              supplementSet = await getSupplementSet(resolvedSystem, resolvedVersion);
+            } catch (e) {
+              if (e?.message?.includes('Ambiguous supplement')) {
+                throw new Issue('error', 'invalid', null, 'VALUESET_SUPPLEMENT_AMBIGUOUS',
+                  e.message, 'invalid', 422);
+              }
+              throw e;
+            }
+            if (typeof provider.attachIRSupplements === 'function') {
+              await provider.attachIRSupplements(supplementSet);
+            } else {
+              provider._irSupplementSet = supplementSet;
+            }
+            const hasOverlaySupplements = (supplementSet?.items || []).some(item => item?.overlaySource?.codeSystem);
+            const fullyNativeSupplements = provider._irAllSupplementsNativeBound === true;
+            if (hasOverlaySupplements && !fullyNativeSupplements) {
+              const wrapped = wrapIRProviderWithSupplements(provider, supplementSet);
+              wrapped._irSupplementSet = supplementSet;
+              return wrapped;
+            }
+            provider._irSupplementSet = supplementSet;
+            return provider;
           } catch {
             return null;
           }
@@ -2163,13 +2226,13 @@ class ExpandWorker extends TerminologyWorker {
         }; // Fall back to legacy for complete expansion
       }
 
-      // Validate that all required supplements were resolved
-      if (requiredSupplements.size > 0) {
-        const used = new Set(result.expansion.usedSupplements || []);
-        const unused = [...requiredSupplements].filter(s => !used.has(s));
-        if (unused.length > 0) {
+      if (supplementRefs.length > 0) {
+        const unresolved = supplementRefs
+          .filter(ref => !matchedSupplementRefKeys.has(supplementRefKey(ref)))
+          .map(ref => ref.canonical);
+        if (unresolved.length > 0) {
           throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING',
-            `Required supplement(s) not found: ${unused.join(', ')}`,
+            `Required supplement(s) not found: ${unresolved.join(', ')}`,
             'not-found', 422);
         }
       }

@@ -2,6 +2,7 @@
 
 const Types = require('./sqlite-v0-plan-types');
 const { resolveHierarchyDescriptor } = require('./sqlite-v0-hierarchy');
+const { relevantSupplementBindings } = require('./sqlite-v0-supplements');
 
 function ok(plan) {
   return { ok: true, plan };
@@ -58,6 +59,20 @@ function resolveFilterConfig(property, propDef, runtime) {
     aliases: valueCfg.aliases || null,
     normalizeCase: !!valueCfg.normalizeCase,
   };
+}
+
+function availableFilterSources(property, propDef, supplementBindings = []) {
+  const sources = new Set();
+  if (Number.isInteger(propDef?.property_id)) {
+    sources.add(propDef.value_kind === 'concept' ? 'link' : 'literal');
+  }
+  if (relevantSupplementBindings(supplementBindings, property, { valueKind: 'literal' }).length > 0) {
+    sources.add('literal');
+  }
+  if (relevantSupplementBindings(supplementBindings, property, { valueKind: 'concept' }).length > 0) {
+    sources.add('link');
+  }
+  return sources;
 }
 
 function normalizeFilterValues(values, filterCfg) {
@@ -248,6 +263,8 @@ function lowerFilterClauseToSetPlan(clause, propertyDefs, runtime, opts = {}) {
   }
 
   const filterCfg = resolveFilterConfig(property, propDef, runtime);
+  const availableSources = availableFilterSources(property, propDef, opts.supplementBindings || []);
+  const activeSources = (filterCfg.sources || []).filter(source => availableSources.has(source));
   if (op === '=' || op === 'in') {
     const rawValues = op === 'in' ? splitFilterValueList(value) : [value];
     const values = normalizeFilterValues(rawValues, filterCfg);
@@ -257,12 +274,15 @@ function lowerFilterClauseToSetPlan(clause, propertyDefs, runtime, opts = {}) {
     if (!Array.isArray(filterCfg.sources) || filterCfg.sources.length === 0) {
       return fail('no-filter-sources', { property, op, value }, meta);
     }
+    if (activeSources.length === 0) {
+      return ok(Types.emptySet({ scope, origin, meta }));
+    }
 
     const items = [];
-    if (filterCfg.sources.includes('literal')) {
+    if (activeSources.includes('literal')) {
       items.push(literalMatchSet({ scope, origin, meta, property, values }));
     }
-    if (filterCfg.sources.includes('link')) {
+    if (activeSources.includes('link')) {
       items.push(linkMatchSet({ scope, origin, meta, property, values, linkMatch: filterCfg.linkMatch }));
     }
     if (items.length === 0) return fail('no-filter-sources', { property, op, value }, meta);
@@ -273,6 +293,9 @@ function lowerFilterClauseToSetPlan(clause, propertyDefs, runtime, opts = {}) {
   if (op === 'regex') {
     if (!filterCfg.sources.includes('literal')) {
       return fail('regex-requires-literal-source', { property, op, value }, meta);
+    }
+    if (!activeSources.includes('literal')) {
+      return ok(Types.emptySet({ scope, origin, meta }));
     }
     return ok(Types.fromRows({
       scope,

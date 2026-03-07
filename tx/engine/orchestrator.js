@@ -27,6 +27,7 @@ const {
 const IR = require('./ir');
 const { wrapWithLegacyIR } = require('./legacy-ir-adapter');
 const { trace } = require('./expand-trace');
+const { buildSupplementOverlay, mergeSupplementOverlayIntoCandidates } = require('../supplements/overlay');
 
 /**
  * Check if a ValueSet can be handled by the IR engine.
@@ -667,6 +668,14 @@ async function expandViaIR(vsJson, opts = {}) {
   // Collect used supplements from all resolved providers
   const usedSupplements = new Set();
   for (const r of resolved) {
+    const supplementSet = r.provider?._irSupplementSet;
+    if (supplementSet?.items?.length > 0) {
+      for (const item of supplementSet.items) {
+        const canonical = item?.descriptor?.canonical;
+        if (canonical) usedSupplements.add(canonical);
+      }
+      continue;
+    }
     const supps = typeof r.provider.listSupplements === 'function'
       ? r.provider.listSupplements() : [];
     for (const s of supps) usedSupplements.add(s);
@@ -905,6 +914,9 @@ async function decorateCandidates(candidates, opts = {}) {
     if (typeof provider.bulkProperties === 'function' && properties.length > 0) {
       const conceptIds = provCandidates.filter(c => c.conceptId).map(c => c.conceptId);
       const propMap = provider.bulkProperties(conceptIds);
+      const extMap = typeof provider.bulkExtensions === 'function'
+        ? provider.bulkExtensions(conceptIds)
+        : new Map();
 
       for (const c of provCandidates) {
         const allProps = propMap.get(c.conceptId) || [];
@@ -916,6 +928,11 @@ async function decorateCandidates(candidates, opts = {}) {
         // Handle 'definition' as a special property
         if (properties.includes('definition') && c.definition) {
           c._properties.push({ code: 'definition', value: c.definition });
+        }
+        const exts = extMap.get(c.conceptId) || [];
+        if (exts.length > 0) {
+          if (!c._extensions) c._extensions = [];
+          c._extensions.push(...exts);
         }
       }
     } else if (properties.length > 0) {
@@ -950,6 +967,15 @@ async function decorateCandidates(candidates, opts = {}) {
           } catch { /* skip */ }
         }
       }
+    }
+
+    const supplementSet = provider?._irSupplementSet || null;
+    if (supplementSet?.items?.length > 0) {
+      const overlay = buildSupplementOverlay(supplementSet);
+      mergeSupplementOverlayIntoCandidates(provCandidates, overlay, {
+        includeDesignations,
+        properties,
+      });
     }
   }
 }

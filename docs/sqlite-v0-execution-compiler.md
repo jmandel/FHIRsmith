@@ -244,6 +244,47 @@ This matters because hierarchy semantics are where SQL compilers often cheat.
 The current design makes the relation explicit in the plan rather than hiding
 it inside ad hoc SQL snippets.
 
+Two performance notes are now important here:
+
+1. source pruning for supplement-backed property clauses
+   - before lowering a property clause, sqlite-v0 now consults the effective
+     property manifest across the base DB and active supplement bindings
+   - it only scans source families that actually define that property in the
+     required value kind
+   - this avoids generic "search every possible source" SQL when a clause is
+     known to exist only in one supplement or only in the base DB
+
+2. narrow reachability fast paths for large same-system set algebra
+   - simple single-seed closure expansion already has a direct closure-join
+     terminal shape
+   - for small first-page materializations (`count<=100`, `offset=0`,
+     `ORDER BY code ASC`), sqlite-v0 now prefers a concept-driven early-stop
+     shape over full closure materialization when that is cheaper
+   - keyed row semijoins/antijoins feeding membership sets now lower as set
+     `INTERSECT` / `EXCEPT`, instead of correlated `EXISTS` / `NOT EXISTS`
+   - same-system reachability `diff` now lowers to a direct anti-join between
+     two seeded closure descendant sets for counts, and to `EXCEPT` for page
+     materialization
+   - same-system reachability `intersect` now lowers to a direct join between
+     two seeded closure descendant sets
+   - same-system `reachability ∩ anchored code-regex` now lowers to a direct
+     closure join against `concept`, with regex range pruning on `concept.code`,
+     instead of a correlated `EXISTS` over the regex branch
+   - for the `intersect` case only, sqlite-v0 uses a narrow planner hint:
+     two cheap descendant-count probes to choose the smaller seeded closure set
+     as the driving side
+
+That probe is intentionally narrow. It exists because SQLite does not reliably
+reorder those derived closure joins on its own, and the difference between the
+wrong and right driving side can be orders of magnitude on real SNOMED cases.
+
+We also tried two additional general planner ideas and left them out because
+they did not show stable wins on the real v0 databases:
+
+- treating runtime text search as a separate concept-id set to intersect before
+  the final `concept` join
+- pushing `src.active=1` into property-source scans for `activeOnly=true`
+
 ## Example
 
 Suppose the scoped subtree means:
@@ -350,6 +391,17 @@ Why this is useful:
 - if 3 and 4 disagree, physical planning or SQL generation is wrong
 
 That makes failures localizable instead of mysterious.
+
+### Planner lessons so far
+
+Two concrete planner rules turned out to matter a lot in practice:
+
+1. Same-system reachability `diff` and `intersect` cases need dedicated
+   set-oriented SQL shapes rather than generic correlated membership checks.
+2. Anchored code-regex filters should not go through generic membership
+   lowering. When a safe literal prefix can be extracted from a regex such as
+   `^7[0-9]{4,}`, sqlite-v0 now constrains the query with an indexable code
+   range first and applies `REGEXP` only inside that narrowed slice.
 
 ### Bounded exhaustive tests
 

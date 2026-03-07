@@ -849,6 +849,16 @@ class CodeSystemFactoryProvider {
   }
 
   /**
+   * Native supplement sources that can be resolved without materializing a
+   * CodeSystem resource. The first use is sqlite-v0 sidecars.
+   *
+   * @returns {Array}
+   */
+  async registerSqliteSupplements() {
+    return [];
+  }
+
+  /**
    * build and return a known concept map from the URL, if there is one.
    *
    * @param url

@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: LOINC includeDesignations returns designation entries</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T05:22:18.918Z",
+  "rowIndex": 51,
+  "slug": "051-loinc-includedesignations-returns-designation-entries",
+  "name": "LOINC includeDesignations returns designation entries",
+  "category": "Designations \u0026 Language",
+  "hrefs": {
+    "input": "../perf-table.inputs/051-loinc-includedesignations-returns-designation-entries.json",
+    "detailJson": "051-loinc-includedesignations-returns-designation-entries.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 4,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "concept": [
+                          {
+                            "code": "2160-0"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "5113",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:22:18 GMT",
+            "etag": "W/\"13f9-h+CboEDSqDm/zlBKdhFr61aIM5I\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-285"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T05:22:18.912Z",
+              "identifier": "urn:uuid:e6365a2e-2451-4af7-993d-1cbfe7c77fd5",
+              "total": 1,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "2160-0",
+                  "display": "Creatinine [Mass/volume] in Serum or Plasma",
+                  "designation": [
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinine [Mass/volume] in Serum or Plasma"
+                    },
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "Creat SerPl-mCnc"
+                    },
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "DisplayName",
+                        "display": "Display name"
+                      },
+                      "value": "Creatinine [Mass/Vol]"
+                    },
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "ConsumerName",
+                        "display": "Consumer name"
+                      },
+                      "value": "Creatinine, Blood"
+                    },
+                    {
+                      "language": "cs-CZ",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Kreatinin [Hmotnost/objem] v séru nebo plazmě"
+                    },
+                    {
+                      "language": "de-AT",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LinguisticVariantDisplayName"
+                      },
+                      "value": "Kreatinin"
+                    },
+                    {
+                      "language": "de-DE",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinin [Masse/Volumen] in Serum oder Plasma"
+                    },
+                    {
+                      "language": "es-AR",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "creatinina:concentración de masa:punto en el tiempo:suero/plasma:cuantitativo:"
+                    },
+                    {
+                      "language": "es-MX",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinina: Suero o Plasma : Punto temporal: Concentración de masa: Cuantitativo:"
+                    },
+                    {
+                      "language": "fr-FR",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Créatinine [Masse/Volume] Sérum/Plasma ; Numérique"
+                    },
+                    {
+                      "language": "nl-NL",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinine [massa/volume] in serum of plasma"
+                    },
+                    {
+                      "language": "pt-BR",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "Creat SerPl-mCnc"
+                    },
+                    {
+                      "language": "uk-UA",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Креатинін [Маса/об'єм] у сироватці чи плазмі"
+                    },
+                    {
+                      "language": "uk-UA",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "Креатинін СвткПлаз-МасКнц"
+                    },
+                    {
+                      "language": "uk-UA",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LinguisticVariantDisplayName"
+                      },
+                      "value": "Креатинін [Маса/об'єм]"
+                    }
+                  ]
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: 64a15352e0c3711eb9e8bbd8db12d6dfd21037c9\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://loinc.org [1] 2160-0 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.49,\"sqlCount\":1,\"sqlMs\":0.09,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://loinc.org\",\"count\":1},\"t\":0.9},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.06,\"execMs\":0.09},\"t\":1.27}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 1000\",\"params\":{\"code_0\":\"2160-0\",\"cs_id_1\":1},\"rows\":1,\"ms\":0.09,\"label\":\"executeIR\"}],\"ms\":0.34,\"result\":{\"candidates\":1,\"total\":null}}],\"ms\":0.36,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":1.29}],\"ms\":0.37,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":true},\"children\":[],\"ms\":0.15}],\"ms\":1.44,\"result\":{\"total\":1,\"contains\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.49,
+          "sqlCount": 1,
+          "sqlMs": 0.09,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://loinc.org",
+                    "count": 1
+                  },
+                  "t": 0.9
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 1,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.06,
+                                "execMs": 0.09
+                              },
+                              "t": 1.27
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") ORDER BY \"c\".\"code\" ASC LIMIT 1000",
+                              "params": {
+                                "code_0": "2160-0",
+                                "cs_id_1": 1
+                              },
+                              "rows": 1,
+                              "ms": 0.09,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.34,
+                          "result": {
+                            "candidates": 1,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.36,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 1,
+                        "total": 1
+                      },
+                      "t": 1.29
+                    }
+                  ],
+                  "ms": 0.37,
+                  "result": {
+                    "paged": 1
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 1,
+                    "includeDesignations": true
+                  },
+                  "children": [],
+                  "ms": 0.15
+                }
+              ],
+              "ms": 1.44,
+              "result": {
+                "total": 1,
+                "contains": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: 64a15352e0c3711eb9e8bbd8db12d6dfd21037c9\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://loinc.org [1] 2160-0 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8120/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "concept": [
+                          {
+                            "code": "2160-0"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3548",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:22:18 GMT",
+            "etag": "W/\"ddc-twlU4X4ScnQeTjeeQwEDPt0kgCE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-284"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T05:22:18.907Z",
+              "identifier": "urn:uuid:aedf91c9-19af-4d0e-936f-011d63f075cd",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "total": 1,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "2160-0",
+                  "display": "Creatinine [Mass/volume] in Serum or Plasma",
+                  "designation": [
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Creatinine [Mass/volume] in Serum or Plasma"
+                    },
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinine [Mass/volume] in Serum or Plasma"
+                    },
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "Creat SerPl-mCnc"
+                    },
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "DisplayName",
+                        "display": "Display name"
+                      },
+                      "value": "Creatinine [Mass/Vol]"
+                    },
+                    {
+                      "language": "en-US",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "ConsumerName",
+                        "display": "Consumer name"
+                      },
+                      "value": "Creatinine, Blood"
+                    },
+                    {
+                      "language": "cs-CZ",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Kreatinin [Hmotnost/objem] v séru nebo plazmě"
+                    },
+                    {
+                      "language": "de-AT",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LinguisticVariantDisplayName"
+                      },
+                      "value": "Kreatinin"
+                    },
+                    {
+                      "language": "de-DE",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinin [Masse/Volumen] in Serum oder Plasma"
+                    },
+                    {
+                      "language": "es-AR",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "creatinina:concentración de masa:punto en el tiempo:suero/plasma:cuantitativo:"
+                    },
+                    {
+                      "language": "es-MX",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinina: Suero o Plasma : Punto temporal: Concentración de masa: Cuantitativo:"
+                    },
+                    {
+                      "language": "fr-FR",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Créatinine [Masse/Volume] Sérum/Plasma ; Numérique"
+                    },
+                    {
+                      "language": "nl-NL",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Creatinine [massa/volume] in serum of plasma"
+                    },
+                    {
+                      "language": "pt-BR",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "Creat SerPl-mCnc"
+                    },
+                    {
+                      "language": "uk-UA",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LONG_COMMON_NAME",
+                        "display": "Long common name"
+                      },
+                      "value": "Креатинін [Маса/об'єм] у сироватці чи плазмі"
+                    },
+                    {
+                      "language": "uk-UA",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "SHORTNAME",
+                        "display": "Short name"
+                      },
+                      "value": "Креатинін СвткПлаз-МасКнц"
+                    },
+                    {
+                      "language": "uk-UA",
+                      "use": {
+                        "system": "http://loinc.org",
+                        "code": "LinguisticVariantDisplayName"
+                      },
+                      "value": "Креатинін [Маса/об'єм]"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":2.24,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":2.22,\"result\":{\"ms\":2.21,\"total\":1,\"returned\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 2.24,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 2.22,
+              "result": {
+                "ms": 2.21,
+                "total": 1,
+                "returned": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8121/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "concept": [
+                          {
+                            "code": "2160-0"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "208",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 05:22:18 GMT",
+            "etag": "W/\"d0-csOs8wp1+NhoArC3aoOrPbagclg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-106"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "this.opContext.langs.langs is not iterable"
+                },
+                "diagnostics": "this.opContext.langs.langs is not iterable"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

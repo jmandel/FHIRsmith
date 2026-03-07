@@ -67,7 +67,9 @@ class ExpandTrace {
 
   sql(sql, params, rows, ms, label) {
     const entry = {
-      sql: trunc(sql, 500),
+      // Keep full SQL in the structured trace so perf/debug tooling can
+      // inspect or EXPLAIN the exact statement later.
+      sql: typeof sql === 'string' ? sql : String(sql || ''),
       params: summarize(params),
       rows: typeof rows === 'number' ? rows : undefined,
       ms: typeof ms === 'number' ? rnd(ms) : undefined,

@@ -7,6 +7,13 @@ const {Issue} = require("../library/operation-outcome");
 const {Languages} = require("../../library/languages");
 const {ConceptMap} = require("../library/conceptmap");
 const {Renderer} = require("../library/renderer");
+const { buildSupplementRegistry } = require('../supplements/registry');
+const {
+  materializeSupplementSetOverlaySources,
+  resolveSupplementsForBaseScope,
+  selectSupplementEntriesForBaseScope,
+} = require('../supplements/resolver');
+const { dedupeSupplementRefs, makeSupplementRef } = require('../supplements/types');
 
 function parseISODatePrefix(value) {
   const raw = String(value || '').trim();
@@ -201,9 +208,31 @@ class TerminologyWorker {
     if (!noVParams) {
       version = this.determineVersionBase(url, version, params);
     }
+    if (statedSupplements?.size > 0 && this.opName() === 'expand') {
+      await this.assertLegacyExpansionSupplementsSupported(url, version, statedSupplements);
+    }
+    const supplements = this.loadSupplements(url, version, statedSupplements);
+    return await this._findCodeSystemWithResolvedSupplements(
+      url, version, params, kinds, op, nullOk, checkVer, supplements
+    );
+  }
+
+  async findCodeSystemWithSupplements(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, supplements = []) {
+    if (!url) {
+      return null;
+    }
+
+    if (!noVParams) {
+      version = this.determineVersionBase(url, version, params);
+    }
+    return await this._findCodeSystemWithResolvedSupplements(
+      url, version, params, kinds, op, nullOk, checkVer, supplements || []
+    );
+  }
+
+  async _findCodeSystemWithResolvedSupplements(url, version, params, kinds, op, nullOk, checkVer, supplements) {
     let codeSystemResource = null;
     let provider = null;
-    const supplements = this.loadSupplements(url, version, statedSupplements);
 
     // First check additional resources
     codeSystemResource = this.findInAdditionalResources(url, version, 'CodeSystem', !nullOk);
@@ -244,6 +273,148 @@ class TerminologyWorker {
     }
 
     return provider;
+  }
+
+  async buildSupplementRegistryForIR() {
+    const registeredCodeSystems = [];
+    const seenResources = new Set();
+
+    if (this.provider?.codeSystems?.values) {
+      for (const resource of this.provider.codeSystems.values()) {
+        if (!resource || seenResources.has(resource)) continue;
+        seenResources.add(resource);
+        registeredCodeSystems.push(resource);
+      }
+    }
+
+    const providerFactories = [];
+    const seenFactories = new Set();
+    if (this.provider?.codeSystemFactories?.values) {
+      for (const factory of this.provider.codeSystemFactories.values()) {
+        if (!factory || seenFactories.has(factory)) continue;
+        seenFactories.add(factory);
+        providerFactories.push(factory);
+      }
+    }
+
+    return await buildSupplementRegistry({
+      inlineResources: this.additionalResources || [],
+      registeredCodeSystems,
+      providerFactories,
+    });
+  }
+
+  async resolveSupplementsForIRBaseScope(target, refs, registry = null) {
+    const activeRegistry = registry || await this.buildSupplementRegistryForIR();
+    return await resolveSupplementsForBaseScope({ target, refs, registry: activeRegistry });
+  }
+
+  async materializeSupplementSetOverlaySources(supplementSet) {
+    return await materializeSupplementSetOverlaySources(supplementSet);
+  }
+
+  async resolveSupplementCodeSystemsForBaseScope(target, statedSupplements, registry = null) {
+    const refs = dedupeSupplementRefs(
+      Array.from(statedSupplements || []).map((canonical, index) =>
+        makeSupplementRef(canonical, 'useSupplement', index))
+    );
+    if (refs.length === 0) return [];
+    const supplementSet = await this.resolveSupplementsForIRBaseScope(target, refs, registry);
+    await this.materializeSupplementSetOverlaySources(supplementSet);
+    return (supplementSet?.items || [])
+      .map(item => item?.overlaySource?.codeSystem)
+      .filter(codeSystem => codeSystem instanceof CodeSystem);
+  }
+
+  async assertLegacyExpansionSupplementsSupported(url, version = '', statedSupplements, registry = null) {
+    const refs = dedupeSupplementRefs(
+      Array.from(statedSupplements || []).map((canonical, index) =>
+        makeSupplementRef(canonical, 'useSupplement', index))
+    );
+    if (refs.length === 0) return;
+
+    const activeRegistry = registry || await this.buildSupplementRegistryForIR();
+    const selected = selectSupplementEntriesForBaseScope({
+      target: { system: url, version: version || null },
+      refs,
+      registry: activeRegistry,
+    });
+    if (!Array.isArray(selected.entries) || selected.entries.length === 0) return;
+
+    const legacySupplements = this.loadSupplements(url, version, statedSupplements);
+    const legacyKeys = new Set();
+    for (const cs of legacySupplements || []) {
+      if (cs?.url) legacyKeys.add(cs.url);
+      if (cs?.vurl) legacyKeys.add(cs.vurl);
+    }
+
+    const unsupported = selected.entries.filter(entry => {
+      const canonical = entry?.descriptor?.canonical;
+      const baseUrl = entry?.descriptor?.url;
+      return !(canonical && legacyKeys.has(canonical))
+        && !(baseUrl && legacyKeys.has(baseUrl));
+    });
+    if (unsupported.length === 0) return;
+
+    const labels = unsupported
+      .map(entry => entry?.descriptor?.canonical || entry?.descriptor?.url)
+      .filter(Boolean)
+      .sort();
+    const plural = labels.length === 1 ? '' : 's';
+    throw new Issue(
+      'error',
+      'not-supported',
+      null,
+      'VALUESET_SUPPLEMENT_LEGACY_UNSUPPORTED',
+      `Legacy expand cannot apply requested supplement${plural}: ${labels.join(', ')}. Use the IR engine for supplement-aware expansion.`,
+      'not-supported',
+      422
+    );
+  }
+
+  async findCodeSystemWithSupplementRuntime(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, statedSupplements = null) {
+    if (!url) {
+      return null;
+    }
+
+    let resolvedVersion = version;
+    if (!noVParams) {
+      resolvedVersion = this.determineVersionBase(url, version, params);
+    }
+
+    const baseProvider = await this._findCodeSystemWithResolvedSupplements(
+      url, resolvedVersion, params, kinds, op, nullOk, checkVer, []
+    );
+    if (!baseProvider) {
+      return null;
+    }
+
+    if (!statedSupplements || statedSupplements.size === 0) {
+      return baseProvider;
+    }
+
+    const targetVersion = resolvedVersion
+      || (typeof baseProvider.version === 'function' ? baseProvider.version() : null)
+      || null;
+    const supplementSet = await this.resolveSupplementsForIRBaseScope(
+      { system: url, version: targetVersion },
+      dedupeSupplementRefs(
+        Array.from(statedSupplements || []).map((canonical, index) =>
+          makeSupplementRef(canonical, 'useSupplement', index))
+      )
+    );
+    if (typeof baseProvider.attachIRSupplements === 'function') {
+      await baseProvider.attachIRSupplements(supplementSet);
+      return baseProvider;
+    }
+
+    await this.materializeSupplementSetOverlaySources(supplementSet);
+    const supplements = (supplementSet?.items || [])
+      .map(item => item?.overlaySource?.codeSystem)
+      .filter(codeSystem => codeSystem instanceof CodeSystem);
+    return await this._findCodeSystemWithResolvedSupplements(
+      url, targetVersion, params, kinds, op, nullOk, checkVer, supplements
+    );
   }
 
   /**

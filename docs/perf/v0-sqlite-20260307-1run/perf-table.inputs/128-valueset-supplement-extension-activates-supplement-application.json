@@ -1,0 +1,323 @@
+{
+  "schemaVersion": 1,
+  "id": 128,
+  "slug": "128-valueset-supplement-extension-activates-supplement-application",
+  "name": "ValueSet supplement extension activates supplement application",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs-s3",
+            "concept": [
+              {
+                "code": "M"
+              }
+            ]
+          }
+        ]
+      },
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+          "valueCanonical": "http://example.org/supp-s3"
+        }
+      ]
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s3",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "M",
+              "display": "Mike"
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s3",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s3",
+          "concept": [
+            {
+              "code": "M",
+              "designation": [
+                {
+                  "language": "es",
+                  "value": "Miguel"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "includeDesignations": true
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8120/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s3",
+                    "concept": [
+                      {
+                        "code": "M"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+                  "valueCanonical": "http://example.org/supp-s3"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s3",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "M",
+                  "display": "Mike"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s3",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s3",
+              "concept": [
+                {
+                  "code": "M",
+                  "designation": [
+                    {
+                      "language": "es",
+                      "value": "Miguel"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8120/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s3",
+                    "concept": [
+                      {
+                        "code": "M"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+                  "valueCanonical": "http://example.org/supp-s3"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s3",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "M",
+                  "display": "Mike"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s3",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s3",
+              "concept": [
+                {
+                  "code": "M",
+                  "designation": [
+                    {
+                      "language": "es",
+                      "value": "Miguel"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8121/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s3",
+                    "concept": [
+                      {
+                        "code": "M"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement",
+                  "valueCanonical": "http://example.org/supp-s3"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s3",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "M",
+                  "display": "Mike"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s3",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s3",
+              "concept": [
+                {
+                  "code": "M",
+                  "designation": [
+                    {
+                      "language": "es",
+                      "value": "Miguel"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
