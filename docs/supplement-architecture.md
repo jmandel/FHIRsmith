@@ -7,6 +7,9 @@ It is intentionally implementation-shaped. The goal is to make it possible to
 move from this document to incremental code changes without inventing the design
 again in each patch.
 
+For a worked request-level walkthrough, see
+[supplement-microscope.md](supplement-microscope.md).
+
 ## Scope
 
 This design is for the new supplement runtime used by the IR engine and later
@@ -84,12 +87,19 @@ able to affect membership.
 
 ### 4. Pushdown is an optimization, not a semantic gate
 
-There must be no special "unsupported supplement filter" failure mode.
-
 If a supplement is available:
 
 - native providers may push supplement logic down
 - otherwise the runtime must fall back to correct generic overlay evaluation
+
+Current boundary:
+
+- the generic overlay path is complete for simple overlay-backed property
+  operators: `=`, `in`, `regex`, `exists`
+- richer overlay-backed hierarchical operators on concept-valued supplement
+  properties remain an explicit TODO
+- those unsupported generic cases fail closed rather than silently downgrading
+  semantics
 
 Normal operational failures can still happen:
 
@@ -202,6 +212,8 @@ So:
 - supplement resolution happens after base version resolution
 - providers/execution adapters are told which supplements are in play
 - supplement-aware execution decides how to apply them
+- supplement/runtime/provider failures in this path are explicit runtime errors,
+  not silent downgrades to a generic IR miss
 
 For adapter-backed providers that do not natively execute IR, the generic path
 works by wrapping the provider with the IR supplement adapter. That adapter:
@@ -1276,24 +1288,41 @@ Exit:
 
 ### Phase 3: generic supplement-aware IR execution
 
-Status: complete for the generic correctness path
+Status: complete for the generic simple-operator correctness path
 
 Implemented notes:
 
 - `tx/supplements/ir-provider.js`
+- `tx/engine/generic-ir-executor.js`
 - supplement-backed property filters now affect membership before count/paging
 - supplement designation text is visible to IR-path text filtering
+- IR `$expand` response shaping now preserves typed base and supplement
+  `value[x]` properties and emits `expansion.property` metadata instead of
+  degrading typed values to strings
 - the current path is correctness-first and generic: it runs the base scoped IR
   normally, then evaluates supplement-touched semantics against merged
   base+supplement values by code
+- the supplement wrapper no longer carries its own duplicate union/intersect/
+  diff/paging/hierarchy executor; it now reuses the shared generic IR executor
+  core from `tx/engine/generic-ir-executor.js`, with supplement-specific hooks
+  for clause partitioning, merged property lookup, and supplement-aware text
+  matching
 - adapter-backed providers are covered through the same path via the IR
   supplement wrapper over legacy/provider filter protocols; current targeted
   coverage includes US states numeric property filtering and UCUM designation
+  text filtering
+- explicit current boundary: overlay-backed hierarchical/property operators such
+  as `is-a` / `descendent-of` on supplement concept-valued properties are not
+  yet implemented in the generic path; they fail closed and remain a documented
+  TODO
   text matching
+- unsupported overlay-backed property operators remain explicit failures in the
+  generic path instead of silently drifting or relabeling as an IR miss
 
 Deliverables:
 
-- `tx/supplements/ir-executor.js`
+- `tx/supplements/ir-provider.js`
+- `tx/engine/generic-ir-executor.js`
 - supplement-backed filter evaluation
 - supplement-backed text evaluation
 - correct count/paging semantics before slicing

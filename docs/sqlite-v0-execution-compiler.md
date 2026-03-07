@@ -10,6 +10,9 @@ The goal is to answer one question clearly:
 
 > How does a scoped IR subtree become SQL in sqlite-v0?
 
+For a concrete supplement-aware request flowing through that pipeline, see
+[supplement-microscope.md](supplement-microscope.md).
+
 ## Why this exists
 
 The old native sqlite-v0 path lowered projected IR directly into SQL strings.
@@ -32,6 +35,12 @@ same public provider API:
 - `membershipForIR(subtree)`
 
 Callers do not see plans. All planning artifacts are provider-private.
+
+When native supplement attachment is unavailable, the non-native supplement
+fallback now reuses the shared generic IR executor core in
+`tx/engine/generic-ir-executor.js` rather than maintaining a second copy of the
+set/paging/hierarchy executor inside the supplement runtime. That keeps the
+sqlite compiler-specific work narrowly focused on native execution.
 
 ## Preconditions
 

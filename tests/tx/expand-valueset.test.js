@@ -2212,6 +2212,65 @@ describe('ValueSet $expand - Real-World Patterns', () => {
       expect(selection.data.irAttempt.reason).toBe('canHandleValueSet=false');
     });
 
+    test('should error instead of falling back when ir-strict cannot handle shape', async () => {
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: '_engine', valueCode: 'ir-strict' },
+            {
+              name: 'valueSet',
+              resource: {
+                resourceType: 'ValueSet',
+                expansion: {
+                  contains: [{ system: 'http://example.org/cs', code: 'x', display: 'X' }]
+                }
+              }
+            }
+          ]
+        });
+
+      expect(res.status).toBe(422);
+      expect(res.body.resourceType).toBe('OperationOutcome');
+      expect(res.body.issue[0].code).toBe('not-supported');
+      expect(res.body.issue[0].details.text).toContain('IR engine cannot handle this ValueSet');
+      expect(res.body.issue[0].details.text).toContain('canHandleValueSet=false');
+    });
+
+    test('should return not-supported when ir-strict hits an unsupported filter property', async () => {
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: '_engine', valueCode: 'ir-strict' },
+            {
+              name: 'valueSet',
+              resource: {
+                resourceType: 'ValueSet',
+                status: 'active',
+                compose: {
+                  include: [{
+                    system: 'http://hl7.org/fhir/administrative-gender',
+                    filter: [{ property: 'constraint', op: '=', value: 'memberOf 123' }]
+                  }]
+                }
+              }
+            }
+          ]
+        });
+
+      expect(res.status).toBe(422);
+      expect(res.body.resourceType).toBe('OperationOutcome');
+      expect(res.body.issue[0].code).toBe('not-supported');
+      expect(res.body.issue[0].details.text).toContain('constraint = memberOf 123');
+    });
+
     test('should emit structured trace for explicit legacy execution', async () => {
       const res = await request(app)
         .post('/tx/r5/ValueSet/$expand')

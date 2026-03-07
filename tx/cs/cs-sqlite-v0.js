@@ -94,6 +94,31 @@ function typedLiteralProperty(code, row, propDef) {
   return { code, valueString: row.value_text ?? row.value_raw ?? (row.value_num != null ? String(row.value_num) : '') };
 }
 
+function propertyDefinitionType(propDef) {
+  if (propDef?.value_kind === 'concept') return 'code';
+  const sourceType = String(propDef?.source_type || '').trim().toLowerCase();
+  switch (sourceType) {
+    case 'boolean':
+      return 'boolean';
+    case 'integer':
+      return 'integer';
+    case 'decimal':
+      return 'decimal';
+    case 'code':
+      return 'code';
+    case 'uri':
+      return 'uri';
+    case 'canonical':
+      return 'canonical';
+    case 'date':
+      return 'date';
+    case 'datetime':
+      return 'dateTime';
+    default:
+      return 'string';
+  }
+}
+
 function sanitizeName(system) {
   return (system || 'CS').replace(/[^A-Za-z0-9]/g, '').slice(0, 40) || 'CS';
 }
@@ -131,8 +156,8 @@ function sqliteV0VersionToken(meta) {
   const baseUri = meta?.baseUri || '';
   const canonicalUri = meta?.canonicalUri || '';
   if (canonicalUri) {
-    // v0 DBs may store canonical_uri as either "system|version" (LOINC/RxNorm)
-    // or a canonical version URI (SNOMED edition/version URI).
+  // v0 DBs may store canonical_uri either as "system|version"
+  // or as a canonical version URI with an embedded release date.
     const prefix = `${baseUri}|`;
     if (prefix !== '|' && canonicalUri.startsWith(prefix)) {
       return canonicalUri.slice(prefix.length);
@@ -208,7 +233,6 @@ function extractReleaseDate(meta) {
   const version = String(meta?.version || '');
   const loadedAt = String(meta?.loadedAt || '');
 
-  // SNOMED canonical URI contains /version/YYYYMMDD
   const snomed = canonical.match(/\/version\/(\d{8})(?:$|[/?#])/);
   if (snomed) {
     const iso = digitsDateToIso(snomed[1]);
@@ -216,7 +240,7 @@ function extractReleaseDate(meta) {
   }
 
   // Generic 8-digit date token from version.
-  // Prefer YYYYMMDD; fallback to MMDDYYYY for RxNorm-like versions.
+  // Prefer YYYYMMDD; fallback to MMDDYYYY when needed.
   const eight = version.match(/(\d{8})/);
   if (eight) {
     const iso = digitsDateToIso(eight[1]) || mmddyyyyToIso(eight[1]);
@@ -543,7 +567,7 @@ class SqliteV0Provider extends BaseCSServices {
     for (const [code, pd] of this.#effectivePropDefs()) {
       defs.push({
         code,
-        type: pd.value_kind === 'concept' ? 'Coding' : 'string',
+        type: propertyDefinitionType(pd),
         description: pd.display || code,
       });
     }
@@ -592,7 +616,7 @@ class SqliteV0Provider extends BaseCSServices {
 
   async getStatus(context) {
     const ctx = await this.#ctx(context);
-    // Check statusProperty config (e.g. LOINC stores STATUS in concept_literal)
+    // Check configured statusProperty in concept_literal when present.
     const statusPropCode = this.#runtime.status?.statusProperty;
     if (statusPropCode) {
       const propDef = this.#propDefs.get(statusPropCode);
@@ -693,8 +717,7 @@ class SqliteV0Provider extends BaseCSServices {
         links.push(...this.#db.prepare(`
           SELECT src.concept_id AS source_concept_id,
                  sl.property_code,
-                 tgt.code AS target_code,
-                 tgt.display AS target_display
+                 tgt.code AS target_code
             FROM "${binding.alias}".supplement_link sl
             JOIN concept src
               ON src.code = sl.source_code
@@ -788,10 +811,11 @@ class SqliteV0Provider extends BaseCSServices {
   async properties(context) {
     const ctx = await this.#ctx(context);
     const props = [];
+    const effectivePropDefs = this.#effectivePropDefs();
 
     // Concept-valued properties (concept_link)
     const links = this.#prep('propLinks',
-      `SELECT pd.property_code, c2.code AS target_code, c2.display AS target_display
+      `SELECT pd.property_code, c2.code AS target_code
        FROM concept_link cl
        JOIN property_def pd ON pd.property_id = cl.property_id
        JOIN concept c2 ON c2.concept_id = cl.target_concept_id
@@ -800,7 +824,7 @@ class SqliteV0Provider extends BaseCSServices {
     for (const link of links) {
       props.push({
         code: link.property_code,
-        value: { system: this.system(), code: link.target_code, display: link.target_display },
+        valueCode: link.target_code,
       });
     }
 
@@ -812,10 +836,12 @@ class SqliteV0Provider extends BaseCSServices {
        WHERE cl.source_concept_id = @cid AND cl.active = 1`)
       .all({ cid: ctx.concept_id });
     for (const lit of lits) {
-      const value = lit.value_text ?? lit.value_raw ?? (lit.value_num != null ? String(lit.value_num) : null);
-      if (value != null) {
-        props.push({ code: lit.property_code, value });
-      }
+      const property = typedLiteralProperty(
+        lit.property_code,
+        lit,
+        effectivePropDefs.get(lit.property_code)
+      );
+      if (property) props.push(property);
     }
 
     if (this.supplements?.length > 0) {
@@ -830,11 +856,10 @@ class SqliteV0Provider extends BaseCSServices {
 
     if (this.#nativeSupplementBindings.length > 0) {
       const suppRows = this.#nativeSupplementPropertyRowsForConceptIds([ctx.concept_id]);
-      const effectivePropDefs = this.#effectivePropDefs();
       for (const link of suppRows.links) {
         props.push({
           code: link.property_code,
-          value: { system: this.system(), code: link.target_code, display: link.target_display },
+          valueCode: link.target_code,
         });
       }
       for (const lit of suppRows.literals) {
@@ -1109,7 +1134,7 @@ class SqliteV0Provider extends BaseCSServices {
     const sql = 'SELECT concept_id, code, display, definition, active FROM concept WHERE cs_id = @cs ORDER BY code';
     let rows = this.#db.prepare(sql).all({ cs: this.#meta.csId });
 
-    // Apply code regex filter if configured (e.g. LOINC: only codes matching ^[0-9]{3,}.*)
+    // Apply configured code-regex filter when present.
     if (iterCfg?.defaultCodeRegex) {
       try {
         const re = new RegExp(iterCfg.defaultCodeRegex);
@@ -1473,7 +1498,7 @@ class SqliteV0Provider extends BaseCSServices {
     return [...codeSet].sort();
   }
 
-  /** Run special property handler (e.g. LOINC answers-for derived-link-filter). */
+  /** Run configured special property handler. */
   #runSpecialPropertyHandler(propCfg, op, value) {
     const handler = propCfg.specialHandler;
     if (!handler || handler.kind !== 'derived-link-filter') throw new Error(`Unsupported special handler: ${JSON.stringify(handler)}`);
@@ -1591,7 +1616,6 @@ class SqliteV0Provider extends BaseCSServices {
     }
 
     if (implicitVS?.refset?.queryPrefix) {
-      // SNOMED refset pattern: value is a refset code/suffix.
       return `${this.system()}?${implicitVS.refset.queryPrefix}${raw}`;
     }
     // Default: value is already a URL or we construct one
@@ -1733,6 +1757,7 @@ class SqliteV0Provider extends BaseCSServices {
     if (!conceptIds || conceptIds.length === 0) return new Map();
     const result = new Map();
     const batchSize = 500;
+    const effectivePropDefs = this.#effectivePropDefs();
 
     for (let i = 0; i < conceptIds.length; i += batchSize) {
       const batch = conceptIds.slice(i, i + batchSize);
@@ -1741,7 +1766,7 @@ class SqliteV0Provider extends BaseCSServices {
       batch.forEach((id, j) => { params[`id${i + j}`] = id; });
 
       // Concept-valued properties
-      const linkSql = `SELECT cl.source_concept_id, pd.property_code, c2.code AS target_code, c2.display AS target_display
+      const linkSql = `SELECT cl.source_concept_id, pd.property_code, c2.code AS target_code
         FROM concept_link cl
         JOIN property_def pd ON pd.property_id = cl.property_id
         JOIN concept c2 ON c2.concept_id = cl.target_concept_id
@@ -1750,21 +1775,24 @@ class SqliteV0Provider extends BaseCSServices {
         if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
         result.get(row.source_concept_id).push({
           code: row.property_code,
-          value: { system: this.system(), code: row.target_code, display: row.target_display },
+          valueCode: row.target_code,
         });
       }
 
       // Literal-valued properties
-      const litSql = `SELECT cl.source_concept_id, pd.property_code, cl.value_raw, cl.value_text, cl.value_num
+      const litSql = `SELECT cl.source_concept_id, pd.property_code, cl.value_raw, cl.value_text, cl.value_num, cl.value_bool
         FROM concept_literal cl
         JOIN property_def pd ON pd.property_id = cl.property_id
         WHERE cl.source_concept_id IN (${placeholders}) AND cl.active = 1`;
       for (const row of this.#db.prepare(litSql).all(params)) {
-        const value = row.value_text ?? row.value_raw ?? (row.value_num != null ? String(row.value_num) : null);
-        if (value != null) {
-          if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
-          result.get(row.source_concept_id).push({ code: row.property_code, value });
-        }
+        const property = typedLiteralProperty(
+          row.property_code,
+          row,
+          effectivePropDefs.get(row.property_code)
+        );
+        if (!property) continue;
+        if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
+        result.get(row.source_concept_id).push(property);
       }
     }
     if (this.supplements?.length > 0 && conceptIds.length > 0) {
@@ -1792,12 +1820,11 @@ class SqliteV0Provider extends BaseCSServices {
       }
     }
     const suppRows = this.#nativeSupplementPropertyRowsForConceptIds(conceptIds);
-    const effectivePropDefs = this.#effectivePropDefs();
     for (const row of suppRows.links) {
       if (!result.has(row.source_concept_id)) result.set(row.source_concept_id, []);
       result.get(row.source_concept_id).push({
         code: row.property_code,
-        value: { system: this.system(), code: row.target_code, display: row.target_display },
+        valueCode: row.target_code,
       });
     }
     for (const row of suppRows.literals) {
@@ -1987,6 +2014,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
           value_kind: p.value_kind,
           is_hierarchy: !!p.is_hierarchy,
           display: p.display,
+          source_type: p.source_type || null,
         });
       }
 
@@ -2050,7 +2078,7 @@ class SqliteV0FactoryProvider extends CodeSystemFactoryProvider {
     return new SqliteV0Provider(opContext, supplements, db, this._meta, this._runtime, this._propDefs, this._options);
   }
 
-  /** Build implicit value sets from URL patterns (like SNOMED's fhir_vs=isa/X). */
+  /** Build implicit value sets from configured URL patterns and explicit value_set rows. */
   async buildKnownValueSet(url, vsVersion) {
     if (vsVersion && this._meta.version && vsVersion !== this._meta.version) {
       return null;
@@ -2139,4 +2167,5 @@ module.exports = {
   SqliteV0Provider,
   SqliteV0FactoryProvider,
   V0ConceptContext,
+  openV0Database,
 };

@@ -223,4 +223,134 @@ describe('supplement-aware IR provider', () => {
     const result = await wrapped.executeIR(subtree, {});
     expect(result.candidates.map(candidate => candidate.code)).toContain(target.code);
   });
+
+  test('composes union, diff, count, and paging through the shared generic executor', async () => {
+    const provider = makeProvider([
+      { code: 'A', display: 'Alpha', baseProperties: [] },
+      { code: 'B', display: 'Bravo', baseProperties: [{ code: 'class', value: 'chem' }] },
+      { code: 'C', display: 'Charlie', baseProperties: [] },
+      { code: 'D', display: 'Delta', baseProperties: [] },
+    ]);
+    const supplement = makeSupplement([
+      { code: 'A', property: [{ code: 'rank', valueInteger: 1 }] },
+      { code: 'C', property: [{ code: 'rank', valueInteger: 1 }] },
+      { code: 'D', property: [{ code: 'rank', valueInteger: 2 }] },
+    ]);
+    const wrapped = wrapIRProviderWithSupplements(provider, {
+      items: [{ overlaySource: { codeSystem: supplement } }],
+    });
+
+    const ranked = IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'filter',
+      filterClauses: [{ property: 'rank', op: '=', value: '1' }],
+    });
+    const chem = IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'filter',
+      filterClauses: [{ property: 'class', op: '=', value: 'chem' }],
+    });
+    const subtractA = IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'concept',
+      conceptCodes: [{ code: 'A' }],
+    });
+
+    const subtree = IR.diff(IR.union([ranked, chem]), subtractA);
+
+    expect(await wrapped.countForIR(subtree)).toBe(2);
+
+    const paged = await wrapped.executeIR(subtree, { offset: 1, count: 1 });
+    expect(paged.candidates.map(candidate => candidate.code)).toEqual(['C']);
+
+    const membership = await wrapped.membershipForIR(subtree);
+    expect(membership.has('A')).toBe(false);
+    expect(membership.has('B')).toBe(true);
+    expect(membership.has('C')).toBe(true);
+  });
+
+  test('flattens hierarchical support results before supplement-only filtering and paging', async () => {
+    const provider = {
+      system() { return 'http://example.org/base'; },
+      version() { return '1'; },
+      async properties(code) {
+        return [];
+      },
+      async executeIR(node) {
+        if (node.kind !== 'selector' || node.shape !== 'whole') return { candidates: [] };
+        return {
+          candidates: [
+            {
+              code: 'A',
+              display: 'Alpha',
+              active: true,
+              _context: 'A',
+              _children: [
+                { code: 'B', display: 'Bravo', active: true, _context: 'B' },
+                { code: 'C', display: 'Charlie', active: true, _context: 'C' },
+              ],
+            },
+          ],
+        };
+      },
+      async membershipForIR(node) {
+        const result = await this.executeIR(node);
+        const flat = [];
+        const walk = (items) => {
+          for (const item of items || []) {
+            flat.push(item.code);
+            if (item._children) walk(item._children);
+          }
+        };
+        walk(result.candidates || []);
+        const codes = new Set(flat);
+        return { has: code => codes.has(code) };
+      },
+      countForIR: async () => 3,
+    };
+    const supplement = makeSupplement([
+      { code: 'B', property: [{ code: 'rank', valueInteger: 1 }] },
+      { code: 'C', property: [{ code: 'rank', valueInteger: 1 }] },
+    ]);
+    const wrapped = wrapIRProviderWithSupplements(provider, {
+      items: [{ overlaySource: { codeSystem: supplement } }],
+    });
+
+    const subtree = IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'filter',
+      filterClauses: [{ property: 'rank', op: '=', value: '1' }],
+    });
+
+    expect(await wrapped.countForIR(subtree)).toBe(2);
+    const paged = await wrapped.executeIR(subtree, { offset: 1, count: 1 });
+    expect(paged.candidates.map(candidate => candidate.code)).toEqual(['C']);
+  });
+
+  test('fails closed for unsupported overlay-backed property operators', async () => {
+    const provider = makeProvider([
+      { code: 'A', display: 'Alpha', baseProperties: [] },
+    ]);
+    const supplement = makeSupplement([
+      { code: 'A', property: [{ code: 'parent', valueCode: 'root' }] },
+    ]);
+    const wrapped = wrapIRProviderWithSupplements(provider, {
+      items: [{ overlaySource: { codeSystem: supplement } }],
+    });
+
+    const subtree = IR.selector({
+      system: provider.system(),
+      version: provider.version(),
+      shape: 'filter',
+      filterClauses: [{ property: 'parent', op: 'is-a', value: 'root' }],
+    });
+
+    await expect(wrapped.executeIR(subtree, {})).rejects.toThrow(
+      "Supplement filter op 'is-a' is not supported for property 'parent'"
+    );
+  });
 });

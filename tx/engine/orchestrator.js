@@ -28,6 +28,7 @@ const IR = require('./ir');
 const { wrapWithLegacyIR } = require('./legacy-ir-adapter');
 const { trace } = require('./expand-trace');
 const { buildSupplementOverlay, mergeSupplementOverlayIntoCandidates } = require('../supplements/overlay');
+const { getValueName } = require('../../library/utilities');
 
 /**
  * Check if a ValueSet can be handled by the IR engine.
@@ -117,6 +118,69 @@ function hasLockedDateSelectors(node) {
     default:
       return false;
   }
+}
+
+const KNOWN_EXPANSION_PROPERTY_URIS = new Map([
+  ['definition', 'http://hl7.org/fhir/concept-properties#definition'],
+]);
+
+function serializeExpansionProperty(prop) {
+  if (!prop?.code) return null;
+
+  const typedName = getValueName(prop);
+  if (typedName) {
+    return {
+      code: prop.code,
+      [typedName]: prop[typedName],
+    };
+  }
+
+  if (prop.value && typeof prop.value === 'object' && (prop.value.system || prop.value.code)) {
+    return {
+      code: prop.code,
+      valueCoding: prop.value,
+    };
+  }
+
+  if (prop.value !== undefined && prop.value !== null) {
+    return {
+      code: prop.code,
+      valueString: String(prop.value),
+    };
+  }
+
+  return null;
+}
+
+function mergeExpansionPropertyDefinition(defs, prop) {
+  const code = String(prop?.code || '').trim();
+  if (!code) return;
+  const next = defs.get(code) || { code };
+  const uri = prop?.uri || prop?.definition?.uri || KNOWN_EXPANSION_PROPERTY_URIS.get(code) || null;
+  const description = prop?.definition?.description || prop?.definition?.display || null;
+  const type = prop?.definition?.type || null;
+  if (uri && !next.uri) next.uri = uri;
+  if (description && !next.description) next.description = description;
+  if (type && !next.type) next.type = type;
+  defs.set(code, next);
+}
+
+function attachPropertyDefinition(prop, propertyDefsByCode) {
+  if (!prop || typeof prop !== 'object') return prop;
+  if (!propertyDefsByCode || propertyDefsByCode.size === 0) return prop;
+  const def = propertyDefsByCode.get(String(prop.code || ''));
+  if (!def) return prop;
+  if (prop.definition?.type && prop.definition?.description && prop.definition?.uri) return prop;
+  return {
+    ...prop,
+    definition: {
+      ...(def.uri ? { uri: def.uri } : {}),
+      ...(def.description ? { description: def.description } : {}),
+      ...(def.display ? { display: def.display } : {}),
+      ...(def.type ? { type: def.type } : {}),
+      ...(prop.definition || {}),
+    },
+  };
 }
 
 async function resolveLockedDateVersions(node, resolveVersionAtDate, warnings = []) {
@@ -288,6 +352,7 @@ function canHandleValueSet(vsJson) {
  *   includeDesignations?: boolean,
  *   properties?: string[],
  *   resolveVersionAtDate?: async (system, lockedDate) => version | null,
+ *   allowIncompleteExpansion?: boolean,
  * }
  * @returns {Object} { expansion: { contains: [...], total?, offset?, ... }, warnings: string[] }
  */
@@ -307,6 +372,7 @@ async function expandViaIR(vsJson, opts = {}) {
     excludeNested = false,
     limit = 0,
     exactTotal = true,
+    allowIncompleteExpansion = false,
     debugPlan = false,
     resolveVersionAtDate = null,
   } = opts;
@@ -458,7 +524,7 @@ async function expandViaIR(vsJson, opts = {}) {
       if (r.count != null) continue; // already have static count
       if (typeof r.irProvider.countForIR === 'function') {
         const cntSpan = trace.begin('countForIR', { system: r.system });
-        r.count = await r.irProvider.countForIR(r.subtree, { activeOnly: effectiveActiveOnly, text });
+        r.count = await r.irProvider.countForIR(r.subtree, { activeOnly: effectiveActiveOnly, text, allowIncompleteExpansion });
         cntSpan.end({ count: r.count });
       } else {
         r.count = 0;
@@ -503,6 +569,8 @@ async function expandViaIR(vsJson, opts = {}) {
   // directly, then resolve total from the result or a lazy COUNT.
   let deferredTotal = null;
   const unclosedMessages = [];  // grammar-based providers signal unclosed expansion
+  let limitedExpansion = false;
+  let tooCostly = false;
 
   // Collect unclosed signals discovered during counting phase (before executeIR).
   // This ensures unclosed is reported even for systems skipped by pagination.
@@ -510,6 +578,8 @@ async function expandViaIR(vsJson, opts = {}) {
     if (r.irProvider._discoveredUnclosed) {
       for (const msg of r.irProvider._discoveredUnclosed) unclosedMessages.push(msg);
     }
+    if (r.irProvider._discoveredLimitedExpansion) limitedExpansion = true;
+    if (r.irProvider._discoveredTooCostly) tooCostly = true;
   }
 
   const pagSpan = trace.begin('pagination', { total: knownTotal, offset, count, systems: resolved.length });
@@ -519,10 +589,12 @@ async function expandViaIR(vsJson, opts = {}) {
     const r = resolved[0];
     const sysSpan = trace.begin(`system:${r.system}`, { sysOffset: offset, sysCount: count });
     const result = await r.irProvider.executeIR(r.subtree, {
-      activeOnly: effectiveActiveOnly, text, count, offset,
+      activeOnly: effectiveActiveOnly, text, count, offset, allowIncompleteExpansion,
     });
     sysSpan.end({ candidates: result.candidates.length });
     if (result.unclosed) unclosedMessages.push(result.unclosed);
+    if (result.limitedExpansion) limitedExpansion = true;
+    if (result.tooCostly) tooCostly = true;
 
     appendAll(allCandidates, flattenCandidates(result.candidates, r, null));
 
@@ -546,6 +618,8 @@ async function expandViaIR(vsJson, opts = {}) {
       // Full page or empty page past end — need exact count.
       const cntSpan = trace.begin('countForIR:lazy', { system: r.system });
       deferredTotal = await r.irProvider.countForIR(r.subtree, { activeOnly: effectiveActiveOnly, text });
+      if (r.irProvider._discoveredLimitedExpansion) limitedExpansion = true;
+      if (r.irProvider._discoveredTooCostly) tooCostly = true;
       cntSpan.end({ count: deferredTotal });
     }
 
@@ -572,10 +646,12 @@ async function expandViaIR(vsJson, opts = {}) {
 
       const sysSpan = trace.begin(`system:${r.system}`, { sysOffset, sysCount });
       const result = await r.irProvider.executeIR(r.subtree, {
-        activeOnly: effectiveActiveOnly, text, count: sysCount, offset: sysOffset,
+        activeOnly: effectiveActiveOnly, text, count: sysCount, offset: sysOffset, allowIncompleteExpansion,
       });
       sysSpan.end({ candidates: result.candidates.length });
       if (result.unclosed) unclosedMessages.push(result.unclosed);
+      if (result.limitedExpansion) limitedExpansion = true;
+      if (result.tooCostly) tooCostly = true;
 
       appendAll(allCandidates, flattenCandidates(result.candidates, r, null));
 
@@ -597,6 +673,7 @@ async function expandViaIR(vsJson, opts = {}) {
   decoSpan.end();
 
   // 10. Build contains entries
+  const expansionPropertyDefs = new Map();
   const contains = paged.map(c => {
     const entry = {
       system: c.system,
@@ -637,19 +714,11 @@ async function expandViaIR(vsJson, opts = {}) {
     // Properties
     if (c._properties?.length > 0) {
       for (const prop of c._properties) {
+        mergeExpansionPropertyDefinition(expansionPropertyDefs, prop);
+        const serialized = serializeExpansionProperty(prop);
+        if (!serialized) continue;
         if (!entry.property) entry.property = [];
-        if (typeof prop.value === 'object' && prop.value.system) {
-          // Concept-valued property
-          entry.property.push({
-            code: prop.code,
-            valueCoding: prop.value,
-          });
-        } else {
-          entry.property.push({
-            code: prop.code,
-            valueString: String(prop.value),
-          });
-        }
+        entry.property.push(serialized);
       }
     }
 
@@ -687,11 +756,14 @@ async function expandViaIR(vsJson, opts = {}) {
       total,
       offset: offset > 0 ? offset : undefined,
       contains,
+      property: expansionPropertyDefs.size > 0 ? [...expansionPropertyDefs.values()] : undefined,
       usedSystems: [...usedSystems],
       usedValueSets: [...usedValueSets],
       usedSupplements: [...usedSupplements],
       providerMeta,
       unclosedMessages,
+      limitedExpansion,
+      tooCostly,
     },
     warnings,
     debug: planText ? { planText } : undefined,
@@ -736,6 +808,9 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
   }
   if (expansion.contains && expansion.contains.length > 0) {
     exp.contains = expansion.contains;
+  }
+  if (expansion.property && expansion.property.length > 0) {
+    exp.property = expansion.property;
   }
 
   // Add parameters
@@ -879,6 +954,10 @@ async function decorateCandidates(candidates, opts = {}) {
   }
 
   for (const [provider, provCandidates] of byProvider) {
+    const propertyDefsByCode = typeof provider.propertyDefinitions === 'function'
+      ? new Map((provider.propertyDefinitions() || []).map(def => [String(def.code || ''), def]))
+      : new Map();
+
     // Use bulk methods if available (v0 SQLite provider)
     if (typeof provider.bulkDesignations === 'function' && includeDesignations) {
       const conceptIds = provCandidates.filter(c => c.conceptId).map(c => c.conceptId);
@@ -921,9 +1000,9 @@ async function decorateCandidates(candidates, opts = {}) {
       for (const c of provCandidates) {
         const allProps = propMap.get(c.conceptId) || [];
         // Filter to requested properties
-        c._properties = allProps.filter(p =>
-          properties.includes(p.code) || properties.includes('*')
-        );
+        c._properties = allProps
+          .filter(p => properties.includes(p.code) || properties.includes('*'))
+          .map(p => attachPropertyDefinition(p, propertyDefsByCode));
 
         // Handle 'definition' as a special property
         if (properties.includes('definition') && c.definition) {
@@ -950,7 +1029,7 @@ async function decorateCandidates(candidates, opts = {}) {
             if (props?.length > 0) {
               for (const p of props) {
                 if (properties.includes(p.code) || properties.includes('*')) {
-                  c._properties.push(p);
+                  c._properties.push(attachPropertyDefinition(p, propertyDefsByCode));
                 }
               }
             }
@@ -982,23 +1061,28 @@ async function decorateCandidates(candidates, opts = {}) {
 
 /**
  * Collect compose-level display/designation overrides from the IR tree.
- * Returns a Map keyed by `system|code` → { display?, designation? }.
+ * Returns a Map keyed by `system|version|code` → { display?, designation? }.
  */
 function collectComposeOverrides(resolvedList) {
-  const overrides = new Map(); // 'system|code' → { display, designation }
+  const overrides = new Map(); // 'system|version|code' → { display, designation }
   for (const r of resolvedList) {
-    walkIR(r.subtree, r.system, r.version, overrides);
+    walkIR(r.subtree, r.system, r.provVersion || r.version || null, overrides);
   }
   return overrides;
+}
+
+function composeOverrideKey(system, version, code) {
+  return `${system || ''}\x00${version || ''}\x00${code || ''}`;
 }
 
 function walkIR(node, system, version, overrides) {
   if (!node) return;
   if (node.kind === 'selector' && node.shape === 'concept' && node.conceptCodes) {
     const sys = node.system || system;
+    const ver = node.version || version || null;
     for (const cc of node.conceptCodes) {
       if (!cc.code) continue;
-      const key = `${sys}|${cc.code}`;
+      const key = composeOverrideKey(sys, ver, cc.code);
       if (cc.display || (cc.designation && cc.designation.length > 0)) {
         overrides.set(key, {
           display: cc.display || null,
@@ -1019,7 +1103,7 @@ function walkIR(node, system, version, overrides) {
 function applyComposeOverrides(candidates, overrides, includeDesignations) {
   if (!overrides || overrides.size === 0) return;
   for (const c of candidates) {
-    const key = `${c.system}|${c.code}`;
+    const key = composeOverrideKey(c.system, c.version || null, c.code);
     const ov = overrides.get(key);
     if (!ov) continue;
     // Compose display overrides provider display

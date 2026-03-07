@@ -16,4 +16,18 @@ describe('ExpandTrace', () => {
     expect(json.spans[0].sql[0].sql).toBe(sql);
     expect(json.spans[0].sql[0].sql.length).toBe(sql.length);
   });
+
+  test('stores full note strings in structured trace payload', () => {
+    const trace = new ExpandTrace();
+    const payload = `kind: "fromRows"\n${'y'.repeat(1200)}`;
+    const span = trace.begin('note-test');
+
+    trace.note('compiler', { base: payload });
+    span.end();
+    const json = trace.toJSON();
+
+    expect(json.spans[0].children[0].message).toBe('compiler');
+    expect(json.spans[0].children[0].data.base).toBe(payload);
+    expect(json.spans[0].children[0].data.base.length).toBe(payload.length);
+  });
 });

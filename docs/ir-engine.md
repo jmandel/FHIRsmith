@@ -121,11 +121,30 @@ level.
 
 Some terminologies need behavior beyond the generic provider (e.g.
 SNOMED post-coordinated expressions, LOINC implicit value set generation
-from URL patterns). A specialization registry lets modules declare
-interest in specific terminologies. At startup, the library checks the
-registry and returns a specialized factory subclass when one matches.
-With no specializations registered (the current state), you get the
-generic provider.
+from URL patterns). The generic `SqliteV0FactoryProvider` stays system-
+agnostic; code-system-specific behavior lives in registered subclasses.
+
+The registration flow is:
+
+1. Subclass modules call
+   `SqliteV0FactoryProvider.registerSpecialization(...)` at require-time.
+2. `tx/library.js` loads `tx/cs/cs-sqlite-v0-specializations.js` during
+   startup.
+3. That bootstrap file requires the concrete specialization modules
+   (currently `tx/cs/cs-sqlite-v0-loinc.js`).
+4. When a `sqlite-v0:` source is opened, `createFromMetadata()` probes
+   the DB metadata and returns either:
+   - a matching specialized subclass, or
+   - the generic base provider if nothing matches.
+
+This keeps the base sqlite-v0 provider generic while still allowing
+terminology-specific hooks where they are genuinely needed.
+
+Current concrete example:
+
+- `tx/cs/cs-sqlite-v0-loinc.js` registers a LOINC specialization that
+  owns `http://loinc.org/vs...` implicit ValueSet behavior, including
+  answer-list ValueSets like `http://loinc.org/vs/LL2201-3`.
 
 ### Loading
 
@@ -189,14 +208,16 @@ All the new pipeline logic lives in `tx/engine/`. Existing providers
 | `EXPAND_IR_ENGINE` env | `_engine` param | What happens |
 |------------------------|-----------------|--------------|
 | not set | _(none)_ | Original expander only (status quo) |
-| not set | `ir` | IR engine; error if it can't handle the VS |
+| not set | `ir` | Try IR first, then fall back to original |
+| not set | `ir-strict` | IR engine only; `422` if it can't handle the VS |
 | `1` | _(none)_ | Try IR first, fall back to original |
-| `1` | `ir` | IR engine; error if it can't handle the VS |
+| `1` | `ir` | Try IR first, then fall back to original |
+| `1` | `ir-strict` | IR engine only; `422` if it can't handle the VS |
 | `1` | `legacy` | Original expander only |
 
 The systemd service on tx-dev.fhir.org sets `EXPAND_IR_ENGINE=1`.
-Per-request `_engine=ir` or `_engine=legacy` overrides. (The parameter
-value `legacy` refers to the original expander.)
+Per-request `_engine=ir`, `_engine=ir-strict`, or `_engine=legacy`
+overrides. (`legacy` refers to the original expander.)
 
 ### Fallback rules
 
@@ -357,15 +378,43 @@ bulk — one batch per system, not per concept:
 3. **Redundancy suppression** — designations matching the primary display
    are omitted
 4. **Compose-level overrides** — `include.concept[].display` and
-   `.designation[]` replace or supplement code system values
+   `.designation[]` replace or supplement code system values, keyed by
+   `(system, version, code)` so same-code results from different versions
+   do not leak across each other
 
 ### Supplements
 
-Inline supplements (submitted via `tx-resource`) flow through the
-existing provider supplement machinery. The IR engine wires the
-`useSupplement` parameter and `valueset-supplement` extension to the
-provider's supplement loading, and emits `used-supplement` parameters in
-the response.
+Supplements now go through an explicit supplement runtime before
+provider execution:
+
+1. resolve requested supplement canonicals against the base
+   `(system, version)` scope
+2. if the resolved provider supports native attachment (currently
+   sqlite-v0), attach the resolved supplement set directly
+3. otherwise materialize supplement `CodeSystem` overlays and pass them
+   through the existing `CodeSystem[]` supplement machinery
+
+This keeps supplement semantics consistent across:
+
+- inline `tx-resource` supplements
+- configured server-side sqlite supplement sidecars
+- sqlite-backed and non-sqlite providers
+
+The IR path emits `used-supplement` parameters in the response. Legacy
+`$expand` is intentionally not upgraded to this full runtime; for
+configured sqlite sidecars it now fails closed instead of silently
+ignoring the request. Supplement/runtime/provider failures in the IR
+path now also fail closed instead of being downgraded into a generic
+\"IR cannot handle this ValueSet\" miss. `$lookup` and `$validate-code`
+also reuse this same supplement runtime seam. On the IR path, typed
+property values from both base sqlite-v0 data and supplements now survive
+response shaping as proper FHIR `value[x]` fields. Current boundary: the
+generic supplement fallback is complete
+for simple overlay-backed property operators (`=`, `in`, `regex`,
+`exists`), while richer overlay-backed hierarchical operators remain an
+explicit fail-closed TODO.
+`ValueSet.expansion.property` is emitted when expansion properties are
+requested.
 
 ---
 
@@ -513,6 +562,8 @@ Use it for:
 | File | What it does |
 |------|-------------|
 | `cs-sqlite-v0.js` | Generic code system provider — implements both the standard filter protocol and `executeIR()` for the IR engine |
+| `cs-sqlite-v0-specializations.js` | Bootstrap that loads registered sqlite-v0 specializations at startup |
+| `cs-sqlite-v0-loinc.js` | LOINC-specific sqlite-v0 subclass; owns `http://loinc.org/vs...` implicit ValueSet behavior |
 | `sqlite-v0-compiler.js` | Provider-private compiler from scoped IR to normalized plans, SQL AST, rendered SQL, and execution-ready queries |
 | `sqlite-v0-sql-ast.js` | Structured SQL AST lowering for sqlite-v0 physical plans |
 | `sqlite-v0-sql-emit.js` | Deterministic SQL renderer for sqlite-v0 SQL AST |
@@ -536,8 +587,11 @@ Use it for:
 | File | Change |
 |------|--------|
 | `tx/workers/expand.js` | Added `_tryIRExpansion()` entry point with fallback |
+| `tx/workers/worker.js` | Added supplement registry/resolution runtime, native attachment seam, and fallback to materialized `CodeSystem[]` overlays |
+| `tx/workers/lookup.js` | Routes supplement-aware lookup through the new supplement runtime |
+| `tx/workers/validate.js` | Reuses the supplement runtime for supplement-aware `$validate-code` |
 | `tx/params.js` | Parses `_engine` parameter |
-| `tx/library.js` | Loads v0 SQLite databases via `sqlite-v0:` source type |
+| `tx/library.js` | Loads v0 SQLite databases via `sqlite-v0:` source type and initializes sqlite-v0 specializations |
 
 ---
 
@@ -546,6 +600,9 @@ Use it for:
 - [supplement-architecture.md](supplement-architecture.md) — Detailed design
   for explicit supplement resolution, overlay semantics, generic fallback, and
   native optimization in the new runtime path
+- [supplement-microscope.md](supplement-microscope.md) — Worked end-to-end
+  example of a supplement-aware IR request, from request parameters through
+  supplement resolution, IR, provider-private plans, SQL, and final response
 - [sqlite-v0-execution-compiler.md](sqlite-v0-execution-compiler.md) —
   Standalone architecture note for how sqlite-v0 lowers scoped IR into plans,
   SQL AST, and runtime SQL, including the multi-oracle testing strategy

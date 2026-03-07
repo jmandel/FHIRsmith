@@ -2,12 +2,11 @@
 
 const IR = require('../engine/ir');
 const {
-  EmptyMembership,
-  SetMembership,
-  UnionMembership,
-  IntersectMembership,
-  DiffMembership,
-} = require('../engine/membership');
+  createGenericIRExecutor,
+  flattenHierarchyCandidates,
+  hasHierarchyCandidates,
+  propagateUnclosed,
+} = require('../engine/generic-ir-executor');
 const { wrapWithLegacyIR } = require('../engine/legacy-ir-adapter');
 const { trace } = require('../engine/expand-trace');
 const {
@@ -30,70 +29,57 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
     _irSupplementSet: supplementSet,
     _irSupplementOverlay: overlay,
     _discoveredUnclosed: [],
-
+    _discoveredLimitedExpansion: false,
+    _discoveredTooCostly: false,
     hasExecuteIR() { return true; },
-
-    async executeIR(subtree, opts = {}) {
-      const span = trace.begin('supplementIR:execute', {
-        system: typeof provider.system === 'function' ? provider.system() : undefined,
-        text: opts.text || null,
-      });
-      try {
-        let candidates = await executeNode(provider, baseIRProvider, overlay, subtree, opts, new Map());
-        candidates = dedupeCandidatesForResult(candidates);
-        const unclosed = candidates._unclosed || null;
-        candidates = applySupplementTextFilterCandidates(candidates, overlay, opts.text);
-        candidates.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
-        if (opts.offset > 0 || opts.count != null) {
-          const off = opts.offset || 0;
-          if (hasHierarchyCandidates(candidates)) {
-            const total = countWithChildren(candidates);
-            const lim = opts.count != null ? opts.count : total;
-            const fullWindow = off === 0 && lim >= total;
-            if (!fullWindow) {
-              const flat = flattenHierarchyCandidates(candidates);
-              candidates = flat.slice(off, off + lim);
-            }
-          } else {
-            const lim = opts.count != null ? opts.count : candidates.length;
-            candidates = candidates.slice(off, off + lim);
-          }
-        }
-        const result = { candidates };
-        if (unclosed) result.unclosed = unclosed;
-        span.end({ candidates: candidates.length });
-        return result;
-      } catch (e) {
-        span.end({ error: e.message || String(e) });
-        throw e;
-      }
-    },
-
-    async countForIR(subtree, opts = {}) {
-      const span = trace.begin('supplementIR:count', {
-        system: typeof provider.system === 'function' ? provider.system() : undefined,
-        text: opts.text || null,
-      });
-      try {
-        let candidates = await executeNode(provider, baseIRProvider, overlay, subtree, opts, new Map());
-        candidates = dedupeCandidatesForResult(candidates);
-        if (candidates._unclosed) {
-          extras._discoveredUnclosed.push(candidates._unclosed);
-        }
-        candidates = applySupplementTextFilterCandidates(candidates, overlay, opts.text);
-        const count = countWithChildren(candidates);
-        span.end({ count });
-        return count;
-      } catch (e) {
-        span.end({ error: e.message || String(e) });
-        throw e;
-      }
-    },
-
-    async membershipForIR(subtree) {
-      return await buildMembership(provider, baseIRProvider, overlay, subtree, new Map());
-    },
   };
+
+  const executor = createGenericIRExecutor({
+    createState: () => ({ propertyCache: new Map() }),
+    executeSelector: (node, opts, state) => executeSelector(provider, baseIRProvider, overlay, node, opts, state),
+    buildSelectorMembership: (node, state, defaultBuilder) =>
+      buildSelectorMembership(provider, baseIRProvider, overlay, node, state, defaultBuilder),
+    applyTextFilterCandidates: (candidates, text) => applySupplementTextFilterCandidates(candidates, overlay, text),
+    onCountUnclosed: (unclosed) => {
+      extras._discoveredUnclosed.push(unclosed);
+    },
+    onCountMetadata: (candidates) => {
+      if (candidates?._limitedExpansion) extras._discoveredLimitedExpansion = true;
+      if (candidates?._tooCostly) extras._discoveredTooCostly = true;
+    },
+  });
+
+  extras.executeIR = async function executeIR(subtree, opts = {}) {
+    const span = trace.begin('supplementIR:execute', {
+      system: typeof provider.system === 'function' ? provider.system() : undefined,
+      text: opts.text || null,
+    });
+    try {
+      const result = await executor.executeIR(subtree, opts);
+      span.end({ candidates: result.candidates.length });
+      return result;
+    } catch (e) {
+      span.end({ error: e.message || String(e) });
+      throw e;
+    }
+  };
+
+  extras.countForIR = async function countForIR(subtree, opts = {}) {
+    const span = trace.begin('supplementIR:count', {
+      system: typeof provider.system === 'function' ? provider.system() : undefined,
+      text: opts.text || null,
+    });
+    try {
+      const count = await executor.countForIR(subtree, opts);
+      span.end({ count });
+      return count;
+    } catch (e) {
+      span.end({ error: e.message || String(e) });
+      throw e;
+    }
+  };
+
+  extras.membershipForIR = executor.membershipForIR;
 
   return new Proxy(extras, {
     get(target, prop, receiver) {
@@ -115,62 +101,13 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
   });
 }
 
-async function executeNode(provider, baseIRProvider, overlay, node, opts, propertyCache) {
-  if (!node) return [];
-  switch (node.kind) {
-    case 'empty':
-      return [];
-    case 'selector':
-      return await executeSelector(provider, baseIRProvider, overlay, node, opts, propertyCache);
-    case 'union': {
-      const results = [];
-      const seen = new Set();
-      for (const child of node.items || []) {
-        const childRaw = await executeNode(provider, baseIRProvider, overlay, child, opts, propertyCache);
-        const childResult = normalizeForSetOps(childRaw);
-        propagateUnclosed(results, childRaw, childResult);
-        for (const candidate of childResult) {
-          if (seen.has(candidate.code)) continue;
-          seen.add(candidate.code);
-          results.push(candidate);
-        }
-      }
-      return results;
-    }
-    case 'intersect': {
-      const items = (node.items || []).filter(Boolean);
-      if (items.length === 0) return [];
-      if (items.some(it => it.kind === 'empty')) return [];
-      if (items.length === 1) return await executeNode(provider, baseIRProvider, overlay, items[0], opts, propertyCache);
-      const firstRaw = await executeNode(provider, baseIRProvider, overlay, items[0], opts, propertyCache);
-      const first = normalizeForSetOps(firstRaw);
-      const memberships = await Promise.all(
-        items.slice(1).map(child => buildMembership(provider, baseIRProvider, overlay, child, propertyCache))
-      );
-      const result = first.filter(candidate => memberships.every(m => m.has(candidate.code)));
-      return propagateUnclosed(result, firstRaw, first);
-    }
-    case 'diff': {
-      const leftRaw = await executeNode(provider, baseIRProvider, overlay, node.left, opts, propertyCache);
-      const left = normalizeForSetOps(leftRaw);
-      if (!node.right || node.right.kind === 'empty') return left;
-      const right = await buildMembership(provider, baseIRProvider, overlay, node.right, propertyCache);
-      const result = left.filter(candidate => !right.has(candidate.code));
-      return propagateUnclosed(result, leftRaw, left);
-    }
-    case 'import':
-      if (node.resolved) return await executeNode(provider, baseIRProvider, overlay, node.resolved, opts, propertyCache);
-      return [];
-    default:
-      return [];
-  }
-}
-
-async function executeSelector(provider, baseIRProvider, overlay, sel, opts, propertyCache) {
+async function executeSelector(provider, baseIRProvider, overlay, sel, opts, state) {
   if (sel.shape !== 'filter') {
     const result = await baseIRProvider.executeIR(sel, { activeOnly: !!opts.activeOnly });
     const candidates = result?.candidates || [];
     if (result?.unclosed && !candidates._unclosed) candidates._unclosed = result.unclosed;
+    if (result?.limitedExpansion && !candidates._limitedExpansion) candidates._limitedExpansion = true;
+    if (result?.tooCostly && !candidates._tooCostly) candidates._tooCostly = true;
     return candidates;
   }
 
@@ -185,6 +122,8 @@ async function executeSelector(provider, baseIRProvider, overlay, sel, opts, pro
     const result = await baseIRProvider.executeIR(sel, { activeOnly: !!opts.activeOnly });
     const candidates = result?.candidates || [];
     if (result?.unclosed && !candidates._unclosed) candidates._unclosed = result.unclosed;
+    if (result?.limitedExpansion && !candidates._limitedExpansion) candidates._limitedExpansion = true;
+    if (result?.tooCostly && !candidates._tooCostly) candidates._tooCostly = true;
     return candidates;
   }
 
@@ -192,8 +131,11 @@ async function executeSelector(provider, baseIRProvider, overlay, sel, opts, pro
   const baseResult = await baseIRProvider.executeIR(supportSelector, { activeOnly: !!opts.activeOnly });
   const baseCandidates = baseResult?.candidates || [];
   const filtered = [];
-  for (const candidate of baseCandidates) {
-    if (await matchesAllSupplementClauses(provider, overlay, candidate, supplementClauses, propertyCache)) {
+  const enumerable = hasHierarchyCandidates(baseCandidates)
+    ? flattenHierarchyCandidates(baseCandidates)
+    : baseCandidates;
+  for (const candidate of enumerable) {
+    if (await matchesAllSupplementClauses(provider, overlay, candidate, supplementClauses, state.propertyCache)) {
       filtered.push(candidate);
     }
   }
@@ -201,10 +143,19 @@ async function executeSelector(provider, baseIRProvider, overlay, sel, opts, pro
     system: sel.system,
     supportClauses: supportClauses.length,
     supplementClauses: supplementClauses.map(c => `${c.property} ${c.op} ${c.value}`),
-    before: baseCandidates.length,
+    before: enumerable.length,
     after: filtered.length,
   });
   return propagateUnclosed(filtered, baseCandidates);
+}
+
+async function buildSelectorMembership(provider, baseIRProvider, overlay, node, state, defaultBuilder) {
+  const needsSupplementEvaluation = node.shape === 'filter'
+    && (node.filterClauses || []).some(clause => overlayTouchesProperty(overlay, clause.property));
+  if (!needsSupplementEvaluation) {
+    return await baseIRProvider.membershipForIR(node);
+  }
+  return await defaultBuilder(node, state);
 }
 
 function buildSupportSelector(sel, supportClauses) {
@@ -242,43 +193,6 @@ function buildSupportSelector(sel, supportClauses) {
     shape: 'whole',
     meta: sel.meta || null,
   });
-}
-
-async function buildMembership(provider, baseIRProvider, overlay, node, propertyCache) {
-  if (!node) return new EmptyMembership();
-  switch (node.kind) {
-    case 'empty':
-      return new EmptyMembership();
-    case 'selector': {
-      const needsSupplementEvaluation = node.shape === 'filter'
-        && (node.filterClauses || []).some(clause => overlayTouchesProperty(overlay, clause.property));
-      if (!needsSupplementEvaluation) {
-        return await baseIRProvider.membershipForIR(node);
-      }
-      const candidates = normalizeForSetOps(
-        await executeSelector(provider, baseIRProvider, overlay, node, {}, propertyCache)
-      );
-      return new SetMembership(new Set(candidates.map(candidate => candidate.code)));
-    }
-    case 'union':
-      return new UnionMembership(
-        await Promise.all((node.items || []).map(child => buildMembership(provider, baseIRProvider, overlay, child, propertyCache)))
-      );
-    case 'intersect':
-      return new IntersectMembership(
-        await Promise.all((node.items || []).map(child => buildMembership(provider, baseIRProvider, overlay, child, propertyCache)))
-      );
-    case 'diff':
-      return new DiffMembership(
-        await buildMembership(provider, baseIRProvider, overlay, node.left, propertyCache),
-        await buildMembership(provider, baseIRProvider, overlay, node.right, propertyCache)
-      );
-    case 'import':
-      if (node.resolved) return await buildMembership(provider, baseIRProvider, overlay, node.resolved, propertyCache);
-      return new EmptyMembership();
-    default:
-      return new EmptyMembership();
-  }
 }
 
 async function matchesAllSupplementClauses(provider, overlay, candidate, clauses, propertyCache) {
@@ -389,85 +303,6 @@ function candidateMatchesText(candidate, overlay, lower) {
   return (extra.designations || []).some(designation =>
     String(designation?.value || '').toLowerCase().includes(lower)
   );
-}
-
-function countWithChildren(candidates) {
-  let total = candidates.length;
-  for (const candidate of candidates) {
-    if (candidate._children) total += countWithChildren(candidate._children);
-  }
-  return total;
-}
-
-function hasHierarchyCandidates(candidates) {
-  return candidates.some(candidate => candidate._children && candidate._children.length > 0);
-}
-
-function dedupeCandidatesByCode(candidates) {
-  const out = [];
-  const seen = new Set();
-  for (const candidate of candidates || []) {
-    const code = candidate?.code;
-    if (!code || seen.has(code)) continue;
-    seen.add(code);
-    out.push(candidate);
-  }
-  return out;
-}
-
-function dedupeHierarchyByCode(nodes, seen = new Set()) {
-  const out = [];
-  for (const node of nodes || []) {
-    const children = node?._children ? dedupeHierarchyByCode(node._children, seen) : [];
-    const code = node?.code;
-    if (!code || seen.has(code)) {
-      out.push(...children);
-      continue;
-    }
-    seen.add(code);
-    const entry = { ...node };
-    if (children.length > 0) entry._children = children;
-    else delete entry._children;
-    out.push(entry);
-  }
-  return out;
-}
-
-function dedupeCandidatesForResult(candidates) {
-  const unclosed = candidates?._unclosed || null;
-  const deduped = hasHierarchyCandidates(candidates)
-    ? dedupeHierarchyByCode(candidates)
-    : dedupeCandidatesByCode(candidates);
-  if (unclosed) deduped._unclosed = unclosed;
-  return deduped;
-}
-
-function flattenHierarchyCandidates(candidates, parentCode = null, out = []) {
-  for (const candidate of candidates || []) {
-    const entry = { ...candidate };
-    if (parentCode && !entry._parentCode) entry._parentCode = parentCode;
-    delete entry._children;
-    out.push(entry);
-    if (candidate._children) flattenHierarchyCandidates(candidate._children, candidate.code, out);
-  }
-  return out;
-}
-
-function normalizeForSetOps(candidates) {
-  const out = hasHierarchyCandidates(candidates)
-    ? flattenHierarchyCandidates(candidates)
-    : [...(candidates || [])];
-  if (candidates?._unclosed && !out._unclosed) out._unclosed = candidates._unclosed;
-  return out;
-}
-
-function propagateUnclosed(target, ...sources) {
-  for (const source of sources) {
-    if (source?._unclosed && !target._unclosed) {
-      target._unclosed = source._unclosed;
-    }
-  }
-  return target;
 }
 
 module.exports = {

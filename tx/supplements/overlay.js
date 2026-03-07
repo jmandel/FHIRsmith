@@ -55,6 +55,7 @@ function buildSupplementOverlay(supplementSet) {
         if (value == null) continue;
         if (prop.code) propertyCodes.add(String(prop.code));
         entry.properties.push({
+          ...cloneJson(prop),
           code: prop.code,
           value,
         });

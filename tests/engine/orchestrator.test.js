@@ -155,6 +155,70 @@ describe('expandViaIR debug plan text', () => {
   });
 });
 
+describe('expandViaIR compose override identity', () => {
+  test('keys compose display/designation overrides by system+version+code, not system+code only', async () => {
+    function makeProvider(version, baseDisplay) {
+      return {
+        version: () => version,
+        executeIR: async () => ({
+          candidates: [{ code: 'shared', display: baseDisplay, active: true }],
+          unclosed: null,
+        }),
+        countForIR: async () => 1,
+      };
+    }
+
+    const providersByVersion = new Map([
+      ['v1', makeProvider('v1', 'Base v1')],
+      ['v2', makeProvider('v2', 'Base v2')],
+    ]);
+
+    const result = await expandViaIR({
+      resourceType: 'ValueSet',
+      url: 'test:compose-override-version-key',
+      status: 'active',
+      compose: {
+        include: [
+          {
+            system: 'http://example.org/cs',
+            version: 'v1',
+            concept: [{
+              code: 'shared',
+              display: 'Display v1',
+              designation: [{ language: 'en', value: 'Designation v1' }],
+            }],
+          },
+          {
+            system: 'http://example.org/cs',
+            version: 'v2',
+            concept: [{
+              code: 'shared',
+              display: 'Display v2',
+              designation: [{ language: 'en', value: 'Designation v2' }],
+            }],
+          },
+        ],
+      },
+    }, {
+      findProvider: async (system, version) => (
+        system === 'http://example.org/cs' ? providersByVersion.get(version) || null : null
+      ),
+      includeDesignations: true,
+      count: 10,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result.expansion.total).toBe(2);
+    expect(result.expansion.contains).toHaveLength(2);
+
+    const byVersion = new Map(result.expansion.contains.map(item => [item.version, item]));
+    expect(byVersion.get('v1')?.display).toBe('Display v1');
+    expect(byVersion.get('v2')?.display).toBe('Display v2');
+    expect(byVersion.get('v1')?.designation?.map(d => d.value)).toContain('Designation v1');
+    expect(byVersion.get('v2')?.designation?.map(d => d.value)).toContain('Designation v2');
+  });
+});
+
 describe('expandViaIR semantic guards', () => {
   function codesFromIR(node) {
     if (!node) return new Set();
@@ -853,12 +917,11 @@ describeIfDBs('expandViaIR', () => {
     expect(entry.property).toBeDefined();
     expect(entry.property.length).toBeGreaterThan(0);
 
-    // Should have concept-valued properties (valueCoding)
+    // Should have concept-valued properties (valueCode; system is implicit)
     const isaProps = entry.property.filter(p => p.code === '116680003');
     expect(isaProps.length).toBeGreaterThan(0);
     for (const p of isaProps) {
-      expect(p.valueCoding).toBeTruthy();
-      expect(p.valueCoding.code).toBeTruthy();
+      expect(p.valueCode).toBeTruthy();
     }
   });
 

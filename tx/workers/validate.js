@@ -769,7 +769,7 @@ class ValueSetChecker {
               ver.value = cs.version();
               contentMode.value = cs.contentMode();
               let msg = '';
-              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc);
+              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc, messages);
               if (msg) {
                 messages.push(msg);
               }
@@ -1353,7 +1353,7 @@ class ValueSetChecker {
       result.addParamStr('message', toText(mt, '; '));
     }
     if (mode === 'codeableConcept') {
-      result.addParam('codeableConcept', 'valueCodeableConcept', code);
+      result.addParam('codeableConcept', 'valueCodeableConcept', vcc.coding?.length ? vcc : code);
     }
     if (op.hasIssues()) {
       result.addParamResource('issues', op.jsonObj);
@@ -1691,7 +1691,9 @@ class ValueSetChecker {
         }
       } else if (loc != null) {
         this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs)+ ": "+loc, this.indentCount);
-        messages.push(loc);
+        if (role !== 'not in') {
+          messages.push(loc);
+        }
       } else {
         this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs), this.indentCount);
       }

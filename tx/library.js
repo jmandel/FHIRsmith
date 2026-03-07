@@ -22,6 +22,7 @@ const {SnomedServicesFactory} = require("./cs/cs-snomed");
 const {CPTServicesFactory} = require("./cs/cs-cpt");
 const {OMOPServicesFactory} = require("./cs/cs-omop");
 const {SqliteV0FactoryProvider} = require("./cs/cs-sqlite-v0");
+require("./cs/cs-sqlite-v0-specializations");
 const {PackageValueSetProvider} = require("./vs/vs-package");
 const {PackageConceptMapProvider} = require("./cm/cm-package");
 const {IETFLanguageCodeFactory} = require("./cs/cs-lang");

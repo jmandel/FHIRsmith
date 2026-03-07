@@ -47,7 +47,8 @@ function buildTempV0DbFile(baseConcepts, opts = {}) {
         property_code TEXT,
         value_kind TEXT,
         is_hierarchy INTEGER,
-        display TEXT
+        display TEXT,
+        source_type TEXT
       );
       CREATE TABLE concept (
         concept_id INTEGER PRIMARY KEY,
@@ -144,10 +145,72 @@ function buildTempV0DbFile(baseConcepts, opts = {}) {
       INSERT INTO concept (concept_id, cs_id, code, active, display, definition)
       VALUES (@concept_id, @cs_id, @code, @active, @display, @definition)
     `);
+    const insProp = db.prepare(`
+      INSERT INTO property_def (property_id, cs_id, property_code, value_kind, is_hierarchy, display, source_type)
+      VALUES (@property_id, 1, @property_code, @value_kind, @is_hierarchy, @display, @source_type)
+    `);
+    const insLiteral = db.prepare(`
+      INSERT INTO concept_literal
+        (literal_id, edge_set_id, source_concept_id, property_id, value_raw, value_text, value_num, value_bool, group_id, active)
+      VALUES
+        (@literal_id, @edge_set_id, @source_concept_id, @property_id, @value_raw, @value_text, @value_num, @value_bool, @group_id, @active)
+    `);
+    const insLink = db.prepare(`
+      INSERT INTO concept_link
+        (edge_id, edge_set_id, source_concept_id, property_id, target_concept_id, group_id, active)
+      VALUES
+        (@edge_id, @edge_set_id, @source_concept_id, @property_id, @target_concept_id, @group_id, @active)
+    `);
+    const insLiteralFts = db.prepare('INSERT INTO search_fts_literal(rowid, term) VALUES (@rowid, @term)');
     const insDisplayFts = db.prepare('INSERT INTO search_fts_display(rowid, term) VALUES (@rowid, @term)');
+    const propertyDefs = opts.propertyDefs || [];
+    for (const def of propertyDefs) {
+      insProp.run({
+        property_id: def.property_id,
+        property_code: def.property_code,
+        value_kind: def.value_kind || 'literal',
+        is_hierarchy: def.is_hierarchy ? 1 : 0,
+        display: def.display || def.property_code,
+        source_type: def.source_type || null,
+      });
+    }
+    const propertyIdByCode = new Map(propertyDefs.map(def => [String(def.property_code), def.property_id]));
     for (const concept of baseConcepts) {
       insConcept.run(concept);
       insDisplayFts.run({ rowid: concept.concept_id, term: concept.display });
+    }
+    let literalId = 1;
+    for (const literal of opts.literals || []) {
+      const propertyId = literal.property_id ?? propertyIdByCode.get(String(literal.property_code || ''));
+      if (!Number.isInteger(propertyId)) continue;
+      insLiteral.run({
+        literal_id: literal.literal_id ?? literalId++,
+        edge_set_id: literal.edge_set_id ?? 1,
+        source_concept_id: literal.source_concept_id,
+        property_id: propertyId,
+        value_raw: literal.value_raw ?? null,
+        value_text: literal.value_text ?? null,
+        value_num: literal.value_num ?? null,
+        value_bool: literal.value_bool ?? null,
+        group_id: literal.group_id ?? 0,
+        active: literal.active === 0 || literal.active === false ? 0 : 1,
+      });
+      const term = literal.value_text ?? literal.value_raw;
+      if (term != null) insLiteralFts.run({ rowid: literal.literal_id ?? (literalId - 1), term: String(term) });
+    }
+    let edgeId = 1;
+    for (const link of opts.links || []) {
+      const propertyId = link.property_id ?? propertyIdByCode.get(String(link.property_code || ''));
+      if (!Number.isInteger(propertyId)) continue;
+      insLink.run({
+        edge_id: link.edge_id ?? edgeId++,
+        edge_set_id: link.edge_set_id ?? 1,
+        source_concept_id: link.source_concept_id,
+        property_id: propertyId,
+        target_concept_id: link.target_concept_id,
+        group_id: link.group_id ?? 0,
+        active: link.active === 0 || link.active === false ? 0 : 1,
+      });
     }
   } finally {
     db.close();

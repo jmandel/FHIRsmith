@@ -252,7 +252,10 @@ function formatTraceSummary(traceJson, opts = {}) {
 
 function summarize(val, depth = 0) {
   if (val == null) return val;
-  if (typeof val === 'string') return trunc(val, 200);
+  // Preserve full strings in the structured trace payload. Human-oriented
+  // renderers can still abbreviate later, but the raw trace should keep the
+  // exact compiler plans / SQL / diagnostics for post-hoc inspection.
+  if (typeof val === 'string') return val;
   if (typeof val === 'number' || typeof val === 'boolean') return val;
   if (depth > 2) return '…';
   if (Array.isArray(val)) {

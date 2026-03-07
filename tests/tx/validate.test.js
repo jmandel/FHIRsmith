@@ -12,6 +12,7 @@ const {Languages} = require("../../library/languages");
 const {OperationContext} = require("../../tx/operation-context");
 const {TestUtilities} = require("../test-utilities");
 const {TxParameters} = require("../../tx/params");
+const {Issue} = require("../../tx/library/operation-outcome");
 
 // Mock dependencies
 const mockLog = {
@@ -406,6 +407,29 @@ describe('ValidateWorker', () => {
       const messageParam = result.parameter.find(p => p.name === 'message');
       expect(messageParam).toBeDefined();
       expect(messageParam.valueString).toContain('system');
+    });
+  });
+
+  describe('TxParameters version rules', () => {
+    test('rejects malformed system-version as a structured invalid request', async () => {
+      const txp = new TxParameters(opContext.i18n.languageDefinitions, opContext.i18n);
+
+      let thrown = null;
+      try {
+        txp.readParams({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'system-version', valueString: 'urn:iso:std:iso:3166' }
+          ]
+        });
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Issue);
+      expect(thrown.cause).toBe('invalid');
+      expect(thrown.statusCode).toBe(422);
+      expect(thrown.message).toContain('Unable to understand default system version "urn:iso:std:iso:3166"');
     });
   });
 

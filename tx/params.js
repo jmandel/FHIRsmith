@@ -465,7 +465,15 @@ class TxParameters {
     if (sl.length === 2) {
       this.versionRules.push(new VersionRule(sl[0], sl[1], vs, mode));
     } else {
-      throw new Error('Unable to understand ' + mode + ' system version "' + url + '"');
+      throw new Issue(
+        'error',
+        'invalid',
+        null,
+        null,
+        'Unable to understand ' + mode + ' system version "' + url + '"',
+        null,
+        422
+      );
     }
   }
 

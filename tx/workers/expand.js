@@ -60,6 +60,94 @@ function collectExplicitSupplementRefs(vsJson, params) {
   return dedupeSupplementRefs(refs);
 }
 
+function maybeIssueFromIRError(error) {
+  const message = error?.message || String(error);
+  const unsupportedFilterMatch = /^Unsupported filter property: (.+)$/.exec(message);
+  if (unsupportedFilterMatch) {
+    return new Issue(
+      'error',
+      'not-supported',
+      null,
+      null,
+      `The filter property "${unsupportedFilterMatch[1]}" is not supported by the IR engine`,
+      null,
+      422
+    );
+  }
+  const unknownPropertyMatch = /^sqlite-v0 base membership compilation failed: unknown-property (.+)$/.exec(message);
+  if (unknownPropertyMatch) {
+    try {
+      const detail = JSON.parse(unknownPropertyMatch[1]);
+      if (detail?.property) {
+        return new Issue(
+          'error',
+          'not-supported',
+          null,
+          null,
+          `The filter "${detail.property} ${detail.op} ${detail.value}" was not understood by the IR engine`,
+          null,
+          422
+        );
+      }
+    } catch {
+      // Fall through to generic handling below.
+    }
+    return new Issue(
+      'error',
+      'not-supported',
+      null,
+      null,
+      message,
+      null,
+      422
+    );
+  }
+  const genericFilterMatch = /^The filter (.+) was not understood$/.exec(message);
+  if (genericFilterMatch) {
+    return new Issue(
+      'error',
+      'not-supported',
+      null,
+      null,
+      `The filter ${genericFilterMatch[1]} was not understood by the IR engine`,
+      null,
+      422
+    );
+  }
+  return null;
+}
+
+function providerRuntimeScopeLabel(system, version) {
+  const s = String(system || '').trim();
+  const v = String(version || '').trim();
+  return v ? `${s}|${v}` : s;
+}
+
+function issueFromIRProviderRuntimeError(error, system, version) {
+  if (error instanceof Issue) return error;
+  const message = error?.message || String(error);
+  if (message.includes('Ambiguous supplement')) {
+    return new Issue(
+      'error',
+      'invalid',
+      null,
+      'VALUESET_SUPPLEMENT_AMBIGUOUS',
+      message,
+      'invalid',
+      422
+    );
+  }
+  return new Issue(
+    'error',
+    'processing',
+    null,
+    'IR_SUPPLEMENT_RUNTIME_FAILURE',
+    `IR supplement/provider runtime failed for ${providerRuntimeScopeLabel(system, version)}: ${message}`,
+    'processing',
+    500
+  );
+}
+
 /**
  * Total status for expansion
  */
@@ -1294,7 +1382,7 @@ class ValueSetExpander {
           if (this.totalStatus === 'uninitialised') {
             this.totalStatus = 'off';
           } else if (e.toocostly) {
-            Extensions.addBoolean(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly', 'value', true);
+            Extensions.addBoolean(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly', true);
             if (table != null) {
               div_.p().style('color: Maroon').tx(e.message);
             }
@@ -2010,9 +2098,11 @@ class ExpandWorker extends TerminologyWorker {
     }
 
     // Try IR engine first (opt-in via EXPAND_IR_ENGINE=1)
-    // Per-request override: _engine=ir forces IR, _engine=legacy forces legacy
+    // Per-request override: _engine=ir / _engine=ir-strict are strict IR-only,
+    // _engine=legacy forces legacy.
     const engineOverride = params._engine;
-    const useIR = engineOverride === 'ir' || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
+    const strictIR = engineOverride === 'ir' || engineOverride === 'ir-strict';
+    const useIR = strictIR || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
     const wantTrace = !!params._trace;
     let irAttempt = null;
     if (useIR) {
@@ -2021,6 +2111,17 @@ class ExpandWorker extends TerminologyWorker {
         const irResult = await this._tryIRExpansion(valueSet, params);
         const irMs = performance.now() - irStartedAt;
         if (irResult?.expansion) return irResult.expansion;
+        if (strictIR) {
+          throw new Issue(
+            'error',
+            'not-supported',
+            null,
+            null,
+            `IR engine cannot handle this ValueSet (${irResult?.reason || 'ir-returned-null'})`,
+            null,
+            422
+          );
+        }
         irAttempt = {
           attempted: true,
           used: false,
@@ -2036,6 +2137,9 @@ class ExpandWorker extends TerminologyWorker {
             .withDiagnostics(this.opContext?.diagnostics?.());
         }
         if (e instanceof Issue) throw e;
+        const normalizedIRError = maybeIssueFromIRError(e);
+        if (strictIR && normalizedIRError) throw normalizedIRError;
+        if (strictIR) throw e;
         irAttempt = {
           attempted: true,
           used: false,
@@ -2153,16 +2257,7 @@ class ExpandWorker extends TerminologyWorker {
             if (!provider) return provider;
             const resolvedSystem = system || (typeof provider.system === 'function' ? provider.system() : null);
             const resolvedVersion = version || (typeof provider.version === 'function' ? provider.version() : null) || null;
-            let supplementSet;
-            try {
-              supplementSet = await getSupplementSet(resolvedSystem, resolvedVersion);
-            } catch (e) {
-              if (e?.message?.includes('Ambiguous supplement')) {
-                throw new Issue('error', 'invalid', null, 'VALUESET_SUPPLEMENT_AMBIGUOUS',
-                  e.message, 'invalid', 422);
-              }
-              throw e;
-            }
+            const supplementSet = await getSupplementSet(resolvedSystem, resolvedVersion);
             if (typeof provider.attachIRSupplements === 'function') {
               await provider.attachIRSupplements(supplementSet);
             } else {
@@ -2177,8 +2272,8 @@ class ExpandWorker extends TerminologyWorker {
             }
             provider._irSupplementSet = supplementSet;
             return provider;
-          } catch {
-            return null;
+          } catch (e) {
+            throw issueFromIRProviderRuntimeError(e, system, version);
           }
         },
         resolveValueSet: async (url, version) => {
@@ -2206,6 +2301,7 @@ class ExpandWorker extends TerminologyWorker {
         properties: params.properties || [],
         designations: params.designations || [],
         exactTotal: params.exactTotal !== false,
+        allowIncompleteExpansion: !!params.incompleteOK || !!params.limitedExpansion,
         // Enforce limit only when no explicit pagination requested
         limit: (params.offset < 0 && params.count < 0)
           ? (params.limit > 0 ? Math.min(params.limit, EXTERNAL_DEFAULT_LIMIT) : EXTERNAL_DEFAULT_LIMIT)
