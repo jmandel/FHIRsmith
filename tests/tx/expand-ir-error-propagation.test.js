@@ -70,19 +70,33 @@ function makeRequestBody(engine, supplements) {
 }
 
 describe('IR supplement runtime error propagation', () => {
-  test.each([
-    ['ir'],
-    ['ir-strict'],
-  ])('%s preserves explicit supplement ambiguity errors instead of falling back', async (engine) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tx-ir-error-prop-'));
-    const configPath = path.join(dir, 'library.yaml');
-    let txModule = null;
+  describe('supplement ambiguity', () => {
+    let dir;
+    let app;
+    let txModule;
 
-    try {
+    beforeAll(async () => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tx-ir-error-prop-'));
+      const configPath = path.join(dir, 'library.yaml');
       writeAdapterLibraryConfig(configPath);
-      const { app, txModule: loaded } = await createTempTxApp(configPath);
-      txModule = loaded;
+      const loaded = await createTempTxApp(configPath);
+      app = loaded.app;
+      txModule = loaded.txModule;
+    });
 
+    afterAll(async () => {
+      if (txModule) {
+        await txModule.shutdown();
+      }
+      if (dir) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    test.each([
+      ['ir'],
+      ['ir-strict'],
+    ])('%s preserves explicit supplement ambiguity errors instead of falling back', async (engine) => {
       const res = await request(app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
@@ -94,48 +108,61 @@ describe('IR supplement runtime error propagation', () => {
       expect(res.body.issue?.[0]?.details?.text || '').toContain('Ambiguous supplement');
       expect(res.body.issue?.[0]?.details?.text || '').toContain('http://example.org/supp/ambiguous-us-states');
       expect(res.body.issue?.[0]?.details?.text || '').not.toContain('IR engine cannot handle this ValueSet');
-    } finally {
+    }, 60000);
+  });
+
+  describe('native attachment failures', () => {
+    let dir;
+    let app;
+    let txModule;
+    let d20;
+    let suppPath;
+
+    beforeAll(async () => {
+      const system = 'http://example.org/base';
+      const version = '1';
+      const baseConcepts = makeBaseConcepts(60);
+      const base = {
+        system,
+        version,
+        name: 'Synthetic Base',
+        codes: baseConcepts.map(c => ({ code: c.code })),
+      };
+      const bundle = buildDiceSupplementBundle(base, {
+        dice: ['d20'],
+        urlRoot: 'http://example.org/fhir/CodeSystem/error-prop-dice',
+        version,
+        salt: 'ir-error-prop',
+      });
+      d20 = bundle[0].resource;
+
+      const built = buildTempV0DbFile(baseConcepts, { system, version });
+      dir = built.dir;
+      const dbPath = built.dbPath;
+      suppPath = path.join(dir, 'd20.supp.db');
+      const configPath = path.join(dir, 'library.yaml');
+
+      writeSupplementSidecar(suppPath, d20);
+      writeLibraryConfig(configPath, dbPath, ['d20.supp.db']);
+      const loaded = await createTempTxApp(configPath);
+      app = loaded.app;
+      txModule = loaded.txModule;
+      fs.rmSync(suppPath, { force: true });
+    });
+
+    afterAll(async () => {
       if (txModule) {
         await txModule.shutdown();
       }
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }, 60000);
-
-  test.each([
-    ['ir'],
-    ['ir-strict'],
-  ])('%s preserves native supplement attachment failures instead of relabeling them', async (engine) => {
-    const system = 'http://example.org/base';
-    const version = '1';
-    const baseConcepts = makeBaseConcepts(60);
-    const base = {
-      system,
-      version,
-      name: 'Synthetic Base',
-      codes: baseConcepts.map(c => ({ code: c.code })),
-    };
-    const bundle = buildDiceSupplementBundle(base, {
-      dice: ['d20'],
-      urlRoot: 'http://example.org/fhir/CodeSystem/error-prop-dice',
-      version,
-      salt: 'ir-error-prop',
+      if (dir) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
     });
-    const d20 = bundle[0].resource;
 
-    const { dir, dbPath } = buildTempV0DbFile(baseConcepts, { system, version });
-    const suppPath = path.join(dir, 'd20.supp.db');
-    const configPath = path.join(dir, 'library.yaml');
-    let txModule = null;
-
-    try {
-      writeSupplementSidecar(suppPath, d20);
-      writeLibraryConfig(configPath, dbPath, ['d20.supp.db']);
-      const { app, txModule: loaded } = await createTempTxApp(configPath);
-      txModule = loaded;
-
-      fs.rmSync(suppPath, { force: true });
-
+    test.each([
+      ['ir'],
+      ['ir-strict'],
+    ])('%s preserves native supplement attachment failures instead of relabeling them', async (engine) => {
       const res = await request(app)
         .post('/tx/r5/ValueSet/$expand')
         .set('Accept', 'application/json')
@@ -152,7 +179,7 @@ describe('IR supplement runtime error propagation', () => {
                 status: 'active',
                 compose: {
                   include: [{
-                    system,
+                    system: 'http://example.org/base',
                     concept: [{ code: 'C0001' }],
                   }],
                 },
@@ -166,11 +193,6 @@ describe('IR supplement runtime error propagation', () => {
       expect(res.body.issue?.[0]?.code).toBe('exception');
       expect(res.body.issue?.[0]?.details?.text || '').toContain('unable to open database file');
       expect(res.body.issue?.[0]?.details?.text || '').not.toContain('IR engine cannot handle this ValueSet');
-    } finally {
-      if (txModule) {
-        await txModule.shutdown();
-      }
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }, 60000);
+    }, 60000);
+  });
 });

@@ -12,7 +12,6 @@ const {
   buildTempV0DbFile,
   createTempTxApp,
   makeBaseConcepts,
-  writeLibraryConfig,
 } = require('../support/sqlite-v0-supplement-fixtures');
 
 function findProperty(resource, conceptCode, propertyCode) {
@@ -20,21 +19,17 @@ function findProperty(resource, conceptCode, propertyCode) {
   return (concept?.property || []).find(item => item.code === propertyCode);
 }
 
-function writeAdapterLibraryConfig(configPath) {
-  const config = {
-    base: {
-      url: 'https://storage.googleapis.com/tx-fhir-org',
-    },
-    sources: [
-      'internal:usstates',
-    ],
-  };
-  fs.writeFileSync(configPath, yaml.stringify(config), 'utf8');
-}
-
 describe('IR $expand typed property output', () => {
-  test('configured sqlite supplement properties preserve typed value[x] and emit expansion.property metadata', async () => {
-    const system = 'http://example.org/base';
+  let dir;
+  let app;
+  let txModule;
+  let system;
+  let d20;
+  let targetConcept;
+  let expectedDamageType;
+
+  beforeAll(async () => {
+    system = 'http://example.org/base';
     const version = '1';
     const baseConcepts = makeBaseConcepts(80);
     const base = {
@@ -49,77 +44,87 @@ describe('IR $expand typed property output', () => {
       version,
       salt: 'typed-expand',
     });
-    const d20 = bundle[0].resource;
-    const targetConcept = d20.concept.find(concept =>
+    d20 = bundle[0].resource;
+    targetConcept = d20.concept.find(concept =>
       (concept.property || []).some(prop => prop.code === 'd20-roll' && prop.valueInteger === 20)
     );
-    expect(targetConcept).toBeTruthy();
+    expectedDamageType = targetConcept?.property?.find(prop => prop.code === 'damage-type')?.valueCode;
 
-    const expectedDamageType = targetConcept.property.find(prop => prop.code === 'damage-type')?.valueCode;
-    expect(expectedDamageType).toBeTruthy();
-
-    const { dir, dbPath } = buildTempV0DbFile(baseConcepts, { system, version });
+    const built = buildTempV0DbFile(baseConcepts, { system, version });
+    dir = built.dir;
+    const dbPath = built.dbPath;
     const d20Path = path.join(dir, 'd20.supp.db');
     const configPath = path.join(dir, 'library.yaml');
-    let txModule = null;
+    writeSupplementSidecar(d20Path, d20);
+    fs.writeFileSync(configPath, yaml.stringify({
+      base: { url: 'https://storage.googleapis.com/tx-fhir-org' },
+      sources: [
+        {
+          source: `sqlite-v0:${dbPath}`,
+          options: { supplements: ['d20.supp.db'] },
+        },
+        'internal:usstates',
+      ],
+    }), 'utf8');
 
-    try {
-      writeSupplementSidecar(d20Path, d20);
-      writeLibraryConfig(configPath, dbPath, ['d20.supp.db']);
+    const loaded = await createTempTxApp(configPath);
+    app = loaded.app;
+    txModule = loaded.txModule;
+  });
 
-      const { app, txModule: loaded } = await createTempTxApp(configPath);
-      txModule = loaded;
-
-      const res = await request(app)
-        .post('/tx/r5/ValueSet/$expand')
-        .set('Accept', 'application/json')
-        .set('Content-Type', 'application/json')
-        .send({
-          resourceType: 'Parameters',
-          parameter: [
-            { name: '_engine', valueCode: 'ir' },
-            { name: 'useSupplement', valueString: d20.url },
-            { name: 'property', valueString: '*' },
-            {
-              name: 'valueSet',
-              resource: {
-                resourceType: 'ValueSet',
-                status: 'active',
-                compose: {
-                  include: [{
-                    system,
-                    concept: [{ code: targetConcept.code }],
-                  }],
-                },
-              },
-            },
-          ],
-        });
-
-      expect(res.status).toBe(200);
-
-      const intProp = findProperty(res.body, targetConcept.code, 'd20-roll');
-      expect(intProp).toEqual({ code: 'd20-roll', valueInteger: 20 });
-
-      const codeProp = findProperty(res.body, targetConcept.code, 'damage-type');
-      expect(codeProp).toEqual({ code: 'damage-type', valueCode: expectedDamageType });
-
-      expect((res.body.expansion?.contains || [])[0].property.some(prop => prop.valueString === 'undefined')).toBe(false);
-      expect((res.body.expansion?.property || []).some(prop => prop.code === 'd20-roll')).toBe(true);
-      expect((res.body.expansion?.property || []).some(prop => prop.code === 'damage-type')).toBe(true);
-    } finally {
-      if (txModule) {
-        await txModule.shutdown();
-      }
+  afterAll(async () => {
+    if (txModule) {
+      await txModule.shutdown();
+    }
+    if (dir) {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test('configured sqlite supplement properties preserve typed value[x] and emit expansion.property metadata', async () => {
+    expect(targetConcept).toBeTruthy();
+    expect(expectedDamageType).toBeTruthy();
+
+    const res = await request(app)
+      .post('/tx/r5/ValueSet/$expand')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send({
+        resourceType: 'Parameters',
+        parameter: [
+          { name: '_engine', valueCode: 'ir' },
+          { name: 'useSupplement', valueString: d20.url },
+          { name: 'property', valueString: '*' },
+          {
+            name: 'valueSet',
+            resource: {
+              resourceType: 'ValueSet',
+              status: 'active',
+              compose: {
+                include: [{
+                  system,
+                  concept: [{ code: targetConcept.code }],
+                }],
+              },
+            },
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+
+    const intProp = findProperty(res.body, targetConcept.code, 'd20-roll');
+    expect(intProp).toEqual({ code: 'd20-roll', valueInteger: 20 });
+
+    const codeProp = findProperty(res.body, targetConcept.code, 'damage-type');
+    expect(codeProp).toEqual({ code: 'damage-type', valueCode: expectedDamageType });
+
+    expect((res.body.expansion?.contains || [])[0].property.some(prop => prop.valueString === 'undefined')).toBe(false);
+    expect((res.body.expansion?.property || []).some(prop => prop.code === 'd20-roll')).toBe(true);
+    expect((res.body.expansion?.property || []).some(prop => prop.code === 'damage-type')).toBe(true);
   }, 60000);
 
   test('adapter-backed inline supplement properties preserve typed value[x] and emit expansion.property metadata', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tx-ir-typed-prop-'));
-    const configPath = path.join(dir, 'library.yaml');
-    let txModule = null;
-
     const supplement = {
       resourceType: 'CodeSystem',
       url: 'http://example.org/supp/us-states-typed',
@@ -136,54 +141,43 @@ describe('IR $expand typed property output', () => {
       }],
     };
 
-    try {
-      writeAdapterLibraryConfig(configPath);
-      const { app, txModule: loaded } = await createTempTxApp(configPath);
-      txModule = loaded;
-
-      const res = await request(app)
-        .post('/tx/r5/ValueSet/$expand')
-        .set('Accept', 'application/json')
-        .set('Content-Type', 'application/json')
-        .send({
-          resourceType: 'Parameters',
-          parameter: [
-            { name: '_engine', valueCode: 'ir' },
-            { name: 'useSupplement', valueString: supplement.url },
-            { name: 'tx-resource', resource: supplement },
-            { name: 'property', valueString: '*' },
-            {
-              name: 'valueSet',
-              resource: {
-                resourceType: 'ValueSet',
-                status: 'active',
-                compose: {
-                  include: [{
-                    system: 'https://www.usps.com/',
-                    concept: [{ code: 'OK' }],
-                  }],
-                },
+    const res = await request(app)
+      .post('/tx/r5/ValueSet/$expand')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send({
+        resourceType: 'Parameters',
+        parameter: [
+          { name: '_engine', valueCode: 'ir' },
+          { name: 'useSupplement', valueString: supplement.url },
+          { name: 'tx-resource', resource: supplement },
+          { name: 'property', valueString: '*' },
+          {
+            name: 'valueSet',
+            resource: {
+              resourceType: 'ValueSet',
+              status: 'active',
+              compose: {
+                include: [{
+                  system: 'https://www.usps.com/',
+                  concept: [{ code: 'OK' }],
+                }],
               },
             },
-          ],
-        });
+          },
+        ],
+      });
 
-      expect(res.status).toBe(200);
+    expect(res.status).toBe(200);
 
-      const intProp = findProperty(res.body, 'OK', 'd20-roll');
-      expect(intProp).toEqual({ code: 'd20-roll', valueInteger: 20 });
+    const intProp = findProperty(res.body, 'OK', 'd20-roll');
+    expect(intProp).toEqual({ code: 'd20-roll', valueInteger: 20 });
 
-      const codeProp = findProperty(res.body, 'OK', 'damage-type');
-      expect(codeProp).toEqual({ code: 'damage-type', valueCode: 'fire' });
+    const codeProp = findProperty(res.body, 'OK', 'damage-type');
+    expect(codeProp).toEqual({ code: 'damage-type', valueCode: 'fire' });
 
-      expect((res.body.expansion?.contains || [])[0].property.some(prop => prop.valueString === 'undefined')).toBe(false);
-      expect((res.body.expansion?.property || []).some(prop => prop.code === 'd20-roll')).toBe(true);
-      expect((res.body.expansion?.property || []).some(prop => prop.code === 'damage-type')).toBe(true);
-    } finally {
-      if (txModule) {
-        await txModule.shutdown();
-      }
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    expect((res.body.expansion?.contains || [])[0].property.some(prop => prop.valueString === 'undefined')).toBe(false);
+    expect((res.body.expansion?.property || []).some(prop => prop.code === 'd20-roll')).toBe(true);
+    expect((res.body.expansion?.property || []).some(prop => prop.code === 'damage-type')).toBe(true);
   }, 60000);
 });
