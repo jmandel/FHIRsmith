@@ -1,0 +1,638 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:42.883Z",
+  "rowIndex": 86,
+  "slug": "086-whole-system-descendant-traversal-preserves-exact-total",
+  "name": "Whole-system descendant traversal preserves exact total",
+  "category": "Composition Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/086-whole-system-descendant-traversal-preserves-exact-total.json",
+    "detailJson": "086-whole-system-descendant-traversal-preserves-exact-total.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/hier-1772922402876"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/hier-1772922402876",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "root-a",
+                      "display": "Root A",
+                      "concept": [
+                        {
+                          "code": "child-a1",
+                          "display": "Child A1"
+                        },
+                        {
+                          "code": "child-a2",
+                          "display": "Child A2"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "root-b",
+                      "display": "Root B",
+                      "concept": [
+                        {
+                          "code": "child-b1",
+                          "display": "Child B1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2076",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"81c-bMBmAGTjRakG949CXp/DkVRPbmg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-287"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:42.879Z",
+              "identifier": "urn:uuid:10a12adf-5652-4e25-8983-0ac80eea8645",
+              "total": 5,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/hier-1772922402876",
+                  "code": "root-a",
+                  "display": "Root A",
+                  "contains": [
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-a1",
+                      "display": "Child A1"
+                    },
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-a2",
+                      "display": "Child A2"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://example.org/cs/hier-1772922402876",
+                  "code": "root-b",
+                  "display": "Root B",
+                  "contains": [
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-b1",
+                      "display": "Child B1"
+                    }
+                  ]
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/hier-1772922402876"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/hier-1772922402876\ncanonical-ir-hash: a875dfc5f7426bd49688cc08ff131d0b77fe594a\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/hier-1772922402876 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.28,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/hier-1772922402876\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.08,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":5,\"total\":5},\"t\":0.24}],\"ms\":0.1,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":5}}],\"ms\":0.25,\"result\":{\"total\":5,\"contains\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.28,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/hier-1772922402876",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.08,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 5,
+                        "total": 5
+                      },
+                      "t": 0.24
+                    }
+                  ],
+                  "ms": 0.1,
+                  "result": {
+                    "paged": 5
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 5,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 5
+                  }
+                }
+              ],
+              "ms": 0.25,
+              "result": {
+                "total": 5,
+                "contains": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/hier-1772922402876\ncanonical-ir-hash: a875dfc5f7426bd49688cc08ff131d0b77fe594a\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/hier-1772922402876 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/hier-1772922402876"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/hier-1772922402876",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "root-a",
+                      "display": "Root A",
+                      "concept": [
+                        {
+                          "code": "child-a1",
+                          "display": "Child A1"
+                        },
+                        {
+                          "code": "child-a2",
+                          "display": "Child A2"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "root-b",
+                      "display": "Root B",
+                      "concept": [
+                        {
+                          "code": "child-b1",
+                          "display": "Child B1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1316",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"524-6ucfelXS82NldegwiE01FZACycM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-288"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:42.880Z",
+              "identifier": "urn:uuid:0eaf1c1d-df6f-4bf3-bbdb-d6af124e2ebd",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/hier-1772922402876"
+                }
+              ],
+              "total": 5,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/hier-1772922402876",
+                  "code": "root-a",
+                  "display": "Root A",
+                  "contains": [
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-a1",
+                      "display": "Child A1"
+                    },
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-a2",
+                      "display": "Child A2"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://example.org/cs/hier-1772922402876",
+                  "code": "root-b",
+                  "display": "Root B",
+                  "contains": [
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-b1",
+                      "display": "Child B1"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.35,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.34,\"result\":{\"ms\":0.33,\"total\":5,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.35,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.34,
+              "result": {
+                "ms": 0.33,
+                "total": 5,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/hier-1772922402876"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/hier-1772922402876",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "root-a",
+                      "display": "Root A",
+                      "concept": [
+                        {
+                          "code": "child-a1",
+                          "display": "Child A1"
+                        },
+                        {
+                          "code": "child-a2",
+                          "display": "Child A2"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "root-b",
+                      "display": "Root B",
+                      "concept": [
+                        {
+                          "code": "child-b1",
+                          "display": "Child B1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1316",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"524-7Ii8405Xl4kYdE9kFfums2n9I7U\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-90"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:42.882Z",
+              "identifier": "urn:uuid:8d451a04-6077-44c5-9b08-5e9ebfed9f72",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/hier-1772922402876"
+                }
+              ],
+              "total": 5,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/hier-1772922402876",
+                  "code": "root-a",
+                  "display": "Root A",
+                  "contains": [
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-a1",
+                      "display": "Child A1"
+                    },
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-a2",
+                      "display": "Child A2"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://example.org/cs/hier-1772922402876",
+                  "code": "root-b",
+                  "display": "Root B",
+                  "contains": [
+                    {
+                      "system": "http://example.org/cs/hier-1772922402876",
+                      "code": "child-b1",
+                      "display": "Child B1"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.34,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.33,\"result\":{\"ms\":0.32,\"total\":5,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.34,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.33,
+              "result": {
+                "ms": 0.32,
+                "total": 5,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

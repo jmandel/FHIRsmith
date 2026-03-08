@@ -23,9 +23,9 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
     ? provider
     : wrapWithLegacyIR(provider);
 
-  const extras = {
-    _wrappedProvider: provider,
-    _wrappedIRProvider: baseIRProvider,
+  const execution = {
+    provider,
+    baseIRProvider,
     _irSupplementSet: supplementSet,
     _irSupplementOverlay: overlay,
     _discoveredUnclosed: [],
@@ -41,15 +41,15 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
       buildSelectorMembership(provider, baseIRProvider, overlay, node, state, defaultBuilder),
     applyTextFilterCandidates: (candidates, text) => applySupplementTextFilterCandidates(candidates, overlay, text),
     onCountUnclosed: (unclosed) => {
-      extras._discoveredUnclosed.push(unclosed);
+      execution._discoveredUnclosed.push(unclosed);
     },
     onCountMetadata: (result) => {
-      if (result?.limitedExpansion) extras._discoveredLimitedExpansion = true;
-      if (result?.tooCostly) extras._discoveredTooCostly = true;
+      if (result?.limitedExpansion) execution._discoveredLimitedExpansion = true;
+      if (result?.tooCostly) execution._discoveredTooCostly = true;
     },
   });
 
-  extras.executeIR = async function executeIR(subtree, opts = {}) {
+  execution.executeIR = async function executeIR(subtree, opts = {}) {
     const span = trace.begin('supplementIR:execute', {
       system: typeof provider.system === 'function' ? provider.system() : undefined,
       text: opts.text || null,
@@ -64,7 +64,7 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
     }
   };
 
-  extras.countForIR = async function countForIR(subtree, opts = {}) {
+  execution.countForIR = async function countForIR(subtree, opts = {}) {
     const span = trace.begin('supplementIR:count', {
       system: typeof provider.system === 'function' ? provider.system() : undefined,
       text: opts.text || null,
@@ -79,26 +79,9 @@ function wrapIRProviderWithSupplements(provider, supplementSet) {
     }
   };
 
-  extras.membershipForIR = executor.membershipForIR;
+  execution.membershipForIR = executor.membershipForIR;
 
-  return new Proxy(extras, {
-    get(target, prop, receiver) {
-      if (Reflect.has(target, prop)) return Reflect.get(target, prop, receiver);
-      const value = provider[prop];
-      return typeof value === 'function' ? value.bind(provider) : value;
-    },
-    set(target, prop, value) {
-      if (Reflect.has(target, prop) || !(prop in provider)) {
-        target[prop] = value;
-      } else {
-        provider[prop] = value;
-      }
-      return true;
-    },
-    has(target, prop) {
-      return Reflect.has(target, prop) || prop in provider;
-    },
-  });
+  return execution;
 }
 
 async function executeSelector(provider, baseIRProvider, overlay, sel, opts, state) {

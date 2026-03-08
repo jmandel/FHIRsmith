@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: No draft warning when ValueSet is also draft</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:41.767Z",
+  "rowIndex": 57,
+  "slug": "057-no-draft-warning-when-valueset-is-also-draft",
+  "name": "No draft warning when ValueSet is also draft",
+  "category": "Expansion Metadata",
+  "hrefs": {
+    "input": "../perf-table.inputs/057-no-draft-warning-when-valueset-is-also-draft.json",
+    "detailJson": "057-no-draft-warning-when-valueset-is-also-draft.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/test-vs-draft",
+                  "status": "draft",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/draft-2"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/draft-2",
+                  "version": "1.0.0",
+                  "status": "draft",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    },
+                    {
+                      "code": "C",
+                      "display": "Charlie"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1877",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:41 GMT",
+            "etag": "W/\"755-vBGYPU4eY9T/a1a+z+LMo3ny1nA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-200"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "url": "http://example.org/test-vs-draft",
+            "status": "draft",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:41.763Z",
+              "identifier": "urn:uuid:44532d7f-626a-4ea1-9714-3e23aeb11ddd",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/draft-2|1.0.0"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/draft-2\ncanonical-ir-hash: 46adbb415cea7f37a9f62a2cdc644cb8f8fab3bf\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/draft-2 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.22,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"url\":\"http://example.org/test-vs-draft\",\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/draft-2\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.19}],\"ms\":0.04,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":3}}],\"ms\":0.19,\"result\":{\"total\":3,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.22,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "url": "http://example.org/test-vs-draft",
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/draft-2",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "candidates": 3
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 3,
+                        "total": 3
+                      },
+                      "t": 0.19
+                    }
+                  ],
+                  "ms": 0.04,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.19,
+              "result": {
+                "total": 3,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/draft-2\ncanonical-ir-hash: 46adbb415cea7f37a9f62a2cdc644cb8f8fab3bf\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/draft-2 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/test-vs-draft",
+                  "status": "draft",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/draft-2"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/draft-2",
+                  "version": "1.0.0",
+                  "status": "draft",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    },
+                    {
+                      "code": "C",
+                      "display": "Charlie"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1104",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:41 GMT",
+            "etag": "W/\"450-AfbOQ5FD3I/Y7FMuyfJVmzlwGgw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-201"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "url": "http://example.org/test-vs-draft",
+            "status": "draft",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:41.764Z",
+              "identifier": "urn:uuid:5a9dfd48-308d-4e9f-87ae-423183bc9169",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/draft-2|1.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.24,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.23,\"result\":{\"ms\":0.23,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.24,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.23,
+              "result": {
+                "ms": 0.23,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/test-vs-draft",
+                  "status": "draft",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/draft-2"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/draft-2",
+                  "version": "1.0.0",
+                  "status": "draft",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    },
+                    {
+                      "code": "C",
+                      "display": "Charlie"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1107",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:41 GMT",
+            "etag": "W/\"453-u5wJr6cXZO9Y1G1ljsE2QXYE6aE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-61"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "url": "http://example.org/test-vs-draft",
+            "status": "draft",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:41.766Z",
+              "identifier": "urn:uuid:9549108d-bb7a-40d7-9ca8-335efd508302",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/draft-2|1.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "system": "http://example.org/cs/draft-2",
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.39,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.37,\"result\":{\"ms\":0.37,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.39,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.37,
+              "result": {
+                "ms": 0.37,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

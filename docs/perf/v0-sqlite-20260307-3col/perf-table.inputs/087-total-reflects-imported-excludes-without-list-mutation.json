@@ -1,0 +1,449 @@
+{
+  "schemaVersion": 1,
+  "id": 87,
+  "slug": "087-total-reflects-imported-excludes-without-list-mutation",
+  "name": "Total reflects imported excludes without list mutation",
+  "category": "Composition Semantics",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "http://example.org/vs/exc-total-inc-1772922402884"
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "valueSet": [
+              "http://example.org/vs/exc-total-exc-1772922402884"
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/exc-total-1772922402884",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "red",
+              "display": "Red"
+            },
+            {
+              "code": "blue",
+              "display": "Blue"
+            },
+            {
+              "code": "green",
+              "display": "Green"
+            },
+            {
+              "code": "yellow",
+              "display": "Yellow"
+            }
+          ]
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/exc-total-inc-1772922402884",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/exc-total-1772922402884"
+              }
+            ]
+          }
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/exc-total-exc-1772922402884",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/exc-total-1772922402884",
+                "concept": [
+                  {
+                    "code": "blue"
+                  },
+                  {
+                    "code": "yellow"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "count": 1,
+      "offset": 0
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/exc-total-inc-1772922402884"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/exc-total-exc-1772922402884"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 0
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/exc-total-1772922402884",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/exc-total-inc-1772922402884",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/exc-total-1772922402884"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/exc-total-exc-1772922402884",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/exc-total-1772922402884",
+                    "concept": [
+                      {
+                        "code": "blue"
+                      },
+                      {
+                        "code": "yellow"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/exc-total-inc-1772922402884"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/exc-total-exc-1772922402884"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 0
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/exc-total-1772922402884",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/exc-total-inc-1772922402884",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/exc-total-1772922402884"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/exc-total-exc-1772922402884",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/exc-total-1772922402884",
+                    "concept": [
+                      {
+                        "code": "blue"
+                      },
+                      {
+                        "code": "yellow"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/exc-total-inc-1772922402884"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/exc-total-exc-1772922402884"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 0
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/exc-total-1772922402884",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/exc-total-inc-1772922402884",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/exc-total-1772922402884"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/exc-total-exc-1772922402884",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/exc-total-1772922402884",
+                    "concept": [
+                      {
+                        "code": "blue"
+                      },
+                      {
+                        "code": "yellow"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

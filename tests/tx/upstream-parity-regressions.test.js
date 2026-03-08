@@ -78,6 +78,7 @@ describe('upstream parity regressions', () => {
       expect(codes.has('AZ')).toBe(true);
       expect(codes.has('AR')).toBe(true);
     }, 60000);
+
   });
 
   const describeIfV0 = hasLoinc && hasSnomed ? describe : describe.skip;
@@ -180,4 +181,5 @@ describe('upstream parity regressions', () => {
       expect(returnedCC?.coding?.[0]?.display).toBe(display);
     }, 60000);
   });
+
 });

@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: SQLite v0 SNOMED large is-a preserves pagination consistency</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:44.949Z",
+  "rowIndex": 98,
+  "slug": "098-sqlite-v0-snomed-large-is-a-preserves-pagination-consistency",
+  "name": "SQLite v0 SNOMED large is-a preserves pagination consistency",
+  "category": "Provider Execution",
+  "hrefs": {
+    "input": "../perf-table.inputs/098-sqlite-v0-snomed-large-is-a-preserves-pagination-consistency.json",
+    "detailJson": "098-sqlite-v0-snomed-large-is-a-preserves-pagination-consistency.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 3,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 50
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "9156",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:44 GMT",
+            "etag": "W/\"23c4-MR8jH1/lMWXvxoaDIWu5FKFkT2Q\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-332"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:44.932Z",
+              "identifier": "urn:uuid:a6a718a2-87be-4eca-aa7c-9ab2f2f4570e",
+              "total": 124,
+              "offset": 50,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "405749004",
+                  "display": "Newly diagnosed diabetes"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "40791000119105",
+                  "display": "Postpartum gestational diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "40801000119106",
+                  "display": "Gestational diabetes mellitus complicating pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "408540003",
+                  "display": "Diabetes mellitus induced by non-steroid drugs"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "426875007",
+                  "display": "Latent autoimmune diabetes mellitus in adult (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "427089005",
+                  "display": "Diabetes mellitus due to cystic fibrosis (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "42954008",
+                  "display": "Diabetes mellitus associated with receptor abnormality"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "44054006",
+                  "display": "Diabetes mellitus type II"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "443694000",
+                  "display": "Type II diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444073006",
+                  "display": "Type I diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444074000",
+                  "display": "Type I diabetes mellitus well controlled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444110003",
+                  "display": "Type II diabetes mellitus well controlled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "445260006",
+                  "display": "Posttransplant diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "445353002",
+                  "display": "Brittle type II diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "46635009",
+                  "display": "Diabetes mellitus type I"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "46894009",
+                  "display": "Gestational diabetes mellitus class A2 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "472699005",
+                  "display": "Gestational diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "4783006",
+                  "display": "Maternal diabetes mellitus with hypoglycemia affecting fetus OR newborn"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "49817004",
+                  "display": "Neonatal diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "51002006",
+                  "display": "Diabetes mellitus associated with pancreatic disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "530558861000132104",
+                  "display": "Atypical diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "5368009",
+                  "display": "Drug-induced diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "57886004",
+                  "display": "Protein-deficient diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "59079001",
+                  "display": "Diabetes mellitus associated with hormonal etiology"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "5969009",
+                  "display": "Diabetes mellitus associated with genetic syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609561005",
+                  "display": "Maturity-onset diabetes of the young (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609562003",
+                  "display": "Maturity onset diabetes of the young, type 1 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609563008",
+                  "display": "Pre-existing diabetes mellitus in pregnancy (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609564002",
+                  "display": "Pre-existing type 1 diabetes mellitus in pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609565001",
+                  "display": "Permanent neonatal diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609566000",
+                  "display": "Pregnancy and type 1 diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609567009",
+                  "display": "Pre-existing type 2 diabetes mellitus in pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609568004",
+                  "display": "Diabetes mellitus due to genetic defect in beta cell function"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609569007",
+                  "display": "Diabetes mellitus due to genetic defect in insulin action"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609570008",
+                  "display": "Maturity-onset diabetes of the young, type 3 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609571007",
+                  "display": "Maturity-onset diabetes of the young, type 4"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609572000",
+                  "display": "Maturity-onset diabetes of the young, type 5 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609573005",
+                  "display": "Maturity-onset diabetes of the young, type 6 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609574004",
+                  "display": "Maturity-onset diabetes of the young, type 7"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609575003",
+                  "display": "Diabetes-pancreatic exocrine dysfunction syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609576002",
+                  "display": "Maturity-onset diabetes of the young, type 9"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609577006",
+                  "display": "Maturity-onset diabetes of the young, type 10 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609578001",
+                  "display": "Maturity-onset diabetes of the young, type 11"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609579009",
+                  "display": "Diabetes mellitus, transient neonatal 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609580007",
+                  "display": "Diabetes mellitus, transient neonatal 2 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609581006",
+                  "display": "Diabetes mellitus, transient neonatal 3 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703136005",
+                  "display": "Diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703137001",
+                  "display": "Type I diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703138006",
+                  "display": "Type II diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "70694009",
+                  "display": "Marquardt-Loriaux syndrome"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: d2092f45291e256dc6615e06dc8eca4b1a07d77d\nruntime-constraints:\n  pagination: offset=50 count=50\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 73211009 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.36,\"sqlCount\":2,\"sqlMs\":0.4,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":50,\"count\":50,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":50,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":50,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.07,\"execMs\":0.35},\"t\":1.11}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"descendant_id\\\") WHERE (\\\"c\\\".\\\"cs_id\\\" = @reachability_cs_id_2) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 50 OFFSET 50\",\"params\":{\"code_0\":\"73211009\",\"cs_id_1\":1,\"reachability_cs_id_2\":1},\"rows\":50,\"ms\":0.35,\"label\":\"executeIR\"}],\"ms\":0.64,\"result\":{\"candidates\":50,\"total\":null}}],\"ms\":0.66,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\")\",\"params\":{\"code_0\":\"73211009\",\"cs_id_1\":1},\"rows\":124,\"ms\":0.05,\"label\":\"countForIR\"}],\"ms\":0.14,\"result\":{\"count\":124}}],\"ms\":0.14,\"result\":{\"count\":124}}],\"ms\":0.83,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":50}}],\"ms\":1.31,\"result\":{\"total\":124,\"contains\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.36,
+          "sqlCount": 2,
+          "sqlMs": 0.4,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 50,
+                "count": 50,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 50,
+                    "count": 50,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 50,
+                        "sysCount": 50
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.07,
+                                "execMs": 0.35
+                              },
+                              "t": 1.11
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"descendant_id\") WHERE (\"c\".\"cs_id\" = @reachability_cs_id_2) ORDER BY \"c\".\"code\" ASC LIMIT 50 OFFSET 50",
+                              "params": {
+                                "code_0": "73211009",
+                                "cs_id_1": 1,
+                                "reachability_cs_id_2": 1
+                              },
+                              "rows": 50,
+                              "ms": 0.35,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.64,
+                          "result": {
+                            "candidates": 50,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.66,
+                      "result": {
+                        "candidates": 50
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://snomed.info/sct"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\")",
+                              "params": {
+                                "code_0": "73211009",
+                                "cs_id_1": 1
+                              },
+                              "rows": 124,
+                              "ms": 0.05,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 0.14,
+                          "result": {
+                            "count": 124
+                          }
+                        }
+                      ],
+                      "ms": 0.14,
+                      "result": {
+                        "count": 124
+                      }
+                    }
+                  ],
+                  "ms": 0.83,
+                  "result": {
+                    "paged": 50
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 50,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 50
+                  }
+                }
+              ],
+              "ms": 1.31,
+              "result": {
+                "total": 124,
+                "contains": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: d2092f45291e256dc6615e06dc8eca4b1a07d77d\nruntime-constraints:\n  pagination: offset=50 count=50\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 73211009 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 11,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 11,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 50
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "7278",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:44 GMT",
+            "etag": "W/\"1c6e-d/XKKX7MgRDYOemRj9GsETmTdRo\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-333"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:44.934Z",
+              "identifier": "urn:uuid:9f9f3bdf-8f7e-45bb-995c-ed03c08cb872",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "offset": 50,
+              "total": 124,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "405749004",
+                  "display": "Newly diagnosed diabetes"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "40791000119105",
+                  "display": "Postpartum gestational diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "40801000119106",
+                  "display": "Gestational diabetes mellitus complicating pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "408540003",
+                  "display": "Diabetes mellitus induced by non-steroid drugs"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "426875007",
+                  "display": "Latent autoimmune diabetes mellitus in adult (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "427089005",
+                  "display": "Diabetes mellitus due to cystic fibrosis (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "42954008",
+                  "display": "Diabetes mellitus associated with receptor abnormality"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "44054006",
+                  "display": "Diabetes mellitus type II"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "443694000",
+                  "display": "Type II diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444073006",
+                  "display": "Type I diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444074000",
+                  "display": "Type I diabetes mellitus well controlled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444110003",
+                  "display": "Type II diabetes mellitus well controlled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "445260006",
+                  "display": "Posttransplant diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "445353002",
+                  "display": "Brittle type II diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "46635009",
+                  "display": "Diabetes mellitus type I"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "46894009",
+                  "display": "Gestational diabetes mellitus class A2 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "472699005",
+                  "display": "Gestational diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "4783006",
+                  "display": "Maternal diabetes mellitus with hypoglycemia affecting fetus OR newborn"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "49817004",
+                  "display": "Neonatal diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "51002006",
+                  "display": "Diabetes mellitus associated with pancreatic disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "530558861000132104",
+                  "display": "Atypical diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "5368009",
+                  "display": "Drug-induced diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "57886004",
+                  "display": "Protein-deficient diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "59079001",
+                  "display": "Diabetes mellitus associated with hormonal etiology"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "5969009",
+                  "display": "Diabetes mellitus associated with genetic syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609561005",
+                  "display": "Maturity-onset diabetes of the young (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609562003",
+                  "display": "Maturity onset diabetes of the young, type 1 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609563008",
+                  "display": "Pre-existing diabetes mellitus in pregnancy (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609564002",
+                  "display": "Pre-existing type 1 diabetes mellitus in pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609565001",
+                  "display": "Permanent neonatal diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609566000",
+                  "display": "Pregnancy and type 1 diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609567009",
+                  "display": "Pre-existing type 2 diabetes mellitus in pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609568004",
+                  "display": "Diabetes mellitus due to genetic defect in beta cell function"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609569007",
+                  "display": "Diabetes mellitus due to genetic defect in insulin action"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609570008",
+                  "display": "Maturity-onset diabetes of the young, type 3 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609571007",
+                  "display": "Maturity-onset diabetes of the young, type 4"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609572000",
+                  "display": "Maturity-onset diabetes of the young, type 5 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609573005",
+                  "display": "Maturity-onset diabetes of the young, type 6 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609574004",
+                  "display": "Maturity-onset diabetes of the young, type 7"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609575003",
+                  "display": "Diabetes-pancreatic exocrine dysfunction syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609576002",
+                  "display": "Maturity-onset diabetes of the young, type 9"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609577006",
+                  "display": "Maturity-onset diabetes of the young, type 10 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609578001",
+                  "display": "Maturity-onset diabetes of the young, type 11"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609579009",
+                  "display": "Diabetes mellitus, transient neonatal 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609580007",
+                  "display": "Diabetes mellitus, transient neonatal 2 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609581006",
+                  "display": "Diabetes mellitus, transient neonatal 3 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703136005",
+                  "display": "Diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703137001",
+                  "display": "Type I diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703138006",
+                  "display": "Type II diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "70694009",
+                  "display": "Marquardt-Loriaux syndrome"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":8.95,\"sqlCount\":1,\"sqlMs\":0.42,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":50,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"73211009\",\"f0_cs\":1},\"rows\":124,\"ms\":0.42,\"label\":\"legacy:executeFilters\"}],\"ms\":0.44,\"result\":{\"rows\":124}}],\"ms\":8.93,\"result\":{\"ms\":8.92,\"total\":124,\"returned\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 8.95,
+          "sqlCount": 1,
+          "sqlMs": 0.42,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 50,
+                "offset": 50,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://snomed.info/sct",
+                    "filterCount": 1,
+                    "hasTextSearch": false
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1,
+                        "f0_anc_code": "73211009",
+                        "f0_cs": 1
+                      },
+                      "rows": 124,
+                      "ms": 0.42,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 0.44,
+                  "result": {
+                    "rows": 124
+                  }
+                }
+              ],
+              "ms": 8.93,
+              "result": {
+                "ms": 8.92,
+                "total": 124,
+                "returned": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 50
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "6986",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:44 GMT",
+            "etag": "W/\"1b4a-o7mGSmhMGUO9wKsVKhwLRizsjvI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-102"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:44.945Z",
+              "identifier": "urn:uuid:b28f6b81-747b-44e7-b8c9-9e1088f5d6aa",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "offset": 50,
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+                  "valueBoolean": true
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":3.34,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":50,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.33,\"result\":{\"ms\":3.32,\"total\":124,\"returned\":50}}]}"
+                }
+              ],
+              "total": 124,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "276560009",
+                  "display": "Diabetes mellitus in neonate small for gestational age"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "290002008",
+                  "display": "Unstable type I diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "359642000",
+                  "display": "Diabetes mellitus type 2 in nonobese"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "405749004",
+                  "display": "Newly diagnosed diabetes"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "408540003",
+                  "display": "Diabetes mellitus induced by non-steroid drugs"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "426875007",
+                  "display": "Latent autoimmune diabetes mellitus in adult (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "427089005",
+                  "display": "Diabetes mellitus due to cystic fibrosis (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "443694000",
+                  "display": "Type II diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444073006",
+                  "display": "Type I diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444074000",
+                  "display": "Type I diabetes mellitus well controlled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "444110003",
+                  "display": "Type II diabetes mellitus well controlled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "445260006",
+                  "display": "Posttransplant diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "445353002",
+                  "display": "Brittle type II diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "472699005",
+                  "display": "Gestational diabetes mellitus uncontrolled"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609561005",
+                  "display": "Maturity-onset diabetes of the young (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609562003",
+                  "display": "Maturity onset diabetes of the young, type 1 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609563008",
+                  "display": "Pre-existing diabetes mellitus in pregnancy (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609564002",
+                  "display": "Pre-existing type 1 diabetes mellitus in pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609565001",
+                  "display": "Permanent neonatal diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609566000",
+                  "display": "Pregnancy and type 1 diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609567009",
+                  "display": "Pre-existing type 2 diabetes mellitus in pregnancy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609568004",
+                  "display": "Diabetes mellitus due to genetic defect in beta cell function"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609569007",
+                  "display": "Diabetes mellitus due to genetic defect in insulin action"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609570008",
+                  "display": "Maturity-onset diabetes of the young, type 3 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609571007",
+                  "display": "Maturity-onset diabetes of the young, type 4"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609572000",
+                  "display": "Maturity-onset diabetes of the young, type 5 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609573005",
+                  "display": "Maturity-onset diabetes of the young, type 6 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609574004",
+                  "display": "Maturity-onset diabetes of the young, type 7"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609575003",
+                  "display": "Diabetes-pancreatic exocrine dysfunction syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609576002",
+                  "display": "Maturity-onset diabetes of the young, type 9"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609577006",
+                  "display": "Maturity-onset diabetes of the young, type 10 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609578001",
+                  "display": "Maturity-onset diabetes of the young, type 11"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609579009",
+                  "display": "Diabetes mellitus, transient neonatal 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609580007",
+                  "display": "Diabetes mellitus, transient neonatal 2 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "609581006",
+                  "display": "Diabetes mellitus, transient neonatal 3 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703136005",
+                  "display": "Diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703137001",
+                  "display": "Type I diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "703138006",
+                  "display": "Type II diabetes mellitus in remission (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "709147009",
+                  "display": "Gingivitis co-occurrent with diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "716362006",
+                  "display": "Gingival disease co-occurrent with diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "720519003",
+                  "display": "Atherosclerosis, deafness, diabetes, epilepsy, nephropathy syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "721088003",
+                  "display": "Developmental delay, epilepsy, neonatal diabetes syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "722206009",
+                  "display": "Pancreatic hypoplasia, diabetes mellitus, congenital heart disease syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "722454003",
+                  "display": "Intellectual disability, craniofacial dysmorphism, hypogonadism, diabetes mellitus syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "724067006",
+                  "display": "Permanent neonatal diabetes mellitus with cerebellar agenesis syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "733072002",
+                  "display": "Stimmler syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "734022008",
+                  "display": "Wolfram-like syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "737212004",
+                  "display": "Diabetes mellitus caused by chemical (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "782755007",
+                  "display": "Primary microcephaly, mild intellectual disability, young-onset diabetes syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "782825008",
+                  "display": "Primary microcephaly, epilepsy, permanent neonatal diabetes syndrome"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 3.34,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 50,
+                "offset": 50,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 3.33,
+              "result": {
+                "ms": 3.32,
+                "total": 124,
+                "returned": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

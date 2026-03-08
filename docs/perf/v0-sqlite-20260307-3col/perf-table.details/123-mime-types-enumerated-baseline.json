@@ -1,0 +1,533 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:51.585Z",
+  "rowIndex": 123,
+  "slug": "123-mime-types-enumerated-baseline",
+  "name": "MIME types enumerated baseline",
+  "category": "Baseline Fixtures",
+  "hrefs": {
+    "input": "../perf-table.inputs/123-mime-types-enumerated-baseline.json",
+    "detailJson": "123-mime-types-enumerated-baseline.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          },
+                          {
+                            "code": "image/png"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1874",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"752-Hyz2WM5TaGgHwZSbDbscxoo7TPM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-420"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.581Z",
+              "identifier": "urn:uuid:280fa2cd-7a81-46f5-a8e2-63846195154f",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "image/png",
+                  "display": "image/png"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: urn:ietf:bcp:13\ncanonical-ir-hash: 4b0e7fcf97314d96ecde6ce56a0bd2dc2a134b72\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept urn:ietf:bcp:13 [3] application/json, image/png, text/html [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.26,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"urn:ietf:bcp:13\",\"count\":3},\"t\":0.17},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:urn:ietf:bcp:13\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.23}],\"ms\":0.05,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":3}}],\"ms\":0.23,\"result\":{\"total\":3,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.26,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "urn:ietf:bcp:13",
+                    "count": 3
+                  },
+                  "t": 0.17
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 3,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:urn:ietf:bcp:13",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "candidates": 3
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 3,
+                        "total": 3
+                      },
+                      "t": 0.23
+                    }
+                  ],
+                  "ms": 0.05,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.23,
+              "result": {
+                "total": 3,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: urn:ietf:bcp:13\ncanonical-ir-hash: 4b0e7fcf97314d96ecde6ce56a0bd2dc2a134b72\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept urn:ietf:bcp:13 [3] application/json, image/png, text/html [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          },
+                          {
+                            "code": "image/png"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1032",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"408-P2EfIrQJTk/5GAW90hdqO8HqCjs\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-421"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.582Z",
+              "identifier": "urn:uuid:54aa9b22-57a4-4393-ad34-7a114327277b",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "image/png",
+                  "display": "image/png"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.35,\"result\":{\"ms\":0.35,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.36,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.35,
+              "result": {
+                "ms": 0.35,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          },
+                          {
+                            "code": "image/png"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1032",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"408-1Pa3Aws/zM6XObENNxmfTcazZvE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-127"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.584Z",
+              "identifier": "urn:uuid:901123fd-08bd-4461-9572-30d0cb55a3c3",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "image/png",
+                  "display": "image/png"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.67,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.65,\"result\":{\"ms\":0.65,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.67,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.65,
+              "result": {
+                "ms": 0.65,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

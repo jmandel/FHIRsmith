@@ -1,0 +1,571 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:53.463Z",
+  "rowIndex": 139,
+  "slug": "139-mime-concept-include-with-language-peer",
+  "name": "MIME concept include with language peer",
+  "category": "Cross-Source Coverage",
+  "hrefs": {
+    "input": "../perf-table.inputs/139-mime-concept-include-with-language-peer.json",
+    "detailJson": "139-mime-concept-include-with-language-peer.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "urn:ietf:bcp:47",
+                        "concept": [
+                          {
+                            "code": "en"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2135",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:53 GMT",
+            "etag": "W/\"857-cMw11vTlqjUMe2oabKcMFvRiAN0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-483"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:53.460Z",
+              "identifier": "urn:uuid:2aa1af02-ee8e-43d3-b38d-d1a946ed4641",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                },
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en",
+                  "display": "English"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:47"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: urn:ietf:bcp:13, urn:ietf:bcp:47\ncanonical-ir-hash: 1e28bbf6d633700569e4f08825b8c0f2eca11556\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    selector concept urn:ietf:bcp:13 [2] application/json, text/html [n.0]\n    selector concept urn:ietf:bcp:47 [1] en [n.1]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.46,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"urn:ietf:bcp:13\",\"count\":2},\"t\":0.24},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"urn:ietf:bcp:47\",\"count\":1},\"t\":0.26},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:urn:ietf:bcp:13\",\"args\":{\"sysOffset\":0,\"sysCount\":2},\"children\":[],\"ms\":0.12,\"result\":{\"candidates\":2}},{\"name\":\"system:urn:ietf:bcp:47\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}}],\"ms\":0.15,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":3}}],\"ms\":0.42,\"result\":{\"total\":3,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.46,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "urn:ietf:bcp:13",
+                    "count": 2
+                  },
+                  "t": 0.24
+                },
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "urn:ietf:bcp:47",
+                    "count": 1
+                  },
+                  "t": 0.26
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 3,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 2
+                  },
+                  "children": [
+                    {
+                      "name": "system:urn:ietf:bcp:13",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 2
+                      },
+                      "children": [],
+                      "ms": 0.12,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "system:urn:ietf:bcp:47",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1
+                      },
+                      "children": [],
+                      "ms": 0.02,
+                      "result": {
+                        "candidates": 1
+                      }
+                    }
+                  ],
+                  "ms": 0.15,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.42,
+              "result": {
+                "total": 3,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: urn:ietf:bcp:13, urn:ietf:bcp:47\ncanonical-ir-hash: 1e28bbf6d633700569e4f08825b8c0f2eca11556\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    selector concept urn:ietf:bcp:13 [2] application/json, text/html [n.0]\n    selector concept urn:ietf:bcp:47 [1] en [n.1]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "urn:ietf:bcp:47",
+                        "concept": [
+                          {
+                            "code": "en"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1079",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:53 GMT",
+            "etag": "W/\"437-u6Wo0ipoHs9HZFsFOByLR/L/RD0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-484"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:53.461Z",
+              "identifier": "urn:uuid:191d7554-ca5f-4555-ae2c-5f74ddb63b72",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:47"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en",
+                  "display": "English"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.27,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.26,\"result\":{\"ms\":0.26,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.27,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.26,
+              "result": {
+                "ms": 0.26,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "urn:ietf:bcp:47",
+                        "concept": [
+                          {
+                            "code": "en"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1082",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:53 GMT",
+            "etag": "W/\"43a-XPfRM3TAId8KvOvf2emzOuOuxR4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-148"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:53.462Z",
+              "identifier": "urn:uuid:3c87101f-5046-40ff-962c-cd6f63d41430",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:47"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en",
+                  "display": "English"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.41,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.39,\"result\":{\"ms\":0.39,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.41,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.39,
+              "result": {
+                "ms": 0.39,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

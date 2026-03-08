@@ -1,0 +1,566 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:51.456Z",
+  "rowIndex": 113,
+  "slug": "113-us-states-subtract-2-from-4-enumerated",
+  "name": "US states subtract 2 from 4 enumerated",
+  "category": "Exclusions",
+  "hrefs": {
+    "input": "../perf-table.inputs/113-us-states-subtract-2-from-4-enumerated.json",
+    "detailJson": "113-us-states-subtract-2-from-4-enumerated.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "concept": [
+                          {
+                            "code": "CA"
+                          },
+                          {
+                            "code": "NY"
+                          },
+                          {
+                            "code": "TX"
+                          },
+                          {
+                            "code": "FL"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "concept": [
+                          {
+                            "code": "CA"
+                          },
+                          {
+                            "code": "FL"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1866",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"74a-ItjjHH3vCsS9bbkts0eh1YSgYMM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-388"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.452Z",
+              "identifier": "urn:uuid:17fb347f-3312-423b-ba19-0b96c4766197",
+              "total": 2,
+              "contains": [
+                {
+                  "system": "https://www.usps.com/",
+                  "code": "NY",
+                  "display": "New York"
+                },
+                {
+                  "system": "https://www.usps.com/",
+                  "code": "TX",
+                  "display": "Texas"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "https://www.usps.com/"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: https://www.usps.com/\ncanonical-ir-hash: b314a7860f4bfdb012460e14018107541a4b55e2\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  diff [n]\n    selector concept https://www.usps.com/ [4] CA, FL, NY, TX [n.l]\n    selector concept https://www.usps.com/ [2] CA, FL [n.r]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.33,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"https://www.usps.com/\",\"count\":2},\"t\":0.21},{\"name\":\"pagination\",\"args\":{\"total\":2,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.06,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":2,\"total\":2},\"t\":0.29}],\"ms\":0.07,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":2}}],\"ms\":0.29,\"result\":{\"total\":2,\"contains\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.33,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "https://www.usps.com/",
+                    "count": 2
+                  },
+                  "t": 0.21
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 2,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:https://www.usps.com/",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.06,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 2,
+                        "total": 2
+                      },
+                      "t": 0.29
+                    }
+                  ],
+                  "ms": 0.07,
+                  "result": {
+                    "paged": 2
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 2,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 2
+                  }
+                }
+              ],
+              "ms": 0.29,
+              "result": {
+                "total": 2,
+                "contains": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: https://www.usps.com/\ncanonical-ir-hash: b314a7860f4bfdb012460e14018107541a4b55e2\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  diff [n]\n    selector concept https://www.usps.com/ [4] CA, FL, NY, TX [n.l]\n    selector concept https://www.usps.com/ [2] CA, FL [n.r]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "concept": [
+                          {
+                            "code": "CA"
+                          },
+                          {
+                            "code": "NY"
+                          },
+                          {
+                            "code": "TX"
+                          },
+                          {
+                            "code": "FL"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "concept": [
+                          {
+                            "code": "CA"
+                          },
+                          {
+                            "code": "FL"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "947",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"3b3-Xyxg2Nou1aUI5phLtoCBO6cmFz4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-389"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.453Z",
+              "identifier": "urn:uuid:5ce75a3b-299d-4fec-a56b-5dee4b93cccf",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "https://www.usps.com/"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "https://www.usps.com/",
+                  "code": "NY",
+                  "display": "New York"
+                },
+                {
+                  "system": "https://www.usps.com/",
+                  "code": "TX",
+                  "display": "Texas"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.29,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.28,\"result\":{\"ms\":0.27,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.29,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.28,
+              "result": {
+                "ms": 0.27,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "concept": [
+                          {
+                            "code": "CA"
+                          },
+                          {
+                            "code": "NY"
+                          },
+                          {
+                            "code": "TX"
+                          },
+                          {
+                            "code": "FL"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "concept": [
+                          {
+                            "code": "CA"
+                          },
+                          {
+                            "code": "FL"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "947",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"3b3-TxBgAA8d27uF2PiV4mmCuNuOlto\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-117"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.455Z",
+              "identifier": "urn:uuid:cb44e62b-895c-4683-9dbf-7832d5c339e0",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "https://www.usps.com/"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "https://www.usps.com/",
+                  "code": "NY",
+                  "display": "New York"
+                },
+                {
+                  "system": "https://www.usps.com/",
+                  "code": "TX",
+                  "display": "Texas"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.35,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.33,\"result\":{\"ms\":0.33,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.35,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.33,
+              "result": {
+                "ms": 0.33,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

@@ -939,7 +939,7 @@ class ValueSetExpander {
         this.worker.opContext.log('import value set ' + s);
         const ivs = new ImportedValueSet(await this.expandValueSet(s, '', filter, notClosed));
         this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
-        this.addParamUri(expansion, 'used-valueset', this.worker.makeVurl(ivs.valueSet));
+        this.addParamUri(expansion, 'used-valueset', s);
         valueSets.push(ivs);
       }
 
@@ -995,7 +995,7 @@ class ValueSetExpander {
         this.worker.opContext.log('prep filters');
         const prep = await cs.getPrepContext(true);
         if (!filter.isNull) {
-          await cs.searchFilter(filter, prep, true);
+          await cs.searchFilter(prep, filter, true);
         }
 
         if (cs.specialEnumeration()) {

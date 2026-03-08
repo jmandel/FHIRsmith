@@ -169,8 +169,8 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       const { context } = await provider.locate('73211009');
       const props = await provider.properties(context);
       expect(props.length).toBeGreaterThan(0);
-      // SNOMED should have concept-valued properties (is-a)
-      const conceptProps = props.filter(p => typeof p.value === 'object');
+      // SNOMED concept-valued properties are represented as valueCode.
+      const conceptProps = props.filter(p => typeof p.valueCode === 'string' && p.valueCode.length > 0);
       expect(conceptProps.length).toBeGreaterThan(0);
       provider.close();
     });

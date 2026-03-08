@@ -1,5 +1,35 @@
 # IR Runtime Cleanup Plan
 
+## Archival Note
+
+This plan is archived as of March 7, 2026.
+
+Reason:
+
+- the main runtime cleanup goals are substantially complete on the current
+  branch
+- the remaining work is better tracked under narrower follow-on plans instead
+  of continuing this as an active umbrella document
+
+Implemented enough to stop active work here:
+
+- request-scoped IR bound scope binding for the expand runtime
+- orchestrator split into planning, execution, and response modules
+- supplement decoration ownership moved behind the bound scope
+- generic executor result metadata made explicit instead of array side channels
+- SQL AST node construction split away from lowering
+
+Residual follow-on work now lives in:
+
+- [ir-expand-worker-seam-plan.md](/home/jmandel/hobby/FHIRsmith-ir-engine/docs/ir-expand-worker-seam-plan.md)
+- [ir-architecture-hotspots-sql-ast-and-traversal.md](/home/jmandel/hobby/FHIRsmith-ir-engine/docs/ir-architecture-hotspots-sql-ast-and-traversal.md)
+
+This archived document remains useful as:
+
+- a record of the runtime cleanup goals
+- a summary of what already landed
+- background context for the remaining seam and hotspot work
+
 This document is a cleanup plan for the current IR runtime architecture.
 
 It is not a rewrite proposal.
@@ -30,7 +60,6 @@ Implemented on the current branch:
 
 Still open here:
 
-- decide whether the proxy wrapper remains acceptable long-term
 - continue follow-on reuse of the bound-scope pattern in lookup/validate
   beyond the current tactical seams
 - narrow the outward IR execution seam fully to bound scopes once the
@@ -285,7 +314,7 @@ using mutation and side-channel fields such as:
 
 - `_irSupplementSet`
 - `_irAllSupplementsNativeBound`
-- wrapper proxy behavior
+- explicit execution-wrapper metadata
 
 That works, but it obscures ownership and creates coupling between workers,
 wrappers, providers, execution, and decoration code.

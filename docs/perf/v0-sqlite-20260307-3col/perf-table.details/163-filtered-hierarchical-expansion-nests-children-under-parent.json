@@ -1,0 +1,518 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:27:02.370Z",
+  "rowIndex": 163,
+  "slug": "163-filtered-hierarchical-expansion-nests-children-under-parent",
+  "name": "Filtered hierarchical expansion nests children under parent",
+  "category": "Hierarchy",
+  "hrefs": {
+    "input": "../perf-table.inputs/163-filtered-hierarchical-expansion-nests-children-under-parent.json",
+    "detailJson": "163-filtered-hierarchical-expansion-nests-children-under-parent.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "active"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2023",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:02 GMT",
+            "etag": "W/\"7e7-8OrFT9nOuqbwBKzGVb+F8ljIdCc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-558"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:27:02.366Z",
+              "identifier": "urn:uuid:12f3a89a-11a5-4866-af3c-82bb2ed1db91",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                  "code": "active",
+                  "display": "Active",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                      "code": "recurrence",
+                      "display": "Recurrence"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                      "code": "relapse",
+                      "display": "Relapse"
+                    }
+                  ]
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/condition-clinical|3.0.0"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://terminology.hl7.org/CodeSystem/condition-clinical\ncanonical-ir-hash: f220b8b0ba6a7601ca1bb2e36e75065d9078b017\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://terminology.hl7.org/CodeSystem/condition-clinical concept is-a active [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.27,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://terminology.hl7.org/CodeSystem/condition-clinical\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.23}],\"ms\":0.07,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":3}}],\"ms\":0.23,\"result\":{\"total\":3,\"contains\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.27,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://terminology.hl7.org/CodeSystem/condition-clinical",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.05,
+                      "result": {
+                        "candidates": 3
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 3,
+                        "total": 3
+                      },
+                      "t": 0.23
+                    }
+                  ],
+                  "ms": 0.07,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.23,
+              "result": {
+                "total": 3,
+                "contains": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://terminology.hl7.org/CodeSystem/condition-clinical\ncanonical-ir-hash: f220b8b0ba6a7601ca1bb2e36e75065d9078b017\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://terminology.hl7.org/CodeSystem/condition-clinical concept is-a active [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "active"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1193",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:02 GMT",
+            "etag": "W/\"4a9-41eTNKAmL4YWM9SwYfJuIFOKJJc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-559"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:27:02.367Z",
+              "identifier": "urn:uuid:4c0f8d27-9348-4dac-aa5d-eb941a4c5332",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/condition-clinical|3.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                  "code": "active",
+                  "display": "Active",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                      "code": "recurrence",
+                      "display": "Recurrence"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                      "code": "relapse",
+                      "display": "Relapse"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.26,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.25,\"result\":{\"ms\":0.25,\"total\":3,\"returned\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.26,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.25,
+              "result": {
+                "ms": 0.25,
+                "total": 3,
+                "returned": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "active"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1196",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:02 GMT",
+            "etag": "W/\"4ac-LdzJMBvSctBMUFAO8X++8PdSTtw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-172"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:27:02.369Z",
+              "identifier": "urn:uuid:63ae41fe-97f3-4c4d-9061-505bc57af365",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/condition-clinical|3.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                  "code": "active",
+                  "display": "Active",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                      "code": "recurrence",
+                      "display": "Recurrence"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                      "code": "relapse",
+                      "display": "Relapse"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.46,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.44,\"result\":{\"ms\":0.43,\"total\":3,\"returned\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.46,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.44,
+              "result": {
+                "ms": 0.43,
+                "total": 3,
+                "returned": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

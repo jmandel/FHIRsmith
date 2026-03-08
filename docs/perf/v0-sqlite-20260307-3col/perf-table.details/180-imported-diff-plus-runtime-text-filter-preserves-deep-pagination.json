@@ -1,0 +1,922 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:27:18.936Z",
+  "rowIndex": 180,
+  "slug": "180-imported-diff-plus-runtime-text-filter-preserves-deep-pagination",
+  "name": "Imported diff plus runtime text filter preserves deep pagination",
+  "category": "Stress & Scale",
+  "hrefs": {
+    "input": "../perf-table.inputs/180-imported-diff-plus-runtime-text-filter-preserves-deep-pagination.json",
+    "detailJson": "180-imported-diff-plus-runtime-text-filter-preserves-deep-pagination.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 162,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 162,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-clinical-finding-text-diff"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-diabetes-text-diff"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 2124
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "filter",
+                "valueString": "disease"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-clinical-finding-text-diff",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-diabetes-text-diff",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "14294",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:17 GMT",
+            "etag": "W/\"37d6-Ui8p+EKmmL1iiW+XBHIJsosH6eU\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-630"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:27:17.988Z",
+              "identifier": "urn:uuid:83c585eb-fc87-460b-8526-f177db8f241f",
+              "total": 4299,
+              "offset": 2124,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "399269003",
+                  "display": "Arthropathy (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "399894006",
+                  "display": "Kimura's disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "399946006",
+                  "display": "Crohn's disease of skin (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "399957001",
+                  "display": "Peripheral arterial occlusive disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "399960008",
+                  "display": "Congenital hamartoma (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400014002",
+                  "display": "Hereditary benign intraepithelial dyskeratosis (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400018004",
+                  "display": "Acrokeratosis verruciformis of Darier disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400040008",
+                  "display": "Hereditary lymphedema type II (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400047006",
+                  "display": "Peripheral vascular disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400060000",
+                  "display": "Barmah Forest disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400130008",
+                  "display": "Temporal arteritis (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400140006",
+                  "display": "Junctional epidermolysis bullosa gravis of Herlitz (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "400171002",
+                  "display": "Malignant atrophic papulosis (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "4003003",
+                  "display": "Alphavirus disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "4009004",
+                  "display": "Lower urinary tract infectious disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401200002",
+                  "display": "At risk of chronic obstructive pulmonary disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401247006",
+                  "display": "Coronary heart disease monitoring status (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401250009",
+                  "display": "Coronary heart disease monitoring 1st letter"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401251008",
+                  "display": "Coronary heart disease monitoring 2nd letter"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401252001",
+                  "display": "Coronary heart disease monitoring 3rd letter"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401253006",
+                  "display": "Coronary heart disease monitoring verbal invitation (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401254000",
+                  "display": "Coronary heart disease monitoring deleted (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401331007",
+                  "display": "Coronary heart disease monitoring default (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "401332000",
+                  "display": "Coronary heart disease monitoring check done (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "40197009",
+                  "display": "Chronic granulomatous disease, type IA"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402126004",
+                  "display": "Sexually transmitted bacterial disease affecting skin (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402338004",
+                  "display": "Circinate vulvovaginitis due to Reiter's disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402339007",
+                  "display": "Nail dystrophy due to Reiter's disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402355000",
+                  "display": "Acute graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402356004",
+                  "display": "Chronic graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402357008",
+                  "display": "Lichenoid chronic graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402358003",
+                  "display": "Sclerodermoid chronic graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402359006",
+                  "display": "Toxic epidermal necrolysis due to graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402360001",
+                  "display": "Materno-fetal graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402361002",
+                  "display": "Nail dystrophy due to graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402362009",
+                  "display": "Oral mucosal disease due to graft-versus-host disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402375009",
+                  "display": "Crohn's disease of vulva (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402376005",
+                  "display": "Crohn's disease of penis (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402377001",
+                  "display": "Crohn's disease of scrotum (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402378006",
+                  "display": "Metastatic Crohn's disease of skin (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402429000",
+                  "display": "Rheumatoid linear subcutaneous bands (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402434001",
+                  "display": "Cutaneous complication of rheumatoid disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402445003",
+                  "display": "Cicatrizing conjunctivitis due to linear IgA disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402446002",
+                  "display": "Oral mucosal involvement by linear IgA disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402628002",
+                  "display": "Nail dystrophy associated with dermatological disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402629005",
+                  "display": "Nail changes associated with systemic disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402638007",
+                  "display": "Alopecia due to underlying disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402657003",
+                  "display": "Necrotizing vasculitis secondary to connective tissue disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402716004",
+                  "display": "Immunobullous disease (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "402736003",
+                  "display": "Factitious skin disease (disorder)"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 2124
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "filter",
+                  "valueString": "disease"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/imported-sct-clinical-finding-text-diff"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/imported-sct-diabetes-text-diff"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: 09185814a89f90ff943b4acf692e1fcc321fcf0f\nruntime-constraints:\n  text-filter: \"disease\"\n  active-only: true\n  pagination: offset=2124 count=50\noptimized-ir:\n  diff [n]\n    selector filter http://snomed.info/sct concept is-a 404684003 [n.l]\n    selector filter http://snomed.info/sct concept is-a 73211009 [n.r]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":159.9,\"sqlCount\":2,\"sqlMs\":158.1,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":\"disease\",\"offset\":2124,\"count\":50,\"exactTotal\":true,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":2124,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":2124,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.31,\"execMs\":83.37},\"t\":84.65}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT DISTINCT \\\"cl\\\".\\\"descendant_id\\\" AS \\\"concept_id\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\")) \\\"r\\\" WHERE (\\\"r\\\".\\\"concept_id\\\" IS NOT NULL) EXCEPT SELECT DISTINCT \\\"r\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT DISTINCT \\\"cl\\\".\\\"descendant_id\\\" AS \\\"concept_id\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND \\\"c\\\".\\\"code\\\" IN (@code_2))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\")) \\\"r\\\" WHERE (\\\"r\\\".\\\"concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"active\\\" = 1) AND \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_5) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_6) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_7) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4)))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 50 OFFSET 2124\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1,\"code_2\":\"73211009\",\"cs_id_3\":1,\"search_match_4\":\"\\\"disease\\\"\",\"display_cs_id_5\":1,\"designation_cs_id_6\":1,\"literal_cs_id_7\":1},\"rows\":50,\"ms\":83.37,\"label\":\"executeIR\"}],\"ms\":84.01,\"result\":{\"candidates\":50,\"total\":null}}],\"ms\":84.04,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT DISTINCT \\\"cl\\\".\\\"descendant_id\\\" AS \\\"concept_id\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\")) \\\"r\\\" WHERE (\\\"r\\\".\\\"concept_id\\\" IS NOT NULL) EXCEPT SELECT DISTINCT \\\"r\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT DISTINCT \\\"cl\\\".\\\"descendant_id\\\" AS \\\"concept_id\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND \\\"c\\\".\\\"code\\\" IN (@code_2))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\")) \\\"r\\\" WHERE (\\\"r\\\".\\\"concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"active\\\" = 1) AND \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_5) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_6) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_7) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4))))\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1,\"code_2\":\"73211009\",\"cs_id_3\":1,\"search_match_4\":\"\\\"disease\\\"\",\"display_cs_id_5\":1,\"designation_cs_id_6\":1,\"literal_cs_id_7\":1},\"rows\":4299,\"ms\":74.73,\"label\":\"countForIR\"}],\"ms\":75.07,\"result\":{\"count\":4299}}],\"ms\":75.1,\"result\":{\"count\":4299}}],\"ms\":159.15,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.05,\"result\":{\"count\":50}}],\"ms\":159.83,\"result\":{\"total\":4299,\"contains\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 159.9,
+          "sqlCount": 2,
+          "sqlMs": 158.1,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": "disease",
+                "offset": 2124,
+                "count": 50,
+                "exactTotal": true,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 2124,
+                    "count": 50,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 2124,
+                        "sysCount": 50
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.31,
+                                "execMs": 83.37
+                              },
+                              "t": 84.65
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT DISTINCT \"r\".\"concept_id\" AS \"concept_id\" FROM (SELECT DISTINCT \"cl\".\"descendant_id\" AS \"concept_id\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\")) \"r\" WHERE (\"r\".\"concept_id\" IS NOT NULL) EXCEPT SELECT DISTINCT \"r\".\"concept_id\" AS \"concept_id\" FROM (SELECT DISTINCT \"cl\".\"descendant_id\" AS \"concept_id\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND \"c\".\"code\" IN (@code_2))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\")) \"r\" WHERE (\"r\".\"concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE ((\"c\".\"active\" = 1) AND \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_5) AND (\"c\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_6) AND (\"c\".\"active\" = 1) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_7) AND (\"c\".\"active\" = 1) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4)))) ORDER BY \"c\".\"code\" ASC LIMIT 50 OFFSET 2124",
+                              "params": {
+                                "code_0": "404684003",
+                                "cs_id_1": 1,
+                                "code_2": "73211009",
+                                "cs_id_3": 1,
+                                "search_match_4": "\"disease\"",
+                                "display_cs_id_5": 1,
+                                "designation_cs_id_6": 1,
+                                "literal_cs_id_7": 1
+                              },
+                              "rows": 50,
+                              "ms": 83.37,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 84.01,
+                          "result": {
+                            "candidates": 50,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 84.04,
+                      "result": {
+                        "candidates": 50
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://snomed.info/sct"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"concept_id\" AS \"concept_id\" FROM (SELECT DISTINCT \"cl\".\"descendant_id\" AS \"concept_id\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\")) \"r\" WHERE (\"r\".\"concept_id\" IS NOT NULL) EXCEPT SELECT DISTINCT \"r\".\"concept_id\" AS \"concept_id\" FROM (SELECT DISTINCT \"cl\".\"descendant_id\" AS \"concept_id\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND \"c\".\"code\" IN (@code_2))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\")) \"r\" WHERE (\"r\".\"concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE ((\"c\".\"active\" = 1) AND \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_5) AND (\"c\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_6) AND (\"c\".\"active\" = 1) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_7) AND (\"c\".\"active\" = 1) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4))))",
+                              "params": {
+                                "code_0": "404684003",
+                                "cs_id_1": 1,
+                                "code_2": "73211009",
+                                "cs_id_3": 1,
+                                "search_match_4": "\"disease\"",
+                                "display_cs_id_5": 1,
+                                "designation_cs_id_6": 1,
+                                "literal_cs_id_7": 1
+                              },
+                              "rows": 4299,
+                              "ms": 74.73,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 75.07,
+                          "result": {
+                            "count": 4299
+                          }
+                        }
+                      ],
+                      "ms": 75.1,
+                      "result": {
+                        "count": 4299
+                      }
+                    }
+                  ],
+                  "ms": 159.15,
+                  "result": {
+                    "paged": 50
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 50,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.05,
+                  "result": {
+                    "count": 50
+                  }
+                }
+              ],
+              "ms": 159.83,
+              "result": {
+                "total": 4299,
+                "contains": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: 09185814a89f90ff943b4acf692e1fcc321fcf0f\nruntime-constraints:\n  text-filter: \"disease\"\n  active-only: true\n  pagination: offset=2124 count=50\noptimized-ir:\n  diff [n]\n    selector filter http://snomed.info/sct concept is-a 404684003 [n.l]\n    selector filter http://snomed.info/sct concept is-a 73211009 [n.r]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 43,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-clinical-finding-text-diff"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-diabetes-text-diff"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 2124
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "filter",
+                "valueString": "disease"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-clinical-finding-text-diff",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-diabetes-text-diff",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:17 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-631"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 904,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-clinical-finding-text-diff"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-diabetes-text-diff"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 2124
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "filter",
+                "valueString": "disease"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-clinical-finding-text-diff",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-diabetes-text-diff",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:18 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-189"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}

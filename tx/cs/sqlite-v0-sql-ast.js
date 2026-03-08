@@ -2,6 +2,27 @@
 
 const { relevantSupplementBindings } = require('./sqlite-v0-supplements');
 const {
+  boundedMembershipUpperLimit,
+  extractCodeRegexFilter,
+  extractSingleSeedClosureReachability,
+  extractSingleSeedClosureReachabilityCodeRegexIntersect,
+  extractSingleSeedClosureReachabilityDiff,
+  extractSingleSeedClosureReachabilityIntersect,
+  extractSupplementLiteralMatchPredicates,
+  isScanOf,
+  supportsEarlyStopMaterialize,
+} = require('./sqlite-v0-sql-patterns');
+const {
+  chooseCountStrategy,
+  chooseMaterializeStrategy,
+  chooseTerminalLoweringStrategy: chooseTerminalStrategy,
+} = require('./sqlite-v0-sql-strategies');
+const {
+  lowerCorrelatedRuntimeSearchPredicate,
+  lowerRuntimeSearch,
+  runtimeSearchNode,
+} = require('./sqlite-v0-sql-search');
+const {
   aliasExpr,
   and,
   binary,
@@ -172,23 +193,15 @@ function lowerPhysical(node, ctx, fallbackScope = null) {
 
 function lowerMaterialize(node, ctx, fallbackScope) {
   const scope = scopeFor(node, fallbackScope, ctx);
-  if (node.includeTotal === true) {
+  const selected = selectMaterializeLowering(node, ctx, scope);
+  if (selected.strategy === 'materialize-with-total') {
     return lowerMaterializeWithTotal(node, ctx, scope);
   }
-  const codeRegexFastPath = lowerCodeRegexMaterializeFastPath(node, ctx, scope);
-  if (codeRegexFastPath) return codeRegexFastPath;
-  const supplementLiteralFastPath = lowerSupplementLiteralMaterializeFastPath(node, ctx, scope);
-  if (supplementLiteralFastPath) return supplementLiteralFastPath;
-  const reachabilityCodeRegexFastPath = lowerReachabilityCodeRegexMaterializeFastPath(node, ctx, scope);
-  if (reachabilityCodeRegexFastPath) return reachabilityCodeRegexFastPath;
-  const reachabilityIntersectFastPath = lowerReachabilityIntersectMaterializeFastPath(node, ctx, scope);
-  if (reachabilityIntersectFastPath) return reachabilityIntersectFastPath;
-  const reachabilityDiffFastPath = lowerReachabilityDiffMaterializeFastPath(node, ctx, scope);
-  if (reachabilityDiffFastPath) return reachabilityDiffFastPath;
-  const fastPath = lowerEarlyStopMaterialize(node, ctx, scope);
-  if (fastPath) return fastPath;
-  const reachabilityFastPath = lowerReachabilityMaterializeFastPath(node, ctx, scope);
-  if (reachabilityFastPath) return reachabilityFastPath;
+  if (selected.lowered) return selected.lowered;
+  return lowerGenericMaterialize(node, ctx, scope);
+}
+
+function lowerGenericMaterialize(node, ctx, scope) {
   const members = lowerSet(node.members, ctx, scopeFor(node.members, scope, ctx));
   const fromAlias = 'm';
   const conceptAlias = 'c';
@@ -203,6 +216,22 @@ function lowerMaterialize(node, ctx, fallbackScope) {
     limit: node.count != null ? literal(node.count) : null,
     offset: node.offset ? literal(node.offset) : null,
   });
+}
+
+function selectMaterializeLowering(node, ctx, scope) {
+  const strategy = chooseMaterializeStrategy(node, ctx);
+  const lower = {
+    'materialize-with-total': null,
+    'code-regex-materialize': lowerCodeRegexMaterializeFastPath,
+    'supplement-literal-materialize': lowerSupplementLiteralMaterializeFastPath,
+    'reachability-code-regex-materialize': lowerReachabilityCodeRegexMaterializeFastPath,
+    'reachability-intersect-materialize': lowerReachabilityIntersectMaterializeFastPath,
+    'reachability-diff-materialize': lowerReachabilityDiffMaterializeFastPath,
+    'early-stop-materialize': lowerEarlyStopMaterialize,
+    'reachability-materialize': lowerReachabilityMaterializeFastPath,
+    'generic-materialize': null,
+  }[strategy];
+  return { strategy, lowered: typeof lower === 'function' ? lower(node, ctx, scope) : null };
 }
 
 function lowerReachabilityMaterializeFastPath(node, ctx, scope) {
@@ -281,110 +310,6 @@ function plannerEstimateSingleSeedClosureCount(ctx, reachability) {
   if (typeof estimator !== 'function' || !code) return null;
   const count = estimator(code, reachability.includeSelf !== false);
   return Number.isInteger(count) && count >= 0 ? count : null;
-}
-
-function extractSingleSeedClosureReachabilityDiff(node) {
-  if (!node || typeof node !== 'object') return null;
-  if (node.kind === 'diff') {
-    const left = extractSingleSeedClosureReachability(node.left);
-    const right = extractSingleSeedClosureReachability(node.right);
-    if (!left || !right) return null;
-    return { left, right };
-  }
-  if (node.kind === 'fromRows' && String(node.key || '') === 'concept_id') {
-    return extractSingleSeedClosureReachabilityDiff(node.rows);
-  }
-  if ((node.kind === 'distinct' || node.kind === 'row-distinct')
-      && Array.isArray(node.keys)
-      && node.keys.length === 1
-      && node.keys[0] === 'concept_id') {
-    return extractSingleSeedClosureReachabilityDiff(node.input);
-  }
-  if (node.kind === 'antiJoin' || node.kind === 'row-antiJoin') {
-    if (node.on?.kind !== 'eq' || node.on?.leftField !== 'concept_id' || node.on?.rightField !== 'concept_id') {
-      return null;
-    }
-    const left = extractSingleSeedClosureReachability(node.left);
-    const right = extractSingleSeedClosureReachability(node.right);
-    if (!left || !right) return null;
-    return { left, right };
-  }
-  return null;
-}
-
-function extractSingleSeedClosureReachabilityIntersect(node) {
-  if (!node || typeof node !== 'object') return null;
-  if (node.kind === 'intersect') {
-    const items = Array.isArray(node.items) ? node.items : [];
-    if (items.length !== 2) return null;
-    const left = extractSingleSeedClosureReachability(items[0]);
-    const right = extractSingleSeedClosureReachability(items[1]);
-    if (!left || !right) return null;
-    return { left, right };
-  }
-  if (node.kind === 'fromRows' && String(node.key || '') === 'concept_id') {
-    return extractSingleSeedClosureReachabilityIntersect(node.rows);
-  }
-  if ((node.kind === 'distinct' || node.kind === 'row-distinct')
-      && Array.isArray(node.keys)
-      && node.keys.length === 1
-      && node.keys[0] === 'concept_id') {
-    return extractSingleSeedClosureReachabilityIntersect(node.input);
-  }
-  if (node.kind === 'semiJoin' || node.kind === 'row-semiJoin') {
-    if (node.on?.kind !== 'eq' || node.on?.leftField !== 'concept_id' || node.on?.rightField !== 'concept_id') {
-      return null;
-    }
-    const left = extractSingleSeedClosureReachability(node.left);
-    const right = extractSingleSeedClosureReachability(node.right);
-    if (!left || !right) return null;
-    return { left, right };
-  }
-  return null;
-}
-
-function extractSingleSeedClosureReachabilityCodeRegexIntersect(node) {
-  if (!node || typeof node !== 'object') return null;
-  if (node.kind === 'fromRows' && String(node.key || '') === 'concept_id') {
-    return extractSingleSeedClosureReachabilityCodeRegexIntersect(node.rows);
-  }
-  if ((node.kind === 'distinct' || node.kind === 'row-distinct')
-      && Array.isArray(node.keys)
-      && node.keys.length === 1
-      && node.keys[0] === 'concept_id') {
-    return extractSingleSeedClosureReachabilityCodeRegexIntersect(node.input);
-  }
-  if (node.kind === 'intersect') {
-    const items = Array.isArray(node.items) ? node.items : [];
-    if (items.length !== 2) return null;
-    const leftReachability = extractSingleSeedClosureReachability(items[0]);
-    const rightReachability = extractSingleSeedClosureReachability(items[1]);
-    const leftRegex = extractCodeRegexFilter(items[0]);
-    const rightRegex = extractCodeRegexFilter(items[1]);
-    if (leftReachability && rightRegex) {
-      return { reachability: leftReachability, pattern: rightRegex.pattern };
-    }
-    if (rightReachability && leftRegex) {
-      return { reachability: rightReachability, pattern: leftRegex.pattern };
-    }
-    return null;
-  }
-  if (node.kind === 'semiJoin' || node.kind === 'row-semiJoin') {
-    if (node.on?.kind !== 'eq' || node.on?.leftField !== 'concept_id' || node.on?.rightField !== 'concept_id') {
-      return null;
-    }
-    const leftReachability = extractSingleSeedClosureReachability(node.left);
-    const rightReachability = extractSingleSeedClosureReachability(node.right);
-    const leftRegex = extractCodeRegexFilter(node.left);
-    const rightRegex = extractCodeRegexFilter(node.right);
-    if (leftReachability && rightRegex) {
-      return { reachability: leftReachability, pattern: rightRegex.pattern };
-    }
-    if (rightReachability && leftRegex) {
-      return { reachability: rightReachability, pattern: leftRegex.pattern };
-    }
-  }
-  return null;
 }
 
 function lowerReachabilityCodeRegexBaseQuery(node, ctx, scope, columns) {
@@ -615,88 +540,14 @@ function lowerEarlyStopMaterialize(node, ctx, scope) {
   });
 }
 
-function supportsEarlyStopMaterialize(node) {
-  if (!node || typeof node !== 'object') return false;
-  switch (node.kind) {
-  case 'empty':
-  case 'allConcepts':
-  case 'scan-all':
-  case 'explicitCodes':
-  case 'scan-codes':
-    return true;
-  case 'fromRows':
-    return supportsEarlyStopRows(node.rows);
-  case 'union':
-  case 'intersect':
-  case 'diff':
-    return false;
-  default:
-    return false;
-  }
-}
-
-function supportsEarlyStopRows(node) {
-  if (!node || typeof node !== 'object') return false;
-  switch (node.kind) {
-  case 'scan':
-  case 'row-scan':
-    return true;
-  case 'filter':
-  case 'row-filter':
-    return supportsEarlyStopRows(node.input) && !isHierarchyRowFilter(node);
-  case 'project':
-  case 'row-project':
-    return supportsEarlyStopRows(node.input);
-  case 'values':
-  case 'row-values':
-    return true;
-  case 'reachability':
-  case 'row-reachability':
-    return true;
-  case 'distinct':
-  case 'row-distinct':
-    return supportsEarlyStopRows(node.input);
-  case 'join':
-  case 'row-join':
-  case 'semiJoin':
-  case 'row-semiJoin':
-  case 'antiJoin':
-  case 'row-antiJoin':
-  case 'unionAll':
-  case 'row-unionAll':
-  case 'search':
-  case 'row-search':
-    return false;
-  default:
-    return false;
-  }
-}
-
-function isHierarchyRowFilter(node) {
-  if (!node || typeof node !== 'object') return false;
-  const predicate = node.predicate || {};
-  if (predicate.kind === 'linkPropertyMatch' && String(predicate.property || '') === 'concept') {
-    return true;
-  }
-  return false;
-}
-
 function lowerCount(node, ctx, fallbackScope) {
   const scope = scopeFor(node, fallbackScope, ctx);
-  const codeRegexFastPath = lowerCodeRegexCountFastPath(node, ctx, scope);
-  if (codeRegexFastPath) return codeRegexFastPath;
-  const supplementLiteralFastPath = lowerSupplementLiteralCountFastPath(node, ctx, scope);
-  if (supplementLiteralFastPath) return supplementLiteralFastPath;
-  const reachabilityCodeRegexFastPath = lowerReachabilityCodeRegexCountFastPath(node, ctx, scope);
-  if (reachabilityCodeRegexFastPath) return reachabilityCodeRegexFastPath;
-  const reachabilityIntersectFastPath = lowerReachabilityIntersectCountFastPath(node, ctx, scope);
-  if (reachabilityIntersectFastPath) return reachabilityIntersectFastPath;
-  const reachabilityDiffFastPath = lowerReachabilityDiffCountFastPath(node, ctx, scope);
-  if (reachabilityDiffFastPath) return reachabilityDiffFastPath;
-  const fastPath = lowerReachabilityCountFastPath(node, ctx, scope);
-  if (fastPath) return fastPath;
-  const conceptDrivenFastPath = lowerConceptDrivenCountFastPath(node, ctx, scope);
-  if (conceptDrivenFastPath) return conceptDrivenFastPath;
+  const selected = selectCountLowering(node, ctx, scope);
+  if (selected.lowered) return selected.lowered;
+  return lowerGenericCount(node, ctx, scope);
+}
+
+function lowerGenericCount(node, ctx, scope) {
   const members = lowerSet(node.members, ctx, scopeFor(node.members, scope, ctx));
   const selectionWhere = lowerTerminalSelectionWhere(node.selection, ctx, scope, 'c', { members: node.members });
   if (!selectionWhere) {
@@ -713,6 +564,25 @@ function lowerCount(node, ctx, fallbackScope) {
     ],
     where: selectionWhere,
   });
+}
+
+function selectCountLowering(node, ctx, scope) {
+  const strategy = chooseCountStrategy(node, ctx);
+  const lower = {
+    'code-regex-count': lowerCodeRegexCountFastPath,
+    'supplement-literal-count': lowerSupplementLiteralCountFastPath,
+    'reachability-code-regex-count': lowerReachabilityCodeRegexCountFastPath,
+    'reachability-intersect-count': lowerReachabilityIntersectCountFastPath,
+    'reachability-diff-count': lowerReachabilityDiffCountFastPath,
+    'reachability-count': lowerReachabilityCountFastPath,
+    'concept-driven-count': lowerConceptDrivenCountFastPath,
+    'generic-count': null,
+  }[strategy];
+  return { strategy, lowered: typeof lower === 'function' ? lower(node, ctx, scope) : null };
+}
+
+function chooseTerminalLoweringStrategy(node, opts = {}) {
+  return chooseTerminalStrategy(node, createContext(opts, node));
 }
 
 function lowerConceptDrivenCountFastPath(node, ctx, scope) {
@@ -934,153 +804,6 @@ function shouldUseCorrelatedRuntimeSearch(members, ceiling = 32) {
   return Number.isInteger(bound) && bound >= 0 && bound <= ceiling;
 }
 
-function boundedMembershipUpperLimit(node, ceiling = 32) {
-  if (!node || typeof node !== 'object') return null;
-  switch (node.kind) {
-  case 'empty':
-    return 0;
-  case 'explicitCodes':
-  case 'scan-codes': {
-    const size = Array.isArray(node.codes) ? node.codes.length : 0;
-    return size <= ceiling ? size : null;
-  }
-  case 'union': {
-    let total = 0;
-    for (const item of node.items || []) {
-      const next = boundedMembershipUpperLimit(item, ceiling - total);
-      if (!Number.isInteger(next)) return null;
-      total += next;
-      if (total > ceiling) return null;
-    }
-    return total;
-  }
-  case 'intersect': {
-    let best = null;
-    for (const item of node.items || []) {
-      const next = boundedMembershipUpperLimit(item, ceiling);
-      if (!Number.isInteger(next)) return null;
-      best = best == null ? next : Math.min(best, next);
-    }
-    return best == null ? 0 : best;
-  }
-  case 'diff':
-    return boundedMembershipUpperLimit(node.left, ceiling);
-  default:
-    return null;
-  }
-}
-
-function runtimeSearchNode(text, ctx, scope) {
-  return {
-    kind: 'row-search',
-    text,
-    spec: runtimeSearchSpec(ctx.runtime?.search),
-    ftsTables: runtimeFtsTables(ctx.runtime?.search?.ftsTables),
-    scope,
-  };
-}
-
-function runtimeSearchSpec(searchCfg) {
-  const cfg = searchCfg && typeof searchCfg === 'object' ? searchCfg : {};
-  return {
-    sources: Array.isArray(cfg.sources) ? cfg.sources : ['display', 'designation'],
-    activeOnlyConcepts: cfg.activeOnly !== false,
-    designationActiveOnly: cfg.designationActiveOnly !== false,
-    literalActiveOnly: cfg.literalActiveOnly !== false,
-  };
-}
-
-function lowerCorrelatedRuntimeSearchPredicate(text, ctx, scope, conceptAlias = 'c') {
-  const spec = runtimeSearchSpec(ctx.runtime?.search);
-  const sources = Array.isArray(spec.sources) ? spec.sources : [];
-  if (sources.length === 0) {
-    return binary('LIKE', call('LOWER', [column('display', conceptAlias)]), ctx.add('search_like', `%${String(text || '').toLowerCase()}%`));
-  }
-
-  const matchParam = ctx.add('search_match', toFtsMatchText(text || ''));
-  const guards = [];
-  const matchClauses = [];
-  const tables = runtimeFtsTables(ctx.runtime?.search?.ftsTables);
-
-  if (spec.activeOnlyConcepts !== false) {
-    guards.push(binary('=', column('active', conceptAlias), literal(1)));
-  }
-
-  if (sources.includes('display')) {
-    matchClauses.push(exists(select({
-      columns: [aliasExpr(literal(1), 'found')],
-      from: table(tables.display, 'f'),
-      where: and([
-        binary('=', column('rowid', 'f'), column('concept_id', conceptAlias)),
-        binary('MATCH', column('term', 'f'), matchParam),
-      ]),
-    })));
-  }
-
-  if (sources.includes('designation')) {
-    matchClauses.push(exists(select({
-      columns: [aliasExpr(literal(1), 'found')],
-      from: table(tables.designation, 'f'),
-      joins: [
-        join('INNER', table('designation', 'd'), binary('=', column('designation_id', 'd'), column('rowid', 'f'))),
-      ],
-      where: and([
-        binary('=', column('concept_id', 'd'), column('concept_id', conceptAlias)),
-        spec.designationActiveOnly !== false ? binary('=', column('active', 'd'), literal(1)) : null,
-        binary('MATCH', column('term', 'f'), matchParam),
-      ]),
-    })));
-
-    for (const binding of ctx.supplementBindings || []) {
-      matchClauses.push(exists(select({
-        columns: [aliasExpr(literal(1), 'found')],
-        from: supplementTable(binding, 'search_fts_designation', 'f'),
-        joins: [
-          join('INNER', supplementTable(binding, 'supplement_designation', 'sd'), binary('=', column('designation_id', 'sd'), column('rowid', 'f'))),
-        ],
-        where: and([
-          binary('=', column('source_code', 'sd'), column('code', conceptAlias)),
-          spec.designationActiveOnly !== false ? binary('=', column('active', 'sd'), literal(1)) : null,
-          binary('MATCH', column('term', 'f'), matchParam),
-        ]),
-      })));
-    }
-  }
-
-  if (sources.includes('literal')) {
-    matchClauses.push(exists(select({
-      columns: [aliasExpr(literal(1), 'found')],
-      from: table(tables.literal, 'f'),
-      joins: [
-        join('INNER', table('concept_literal', 'cl'), binary('=', column('literal_id', 'cl'), column('rowid', 'f'))),
-      ],
-      where: and([
-        binary('=', column('source_concept_id', 'cl'), column('concept_id', conceptAlias)),
-        spec.literalActiveOnly !== false ? binary('=', column('active', 'cl'), literal(1)) : null,
-        binary('MATCH', column('term', 'f'), matchParam),
-      ]),
-    })));
-
-    for (const binding of ctx.supplementBindings || []) {
-      matchClauses.push(exists(select({
-        columns: [aliasExpr(literal(1), 'found')],
-        from: supplementTable(binding, 'search_fts_literal', 'f'),
-        joins: [
-          join('INNER', supplementTable(binding, 'supplement_literal', 'sl'), binary('=', column('literal_id', 'sl'), column('rowid', 'f'))),
-        ],
-        where: and([
-          binary('=', column('source_code', 'sl'), column('code', conceptAlias)),
-          spec.literalActiveOnly !== false ? binary('=', column('active', 'sl'), literal(1)) : null,
-          binary('MATCH', column('term', 'f'), matchParam),
-        ]),
-      })));
-    }
-  }
-
-  if (matchClauses.length === 0) return and(guards);
-  return and([...guards, or(matchClauses)]);
-}
-
 function lowerSupplementLiteralSourceQuery(node, ctx, scope) {
   const predicates = extractSupplementLiteralMatchPredicates(node, ctx);
   if (!predicates || predicates.length === 0) return null;
@@ -1088,37 +811,6 @@ function lowerSupplementLiteralSourceQuery(node, ctx, scope) {
   if (queries.some(q => !q)) return null;
   if (queries.length === 1) return queries[0];
   return compound('INTERSECT', queries);
-}
-
-function extractSupplementLiteralMatchPredicates(node, ctx) {
-  if (!node || typeof node !== 'object') return null;
-  if (node.kind === 'fromRows' && String(node.key || '') === 'source_concept_id') {
-    return extractSupplementLiteralMatchPredicates(node.rows, ctx);
-  }
-  if ((node.kind === 'distinct' || node.kind === 'row-distinct') && Array.isArray(node.keys) && node.keys.length === 1 && node.keys[0] === 'source_concept_id') {
-    return extractSupplementLiteralMatchPredicates(node.input, ctx);
-  }
-  if (node.kind === 'semiJoin' || node.kind === 'row-semiJoin') {
-    if (node.on?.kind !== 'eq' || node.on?.leftField !== 'source_concept_id' || node.on?.rightField !== 'source_concept_id') {
-      return null;
-    }
-    const left = extractSupplementLiteralMatchPredicates(node.left, ctx);
-    const right = extractSupplementLiteralMatchPredicates(node.right, ctx);
-    if (!left || !right) return null;
-    return [...left, ...right];
-  }
-  if (node.kind === 'filter' || node.kind === 'row-filter') {
-    if (!isScanOf(node.input, 'concept_literal')) return null;
-    if (node.predicate?.kind !== 'literalPropertyMatch') return null;
-    const property = String(node.predicate.property || '');
-    const propDef = ctx.propertyDef(property);
-    if (!propDef || Number.isInteger(propDef.property_id)) return null;
-    const literalBindings = ctx.supplementBindingsForProperty(property, { valueKind: 'literal' });
-    const linkBindings = ctx.supplementBindingsForProperty(property, { valueKind: 'concept' });
-    if (literalBindings.length === 0 || linkBindings.length > 0) return null;
-    return [node.predicate];
-  }
-  return null;
 }
 
 function lowerSupplementLiteralSourceSet(predicate, ctx, scope) {
@@ -1219,50 +911,6 @@ function lowerSpecialEarlyStopRowPredicate(node, membershipKey, ctx, scope, conc
       node.includeSelf === false ? binary('!=', column('descendant_id', 'cl'), column('ancestor_id', 'cl')) : null,
     ]),
   }));
-}
-
-function extractSingleSeedClosureReachability(node) {
-  if (!node || typeof node !== 'object') return null;
-  let rows = null;
-  if (node.kind === 'fromRows') {
-    if (String(node.key || 'concept_id') !== 'concept_id') return null;
-    rows = node.rows || null;
-  } else {
-    rows = node;
-  }
-  if ((rows?.kind === 'distinct' || rows?.kind === 'row-distinct')
-      && Array.isArray(rows.keys)
-      && rows.keys.length === 1
-      && rows.keys[0] === 'concept_id') {
-    rows = rows.input || null;
-  }
-  if (!rows || (rows.kind !== 'reachability' && rows.kind !== 'row-reachability')) return null;
-  if (String(rows.direction || 'down') !== 'down') return null;
-  if ((rows.relation?.storage || 'closure') !== 'closure') return null;
-  const seed = rows.seed || null;
-  const seedKind = String(seed?.kind || '');
-  const codes = Array.isArray(seed?.codes) ? seed.codes : [];
-  if ((seedKind !== 'explicitCodes' && seedKind !== 'scan-codes') || codes.length !== 1) return null;
-  return rows;
-}
-
-function extractCodeRegexFilter(node) {
-  if (!node || typeof node !== 'object') return null;
-  if (node.kind === 'fromRows' && String(node.key || 'concept_id') === 'concept_id') {
-    return extractCodeRegexFilter(node.rows);
-  }
-  if ((node.kind === 'distinct' || node.kind === 'row-distinct')
-      && Array.isArray(node.keys)
-      && node.keys.length === 1
-      && node.keys[0] === 'concept_id') {
-    return extractCodeRegexFilter(node.input);
-  }
-  if (node.kind === 'filter' || node.kind === 'row-filter') {
-    if (!isScanOf(node.input, 'concept')) return null;
-    if (node.predicate?.kind !== 'codeRegex') return null;
-    return { pattern: String(node.predicate.pattern || '') };
-  }
-  return null;
 }
 
 function lowerCodeRegexConceptWhere(pattern, ctx, alias = 'c') {
@@ -1793,123 +1441,6 @@ function lowerRowValues(node) {
   return compound('UNION ALL', queries);
 }
 
-function lowerRuntimeSearch(node, ctx, scope) {
-  const spec = node.spec || {};
-  const sources = Array.isArray(spec.sources) ? spec.sources : [];
-  const strategy = node.strategy || inferSearchStrategy(node, ctx.runtime);
-  if (sources.length === 0 || strategy === 'display-like') {
-    const likeParam = ctx.add('search_like', `%${String(node.text || '').toLowerCase()}%`);
-    return select({
-      distinct: true,
-      columns: [aliasExpr(column('concept_id', 'c'), 'concept_id')],
-      from: table('concept', 'c'),
-      where: and([
-        Number.isInteger(scope?.csId) ? binary('=', column('cs_id', 'c'), ctx.add('search_cs_id', scope.csId)) : null,
-        spec.activeOnlyConcepts !== false ? binary('=', column('active', 'c'), literal(1)) : null,
-        binary('LIKE', call('LOWER', [column('display', 'c')]), likeParam),
-      ]),
-    });
-  }
-
-  const matchParam = ctx.add('search_match', toFtsMatchText(node.text || ''));
-  const queries = [];
-  const tables = runtimeFtsTables(node.ftsTables || ctx.runtime?.search?.ftsTables);
-
-  if (sources.includes('display')) {
-    queries.push(select({
-      distinct: true,
-      columns: [aliasExpr(column('concept_id', 'c'), 'concept_id')],
-      from: table(tables.display, 'f'),
-      joins: [
-        join('INNER', table('concept', 'c'), binary('=', column('concept_id', 'c'), column('rowid', 'f'))),
-      ],
-      where: and([
-        Number.isInteger(scope?.csId) ? binary('=', column('cs_id', 'c'), ctx.add('display_cs_id', scope.csId)) : null,
-        spec.activeOnlyConcepts !== false ? binary('=', column('active', 'c'), literal(1)) : null,
-        binary('MATCH', column('term', 'f'), matchParam),
-      ]),
-    }));
-  }
-
-  if (sources.includes('designation')) {
-    queries.push(select({
-      distinct: true,
-      columns: [aliasExpr(column('concept_id', 'd'), 'concept_id')],
-      from: table(tables.designation, 'f'),
-      joins: [
-        join('INNER', table('designation', 'd'), binary('=', column('designation_id', 'd'), column('rowid', 'f'))),
-        join('INNER', table('concept', 'c'), binary('=', column('concept_id', 'c'), column('concept_id', 'd'))),
-      ],
-      where: and([
-        Number.isInteger(scope?.csId) ? binary('=', column('cs_id', 'c'), ctx.add('designation_cs_id', scope.csId)) : null,
-        spec.activeOnlyConcepts !== false ? binary('=', column('active', 'c'), literal(1)) : null,
-        spec.designationActiveOnly !== false ? binary('=', column('active', 'd'), literal(1)) : null,
-        binary('MATCH', column('term', 'f'), matchParam),
-      ]),
-    }));
-    for (const binding of ctx.supplementBindings || []) {
-      queries.push(select({
-        distinct: true,
-        columns: [aliasExpr(column('concept_id', 'c'), 'concept_id')],
-        from: supplementTable(binding, 'search_fts_designation', 'f'),
-        joins: [
-          join('INNER', supplementTable(binding, 'supplement_designation', 'sd'), binary('=', column('designation_id', 'sd'), column('rowid', 'f'))),
-          join('INNER', table('concept', 'c'), binary('=', column('code', 'c'), column('source_code', 'sd'))),
-        ],
-        where: and([
-          Number.isInteger(scope?.csId) ? binary('=', column('cs_id', 'c'), ctx.add('supp_designation_cs_id', scope.csId)) : null,
-          spec.activeOnlyConcepts !== false ? binary('=', column('active', 'c'), literal(1)) : null,
-          spec.designationActiveOnly !== false ? binary('=', column('active', 'sd'), literal(1)) : null,
-          binary('MATCH', column('term', 'f'), matchParam),
-        ]),
-      }));
-    }
-  }
-
-  if (sources.includes('literal')) {
-    queries.push(select({
-      distinct: true,
-      columns: [aliasExpr(column('source_concept_id', 'cl'), 'concept_id')],
-      from: table(tables.literal, 'f'),
-      joins: [
-        join('INNER', table('concept_literal', 'cl'), binary('=', column('literal_id', 'cl'), column('rowid', 'f'))),
-        join('INNER', table('concept', 'c'), binary('=', column('concept_id', 'c'), column('source_concept_id', 'cl'))),
-      ],
-      where: and([
-        Number.isInteger(scope?.csId) ? binary('=', column('cs_id', 'c'), ctx.add('literal_cs_id', scope.csId)) : null,
-        spec.activeOnlyConcepts !== false ? binary('=', column('active', 'c'), literal(1)) : null,
-        spec.literalActiveOnly !== false ? binary('=', column('active', 'cl'), literal(1)) : null,
-        binary('MATCH', column('term', 'f'), matchParam),
-      ]),
-    }));
-    for (const binding of ctx.supplementBindings || []) {
-      queries.push(select({
-        distinct: true,
-        columns: [aliasExpr(column('concept_id', 'c'), 'concept_id')],
-        from: supplementTable(binding, 'search_fts_literal', 'f'),
-        joins: [
-          join('INNER', supplementTable(binding, 'supplement_literal', 'sl'), binary('=', column('literal_id', 'sl'), column('rowid', 'f'))),
-          join('INNER', table('concept', 'c'), binary('=', column('code', 'c'), column('source_code', 'sl'))),
-        ],
-        where: and([
-          Number.isInteger(scope?.csId) ? binary('=', column('cs_id', 'c'), ctx.add('supp_literal_cs_id', scope.csId)) : null,
-          spec.activeOnlyConcepts !== false ? binary('=', column('active', 'c'), literal(1)) : null,
-          spec.literalActiveOnly !== false ? binary('=', column('active', 'sl'), literal(1)) : null,
-          binary('MATCH', column('term', 'f'), matchParam),
-        ]),
-      }));
-    }
-  }
-
-  if (queries.length === 0) {
-    return select({
-      columns: [aliasExpr(literal(null), 'concept_id')],
-      where: literal(false),
-    });
-  }
-  if (queries.length === 1) return queries[0];
-  return compound('UNION', queries);
-}
 
 function lowerPredicate(predicate, alias, ctx) {
   if (!predicate || typeof predicate !== 'object') return null;
@@ -2038,25 +1569,10 @@ function lowerTypedLiteralSupplementPredicate(predicate, propertyDef, alias, ctx
   return lowerLiteralSupplementMatchPredicate(predicate, alias, ctx);
 }
 
-function isScanOf(node, tableName) {
-  return !!node
-    && (node.kind === 'row-scan' || node.kind === 'scan')
-    && String(node.table || '') === String(tableName || '');
-}
-
 function isLeftJoinNode(node) {
   return String(node?.joinType || '') === 'left' || String(node?.strategy || '') === 'left-join';
 }
 
-function inferSearchStrategy(node, runtime) {
-  const sources = [...new Set(((node?.spec?.sources || []).map(String)).filter(Boolean))];
-  if (sources.length === 0) return 'display-like';
-  const configuredTables = runtime?.search?.ftsTables && typeof runtime.search.ftsTables === 'object'
-    ? runtime.search.ftsTables
-    : {};
-  const hasNamedTable = Object.values(configuredTables).some(Boolean);
-  return hasNamedTable ? 'fts-union' : 'fts-union-default-tables';
-}
 
 function scanAlias(tableName) {
   switch (String(tableName || '')) {
@@ -2089,19 +1605,6 @@ function normalizeEdgeSetId(value) {
   return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
-function runtimeFtsTables(tables) {
-  const cfg = tables && typeof tables === 'object' ? tables : {};
-  return {
-    display: cfg.display ? String(cfg.display) : 'search_fts_display',
-    designation: cfg.designation ? String(cfg.designation) : 'search_fts_designation',
-    literal: cfg.literal ? String(cfg.literal) : 'search_fts_literal',
-  };
-}
-
-function toFtsMatchText(text) {
-  return `"${String(text || '').replace(/"/g, '""')}"`;
-}
-
 module.exports = {
   aliasExpr,
   and,
@@ -2126,4 +1629,7 @@ module.exports = {
   cte,
   unary,
   withQuery,
+  __testing: {
+    chooseTerminalLoweringStrategy,
+  },
 };

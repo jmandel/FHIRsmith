@@ -1,0 +1,606 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:50.270Z",
+  "rowIndex": 103,
+  "slug": "103-imported-valueset-include-with-gender-peer-plus-exclude",
+  "name": "Imported ValueSet include with gender peer plus exclude",
+  "category": "Cross-Source Coverage",
+  "hrefs": {
+    "input": "../perf-table.inputs/103-imported-valueset-include-with-gender-peer-plus-exclude.json",
+    "detailJson": "103-imported-valueset-include-with-gender-peer-plus-exclude.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://hl7.org/fhir/ValueSet/administrative-gender"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/publication-status",
+                        "concept": [
+                          {
+                            "code": "active"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "other"
+                          },
+                          {
+                            "code": "unknown"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2625",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:50 GMT",
+            "etag": "W/\"a41-Z/s7a+ylleS0nnsIqDdVffqaN4c\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-347"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:50.266Z",
+              "identifier": "urn:uuid:20528877-5e17-4d7b-a060-beb3afddf686",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "female",
+                  "display": "Female"
+                },
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                },
+                {
+                  "system": "http://hl7.org/fhir/publication-status",
+                  "code": "active",
+                  "display": "Active"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/publication-status|4.0.1"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://hl7.org/fhir/ValueSet/administrative-gender|4.0.1"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://hl7.org/fhir/administrative-gender, http://hl7.org/fhir/publication-status\ncanonical-ir-hash: f7a198d3ed77a9a5cfd857c24ec7af515f0f191f\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    diff [n.0]\n      selector whole http://hl7.org/fhir/administrative-gender [n.0.l]\n      selector concept http://hl7.org/fhir/administrative-gender [2] other, unknown [n.0.r]\n    selector concept http://hl7.org/fhir/publication-status [1] active [n.1]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.51,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/publication-status\",\"count\":1},\"t\":0.33},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\"},\"children\":[],\"ms\":0.06,\"result\":{\"count\":2}},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":2},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":2}},{\"name\":\"system:http://hl7.org/fhir/publication-status\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.01,\"result\":{\"candidates\":1}}],\"ms\":0.06,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":3}}],\"ms\":0.46,\"result\":{\"total\":3,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.51,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://hl7.org/fhir/publication-status",
+                    "count": 1
+                  },
+                  "t": 0.33
+                },
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  "children": [],
+                  "ms": 0.06,
+                  "result": {
+                    "count": 2
+                  }
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 3,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 2
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://hl7.org/fhir/administrative-gender",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 2
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "system:http://hl7.org/fhir/publication-status",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1
+                      },
+                      "children": [],
+                      "ms": 0.01,
+                      "result": {
+                        "candidates": 1
+                      }
+                    }
+                  ],
+                  "ms": 0.06,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.46,
+              "result": {
+                "total": 3,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://hl7.org/fhir/administrative-gender, http://hl7.org/fhir/publication-status\ncanonical-ir-hash: f7a198d3ed77a9a5cfd857c24ec7af515f0f191f\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    diff [n.0]\n      selector whole http://hl7.org/fhir/administrative-gender [n.0.l]\n      selector concept http://hl7.org/fhir/administrative-gender [2] other, unknown [n.0.r]\n    selector concept http://hl7.org/fhir/publication-status [1] active [n.1]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://hl7.org/fhir/ValueSet/administrative-gender"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/publication-status",
+                        "concept": [
+                          {
+                            "code": "active"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "other"
+                          },
+                          {
+                            "code": "unknown"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1283",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:50 GMT",
+            "etag": "W/\"503-zUjBtKumyA7Al4iAd9hKOHxQgF8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-348"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:50.267Z",
+              "identifier": "urn:uuid:599c0029-5847-4845-a216-bc754ef1bad6",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://hl7.org/fhir/ValueSet/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/publication-status|4.0.1"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                },
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "female",
+                  "display": "Female"
+                },
+                {
+                  "system": "http://hl7.org/fhir/publication-status",
+                  "code": "active",
+                  "display": "Active"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.46,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.45,\"result\":{\"ms\":0.44,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.46,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.45,
+              "result": {
+                "ms": 0.44,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://hl7.org/fhir/ValueSet/administrative-gender"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/publication-status",
+                        "concept": [
+                          {
+                            "code": "active"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "other"
+                          },
+                          {
+                            "code": "unknown"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1283",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:50 GMT",
+            "etag": "W/\"503-dTXPI/RWHnE1lz3VwZedm+feoH8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-107"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:50.269Z",
+              "identifier": "urn:uuid:5281cb21-b857-4a47-b4a8-bf233e2d5dbd",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://hl7.org/fhir/ValueSet/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/publication-status|4.0.1"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                },
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "female",
+                  "display": "Female"
+                },
+                {
+                  "system": "http://hl7.org/fhir/publication-status",
+                  "code": "active",
+                  "display": "Active"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.53,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.52,\"result\":{\"ms\":0.51,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.53,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.52,
+              "result": {
+                "ms": 0.51,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

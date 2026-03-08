@@ -205,7 +205,7 @@ class LoincServices extends BaseCSServices {
       const displays = await this.#getDisplaysForContext(ctxt, this.opContext.langs);
 
       // Try to find exact language match
-      for (const lang of this.opContext.langs.langs) {
+      for (const lang of this.opContext.langs) {
         for (const display of displays) {
           if (lang.matches(display.language, true)) {
             return display.value;
@@ -214,7 +214,7 @@ class LoincServices extends BaseCSServices {
       }
 
       // Try partial language match
-      for (const lang of this.opContext.langs.langs) {
+      for (const lang of this.opContext.langs) {
         for (const display of displays) {
           if (lang.matches(display.language, false)) {
             return display.value;

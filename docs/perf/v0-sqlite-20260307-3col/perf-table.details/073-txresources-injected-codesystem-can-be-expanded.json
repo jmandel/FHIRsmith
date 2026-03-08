@@ -1,0 +1,563 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:42.784Z",
+  "rowIndex": 73,
+  "slug": "073-txresources-injected-codesystem-can-be-expanded",
+  "name": "txResources-injected CodeSystem can be expanded",
+  "category": "txResources",
+  "hrefs": {
+    "input": "../perf-table.inputs/073-txresources-injected-codesystem-can-be-expanded.json",
+    "detailJson": "073-txresources-injected-codesystem-can-be-expanded.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/colors"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/colors",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1771",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"6eb-AWyIOlIy9HkxmBQ9SCeKxROiFO0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-248"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:42.780Z",
+              "identifier": "urn:uuid:65f424c4-47b6-487d-9777-ef816f1a9ced",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "red",
+                  "display": "Red"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/colors|1.0.0"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/colors\ncanonical-ir-hash: 4fc7d3210bfa5508481c35d0bd66180ac387df80\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/colors [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.22,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/colors\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.19}],\"ms\":0.05,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":3}}],\"ms\":0.19,\"result\":{\"total\":3,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.22,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/colors",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "candidates": 3
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 3,
+                        "total": 3
+                      },
+                      "t": 0.19
+                    }
+                  ],
+                  "ms": 0.05,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.19,
+              "result": {
+                "total": 3,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/colors\ncanonical-ir-hash: 4fc7d3210bfa5508481c35d0bd66180ac387df80\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/colors [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/colors"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/colors",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1046",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"416-XTYI38hBvbPLKHokNFKi5lWt9fc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-249"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:42.781Z",
+              "identifier": "urn:uuid:4ccbc057-a14a-4d0d-a075-1a76c7e99da7",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/colors|1.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "blue",
+                  "display": "Blue"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.25,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.24,\"result\":{\"ms\":0.23,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.25,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.24,
+              "result": {
+                "ms": 0.23,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/colors"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/colors",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1046",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"416-MiqDqpNX94m/BlnpZD3wkEaSVMQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-77"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:42.783Z",
+              "identifier": "urn:uuid:5a3f7990-75bd-408b-9d0c-9da7aa81152e",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/colors|1.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "system": "http://example.org/cs/colors",
+                  "code": "blue",
+                  "display": "Blue"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.29,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.27,\"result\":{\"ms\":0.27,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.29,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.27,
+              "result": {
+                "ms": 0.27,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

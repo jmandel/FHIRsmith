@@ -16,10 +16,9 @@ best-in-class.
 
 This archived review started with medium/high issues concentrated at the
 supplement/runtime boundary and the response-shaping boundary. Those have been
-addressed on this branch. The only item intentionally left open is the
-low-priority `Proxy`-based supplement wrapper (`F6`), which is acceptable for
-now and should be revisited only if the pattern spreads or starts obscuring
-debugging.
+addressed on this branch. The low-priority `Proxy`-based supplement wrapper
+(`F6`) was also cleaned up later by replacing the proxy with an explicit IR
+execution wrapper.
 
 ---
 
@@ -252,15 +251,15 @@ unchanged.
 
 ### F6 (Low) — Proxy-based provider wrapping
 
-The supplement wrapper at `ir-provider.js:84-101` uses `new Proxy()` to
-transparently delegate unknown properties to the underlying provider. This
-avoids listing every provider method but stack traces through proxy traps are
-opaque, and the `set` trap has conditional routing based on property
-existence. Compare to `legacy-ir-adapter.js:241-257` which explicitly lists
-and binds methods — more verbose but completely predictable.
+Status: fixed on this branch
 
-Acceptable for now (short-lived wrapper, stable method set). Flag if the
-pattern spreads.
+The supplement wrapper previously used `new Proxy()` to transparently delegate
+unknown properties to the underlying provider. That made stack traces and
+surface ownership less explicit than necessary.
+
+**Resolution.** `ir-provider.js` now returns a small explicit IR execution
+wrapper exposing only `executeIR`, `countForIR`, `membershipForIR`, and the
+small amount of execution metadata the orchestrator consumes.
 
 ---
 
@@ -368,5 +367,5 @@ Completed:
 
 ### Remaining open item
 
-6. **F6**: Keep the supplement `Proxy` wrapper contained; replace it only if
-   the pattern spreads or stack-trace opacity becomes a real debugging cost.
+None from this review remain urgent. The earlier `F6` proxy-wrapper note has
+been addressed by switching to an explicit execution wrapper.

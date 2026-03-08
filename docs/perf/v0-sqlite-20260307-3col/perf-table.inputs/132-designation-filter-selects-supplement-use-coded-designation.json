@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 1,
+  "id": 132,
+  "slug": "132-designation-filter-selects-supplement-use-coded-designation",
+  "name": "Designation filter selects supplement use-coded designation",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs-s7",
+            "concept": [
+              {
+                "code": "D"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s7",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "D",
+              "display": "Delta"
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s7",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s7",
+          "concept": [
+            {
+              "code": "D",
+              "designation": [
+                {
+                  "language": "en",
+                  "use": {
+                    "system": "http://example.org/use",
+                    "code": "abbrev"
+                  },
+                  "value": "DLT"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "includeDesignations": true,
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/supp-s7"
+        },
+        {
+          "name": "designation",
+          "valueString": "http://example.org/use|abbrev"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s7",
+                    "concept": [
+                      {
+                        "code": "D"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s7",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "D",
+                  "display": "Delta"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s7",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s7",
+              "concept": [
+                {
+                  "code": "D",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://example.org/use",
+                        "code": "abbrev"
+                      },
+                      "value": "DLT"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s7"
+          },
+          {
+            "name": "designation",
+            "valueString": "http://example.org/use|abbrev"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s7",
+                    "concept": [
+                      {
+                        "code": "D"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s7",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "D",
+                  "display": "Delta"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s7",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s7",
+              "concept": [
+                {
+                  "code": "D",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://example.org/use",
+                        "code": "abbrev"
+                      },
+                      "value": "DLT"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s7"
+          },
+          {
+            "name": "designation",
+            "valueString": "http://example.org/use|abbrev"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s7",
+                    "concept": [
+                      {
+                        "code": "D"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s7",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "D",
+                  "display": "Delta"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s7",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s7",
+              "concept": [
+                {
+                  "code": "D",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://example.org/use",
+                        "code": "abbrev"
+                      },
+                      "value": "DLT"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s7"
+          },
+          {
+            "name": "designation",
+            "valueString": "http://example.org/use|abbrev"
+          }
+        ]
+      }
+    }
+  }
+}

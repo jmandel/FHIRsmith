@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "id": 127,
+  "slug": "127-provided-supplement-is-ignored-unless-requested",
+  "name": "Provided supplement is ignored unless requested",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs-s2",
+            "concept": [
+              {
+                "code": "X"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s2",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "X",
+              "display": "Xray"
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s2",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s2",
+          "concept": [
+            {
+              "code": "X",
+              "designation": [
+                {
+                  "language": "fr",
+                  "value": "Rayon"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "includeDesignations": true
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s2",
+                    "concept": [
+                      {
+                        "code": "X"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s2",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2",
+              "concept": [
+                {
+                  "code": "X",
+                  "designation": [
+                    {
+                      "language": "fr",
+                      "value": "Rayon"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s2",
+                    "concept": [
+                      {
+                        "code": "X"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s2",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2",
+              "concept": [
+                {
+                  "code": "X",
+                  "designation": [
+                    {
+                      "language": "fr",
+                      "value": "Rayon"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s2",
+                    "concept": [
+                      {
+                        "code": "X"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s2",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2",
+              "concept": [
+                {
+                  "code": "X",
+                  "designation": [
+                    {
+                      "language": "fr",
+                      "value": "Rayon"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

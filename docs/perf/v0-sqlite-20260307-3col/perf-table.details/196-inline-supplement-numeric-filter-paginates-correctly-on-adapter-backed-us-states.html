@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Inline supplement numeric filter paginates correctly on adapter-backed US states</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:52.346Z",
+  "rowIndex": 196,
+  "slug": "196-inline-supplement-numeric-filter-paginates-correctly-on-adapter-backed-us-states",
+  "name": "Inline supplement numeric filter paginates correctly on adapter-backed US states",
+  "category": "Supplements",
+  "hrefs": {
+    "input": "../perf-table.inputs/196-inline-supplement-numeric-filter-paginates-correctly-on-adapter-backed-us-states.json",
+    "detailJson": "196-inline-supplement-numeric-filter-paginates-correctly-on-adapter-backed-us-states.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 4,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 1
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/usps-supp-roll",
+                  "content": "supplement",
+                  "supplements": "https://www.usps.com/",
+                  "concept": [
+                    {
+                      "code": "OK",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    },
+                    {
+                      "code": "TX",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/usps-supp-roll"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2478",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:52 GMT",
+            "etag": "W/\"9ae-ygzbbQIXVnbiOavdTRHBWTWw/aA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-465"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:52.337Z",
+              "identifier": "urn:uuid:8e46a81c-3cc8-49e3-b204-35d948b27651",
+              "total": 2,
+              "offset": 1,
+              "contains": [
+                {
+                  "system": "https://www.usps.com/",
+                  "code": "TX",
+                  "display": "Texas"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 1
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 1
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "https://www.usps.com/"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/usps-supp-roll"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: https://www.usps.com/\ncanonical-ir-hash: 22fde29a6ed58a415c323a132321c0ca38a4692c\nruntime-constraints:\n  pagination: offset=1 count=1\noptimized-ir:\n  selector filter https://www.usps.com/ d20-roll = 20 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":2.83,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":1,\"count\":1,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":1,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":1,\"sysCount\":1},\"children\":[{\"name\":\"supplementIR:execute\",\"args\":{\"system\":\"https://www.usps.com/\",\"text\":null},\"children\":[{\"name\":\"note\",\"message\":\"supplementIR:leaf-filter\",\"data\":{\"system\":\"https://www.usps.com/\",\"supportClauses\":0,\"supplementClauses\":[\"d20-roll = 20\"],\"before\":62,\"after\":2},\"t\":2.29}],\"ms\":0.63,\"result\":{\"candidates\":1}}],\"ms\":0.65,\"result\":{\"candidates\":1}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"https://www.usps.com/\"},\"children\":[{\"name\":\"supplementIR:count\",\"args\":{\"system\":\"https://www.usps.com/\",\"text\":null},\"children\":[{\"name\":\"note\",\"message\":\"supplementIR:leaf-filter\",\"data\":{\"system\":\"https://www.usps.com/\",\"supportClauses\":0,\"supplementClauses\":[\"d20-roll = 20\"],\"before\":62,\"after\":2},\"t\":2.75}],\"ms\":0.44,\"result\":{\"count\":2}}],\"ms\":0.45,\"result\":{\"count\":2}}],\"ms\":1.11,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":1}}],\"ms\":1.39,\"result\":{\"total\":2,\"contains\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 2.83,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 1,
+                "count": 1,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 1,
+                    "count": 1,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:https://www.usps.com/",
+                      "args": {
+                        "sysOffset": 1,
+                        "sysCount": 1
+                      },
+                      "children": [
+                        {
+                          "name": "supplementIR:execute",
+                          "args": {
+                            "system": "https://www.usps.com/",
+                            "text": null
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "supplementIR:leaf-filter",
+                              "data": {
+                                "system": "https://www.usps.com/",
+                                "supportClauses": 0,
+                                "supplementClauses": [
+                                  "d20-roll = 20"
+                                ],
+                                "before": 62,
+                                "after": 2
+                              },
+                              "t": 2.29
+                            }
+                          ],
+                          "ms": 0.63,
+                          "result": {
+                            "candidates": 1
+                          }
+                        }
+                      ],
+                      "ms": 0.65,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "https://www.usps.com/"
+                      },
+                      "children": [
+                        {
+                          "name": "supplementIR:count",
+                          "args": {
+                            "system": "https://www.usps.com/",
+                            "text": null
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "supplementIR:leaf-filter",
+                              "data": {
+                                "system": "https://www.usps.com/",
+                                "supportClauses": 0,
+                                "supplementClauses": [
+                                  "d20-roll = 20"
+                                ],
+                                "before": 62,
+                                "after": 2
+                              },
+                              "t": 2.75
+                            }
+                          ],
+                          "ms": 0.44,
+                          "result": {
+                            "count": 2
+                          }
+                        }
+                      ],
+                      "ms": 0.45,
+                      "result": {
+                        "count": 2
+                      }
+                    }
+                  ],
+                  "ms": 1.11,
+                  "result": {
+                    "paged": 1
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 1,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 1
+                  }
+                }
+              ],
+              "ms": 1.39,
+              "result": {
+                "total": 2,
+                "contains": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: https://www.usps.com/\ncanonical-ir-hash: 22fde29a6ed58a415c323a132321c0ca38a4692c\nruntime-constraints:\n  pagination: offset=1 count=1\noptimized-ir:\n  selector filter https://www.usps.com/ d20-roll = 20 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 4,
+        "error": "Must override",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 1
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/usps-supp-roll",
+                  "content": "supplement",
+                  "supplements": "https://www.usps.com/",
+                  "concept": [
+                    {
+                      "code": "OK",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    },
+                    {
+                      "code": "TX",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/usps-supp-roll"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "150",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:52 GMT",
+            "etag": "W/\"96-Z4lrtYH0UZY/FookeLn1hilOI8A\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-466"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "Must override"
+                },
+                "diagnostics": "Must override"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 4,
+        "error": "Must override",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 1
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/usps-supp-roll",
+                  "content": "supplement",
+                  "supplements": "https://www.usps.com/",
+                  "concept": [
+                    {
+                      "code": "OK",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    },
+                    {
+                      "code": "TX",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/usps-supp-roll"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "150",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:52 GMT",
+            "etag": "W/\"96-Z4lrtYH0UZY/FookeLn1hilOI8A\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-142"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "Must override"
+                },
+                "diagnostics": "Must override"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

@@ -1,0 +1,504 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:51.502Z",
+  "rowIndex": 117,
+  "slug": "117-us-states-offset-beyond-end-returns-empty",
+  "name": "US states offset beyond end returns empty",
+  "category": "Pagination",
+  "hrefs": {
+    "input": "../perf-table.inputs/117-us-states-offset-beyond-end-returns-empty.json",
+    "detailJson": "117-us-states-offset-beyond-end-returns-empty.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 100
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1611",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"64b-ePJ4CXxLQ3U9jXsWWWIKF0XwaMc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-402"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.496Z",
+              "identifier": "urn:uuid:ff58bad5-18e7-4591-8d1c-2b6e3ddac6db",
+              "total": 62,
+              "offset": 100,
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "https://www.usps.com/"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: https://www.usps.com/\ncanonical-ir-hash: 3d3bc3bfed6877c30e7ac6a08c9f50605acf79dc\nruntime-constraints:\n  pagination: offset=100 count=10\noptimized-ir:\n  selector whole https://www.usps.com/ [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.76,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":100,\"count\":10,\"exactTotal\":true,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":100,\"count\":10,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":100,\"sysCount\":10},\"children\":[],\"ms\":0.28,\"result\":{\"candidates\":0}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"https://www.usps.com/\"},\"children\":[],\"ms\":0.27,\"result\":{\"count\":62}}],\"ms\":0.56,\"result\":{\"paged\":0}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":0,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":0}}],\"ms\":0.71,\"result\":{\"total\":62,\"contains\":0}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.76,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 100,
+                "count": 10,
+                "exactTotal": true,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 100,
+                    "count": 10,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:https://www.usps.com/",
+                      "args": {
+                        "sysOffset": 100,
+                        "sysCount": 10
+                      },
+                      "children": [],
+                      "ms": 0.28,
+                      "result": {
+                        "candidates": 0
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "https://www.usps.com/"
+                      },
+                      "children": [],
+                      "ms": 0.27,
+                      "result": {
+                        "count": 62
+                      }
+                    }
+                  ],
+                  "ms": 0.56,
+                  "result": {
+                    "paged": 0
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 0,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 0
+                  }
+                }
+              ],
+              "ms": 0.71,
+              "result": {
+                "total": 62,
+                "contains": 0
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: https://www.usps.com/\ncanonical-ir-hash: 3d3bc3bfed6877c30e7ac6a08c9f50605acf79dc\nruntime-constraints:\n  pagination: offset=100 count=10\noptimized-ir:\n  selector whole https://www.usps.com/ [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 100
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "888",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"378-h2rBFzdndZn5mHUv17zAuFdC5FQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-403"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.497Z",
+              "identifier": "urn:uuid:395cbecd-256c-4ca7-98c3-b6e8282cd6b4",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "https://www.usps.com/"
+                }
+              ],
+              "offset": 100,
+              "total": 62,
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.1,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":100,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.09,\"result\":{\"ms\":1.08,\"total\":62,\"returned\":0}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.1,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 10,
+                "offset": 100,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1.09,
+              "result": {
+                "ms": 1.08,
+                "total": 62,
+                "returned": 0
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 100
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "888",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"378-OP92uevXDMYoycUj6aknUxrDs/4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-121"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.500Z",
+              "identifier": "urn:uuid:b02fa722-c94f-4625-b734-d4b1a78913d7",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "https://www.usps.com/"
+                }
+              ],
+              "offset": 100,
+              "total": 62,
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.11,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":100,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.1,\"result\":{\"ms\":1.09,\"total\":62,\"returned\":0}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.11,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 10,
+                "offset": 100,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1.1,
+              "result": {
+                "ms": 1.09,
+                "total": 62,
+                "returned": 0
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

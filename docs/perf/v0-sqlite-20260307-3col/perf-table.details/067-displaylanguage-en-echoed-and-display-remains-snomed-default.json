@@ -1,0 +1,536 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:41.875Z",
+  "rowIndex": 67,
+  "slug": "067-displaylanguage-en-echoed-and-display-remains-snomed-default",
+  "name": "displayLanguage=en echoed and display remains SNOMED default",
+  "category": "Designations & Language",
+  "hrefs": {
+    "input": "../perf-table.inputs/067-displaylanguage-en-echoed-and-display-remains-snomed-default.json",
+    "detailJson": "067-displaylanguage-en-echoed-and-display-remains-snomed-default.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "concept": [
+                          {
+                            "code": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "en"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2810",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:41 GMT",
+            "etag": "W/\"afa-R+xYWVL+KOpPLU8j8bPe3Cwwck0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-230"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:41.870Z",
+              "identifier": "urn:uuid:f48c31ba-a663-4cbc-8688-85f9393c0391",
+              "total": 1,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "73211009",
+                  "display": "Diabetes mellitus"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "en"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: ac77baef51aa4279f003e7f1fda3ed624bfa73a4\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://snomed.info/sct [1] 73211009 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.71,\"sqlCount\":1,\"sqlMs\":0.05,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://snomed.info/sct\",\"count\":1},\"t\":0.43},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.05,\"execMs\":0.05},\"t\":0.64}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 1000\",\"params\":{\"code_0\":\"73211009\",\"cs_id_1\":1},\"rows\":1,\"ms\":0.05,\"label\":\"executeIR\"}],\"ms\":0.2,\"result\":{\"candidates\":1,\"total\":null}}],\"ms\":0.21,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":0.66}],\"ms\":0.22,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":1}}],\"ms\":0.66,\"result\":{\"total\":1,\"contains\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.71,
+          "sqlCount": 1,
+          "sqlMs": 0.05,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://snomed.info/sct",
+                    "count": 1
+                  },
+                  "t": 0.43
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 1,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.05,
+                                "execMs": 0.05
+                              },
+                              "t": 0.64
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") ORDER BY \"c\".\"code\" ASC LIMIT 1000",
+                              "params": {
+                                "code_0": "73211009",
+                                "cs_id_1": 1
+                              },
+                              "rows": 1,
+                              "ms": 0.05,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.2,
+                          "result": {
+                            "candidates": 1,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.21,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 1,
+                        "total": 1
+                      },
+                      "t": 0.66
+                    }
+                  ],
+                  "ms": 0.22,
+                  "result": {
+                    "paged": 1
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 1,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 1
+                  }
+                }
+              ],
+              "ms": 0.66,
+              "result": {
+                "total": 1,
+                "contains": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: ac77baef51aa4279f003e7f1fda3ed624bfa73a4\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://snomed.info/sct [1] 73211009 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "concept": [
+                          {
+                            "code": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "en"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "959",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:41 GMT",
+            "etag": "W/\"3bf-y/UFzIyipuTAs3YzbwE8EtDDxCc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-231"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:41.872Z",
+              "identifier": "urn:uuid:047ed2ce-5262-4d05-ace1-77e8a1f74f28",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "en"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "total": 1,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "73211009",
+                  "display": "Diabetes mellitus"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.93,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.92,\"result\":{\"ms\":0.91,\"total\":1,\"returned\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.93,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.92,
+              "result": {
+                "ms": 0.91,
+                "total": 1,
+                "returned": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "concept": [
+                          {
+                            "code": "73211009"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "en"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "959",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:41 GMT",
+            "etag": "W/\"3bf-mboYPp9ThBXh+3Q96wbXQulPtuE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-71"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:41.874Z",
+              "identifier": "urn:uuid:cfac3d54-8fd3-40b9-a7c0-e97f4c2a3e17",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "en"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "total": 1,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "73211009",
+                  "display": "Diabetes mellitus"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.26,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.24,\"result\":{\"ms\":0.24,\"total\":1,\"returned\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.26,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.24,
+              "result": {
+                "ms": 0.24,
+                "total": 1,
+                "returned": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

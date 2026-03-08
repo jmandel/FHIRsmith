@@ -1,0 +1,566 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:53.448Z",
+  "rowIndex": 137,
+  "slug": "137-ucum-expansion-reports-valueset-unclosed",
+  "name": "UCUM expansion reports valueset-unclosed",
+  "category": "Unclosed Expansion",
+  "hrefs": {
+    "input": "../perf-table.inputs/137-ucum-expansion-reports-valueset-unclosed.json",
+    "detailJson": "137-ucum-expansion-reports-valueset-unclosed.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 12,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 12,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unitsofmeasure.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2205",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:53 GMT",
+            "etag": "W/\"89d-4On1+6mNywC4wRpT3bG/7+wYWDI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-477"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:53.360Z",
+              "identifier": "urn:uuid:de3358b7-85a3-4ec5-a137-3f0aa9080276",
+              "total": 1357,
+              "contains": [
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "'",
+                  "display": "minute"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "''",
+                  "display": "second"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "[acr_br]",
+                  "display": "acre"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "[acr_us]",
+                  "display": "acre"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "[Amb'a'1'U]",
+                  "display": "Amb a 1 units"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unitsofmeasure.org|2.2"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+                  "valueString": "The code System \"http://unitsofmeasure.org\" has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://unitsofmeasure.org\ncanonical-ir-hash: ac5a3ae99550fdcd2a39a26d8b56c9d175fcb6a8\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector whole http://unitsofmeasure.org [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":8.05,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://unitsofmeasure.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[],\"ms\":3.96,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://unitsofmeasure.org\"},\"children\":[],\"ms\":3.8,\"result\":{\"count\":1357}}],\"ms\":7.78,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":5}}],\"ms\":7.98,\"result\":{\"total\":1357,\"contains\":5}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 8.05,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 5,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 5,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://unitsofmeasure.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 5
+                      },
+                      "children": [],
+                      "ms": 3.96,
+                      "result": {
+                        "candidates": 5
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://unitsofmeasure.org"
+                      },
+                      "children": [],
+                      "ms": 3.8,
+                      "result": {
+                        "count": 1357
+                      }
+                    }
+                  ],
+                  "ms": 7.78,
+                  "result": {
+                    "paged": 5
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 5,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 5
+                  }
+                }
+              ],
+              "ms": 7.98,
+              "result": {
+                "total": 1357,
+                "contains": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://unitsofmeasure.org\ncanonical-ir-hash: ac5a3ae99550fdcd2a39a26d8b56c9d175fcb6a8\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector whole http://unitsofmeasure.org [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 47,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 47,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unitsofmeasure.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1615",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:53 GMT",
+            "etag": "W/\"64f-n/5deWda21npMNH11EKlVouj4Mk\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-478"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:53.362Z",
+              "identifier": "urn:uuid:52e8665e-4a46-4264-917b-98108869c2cf",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unitsofmeasure.org|2.2"
+                },
+                {
+                  "name": "warning-draft",
+                  "valueUri": "http://hl7.org/fhir/ValueSet/ucum-common|4.0.1"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+                  "valueString": "The code System \"http://unitsofmeasure.org has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":45.84,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":45.81,\"result\":{\"ms\":45.8,\"total\":1357,\"returned\":5}}]}"
+                }
+              ],
+              "total": 1357,
+              "contains": [
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%",
+                  "display": "percent"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%/100{WBC}",
+                  "display": "percent / 100 WBC"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%{0to3Hours}",
+                  "display": "percent 0to3Hours"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%{Abnormal}",
+                  "display": "percent Abnormal"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%{Activity}",
+                  "display": "percent Activity"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 45.84,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 45.81,
+              "result": {
+                "ms": 45.8,
+                "total": 1357,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 39,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 39,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unitsofmeasure.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1619",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:53 GMT",
+            "etag": "W/\"653-PPeM2WWH+GXuM32iA8ygJOskFjU\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-146"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:53.410Z",
+              "identifier": "urn:uuid:c8e3e75e-acf3-4b00-ae72-f4dcd3015964",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unitsofmeasure.org|2.2"
+                },
+                {
+                  "name": "warning-draft",
+                  "valueUri": "http://hl7.org/fhir/ValueSet/ucum-common|4.0.1"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+                  "valueString": "The code System \"http://unitsofmeasure.org has a grammar and so has infinite members. This extension is based on http://hl7.org/fhir/ValueSet/ucum-common"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":37.51,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":37.48,\"result\":{\"ms\":37.48,\"total\":1357,\"returned\":5}}]}"
+                }
+              ],
+              "total": 1357,
+              "contains": [
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%",
+                  "display": "percent"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%/100{WBC}",
+                  "display": "percent / 100 WBC"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%{0to3Hours}",
+                  "display": "percent 0to3Hours"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%{Abnormal}",
+                  "display": "percent Abnormal"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "%{Activity}",
+                  "display": "percent Activity"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 37.51,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 37.48,
+              "result": {
+                "ms": 37.48,
+                "total": 1357,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "id": 106,
+  "slug": "106-imported-valueset-peer-with-excludes-reconstructs-complete-set",
+  "name": "Imported ValueSet peer with excludes reconstructs complete set",
+  "category": "Pagination Safety",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "http://example.org/vs/pgsafe-1772922410318"
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://example.org/cs/pgsafe-1772922410318",
+            "concept": [
+              {
+                "code": "b"
+              }
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "concept": [
+              {
+                "code": "unknown"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/pgsafe-1772922410318",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "a",
+              "display": "A"
+            },
+            {
+              "code": "b",
+              "display": "B"
+            },
+            {
+              "code": "c",
+              "display": "C"
+            },
+            {
+              "code": "d",
+              "display": "D"
+            }
+          ]
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/pgsafe-1772922410318",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/pgsafe-1772922410318"
+              }
+            ]
+          }
+        }
+      ],
+      "count": 1,
+      "offset": 6
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/pgsafe-1772922410318"
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://example.org/cs/pgsafe-1772922410318",
+                    "concept": [
+                      {
+                        "code": "b"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 6
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/pgsafe-1772922410318",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "a",
+                  "display": "A"
+                },
+                {
+                  "code": "b",
+                  "display": "B"
+                },
+                {
+                  "code": "c",
+                  "display": "C"
+                },
+                {
+                  "code": "d",
+                  "display": "D"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/pgsafe-1772922410318",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/pgsafe-1772922410318"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/pgsafe-1772922410318"
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://example.org/cs/pgsafe-1772922410318",
+                    "concept": [
+                      {
+                        "code": "b"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 6
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/pgsafe-1772922410318",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "a",
+                  "display": "A"
+                },
+                {
+                  "code": "b",
+                  "display": "B"
+                },
+                {
+                  "code": "c",
+                  "display": "C"
+                },
+                {
+                  "code": "d",
+                  "display": "D"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/pgsafe-1772922410318",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/pgsafe-1772922410318"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/pgsafe-1772922410318"
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://example.org/cs/pgsafe-1772922410318",
+                    "concept": [
+                      {
+                        "code": "b"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 6
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/pgsafe-1772922410318",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "a",
+                  "display": "A"
+                },
+                {
+                  "code": "b",
+                  "display": "B"
+                },
+                {
+                  "code": "c",
+                  "display": "C"
+                },
+                {
+                  "code": "d",
+                  "display": "D"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/pgsafe-1772922410318",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/pgsafe-1772922410318"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

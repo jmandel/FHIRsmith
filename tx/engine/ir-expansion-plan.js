@@ -3,6 +3,7 @@
 const { buildIRFromValueSet } = require('./build-ir');
 const { resolveImports } = require('./resolve-imports');
 const { renderIRPlanText } = require('./ir-debug');
+const { mapIRAsync, walkIR } = require('./ir-traversal');
 const {
   optimize,
   collectSystems,
@@ -69,20 +70,12 @@ function staticConceptSetFromIR(node) {
 }
 
 function hasLockedDateSelectors(node) {
-  if (!node || typeof node !== 'object') return false;
-  switch (node.kind) {
-    case 'selector':
-      return !node.version && !!node.lockedDate;
-    case 'import':
-      return node.resolved ? hasLockedDateSelectors(node.resolved) : false;
-    case 'union':
-    case 'intersect':
-      return (node.items || []).some(hasLockedDateSelectors);
-    case 'diff':
-      return hasLockedDateSelectors(node.left) || hasLockedDateSelectors(node.right);
-    default:
-      return false;
-  }
+  let found = false;
+  walkIR(node, (n) => {
+    if (found) return;
+    if (n.kind === 'selector' && !n.version && !!n.lockedDate) found = true;
+  });
+  return found;
 }
 
 async function resolveLockedDateVersions(node, resolveVersionAtDate, warnings = []) {
@@ -99,34 +92,19 @@ async function resolveLockedDateVersions(node, resolveVersionAtDate, warnings = 
   }
 
   async function walk(n) {
-    if (!n || typeof n !== 'object') return n;
-    switch (n.kind) {
-      case 'empty':
-        return n;
-      case 'selector': {
-        if (n.version || !n.lockedDate) return n;
-        const resolvedVersion = await resolveOne(n.system, n.lockedDate);
-        if (!resolvedVersion) {
-          const warnKey = `${n.system}|${n.lockedDate}`;
-          if (!warned.has(warnKey)) {
-            warned.add(warnKey);
-            warnings.push(`Unable to resolve ${n.system} at lockedDate ${n.lockedDate}; using unversioned selector`);
-          }
-          return n;
+    return mapIRAsync(n, async (mapped) => {
+      if (mapped.kind !== 'selector' || mapped.version || !mapped.lockedDate) return mapped;
+      const resolvedVersion = await resolveOne(mapped.system, mapped.lockedDate);
+      if (!resolvedVersion) {
+        const warnKey = `${mapped.system}|${mapped.lockedDate}`;
+        if (!warned.has(warnKey)) {
+          warned.add(warnKey);
+          warnings.push(`Unable to resolve ${mapped.system} at lockedDate ${mapped.lockedDate}; using unversioned selector`);
         }
-        return { ...n, version: resolvedVersion, lockedDate: null };
+        return mapped;
       }
-      case 'import':
-        return n.resolved ? { ...n, resolved: await walk(n.resolved) } : n;
-      case 'union':
-        return { ...n, items: await Promise.all((n.items || []).map(walk)) };
-      case 'intersect':
-        return { ...n, items: await Promise.all((n.items || []).map(walk)) };
-      case 'diff':
-        return { ...n, left: await walk(n.left), right: await walk(n.right) };
-      default:
-        return n;
-    }
+      return { ...mapped, version: resolvedVersion, lockedDate: null };
+    });
   }
 
   return await walk(node);

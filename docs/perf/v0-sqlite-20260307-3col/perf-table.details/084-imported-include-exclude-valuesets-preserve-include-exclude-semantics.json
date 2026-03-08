@@ -1,0 +1,629 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:42.868Z",
+  "rowIndex": 84,
+  "slug": "084-imported-include-exclude-valuesets-preserve-include-exclude-semantics",
+  "name": "Imported include/exclude ValueSets preserve include/exclude semantics",
+  "category": "Composition Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/084-imported-include-exclude-valuesets-preserve-include-exclude-semantics.json",
+    "detailJson": "084-imported-include-exclude-valuesets-preserve-include-exclude-semantics.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/palette-inc-1772922402861"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/palette-exc-1772922402861"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/palette-1772922402861",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/palette-inc-1772922402861",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/palette-1772922402861",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "green"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/palette-exc-1772922402861",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/palette-1772922402861",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2211",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"8a3-bX2iurvdoykp2RkE5wtqhgkz540\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-281"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:42.864Z",
+              "identifier": "urn:uuid:b6c97e41-3842-4b1f-b27c-ad314f0534b6",
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/palette-1772922402861",
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "system": "http://example.org/cs/palette-1772922402861",
+                  "code": "red",
+                  "display": "Red"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/palette-1772922402861"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/palette-inc-1772922402861"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/palette-exc-1772922402861"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/palette-1772922402861\ncanonical-ir-hash: f20e154c59f125b88747d1e4dfe42548ce6157f1\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  diff [n]\n    selector concept http://example.org/cs/palette-1772922402861 [3] blue, green, red [n.l]\n    selector concept http://example.org/cs/palette-1772922402861 [1] blue [n.r]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.34,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs/palette-1772922402861\",\"count\":2},\"t\":0.23},{\"name\":\"pagination\",\"args\":{\"total\":2,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/palette-1772922402861\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":2,\"total\":2},\"t\":0.3}],\"ms\":0.06,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":2}}],\"ms\":0.3,\"result\":{\"total\":2,\"contains\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.34,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://example.org/cs/palette-1772922402861",
+                    "count": 2
+                  },
+                  "t": 0.23
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 2,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/palette-1772922402861",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.05,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 2,
+                        "total": 2
+                      },
+                      "t": 0.3
+                    }
+                  ],
+                  "ms": 0.06,
+                  "result": {
+                    "paged": 2
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 2,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 2
+                  }
+                }
+              ],
+              "ms": 0.3,
+              "result": {
+                "total": 2,
+                "contains": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/palette-1772922402861\ncanonical-ir-hash: f20e154c59f125b88747d1e4dfe42548ce6157f1\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  diff [n]\n    selector concept http://example.org/cs/palette-1772922402861 [3] blue, green, red [n.l]\n    selector concept http://example.org/cs/palette-1772922402861 [1] blue [n.r]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 1,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/palette-inc-1772922402861"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/palette-exc-1772922402861"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/palette-1772922402861",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/palette-inc-1772922402861",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/palette-1772922402861",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "green"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/palette-exc-1772922402861",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/palette-1772922402861",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-282"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 2,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/palette-inc-1772922402861"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/palette-exc-1772922402861"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/palette-1772922402861",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/palette-inc-1772922402861",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/palette-1772922402861",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "green"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/palette-exc-1772922402861",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/palette-1772922402861",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:42 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-88"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}

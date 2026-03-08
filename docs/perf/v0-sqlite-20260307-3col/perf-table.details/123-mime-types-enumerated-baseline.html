@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: MIME types enumerated baseline</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:51.585Z",
+  "rowIndex": 123,
+  "slug": "123-mime-types-enumerated-baseline",
+  "name": "MIME types enumerated baseline",
+  "category": "Baseline Fixtures",
+  "hrefs": {
+    "input": "../perf-table.inputs/123-mime-types-enumerated-baseline.json",
+    "detailJson": "123-mime-types-enumerated-baseline.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          },
+                          {
+                            "code": "image/png"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1874",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"752-Hyz2WM5TaGgHwZSbDbscxoo7TPM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-420"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.581Z",
+              "identifier": "urn:uuid:280fa2cd-7a81-46f5-a8e2-63846195154f",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "image/png",
+                  "display": "image/png"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: urn:ietf:bcp:13\ncanonical-ir-hash: 4b0e7fcf97314d96ecde6ce56a0bd2dc2a134b72\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept urn:ietf:bcp:13 [3] application/json, image/png, text/html [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.26,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"urn:ietf:bcp:13\",\"count\":3},\"t\":0.17},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:urn:ietf:bcp:13\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.23}],\"ms\":0.05,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":3}}],\"ms\":0.23,\"result\":{\"total\":3,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.26,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "urn:ietf:bcp:13",
+                    "count": 3
+                  },
+                  "t": 0.17
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 3,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:urn:ietf:bcp:13",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "candidates": 3
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 3,
+                        "total": 3
+                      },
+                      "t": 0.23
+                    }
+                  ],
+                  "ms": 0.05,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.23,
+              "result": {
+                "total": 3,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: urn:ietf:bcp:13\ncanonical-ir-hash: 4b0e7fcf97314d96ecde6ce56a0bd2dc2a134b72\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept urn:ietf:bcp:13 [3] application/json, image/png, text/html [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          },
+                          {
+                            "code": "image/png"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1032",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"408-P2EfIrQJTk/5GAW90hdqO8HqCjs\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-421"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.582Z",
+              "identifier": "urn:uuid:54aa9b22-57a4-4393-ad34-7a114327277b",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "image/png",
+                  "display": "image/png"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.35,\"result\":{\"ms\":0.35,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.36,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.35,
+              "result": {
+                "ms": 0.35,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:ietf:bcp:13",
+                        "concept": [
+                          {
+                            "code": "text/html"
+                          },
+                          {
+                            "code": "application/json"
+                          },
+                          {
+                            "code": "image/png"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1032",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"408-1Pa3Aws/zM6XObENNxmfTcazZvE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-127"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.584Z",
+              "identifier": "urn:uuid:901123fd-08bd-4461-9572-30d0cb55a3c3",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:ietf:bcp:13"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "text/html",
+                  "display": "text/html"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "application/json",
+                  "display": "application/json"
+                },
+                {
+                  "system": "urn:ietf:bcp:13",
+                  "code": "image/png",
+                  "display": "image/png"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.67,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.65,\"result\":{\"ms\":0.65,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.67,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.65,
+              "result": {
+                "ms": 0.65,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

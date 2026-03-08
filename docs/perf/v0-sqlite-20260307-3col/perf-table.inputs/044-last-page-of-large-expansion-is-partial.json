@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "id": 44,
+  "slug": "044-last-page-of-large-expansion-is-partial",
+  "name": "Last page of large expansion is partial",
+  "category": "Pagination Safety",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {
+                "property": "concept",
+                "op": "is-a",
+                "value": "404684003"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 10000,
+      "offset": 120000,
+      "activeOnly": true,
+      "params": [
+        {
+          "name": "_exactTotal",
+          "valueBoolean": true
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 10000
+          },
+          {
+            "name": "offset",
+            "valueInteger": 120000
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 10000
+          },
+          {
+            "name": "offset",
+            "valueInteger": 120000
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 10000
+          },
+          {
+            "name": "offset",
+            "valueInteger": 120000
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

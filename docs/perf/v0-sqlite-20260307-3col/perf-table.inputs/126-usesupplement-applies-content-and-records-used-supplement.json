@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 1,
+  "id": 126,
+  "slug": "126-usesupplement-applies-content-and-records-used-supplement",
+  "name": "useSupplement applies content and records used-supplement",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs-s1",
+            "concept": [
+              {
+                "code": "A"
+              },
+              {
+                "code": "B"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s1",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "A",
+              "display": "Alpha"
+            },
+            {
+              "code": "B",
+              "display": "Bravo"
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s1",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s1",
+          "concept": [
+            {
+              "code": "A",
+              "designation": [
+                {
+                  "language": "de",
+                  "value": "Anfang"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "includeDesignations": true,
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/supp-s1"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s1",
+                    "concept": [
+                      {
+                        "code": "A"
+                      },
+                      {
+                        "code": "B"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s1",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s1",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s1",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Anfang"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s1"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s1",
+                    "concept": [
+                      {
+                        "code": "A"
+                      },
+                      {
+                        "code": "B"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s1",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s1",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s1",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Anfang"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s1"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s1",
+                    "concept": [
+                      {
+                        "code": "A"
+                      },
+                      {
+                        "code": "B"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s1",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s1",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s1",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Anfang"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s1"
+          }
+        ]
+      }
+    }
+  }
+}

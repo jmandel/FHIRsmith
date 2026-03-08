@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { decorateCandidatesByBoundScope } = require('./ir-bound-scope');
+const { walkIR } = require('./ir-traversal');
 const { getValueName } = require('../../library/utilities');
 
 const KNOWN_EXPANSION_PROPERTY_URIS = new Map([
@@ -223,35 +224,27 @@ async function renderIRExpansionResult(execution, resolved, opts = {}) {
 function collectComposeOverrides(resolvedList) {
   const overrides = new Map();
   for (const r of resolvedList) {
-    walkIR(r.subtree, r.system, r.provVersion || r.version || null, overrides);
+    walkIR(r.subtree, (node) => {
+      if (node.kind !== 'selector' || node.shape !== 'concept' || !node.conceptCodes) return;
+      const sys = node.system || r.system;
+      const ver = node.version || r.provVersion || r.version || null;
+      for (const cc of node.conceptCodes) {
+        if (!cc.code) continue;
+        const key = composeOverrideKey(sys, ver, cc.code);
+        if (cc.display || (cc.designation && cc.designation.length > 0)) {
+          overrides.set(key, {
+            display: cc.display || null,
+            designation: cc.designation || [],
+          });
+        }
+      }
+    });
   }
   return overrides;
 }
 
 function composeOverrideKey(system, version, code) {
   return `${system || ''}\x00${version || ''}\x00${code || ''}`;
-}
-
-function walkIR(node, system, version, overrides) {
-  if (!node) return;
-  if (node.kind === 'selector' && node.shape === 'concept' && node.conceptCodes) {
-    const sys = node.system || system;
-    const ver = node.version || version || null;
-    for (const cc of node.conceptCodes) {
-      if (!cc.code) continue;
-      const key = composeOverrideKey(sys, ver, cc.code);
-      if (cc.display || (cc.designation && cc.designation.length > 0)) {
-        overrides.set(key, {
-          display: cc.display || null,
-          designation: cc.designation || [],
-        });
-      }
-    }
-  }
-  if (node.items) for (const item of node.items) walkIR(item, system, version, overrides);
-  if (node.left) walkIR(node.left, system, version, overrides);
-  if (node.right) walkIR(node.right, system, version, overrides);
-  if (node.resolved) walkIR(node.resolved, system, version, overrides);
 }
 
 function applyComposeOverrides(candidates, overrides, includeDesignations) {

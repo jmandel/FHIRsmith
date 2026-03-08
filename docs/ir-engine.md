@@ -589,7 +589,10 @@ Use it for:
 | `cs-sqlite-v0-specializations.js` | Bootstrap that loads registered sqlite-v0 specializations at startup |
 | `cs-sqlite-v0-loinc.js` | LOINC-specific sqlite-v0 subclass; owns `http://loinc.org/vs...` implicit ValueSet behavior |
 | `sqlite-v0-compiler.js` | Provider-private compiler from scoped IR to normalized plans, SQL AST, rendered SQL, and execution-ready queries |
-| `sqlite-v0-sql-ast.js` | Physical plan to SQL AST lowering for sqlite-v0 |
+| `sqlite-v0-sql-patterns.js` | Reusable sqlite-v0 shape-detection helpers for fast-path planning |
+| `sqlite-v0-sql-strategies.js` | Centralized sqlite-v0 terminal strategy choice for materialize/count paths |
+| `sqlite-v0-sql-search.js` | Runtime text-search lowering and search strategy helpers for sqlite-v0 |
+| `sqlite-v0-sql-ast.js` | Physical plan to SQL AST lowering for sqlite-v0 once strategy/pattern choice is made |
 | `sqlite-v0-sql-nodes.js` | SQL AST node constructors and structural-form helpers |
 | `sqlite-v0-sql-emit.js` | Deterministic SQL renderer for sqlite-v0 SQL AST |
 
@@ -602,6 +605,7 @@ Use it for:
 | `rewrite.js` | Simplifies the tree: merge, deduplicate, partition by system |
 | `orchestrator.js` | Runs the pipeline: count → paginate → execute → decorate → build response |
 | `ir-bound-scope.js` | Binds one request-scoped IR runtime scope: execution facet, decoration facet, supplement accounting |
+| `ir-traversal.js` | Shared IR child traversal helpers (`walkIR`, `mapIR`, `mapIRAsync`) used by planning, debug, and response utilities |
 | `ir-expansion-response.js` | IR expansion response shaping: candidate decoration, compose overrides, FHIR expansion building |
 | `legacy-ir-adapter.js` | Wraps filter-protocol providers so they can execute expansion plan trees |
 | `ir.js` | Node constructors for the expansion plan tree |

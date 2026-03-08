@@ -526,6 +526,18 @@ describe('LOINC Provider', () => {
       }
     });
 
+    test('should not crash when display is requested with non-English languages', async () => {
+      const i18n = await TestUtilities.loadTranslations(await TestUtilities.loadLanguageDefinitions());
+      const foreignOpContext = new OperationContext('de', i18n);
+      const foreignProvider = await factory.build(foreignOpContext, []);
+      try {
+        const display = await foreignProvider.display(expectedResults.basic.knownCodes[0]);
+        expect(typeof display).toBe('string');
+      } finally {
+        foreignProvider.close();
+      }
+    });
+
     test('should return correct code for context', async () => {
       const testCode = expectedResults.basic.knownCodes[0];
       const result = await provider.locate(testCode);

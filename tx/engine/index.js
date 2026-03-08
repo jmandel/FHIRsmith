@@ -12,6 +12,7 @@
 const IR = require('./ir');
 const { buildIRFromValueSet, buildIRFromCompose, buildComponentExpr } = require('./build-ir');
 const { resolveImports, buildIRFromExpansion } = require('./resolve-imports');
+const { walkIR, mapIR, mapIRAsync, irChildren } = require('./ir-traversal');
 const { interpretScopedIR } = require('./scoped-ir-interpreter');
 const { renderCanonicalIRText, renderIRPlanText } = require('./ir-debug');
 const {
@@ -39,6 +40,10 @@ module.exports = {
   buildComponentExpr,
   resolveImports,
   buildIRFromExpansion,
+  walkIR,
+  mapIR,
+  mapIRAsync,
+  irChildren,
   interpretScopedIR,
   renderCanonicalIRText,
   renderIRPlanText,

@@ -1,6 +1,7 @@
 'use strict';
 
 const { canonicalizeIR, canonicalIRHash } = require('./rewrite');
+const { irChildren } = require('./ir-traversal');
 
 function formatSelectorText(sel) {
   const system = sel.system || '?';
@@ -30,32 +31,30 @@ function renderIRNodeLines(node, depth = 0, out = []) {
   switch (node.kind) {
   case 'empty':
     out.push(`${pad}empty${id}`);
-    return out;
+    break;
   case 'selector':
     out.push(`${pad}${formatSelectorText(node)}${id}`);
-    return out;
+    break;
   case 'import': {
     const version = node.version ? `|${node.version}` : '';
     out.push(`${pad}import ${node.url || '?'}${version}${id}`);
-    if (node.resolved) renderIRNodeLines(node.resolved, depth + 1, out);
-    return out;
+    break;
   }
   case 'union':
   case 'intersect': {
     const items = node.items || [];
     out.push(`${pad}${node.kind} [${items.length}]${id}`);
-    for (const item of items) renderIRNodeLines(item, depth + 1, out);
-    return out;
+    break;
   }
   case 'diff':
     out.push(`${pad}diff${id}`);
-    renderIRNodeLines(node.left, depth + 1, out);
-    renderIRNodeLines(node.right, depth + 1, out);
-    return out;
+    break;
   default:
     out.push(`${pad}${node.kind || 'unknown'}${id}`);
-    return out;
+    break;
   }
+  for (const child of irChildren(node)) renderIRNodeLines(child, depth + 1, out);
+  return out;
 }
 
 function renderCanonicalIRText(expr, opts = {}) {

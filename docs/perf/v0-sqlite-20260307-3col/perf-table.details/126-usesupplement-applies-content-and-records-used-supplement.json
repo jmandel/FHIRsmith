@@ -1,0 +1,735 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:26:51.624Z",
+  "rowIndex": 126,
+  "slug": "126-usesupplement-applies-content-and-records-used-supplement",
+  "name": "useSupplement applies content and records used-supplement",
+  "category": "Supplements",
+  "hrefs": {
+    "input": "../perf-table.inputs/126-usesupplement-applies-content-and-records-used-supplement.json",
+    "detailJson": "126-usesupplement-applies-content-and-records-used-supplement.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 4,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs-s1",
+                        "concept": [
+                          {
+                            "code": "A"
+                          },
+                          {
+                            "code": "B"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-s1",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s1",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s1",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Anfang"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s1"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2132",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"854-MVOZh7x8ths4CvadexRUgh7xuYc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-429"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.612Z",
+              "identifier": "urn:uuid:df16389f-2a9e-41be-9f53-de1310838e3c",
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs-s1",
+                  "code": "A",
+                  "display": "Alpha",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": null,
+                      "value": "Anfang"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://example.org/cs-s1",
+                  "code": "B",
+                  "display": "Bravo"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs-s1"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/supp-s1"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs-s1\ncanonical-ir-hash: 39f377b1bf711a7c575d4ce587e16a2078d6a692\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs-s1 [2] A, B [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":2.54,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs-s1\",\"count\":2},\"t\":2.39},{\"name\":\"pagination\",\"args\":{\"total\":2,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs-s1\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"supplementIR:execute\",\"args\":{\"system\":\"http://example.org/cs-s1\",\"text\":null},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":2}}],\"ms\":0.06,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":2,\"total\":2},\"t\":2.46}],\"ms\":0.07,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":true},\"children\":[],\"ms\":0.04,\"result\":{\"count\":2}}],\"ms\":0.47,\"result\":{\"total\":2,\"contains\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 2.54,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://example.org/cs-s1",
+                    "count": 2
+                  },
+                  "t": 2.39
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 2,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs-s1",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [
+                        {
+                          "name": "supplementIR:execute",
+                          "args": {
+                            "system": "http://example.org/cs-s1",
+                            "text": null
+                          },
+                          "children": [],
+                          "ms": 0.05,
+                          "result": {
+                            "candidates": 2
+                          }
+                        }
+                      ],
+                      "ms": 0.06,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 2,
+                        "total": 2
+                      },
+                      "t": 2.46
+                    }
+                  ],
+                  "ms": 0.07,
+                  "result": {
+                    "paged": 2
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 2,
+                    "includeDesignations": true
+                  },
+                  "children": [],
+                  "ms": 0.04,
+                  "result": {
+                    "count": 2
+                  }
+                }
+              ],
+              "ms": 0.47,
+              "result": {
+                "total": 2,
+                "contains": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs-s1\ncanonical-ir-hash: 39f377b1bf711a7c575d4ce587e16a2078d6a692\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs-s1 [2] A, B [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs-s1",
+                        "concept": [
+                          {
+                            "code": "A"
+                          },
+                          {
+                            "code": "B"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-s1",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s1",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s1",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Anfang"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s1"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1382",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"566-P9byutGejV1tQcE4DtLRbKOOTsc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-430"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.613Z",
+              "identifier": "urn:uuid:3b5a023b-6c76-4333-abfa-74ba9cc3a706",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs-s1"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/supp-s1"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs-s1",
+                  "code": "A",
+                  "display": "Alpha",
+                  "designation": [
+                    {
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha"
+                    },
+                    {
+                      "language": "de",
+                      "value": "Anfang"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://example.org/cs-s1",
+                  "code": "B",
+                  "display": "Bravo",
+                  "designation": [
+                    {
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Bravo"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":4.06,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":4.05,\"result\":{\"ms\":4.04,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 4.06,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 4.05,
+              "result": {
+                "ms": 4.04,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 6,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 6,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs-s1",
+                        "concept": [
+                          {
+                            "code": "A"
+                          },
+                          {
+                            "code": "B"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-s1",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s1",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s1",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Anfang"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s1"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1382",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:26:51 GMT",
+            "etag": "W/\"566-cHSGiRwPcIVnC4Ja4mNUetjWbmc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-130"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:26:51.619Z",
+              "identifier": "urn:uuid:9b284fac-5b46-4cd6-ac19-f8c57cff417e",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs-s1"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/supp-s1"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs-s1",
+                  "code": "A",
+                  "display": "Alpha",
+                  "designation": [
+                    {
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha"
+                    },
+                    {
+                      "language": "de",
+                      "value": "Anfang"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://example.org/cs-s1",
+                  "code": "B",
+                  "display": "Bravo",
+                  "designation": [
+                    {
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Bravo"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":4.19,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":4.17,\"result\":{\"ms\":4.17,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 4.19,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 4.17,
+              "result": {
+                "ms": 4.17,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

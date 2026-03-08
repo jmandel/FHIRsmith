@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: SNOMED diagnosis search "pain" later page without exact total</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07T22:27:41.653Z",
+  "rowIndex": 192,
+  "slug": "192-snomed-diagnosis-search-pain-later-page-without-exact-total",
+  "name": "SNOMED diagnosis search \"pain\" later page without exact total",
+  "category": "Clinical Workloads",
+  "hrefs": {
+    "input": "../perf-table.inputs/192-snomed-diagnosis-search-pain-later-page-without-exact-total.json",
+    "detailJson": "192-snomed-diagnosis-search-pain-later-page-without-exact-total.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 117,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 117,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 500
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "filter",
+                "valueString": "pain"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "9720",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:39 GMT",
+            "etag": "W/\"25f8-z/8pRVR8z9nnutTZ14i1E5kxWfc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-677"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:27:39.628Z",
+              "identifier": "urn:uuid:893b6b66-c3ff-4776-b7e5-9b92513fef54",
+              "offset": 500,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "282743009",
+                  "display": "Malignant bone pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285339000",
+                  "display": "Painful tooth socket"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285365001",
+                  "display": "Toe pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285375003",
+                  "display": "Pain in penis"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285385002",
+                  "display": "Left sided chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285386001",
+                  "display": "Right sided chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285387005",
+                  "display": "Left sided abdominal pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285388000",
+                  "display": "Right sided abdominal pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285389008",
+                  "display": "Upper chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285761007",
+                  "display": "Agnosia for pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287045000",
+                  "display": "Pain in left arm"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287046004",
+                  "display": "Pain in right arm"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287047008",
+                  "display": "Pain in left leg"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287048003",
+                  "display": "Pain in right leg"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "288241003",
+                  "display": "Pain in limb - multiple"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289669005",
+                  "display": "Pain of uterus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289670006",
+                  "display": "Pain on movement of uterus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289730008",
+                  "display": "Finding of pain of uterine contraction"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289731007",
+                  "display": "Painless uterine contractions"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289732000",
+                  "display": "Painful uterine contractions"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289817003",
+                  "display": "Pain of cervix"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289818008",
+                  "display": "Pain on movement of cervix"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289845009",
+                  "display": "Pain on movement of ovary"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289900009",
+                  "display": "Period pain present"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289901008",
+                  "display": "Period pain absent"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291761000119107",
+                  "display": "Complex regional pain syndrome type II of left upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291771000119101",
+                  "display": "Complex regional pain syndrome type II of right upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291781000119103",
+                  "display": "Complex regional pain syndrome type II of left lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291791000119100",
+                  "display": "Complex regional pain syndrome type II of right lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293921000119104",
+                  "display": "Complex regional pain syndrome type I of bilateral upper limbs (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293931000119101",
+                  "display": "Complex regional pain syndrome type I of left lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293941000119105",
+                  "display": "Complex regional pain syndrome type I of left upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293951000119107",
+                  "display": "Complex regional pain syndrome type I of bilateral lower limbs (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293961000119109",
+                  "display": "Complex regional pain syndrome type I of right lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293971000119103",
+                  "display": "Complex regional pain syndrome type I of right upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "29695002",
+                  "display": "Throbbing pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "297128006",
+                  "display": "Nuchal pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "297217002",
+                  "display": "Rib pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "297974009",
+                  "display": "Pain on movement of skin"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298012000",
+                  "display": "Wound pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298253002",
+                  "display": "Cervical facet joint pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298254008",
+                  "display": "Thoracic facet joint pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298255009",
+                  "display": "Pain on joint movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298292009",
+                  "display": "Pain on movement of skeletal muscle"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298376001",
+                  "display": "Temporomandibular joint painful on movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298478001",
+                  "display": "Cervical spine painful on movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "29857009",
+                  "display": "Chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298579007",
+                  "display": "Pain on movement of thoracic spine (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298674008",
+                  "display": "Lumbar spine painful on movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298731003",
+                  "display": "Pain of sternum"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 500
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "filter",
+                  "valueString": "pain"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: 2b535b27c3e12803d75a2eff6a6616f978c6480e\nruntime-constraints:\n  text-filter: \"pain\"\n  active-only: true\n  pagination: offset=500 count=50\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 404684003 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":113.95,\"sqlCount\":1,\"sqlMs\":111.89,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":\"pain\",\"offset\":500,\"count\":50,\"exactTotal\":false,\"omitLazyTotal\":true},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":500,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":500,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.44,\"execMs\":111.89},\"t\":113.69}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT DISTINCT \\\"cl\\\".\\\"descendant_id\\\" AS \\\"concept_id\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\")) \\\"r\\\" WHERE (\\\"r\\\".\\\"concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"active\\\" = 1) AND \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_3) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_2)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_4) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_2)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_5) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_2)))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 50 OFFSET 500\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1,\"search_match_2\":\"\\\"pain\\\"\",\"display_cs_id_3\":1,\"designation_cs_id_4\":1,\"literal_cs_id_5\":1},\"rows\":50,\"ms\":111.89,\"label\":\"executeIR\"}],\"ms\":112.77,\"result\":{\"candidates\":50,\"total\":null}}],\"ms\":112.82,\"result\":{\"candidates\":50}},{\"name\":\"note\",\"message\":\"total:omitted\",\"data\":{\"offset\":500,\"returned\":50,\"exactTotal\":false},\"t\":113.79}],\"ms\":112.87,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.07,\"result\":{\"count\":50}}],\"ms\":113.84,\"result\":{\"total\":null,\"contains\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 113.95,
+          "sqlCount": 1,
+          "sqlMs": 111.89,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": "pain",
+                "offset": 500,
+                "count": 50,
+                "exactTotal": false,
+                "omitLazyTotal": true
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 500,
+                    "count": 50,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 500,
+                        "sysCount": 50
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.44,
+                                "execMs": 111.89
+                              },
+                              "t": 113.69
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT DISTINCT \"r\".\"concept_id\" AS \"concept_id\" FROM (SELECT DISTINCT \"cl\".\"descendant_id\" AS \"concept_id\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\")) \"r\" WHERE (\"r\".\"concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE ((\"c\".\"active\" = 1) AND \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_3) AND (\"c\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_2)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_4) AND (\"c\".\"active\" = 1) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_2)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_5) AND (\"c\".\"active\" = 1) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_2)))) ORDER BY \"c\".\"code\" ASC LIMIT 50 OFFSET 500",
+                              "params": {
+                                "code_0": "404684003",
+                                "cs_id_1": 1,
+                                "search_match_2": "\"pain\"",
+                                "display_cs_id_3": 1,
+                                "designation_cs_id_4": 1,
+                                "literal_cs_id_5": 1
+                              },
+                              "rows": 50,
+                              "ms": 111.89,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 112.77,
+                          "result": {
+                            "candidates": 50,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 112.82,
+                      "result": {
+                        "candidates": 50
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:omitted",
+                      "data": {
+                        "offset": 500,
+                        "returned": 50,
+                        "exactTotal": false
+                      },
+                      "t": 113.79
+                    }
+                  ],
+                  "ms": 112.87,
+                  "result": {
+                    "paged": 50
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 50,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.07,
+                  "result": {
+                    "count": 50
+                  }
+                }
+              ],
+              "ms": 113.84,
+              "result": {
+                "total": null,
+                "contains": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: 2b535b27c3e12803d75a2eff6a6616f978c6480e\nruntime-constraints:\n  text-filter: \"pain\"\n  active-only: true\n  pagination: offset=500 count=50\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 404684003 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 486,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 486,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 500
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "filter",
+                "valueString": "pain"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "6806",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:39 GMT",
+            "etag": "W/\"1a96-iP4pT7j4iik9cFOKuV8mxQEdNYQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-678"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:27:39.631Z",
+              "identifier": "urn:uuid:11d340f3-4212-41a7-a5f8-1625427e4619",
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "pain"
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 500
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "offset": 500,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "282743009",
+                  "display": "Malignant bone pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285339000",
+                  "display": "Painful tooth socket"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285365001",
+                  "display": "Toe pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285375003",
+                  "display": "Pain in penis"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285385002",
+                  "display": "Left sided chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285386001",
+                  "display": "Right sided chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285387005",
+                  "display": "Left sided abdominal pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285388000",
+                  "display": "Right sided abdominal pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285389008",
+                  "display": "Upper chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "285761007",
+                  "display": "Agnosia for pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287045000",
+                  "display": "Pain in left arm"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287046004",
+                  "display": "Pain in right arm"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287047008",
+                  "display": "Pain in left leg"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "287048003",
+                  "display": "Pain in right leg"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "288241003",
+                  "display": "Pain in limb - multiple"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289669005",
+                  "display": "Pain of uterus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289670006",
+                  "display": "Pain on movement of uterus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289730008",
+                  "display": "Finding of pain of uterine contraction"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289731007",
+                  "display": "Painless uterine contractions"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289732000",
+                  "display": "Painful uterine contractions"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289817003",
+                  "display": "Pain of cervix"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289818008",
+                  "display": "Pain on movement of cervix"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289845009",
+                  "display": "Pain on movement of ovary"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289900009",
+                  "display": "Period pain present"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "289901008",
+                  "display": "Period pain absent"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291761000119107",
+                  "display": "Complex regional pain syndrome type II of left upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291771000119101",
+                  "display": "Complex regional pain syndrome type II of right upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291781000119103",
+                  "display": "Complex regional pain syndrome type II of left lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "291791000119100",
+                  "display": "Complex regional pain syndrome type II of right lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293921000119104",
+                  "display": "Complex regional pain syndrome type I of bilateral upper limbs (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293931000119101",
+                  "display": "Complex regional pain syndrome type I of left lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293941000119105",
+                  "display": "Complex regional pain syndrome type I of left upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293951000119107",
+                  "display": "Complex regional pain syndrome type I of bilateral lower limbs (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293961000119109",
+                  "display": "Complex regional pain syndrome type I of right lower limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "293971000119103",
+                  "display": "Complex regional pain syndrome type I of right upper limb (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "29695002",
+                  "display": "Throbbing pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "297128006",
+                  "display": "Nuchal pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "297217002",
+                  "display": "Rib pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "297974009",
+                  "display": "Pain on movement of skin"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298012000",
+                  "display": "Wound pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298253002",
+                  "display": "Cervical facet joint pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298254008",
+                  "display": "Thoracic facet joint pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298255009",
+                  "display": "Pain on joint movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298292009",
+                  "display": "Pain on movement of skeletal muscle"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298376001",
+                  "display": "Temporomandibular joint painful on movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298478001",
+                  "display": "Cervical spine painful on movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "29857009",
+                  "display": "Chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298579007",
+                  "display": "Pain on movement of thoracic spine (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298674008",
+                  "display": "Lumbar spine painful on movement"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "298731003",
+                  "display": "Pain of sternum"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":483.41,\"sqlCount\":1,\"sqlMs\":337.34,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":500,\"activeOnly\":true,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":1200},\"t\":376.3}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"404684003\",\"f0_cs\":1},\"rows\":124412,\"ms\":337.34,\"label\":\"legacy:executeFilters\"}],\"ms\":374.96,\"result\":{\"rows\":1200}}],\"ms\":483.37,\"result\":{\"ms\":483.35,\"returned\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 483.41,
+          "sqlCount": 1,
+          "sqlMs": 337.34,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 50,
+                "offset": 500,
+                "activeOnly": true,
+                "hasTextFilter": true
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://snomed.info/sct",
+                    "filterCount": 1,
+                    "hasTextSearch": true
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "legacy:codeSetIntersection",
+                      "data": {
+                        "filters": 1,
+                        "after": 1200
+                      },
+                      "t": 376.3
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1,
+                        "f0_anc_code": "404684003",
+                        "f0_cs": 1
+                      },
+                      "rows": 124412,
+                      "ms": 337.34,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 374.96,
+                  "result": {
+                    "rows": 1200
+                  }
+                }
+              ],
+              "ms": 483.37,
+              "result": {
+                "ms": 483.35,
+                "returned": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1537,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1537,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 500
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "filter",
+                "valueString": "pain"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "5812",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Sat, 07 Mar 2026 22:27:41 GMT",
+            "etag": "W/\"16b4-Incjer1TcxzZVcgGQxme+O+C3ig\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-201"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-07T22:27:40.118Z",
+              "identifier": "urn:uuid:39881ebc-ef95-4d04-89a7-09677b8909e0",
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "pain"
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 500
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "offset": 500,
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+                  "valueBoolean": true
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1533.98,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":500,\"activeOnly\":true,\"hasTextFilter\":true},\"children\":[],\"ms\":1533.94,\"result\":{\"ms\":1533.93,\"returned\":50}}]}"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2576002",
+                  "display": "Trachoma"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2581006",
+                  "display": "Clasp-knife effect"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2582004",
+                  "display": "Deep third degree burn of multiple sites of lower limb"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2583009",
+                  "display": "Chiari's network"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2584003",
+                  "display": "Cerebral degeneration in childhood"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2585002",
+                  "display": "Pneumococcal pleurisy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2589008",
+                  "display": "Acute dacryoadenitis"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2591000",
+                  "display": "Crushing injury of shoulder region"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2593002",
+                  "display": "Dubowitz's syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2602008",
+                  "display": "Hemarthrosis of shoulder region"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2606006",
+                  "display": "Furuncle of perineum"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2615004",
+                  "display": "Follicular cyst of ovary"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2618002",
+                  "display": "Chronic recurrent major depressive disorder"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2622007",
+                  "display": "Infected ulcer of skin"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2625009",
+                  "display": "Senter syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2634004",
+                  "display": "Decreased blood erythrocyte volume"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2638001",
+                  "display": "Drug-induced hypercalcaemia"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2640006",
+                  "display": "Clinical stage IV"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2651006",
+                  "display": "Closed traumatic dislocation of elbow joint (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2655002",
+                  "display": "Invalidism"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2657005",
+                  "display": "Overflow proteinuria"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2663001",
+                  "display": "Palpatory proteinuria"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2683000",
+                  "display": "Nonvenomous insect bite of axilla without infection"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2689001",
+                  "display": "Dominant dystrophic epidermolysis bullosa with absence of skin"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2694001",
+                  "display": "Myelophthisic anemia"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2704003",
+                  "display": "Acute disease"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2707005",
+                  "display": "Necrotizing enterocolitis in fetus OR newborn"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2713001",
+                  "display": "Closed pneumothorax"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2724004",
+                  "display": "Recruitment"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2725003",
+                  "display": "Previous abnormality of glucose tolerance"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2733002",
+                  "display": "Heel pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2736005",
+                  "display": "Atrophoderma vermiculatum"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2740001",
+                  "display": "Gouty proteinuria"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2749000",
+                  "display": "Congenital deformity of hip joint"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2751001",
+                  "display": "Fibrocalculous pancreatic diabetes"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2761008",
+                  "display": "Decreased stool caliber"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2764000",
+                  "display": "Articular crepitation"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2772003",
+                  "display": "Acquired epidermolysis bullosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2775001",
+                  "display": "Loose body in joint"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2776000",
+                  "display": "Delirium"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2782002",
+                  "display": "Temporomandibular dysplasia"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2783007",
+                  "display": "Gastrojejunal ulcer without hemorrhage AND without perforation"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2805007",
+                  "display": "Phosmet poisoning"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2806008",
+                  "display": "Impaired psychomotor development"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2807004",
+                  "display": "Chronic gastrojejunal ulcer with perforation"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2808009",
+                  "display": "Infection by Prosthenorchis elegans"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2815001",
+                  "display": "Sexual pyromania"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2816000",
+                  "display": "Dilated cardiomyopathy secondary to myotonic dystrophy"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2818004",
+                  "display": "Congenital vascular anomaly of eye"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "2819007",
+                  "display": "Poisoning by magnesium sulfate"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1533.98,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 50,
+                "offset": 500,
+                "activeOnly": true,
+                "hasTextFilter": true
+              },
+              "children": [],
+              "ms": 1533.94,
+              "result": {
+                "ms": 1533.93,
+                "returned": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>
