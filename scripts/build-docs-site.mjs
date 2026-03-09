@@ -118,6 +118,15 @@ function markdownToHtml(mdText) {
   return renderer.render(parser.parse(mdText));
 }
 
+function rewriteDocLinks(html, docHrefMap) {
+  return html.replace(/href="([^"]+\.md)"/g, (full, href) => {
+    const mapped = docHrefMap.get(href)
+      || docHrefMap.get(path.basename(href));
+    if (!mapped) return full;
+    return `href="${mapped}"`;
+  });
+}
+
 function listPerfSnapshots(perfSrcDir) {
   if (!fs.existsSync(perfSrcDir)) return [];
   const items = [];
@@ -271,7 +280,19 @@ function main() {
     { src: path.join(ROOT, 'docs', 'ir-engine.md'), out: 'ir-engine.html', title: 'IR Engine' },
     { src: path.join(ROOT, 'docs', 'ir-fuzzing.md'), out: 'ir-fuzzing.html', title: 'IR Fuzzing' },
     { src: path.join(ROOT, 'docs', 'ir-compilation-tester.md'), out: 'ir-compilation-tester.html', title: 'IR Compilation Tester' },
+    { src: path.join(ROOT, 'docs', 'testing.md'), out: 'testing.html', title: 'Testing Guide' },
+    { src: path.join(ROOT, 'docs', 'supplement-architecture.md'), out: 'supplement-architecture.html', title: 'Supplement Architecture' },
+    { src: path.join(ROOT, 'docs', 'supplement-microscope.md'), out: 'supplement-microscope.html', title: 'Supplement Microscope' },
+    { src: path.join(ROOT, 'docs', 'sqlite-v0-execution-compiler.md'), out: 'sqlite-v0-execution-compiler.html', title: 'sqlite-v0 Execution Compiler' },
+    { src: path.join(ROOT, 'docs', 'archived', 'ir-engine-gap-plan.md'), out: 'ir-engine-gap-plan.html', title: 'IR Engine Gap Plan' },
+    { src: path.join(ROOT, 'docs', 'archived', 'sqlite-v0-provider-compiler-plan.md'), out: 'sqlite-v0-provider-compiler-plan.html', title: 'sqlite-v0 Provider Compiler Plan' },
+    { src: path.join(ROOT, 'docs', 'archived', 'legacy-expansion-gap.md'), out: 'legacy-expansion-gap.html', title: 'Legacy Expansion Gap' },
   ];
+  const docHrefMap = new Map();
+  for (const page of docsPages) {
+    docHrefMap.set(path.basename(page.src), page.out);
+    docHrefMap.set(path.relative(path.join(ROOT, 'docs'), page.src), page.out);
+  }
 
   fs.rmSync(outDir, { recursive: true, force: true });
   ensureDir(outDir);
@@ -282,7 +303,10 @@ function main() {
 
   for (const page of docsPages) {
     const md = fs.readFileSync(page.src, 'utf8');
-    const html = pageTemplate({ title: page.title, bodyHtml: markdownToHtml(md) });
+    const html = pageTemplate({
+      title: page.title,
+      bodyHtml: rewriteDocLinks(markdownToHtml(md), docHrefMap),
+    });
     fs.writeFileSync(path.join(outDir, page.out), html);
   }
 

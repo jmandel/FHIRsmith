@@ -71,18 +71,56 @@ the standard filter protocol methods listed above.
 
 ### Database schema
 
-| Table | Contents |
-|-------|----------|
-| `code_system` | Base URI, version, name, content mode |
-| `concept` | Code, display, active, abstract, definition |
-| `concept_link` | Parent→child hierarchy edges |
-| `closure` | Precomputed transitive closure (ancestor→descendant) |
-| `concept_literal` | Property values (strings) keyed by property ID |
-| `designation` | Designations: language, use code, term, active, preferred |
-| `property_def` | Property definitions: code, URI, type |
-| `cs_config` | JSON configuration blob (see below) |
-| `value_set` | Implicit value set definitions |
-| `search_fts_*` | FTS5 full-text search indexes |
+<table>
+  <thead>
+    <tr>
+      <th>Table</th>
+      <th>Contents</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>code_system</code></td>
+      <td>Base URI, version, name, content mode</td>
+    </tr>
+    <tr>
+      <td><code>concept</code></td>
+      <td>Code, display, active, abstract, definition</td>
+    </tr>
+    <tr>
+      <td><code>concept_link</code></td>
+      <td>Parent→child hierarchy edges</td>
+    </tr>
+    <tr>
+      <td><code>closure</code></td>
+      <td>Precomputed transitive closure (ancestor→descendant)</td>
+    </tr>
+    <tr>
+      <td><code>concept_literal</code></td>
+      <td>Property values (strings) keyed by property ID</td>
+    </tr>
+    <tr>
+      <td><code>designation</code></td>
+      <td>Designations: language, use code, term, active, preferred</td>
+    </tr>
+    <tr>
+      <td><code>property_def</code></td>
+      <td>Property definitions: code, URI, type</td>
+    </tr>
+    <tr>
+      <td><code>cs_config</code></td>
+      <td>JSON configuration blob (see below)</td>
+    </tr>
+    <tr>
+      <td><code>value_set</code></td>
+      <td>Implicit value set definitions</td>
+    </tr>
+    <tr>
+      <td><code>search_fts_*</code></td>
+      <td>FTS5 full-text search indexes</td>
+    </tr>
+  </tbody>
+</table>
 
 ### cs_config
 
@@ -102,15 +140,44 @@ All terminology-specific behavior comes from this JSON blob:
 
 ### How it maps FHIR filter operations to SQL
 
-| FHIR filter | What the v0 provider does |
-|-------------|---------------------------|
-| `is-a` | `JOIN closure` on precomputed transitive closure table |
-| `descendent-of` | Same join, minus the root concept |
-| Property `=` | `JOIN concept_literal WHERE value = ?` (or `JOIN concept_link` for concept-valued properties) |
-| Property `in` | `JOIN concept_literal WHERE value IN (...)` |
-| Property `regex` | `REGEXP` on code or on `concept_literal.value_text` |
-| `concept-in` (refsets) | `JOIN concept_link` to refset members |
-| Text search (`filter` param) | FTS5 full-text search across display, designations, properties |
+<table>
+  <thead>
+    <tr>
+      <th>FHIR filter</th>
+      <th>What the v0 provider does</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>is-a</code></td>
+      <td><code>JOIN closure</code> on precomputed transitive closure table</td>
+    </tr>
+    <tr>
+      <td><code>descendent-of</code></td>
+      <td>Same join, minus the root concept</td>
+    </tr>
+    <tr>
+      <td>Property <code>=</code></td>
+      <td><code>JOIN concept_literal WHERE value = ?</code> (or <code>JOIN concept_link</code> for concept-valued properties)</td>
+    </tr>
+    <tr>
+      <td>Property <code>in</code></td>
+      <td><code>JOIN concept_literal WHERE value IN (...)</code></td>
+    </tr>
+    <tr>
+      <td>Property <code>regex</code></td>
+      <td><code>REGEXP</code> on code or on <code>concept_literal.value_text</code></td>
+    </tr>
+    <tr>
+      <td><code>concept-in</code> (refsets)</td>
+      <td><code>JOIN concept_link</code> to refset members</td>
+    </tr>
+    <tr>
+      <td>Text search (<code>filter</code> param)</td>
+      <td>FTS5 full-text search across display, designations, properties</td>
+    </tr>
+  </tbody>
+</table>
 
 With the original expander, these run as individual filter protocol
 calls. With the IR engine, they're composed into a single SQL query per
@@ -205,13 +272,42 @@ All the new pipeline logic lives in `tx/engine/`. Existing providers
 
 ### Turning it on
 
-| `EXPAND_IR_ENGINE` env | `_engine` param | What happens |
-|------------------------|-----------------|--------------|
-| not set | _(none)_ | Original expander only (status quo) |
-| not set | `ir` | IR engine only; `422` if it can't handle the VS |
-| `1` | _(none)_ | Opportunistic IR: try IR first, fall back to original |
-| `1` | `ir` | IR engine only; `422` if it can't handle the VS |
-| `1` | `legacy` | Original expander only |
+<table>
+  <thead>
+    <tr>
+      <th><code>EXPAND_IR_ENGINE</code> env</th>
+      <th><code>_engine</code> param</th>
+      <th>What happens</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>not set</td>
+      <td><em>(none)</em></td>
+      <td>Original expander only (status quo)</td>
+    </tr>
+    <tr>
+      <td>not set</td>
+      <td><code>ir</code></td>
+      <td>IR engine only; <code>422</code> if it can't handle the VS</td>
+    </tr>
+    <tr>
+      <td><code>1</code></td>
+      <td><em>(none)</em></td>
+      <td>Opportunistic IR: try IR first, fall back to original</td>
+    </tr>
+    <tr>
+      <td><code>1</code></td>
+      <td><code>ir</code></td>
+      <td>IR engine only; <code>422</code> if it can't handle the VS</td>
+    </tr>
+    <tr>
+      <td><code>1</code></td>
+      <td><code>legacy</code></td>
+      <td>Original expander only</td>
+    </tr>
+  </tbody>
+</table>
 
 The systemd service on tx-dev.fhir.org sets `EXPAND_IR_ENGINE=1`.
 Per-request `_engine=ir` or `_engine=legacy` overrides. (`legacy` refers to
@@ -248,14 +344,40 @@ The IR engine turns a ValueSet compose into a small tree before executing
 anything. The tree has six kinds of node, each mapping directly to FHIR
 compose concepts:
 
-| Node | What it represents |
-|------|--------------------|
-| **selector** | A single `compose.include` component — one code system, with its concepts or filters |
-| **import** | A `valueSet` reference (resolved before execution) |
-| **union** | Multiple includes combined (logical OR) |
-| **diff** | Include minus exclude |
-| **intersect** | `include.valueSet[]` intersection (logical AND) |
-| **empty** | No codes (used during simplification) |
+<table>
+  <thead>
+    <tr>
+      <th>Node</th>
+      <th>What it represents</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>selector</strong></td>
+      <td>A single <code>compose.include</code> component — one code system, with its concepts or filters</td>
+    </tr>
+    <tr>
+      <td><strong>import</strong></td>
+      <td>A <code>valueSet</code> reference (resolved before execution)</td>
+    </tr>
+    <tr>
+      <td><strong>union</strong></td>
+      <td>Multiple includes combined (logical OR)</td>
+    </tr>
+    <tr>
+      <td><strong>diff</strong></td>
+      <td>Include minus exclude</td>
+    </tr>
+    <tr>
+      <td><strong>intersect</strong></td>
+      <td><code>include.valueSet[]</code> intersection (logical AND)</td>
+    </tr>
+    <tr>
+      <td><strong>empty</strong></td>
+      <td>No codes (used during simplification)</td>
+    </tr>
+  </tbody>
+</table>
 
 A **selector** is the leaf node — one code system component in three
 shapes:
@@ -439,17 +561,62 @@ requested.
 
 ## What's different from the original expander
 
-| | IR engine | Original expander |
-|---|-----------|-------------------|
-| **Architecture** | Pipeline: parse → simplify → execute → decorate → format | Single pass, ~1,300 lines |
-| **v0 provider usage** | Compiles expansion plan to single SQL query | Calls filter protocol methods one at a time |
-| **Pagination** | Stride per system — only materializes the requested page | Materializes all codes, then slices |
-| **`count=0`** | SQL `COUNT(*)` — no codes materialized | Full expansion, then counts |
-| **Hierarchy** | Flat when paginating; nested when full result fits in one page | May be nested always |
-| **Designations** | Bulk-loaded after code selection | Loaded per-concept during iteration |
-| **Property filter matching** | Matches by code only (per FHIR R4 spec) | Matches by code or display (original quirk) |
-| **Limit enforcement** | Checks total before expanding | Safety valve during iteration |
-| **Tracing** | Structured trace via `_trace=true` | None |
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>IR engine</th>
+      <th>Original expander</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Architecture</strong></td>
+      <td>Pipeline: parse → simplify → execute → decorate → format</td>
+      <td>Single pass, ~1,300 lines</td>
+    </tr>
+    <tr>
+      <td><strong>v0 provider usage</strong></td>
+      <td>Compiles expansion plan to single SQL query</td>
+      <td>Calls filter protocol methods one at a time</td>
+    </tr>
+    <tr>
+      <td><strong>Pagination</strong></td>
+      <td>Stride per system — only materializes the requested page</td>
+      <td>Materializes all codes, then slices</td>
+    </tr>
+    <tr>
+      <td><strong><code>count=0</code></strong></td>
+      <td>SQL <code>COUNT(*)</code> — no codes materialized</td>
+      <td>Full expansion, then counts</td>
+    </tr>
+    <tr>
+      <td><strong>Hierarchy</strong></td>
+      <td>Flat when paginating; nested when full result fits in one page</td>
+      <td>May be nested always</td>
+    </tr>
+    <tr>
+      <td><strong>Designations</strong></td>
+      <td>Bulk-loaded after code selection</td>
+      <td>Loaded per-concept during iteration</td>
+    </tr>
+    <tr>
+      <td><strong>Property filter matching</strong></td>
+      <td>Matches by code only (per FHIR R4 spec)</td>
+      <td>Matches by code or display (original quirk)</td>
+    </tr>
+    <tr>
+      <td><strong>Limit enforcement</strong></td>
+      <td>Checks total before expanding</td>
+      <td>Safety valve during iteration</td>
+    </tr>
+    <tr>
+      <td><strong>Tracing</strong></td>
+      <td>Structured trace via <code>_trace=true</code></td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
@@ -475,26 +642,88 @@ counts, and pagination decisions. Zero overhead when not requested.
 The primary test suite. Runs against a live server, exercising real
 `$expand` calls:
 
-| Area | What it covers |
-|------|---------------|
-| **Hierarchy filters** | SNOMED is-a, descendent-of, concept-in refsets |
-| **Property filters** | LOINC STATUS, CLASSTYPE, SCALE_TYP; RxNorm TTY; SNOMED concept properties |
-| **Text search** | Free-text `filter` parameter across systems |
-| **Concept enumeration** | Explicit code lists for SNOMED, LOINC, RxNorm, gender, language |
-| **Whole-system** | Full expansion of gender, publication-status, currency, US states, area codes |
-| **Excludes** | Enumerated excludes, filter-based excludes, cross-system excludes |
-| **Multi-system** | Unions across v0 + cs-cs + preloaded-map providers |
-| **ValueSet imports** | Pure import, import + system intersection, imported excludes |
-| **Pagination** | Disjoint pages, last-page partial, offset-beyond-end, deep offsets (50K+), count=0 |
-| **Pagination safety** | Full-set reconstruction across pages (no gaps, no duplicates) |
-| **Designations** | includeDesignations, displayLanguage, designation use filter, compose overrides, redundancy suppression |
-| **Properties** | property=definition, wildcard properties, concept-valued properties |
-| **Supplements** | useSupplement, valueset-supplement extension, display overrides, missing supplement validation |
-| **Hierarchy nesting** | Conditional nesting, excludeNested, pagination forces flat, IR-vs-original parity |
-| **Grammar-based** | UCUM unclosed expansion, MIME too-costly, language codes |
-| **Limits** | Default limit enforcement, explicit limit, pagination bypasses limit |
-| **Stress tests** | Deep SNOMED pagination (50K offset into 124K), complex inc/exc, mixed-system text+limit |
-| **IR vs original comparison** | Side-by-side comparison of both engines for hierarchy output |
+<table>
+  <thead>
+    <tr>
+      <th>Area</th>
+      <th>What it covers</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Hierarchy filters</strong></td>
+      <td>SNOMED is-a, descendent-of, concept-in refsets</td>
+    </tr>
+    <tr>
+      <td><strong>Property filters</strong></td>
+      <td>LOINC STATUS, CLASSTYPE, SCALE_TYP; RxNorm TTY; SNOMED concept properties</td>
+    </tr>
+    <tr>
+      <td><strong>Text search</strong></td>
+      <td>Free-text <code>filter</code> parameter across systems</td>
+    </tr>
+    <tr>
+      <td><strong>Concept enumeration</strong></td>
+      <td>Explicit code lists for SNOMED, LOINC, RxNorm, gender, language</td>
+    </tr>
+    <tr>
+      <td><strong>Whole-system</strong></td>
+      <td>Full expansion of gender, publication-status, currency, US states, area codes</td>
+    </tr>
+    <tr>
+      <td><strong>Excludes</strong></td>
+      <td>Enumerated excludes, filter-based excludes, cross-system excludes</td>
+    </tr>
+    <tr>
+      <td><strong>Multi-system</strong></td>
+      <td>Unions across v0 + cs-cs + preloaded-map providers</td>
+    </tr>
+    <tr>
+      <td><strong>ValueSet imports</strong></td>
+      <td>Pure import, import + system intersection, imported excludes</td>
+    </tr>
+    <tr>
+      <td><strong>Pagination</strong></td>
+      <td>Disjoint pages, last-page partial, offset-beyond-end, deep offsets (50K+), count=0</td>
+    </tr>
+    <tr>
+      <td><strong>Pagination safety</strong></td>
+      <td>Full-set reconstruction across pages (no gaps, no duplicates)</td>
+    </tr>
+    <tr>
+      <td><strong>Designations</strong></td>
+      <td>includeDesignations, displayLanguage, designation use filter, compose overrides, redundancy suppression</td>
+    </tr>
+    <tr>
+      <td><strong>Properties</strong></td>
+      <td>property=definition, wildcard properties, concept-valued properties</td>
+    </tr>
+    <tr>
+      <td><strong>Supplements</strong></td>
+      <td>useSupplement, valueset-supplement extension, display overrides, missing supplement validation</td>
+    </tr>
+    <tr>
+      <td><strong>Hierarchy nesting</strong></td>
+      <td>Conditional nesting, excludeNested, pagination forces flat, IR-vs-original parity</td>
+    </tr>
+    <tr>
+      <td><strong>Grammar-based</strong></td>
+      <td>UCUM unclosed expansion, MIME too-costly, language codes</td>
+    </tr>
+    <tr>
+      <td><strong>Limits</strong></td>
+      <td>Default limit enforcement, explicit limit, pagination bypasses limit</td>
+    </tr>
+    <tr>
+      <td><strong>Stress tests</strong></td>
+      <td>Deep SNOMED pagination (50K offset into 124K), complex inc/exc, mixed-system text+limit</td>
+    </tr>
+    <tr>
+      <td><strong>IR vs original comparison</strong></td>
+      <td>Side-by-side comparison of both engines for hierarchy output</td>
+    </tr>
+  </tbody>
+</table>
 
 ```
 node scripts/ir-harness.mjs              # all tests, IR engine
@@ -565,16 +794,57 @@ splitting, cross-system empty elimination.
 
 ### Jest unit tests (`tests/engine/`, `tests/cs/`)
 
-| File | Tests | What |
-|------|-------|------|
-| `cs-sqlite-v0.test.js` | 30 | v0 provider: locate, filter, iterate, IR execution, designations, properties |
-| `orchestrator.test.js` | 21 | Full pipeline: expansion, pagination, count=0, designations, properties, metadata |
-| `legacy-ir-adapter.test.js` | 11 | Filter-protocol adapter: concept, filter, union, diff, intersect; parity with native |
-| `comparison.test.js` | 10 | IR vs original expander code-for-code parity on real SNOMED/LOINC data |
-| `e2e-comparison.test.js` | 8 | HTTP-level IR vs original expander comparison (requires running server) |
-| `hierarchy-regressions.test.js` | 2 | Edge cases: pagination window order, cross-system identity |
-| `partition-safety.test.js` | 8 | Validates expansion plan before execution (rejects unsafe partitions) |
-| `library-error-handling.test.js` | 6 | Library config loading, error reporting, env var substitution |
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>Tests</th>
+      <th>What</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>cs-sqlite-v0.test.js</code></td>
+      <td>30</td>
+      <td>v0 provider: locate, filter, iterate, IR execution, designations, properties</td>
+    </tr>
+    <tr>
+      <td><code>orchestrator.test.js</code></td>
+      <td>21</td>
+      <td>Full pipeline: expansion, pagination, count=0, designations, properties, metadata</td>
+    </tr>
+    <tr>
+      <td><code>legacy-ir-adapter.test.js</code></td>
+      <td>11</td>
+      <td>Filter-protocol adapter: concept, filter, union, diff, intersect; parity with native</td>
+    </tr>
+    <tr>
+      <td><code>comparison.test.js</code></td>
+      <td>10</td>
+      <td>IR vs original expander code-for-code parity on real SNOMED/LOINC data</td>
+    </tr>
+    <tr>
+      <td><code>e2e-comparison.test.js</code></td>
+      <td>8</td>
+      <td>HTTP-level IR vs original expander comparison (requires running server)</td>
+    </tr>
+    <tr>
+      <td><code>hierarchy-regressions.test.js</code></td>
+      <td>2</td>
+      <td>Edge cases: pagination window order, cross-system identity</td>
+    </tr>
+    <tr>
+      <td><code>partition-safety.test.js</code></td>
+      <td>8</td>
+      <td>Validates expansion plan before execution (rejects unsafe partitions)</td>
+    </tr>
+    <tr>
+      <td><code>library-error-handling.test.js</code></td>
+      <td>6</td>
+      <td>Library config loading, error reporting, env var substitution</td>
+    </tr>
+  </tbody>
+</table>
 
 Test-layer guidance, batched run commands, and the shared TX integration
 fixture pattern live in [testing.md](testing.md).
@@ -596,46 +866,154 @@ Use it for:
 
 ### v0 SQLite provider (`tx/cs/`)
 
-| File | What it does |
-|------|-------------|
-| `cs-sqlite-v0.js` | Generic code system provider — implements both the standard filter protocol and `executeIR()` for the IR engine |
-| `cs-sqlite-v0-specializations.js` | Bootstrap that loads registered sqlite-v0 specializations at startup |
-| `cs-sqlite-v0-loinc.js` | LOINC-specific sqlite-v0 subclass; owns `http://loinc.org/vs...` implicit ValueSet behavior |
-| `sqlite-v0-compiler.js` | Provider-private compiler from scoped IR to normalized plans, SQL AST, rendered SQL, and execution-ready queries |
-| `sqlite-v0-sql-patterns.js` | Reusable sqlite-v0 shape-detection helpers for fast-path planning |
-| `sqlite-v0-sql-strategies.js` | Centralized sqlite-v0 terminal strategy choice for materialize/count paths |
-| `sqlite-v0-sql-search.js` | Runtime text-search lowering and search strategy helpers for sqlite-v0 |
-| `sqlite-v0-sql-ast.js` | Physical plan to SQL AST lowering for sqlite-v0 once strategy/pattern choice is made |
-| `sqlite-v0-sql-nodes.js` | SQL AST node constructors and structural-form helpers |
-| `sqlite-v0-sql-emit.js` | Deterministic SQL renderer for sqlite-v0 SQL AST |
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>What it does</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>cs-sqlite-v0.js</code></td>
+      <td>Generic code system provider — implements both the standard filter protocol and <code>executeIR()</code> for the IR engine</td>
+    </tr>
+    <tr>
+      <td><code>cs-sqlite-v0-specializations.js</code></td>
+      <td>Bootstrap that loads registered sqlite-v0 specializations at startup</td>
+    </tr>
+    <tr>
+      <td><code>cs-sqlite-v0-loinc.js</code></td>
+      <td>LOINC-specific sqlite-v0 subclass; owns <code>http://loinc.org/vs...</code> implicit ValueSet behavior</td>
+    </tr>
+    <tr>
+      <td><code>sqlite-v0-compiler.js</code></td>
+      <td>Provider-private compiler from scoped IR to normalized plans, SQL AST, rendered SQL, and execution-ready queries</td>
+    </tr>
+    <tr>
+      <td><code>sqlite-v0-sql-patterns.js</code></td>
+      <td>Reusable sqlite-v0 shape-detection helpers for fast-path planning</td>
+    </tr>
+    <tr>
+      <td><code>sqlite-v0-sql-strategies.js</code></td>
+      <td>Centralized sqlite-v0 terminal strategy choice for materialize/count paths</td>
+    </tr>
+    <tr>
+      <td><code>sqlite-v0-sql-search.js</code></td>
+      <td>Runtime text-search lowering and search strategy helpers for sqlite-v0</td>
+    </tr>
+    <tr>
+      <td><code>sqlite-v0-sql-ast.js</code></td>
+      <td>Physical plan to SQL AST lowering for sqlite-v0 once strategy/pattern choice is made</td>
+    </tr>
+    <tr>
+      <td><code>sqlite-v0-sql-nodes.js</code></td>
+      <td>SQL AST node constructors and structural-form helpers</td>
+    </tr>
+    <tr>
+      <td><code>sqlite-v0-sql-emit.js</code></td>
+      <td>Deterministic SQL renderer for sqlite-v0 SQL AST</td>
+    </tr>
+  </tbody>
+</table>
 
 ### IR expansion engine (`tx/engine/`)
 
-| File | What it does |
-|------|-------------|
-| `build-ir.js` | Reads a ValueSet compose and builds the expansion plan tree |
-| `resolve-imports.js` | Fetches imported ValueSets and inlines them into the tree |
-| `rewrite.js` | Simplifies the tree: merge, deduplicate, partition by system |
-| `orchestrator.js` | Runs the pipeline: count → paginate → execute → decorate → build response |
-| `ir-bound-scope.js` | Binds one request-scoped IR runtime scope: execution facet, decoration facet, supplement accounting |
-| `ir-traversal.js` | Shared IR child traversal helpers (`walkIR`, `mapIR`, `mapIRAsync`) used by planning, debug, and response utilities |
-| `ir-expansion-response.js` | IR expansion response shaping: candidate decoration, compose overrides, FHIR expansion building |
-| `legacy-ir-adapter.js` | Wraps filter-protocol providers so they can execute expansion plan trees |
-| `ir.js` | Node constructors for the expansion plan tree |
-| `membership.js` | "Does code X belong to set Y?" testers for intersect/diff |
-| `expand-trace.js` | Structured tracing infrastructure |
-| `index.js` | Public exports |
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>What it does</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>build-ir.js</code></td>
+      <td>Reads a ValueSet compose and builds the expansion plan tree</td>
+    </tr>
+    <tr>
+      <td><code>resolve-imports.js</code></td>
+      <td>Fetches imported ValueSets and inlines them into the tree</td>
+    </tr>
+    <tr>
+      <td><code>rewrite.js</code></td>
+      <td>Simplifies the tree: merge, deduplicate, partition by system</td>
+    </tr>
+    <tr>
+      <td><code>orchestrator.js</code></td>
+      <td>Runs the pipeline: count → paginate → execute → decorate → build response</td>
+    </tr>
+    <tr>
+      <td><code>ir-bound-scope.js</code></td>
+      <td>Binds one request-scoped IR runtime scope: execution facet, decoration facet, supplement accounting</td>
+    </tr>
+    <tr>
+      <td><code>ir-traversal.js</code></td>
+      <td>Shared IR child traversal helpers (<code>walkIR</code>, <code>mapIR</code>, <code>mapIRAsync</code>) used by planning, debug, and response utilities</td>
+    </tr>
+    <tr>
+      <td><code>ir-expansion-response.js</code></td>
+      <td>IR expansion response shaping: candidate decoration, compose overrides, FHIR expansion building</td>
+    </tr>
+    <tr>
+      <td><code>legacy-ir-adapter.js</code></td>
+      <td>Wraps filter-protocol providers so they can execute expansion plan trees</td>
+    </tr>
+    <tr>
+      <td><code>ir.js</code></td>
+      <td>Node constructors for the expansion plan tree</td>
+    </tr>
+    <tr>
+      <td><code>membership.js</code></td>
+      <td>"Does code X belong to set Y?" testers for intersect/diff</td>
+    </tr>
+    <tr>
+      <td><code>expand-trace.js</code></td>
+      <td>Structured tracing infrastructure</td>
+    </tr>
+    <tr>
+      <td><code>index.js</code></td>
+      <td>Public exports</td>
+    </tr>
+  </tbody>
+</table>
 
 ### Modified upstream files
 
-| File | Change |
-|------|--------|
-| `tx/workers/expand.js` | Added `_tryIRExpansion()` entry point with fallback |
-| `tx/workers/worker.js` | Added supplement registry/resolution runtime, native attachment seam, and fallback to materialized `CodeSystem[]` overlays |
-| `tx/workers/lookup.js` | Routes supplement-aware lookup through the new supplement runtime |
-| `tx/workers/validate.js` | Reuses the supplement runtime for supplement-aware `$validate-code` |
-| `tx/params.js` | Parses `_engine` parameter |
-| `tx/library.js` | Loads v0 SQLite databases via `sqlite-v0:` source type and initializes sqlite-v0 specializations |
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>Change</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>tx/workers/expand.js</code></td>
+      <td>Added <code>_tryIRExpansion()</code> entry point with fallback</td>
+    </tr>
+    <tr>
+      <td><code>tx/workers/worker.js</code></td>
+      <td>Added supplement registry/resolution runtime, native attachment seam, and fallback to materialized <code>CodeSystem[]</code> overlays</td>
+    </tr>
+    <tr>
+      <td><code>tx/workers/lookup.js</code></td>
+      <td>Routes supplement-aware lookup through the new supplement runtime</td>
+    </tr>
+    <tr>
+      <td><code>tx/workers/validate.js</code></td>
+      <td>Reuses the supplement runtime for supplement-aware <code>$validate-code</code></td>
+    </tr>
+    <tr>
+      <td><code>tx/params.js</code></td>
+      <td>Parses <code>_engine</code> parameter</td>
+    </tr>
+    <tr>
+      <td><code>tx/library.js</code></td>
+      <td>Loads v0 SQLite databases via <code>sqlite-v0:</code> source type and initializes sqlite-v0 specializations</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
