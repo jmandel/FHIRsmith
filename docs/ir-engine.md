@@ -507,32 +507,45 @@ npm run test:perf:matrix                 # default 2-column perf matrix, synthet
 npm run test:perf:matrix:3col            # opt-in third upstream-providers column
 ```
 
-### v0 SQLite perf snapshot (IR vs legacy, same providers)
+### v0 SQLite perf snapshots
 
-Measured on this branch with both engines using the same v0 SQLite
-provider stack (SNOMED/LOINC/RxNorm DBs from
-`tests/tx/fixtures/v0-test-library.yaml`):
+Measured on this branch with the current full harness corpus:
+
+- `199` rows
+- synthetic supplement rows included by default
+- default perf repeat count: `1`
+- default local matrix: `2` columns
+- opt-in full comparison matrix: `3` columns
+
+For day-to-day local iteration, use the default `2`-column matrix:
+
+```bash
+npm run test:perf:matrix
+```
+
+For the full checked-in comparison matrix, use the `3`-column run:
 
 ```bash
 scripts/run-ir-harness.sh \
   --perf \
+  --perf-third-upstream \
+  --perf-runs 1 \
   --db-dir /home/jmandel/hobby/sct/cache \
-  --out-dir tmp/ir-harness-runs/20260304-v0-perf \
-  --perf-out tmp/ir-harness-runs/20260304-v0-perf/perf-table.html
+  --upstream-db-dir /home/jmandel/hobby/FHIRsmith/data/terminology-cache \
+  --out-dir docs/perf/v0-sqlite-20260309-3col
 ```
 
-Result set: full IR harness matrix (166 rows), median of 3 runs each.
-
 Notes:
-- Winner column is suppressed for near-ties (absolute diff <= 5ms).
+- Winner labels are suppressed for near-ties (absolute diff `<= 5ms`).
 - Each detail page includes split execution details and, on the IR side, a compact IR plan tree.
+- The `3`-column run compares:
+  - IR branch + new expander
+  - IR branch + upstream expander
+  - upstream-style providers + upstream expander
 
-Artifacts:
+Latest checked-in static-site snapshot:
 
-- Perf log: `tmp/ir-harness-runs/20260304-v0-perf/harness-perf.log`
-- Perf HTML: `tmp/ir-harness-runs/20260304-v0-perf/perf-table.html`
-- Split execution details: `tmp/ir-harness-runs/20260304-v0-perf/perf-table.details/`
-- Checked-in static-site source copy: `docs/perf/v0-sqlite-20260304/`
+- [perf/v0-sqlite-20260309-3col/perf-table.html](perf/v0-sqlite-20260309-3col/perf-table.html)
 
 To build the docs landing site (used by GitHub Pages workflow):
 
@@ -542,7 +555,7 @@ npm run build:docs-site
 
 Published docs include:
 - `tools/expand-explorer-lite.html` — simplified IR compile explorer
-- `perf/v0-sqlite-20260304/perf-table.html` — checked-in v0 perf matrix
+- `perf/v0-sqlite-20260309-3col/perf-table.html` — latest checked-in 3-column perf matrix
 
 ### Simplification unit tests — 8 tests (`scripts/ir-rewrite-tests.mjs`)
 
