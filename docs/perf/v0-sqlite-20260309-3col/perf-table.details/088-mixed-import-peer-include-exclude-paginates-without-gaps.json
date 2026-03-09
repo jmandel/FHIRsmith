@@ -1,0 +1,685 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:24:50.954Z",
+  "rowIndex": 88,
+  "slug": "088-mixed-import-peer-include-exclude-paginates-without-gaps",
+  "name": "Mixed import+peer include/exclude paginates without gaps",
+  "category": "Composition Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/088-mixed-import-peer-include-exclude-paginates-without-gaps.json",
+    "detailJson": "088-mixed-import-peer-include-exclude-paginates-without-gaps.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/page-inc-1773084290939"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          },
+                          {
+                            "code": "female"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/page-exc-1773084290939"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "female"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 3
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/page-1773084290939",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/page-inc-1773084290939",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/page-1773084290939",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "green"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/page-exc-1773084290939",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/page-1773084290939",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2282",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"8ea-2x3cJRIqoLXwNY2+xsQVtZNW9kQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-298"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:50.949Z",
+              "identifier": "urn:uuid:c6f59b76-f87d-4901-9f4a-1fc1a3b5603f",
+              "total": 3,
+              "offset": 3,
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 3
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 1
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/page-1773084290939"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/page-inc-1773084290939"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/page-exc-1773084290939"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/page-1773084290939, http://hl7.org/fhir/administrative-gender\ncanonical-ir-hash: e665e647dccac69f7a846f83c95fb11a1e3a55f3\nruntime-constraints:\n  pagination: offset=3 count=1\noptimized-ir:\n  union [2] [n]\n    diff [n.0]\n      selector concept http://example.org/cs/page-1773084290939 [3] blue, green, red [n.0.l]\n      selector concept http://example.org/cs/page-1773084290939 [1] blue [n.0.r]\n    diff [n.1]\n      selector concept http://hl7.org/fhir/administrative-gender [2] female, male [n.1.l]\n      selector concept http://hl7.org/fhir/administrative-gender [1] female [n.1.r]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.43,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":3,\"count\":1,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs/page-1773084290939\",\"count\":2},\"t\":0.34},{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.37},{\"name\":\"pagination\",\"args\":{\"total\":3,\"offset\":3,\"count\":1,\"systems\":2},\"children\":[],\"ms\":0,\"result\":{\"paged\":0}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":0,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":0}}],\"ms\":0.39,\"result\":{\"total\":3,\"contains\":0}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.43,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": false,
+                "text": null,
+                "offset": 3,
+                "count": 1,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://example.org/cs/page-1773084290939",
+                    "count": 2
+                  },
+                  "t": 0.34
+                },
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "count": 1
+                  },
+                  "t": 0.37
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 3,
+                    "offset": 3,
+                    "count": 1,
+                    "systems": 2
+                  },
+                  "children": [],
+                  "ms": 0,
+                  "result": {
+                    "paged": 0
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 0,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 0
+                  }
+                }
+              ],
+              "ms": 0.39,
+              "result": {
+                "total": 3,
+                "contains": 0
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/page-1773084290939, http://hl7.org/fhir/administrative-gender\ncanonical-ir-hash: e665e647dccac69f7a846f83c95fb11a1e3a55f3\nruntime-constraints:\n  pagination: offset=3 count=1\noptimized-ir:\n  union [2] [n]\n    diff [n.0]\n      selector concept http://example.org/cs/page-1773084290939 [3] blue, green, red [n.0.l]\n      selector concept http://example.org/cs/page-1773084290939 [1] blue [n.0.r]\n    diff [n.1]\n      selector concept http://hl7.org/fhir/administrative-gender [2] female, male [n.1.l]\n      selector concept http://hl7.org/fhir/administrative-gender [1] female [n.1.r]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 2,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/page-inc-1773084290939"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          },
+                          {
+                            "code": "female"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/page-exc-1773084290939"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "female"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 3
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/page-1773084290939",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/page-inc-1773084290939",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/page-1773084290939",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "green"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/page-exc-1773084290939",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/page-1773084290939",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-299"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 3,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/page-inc-1773084290939"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          },
+                          {
+                            "code": "female"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/page-exc-1773084290939"
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "female"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 3
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/page-1773084290939",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/page-inc-1773084290939",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/page-1773084290939",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "green"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/page-exc-1773084290939",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/page-1773084290939",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-92"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}

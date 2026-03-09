@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "id": 86,
+  "slug": "086-whole-system-descendant-traversal-preserves-exact-total",
+  "name": "Whole-system descendant traversal preserves exact total",
+  "category": "Composition Semantics",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/hier-1773084290919"
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/hier-1773084290919",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "root-a",
+              "display": "Root A",
+              "concept": [
+                {
+                  "code": "child-a1",
+                  "display": "Child A1"
+                },
+                {
+                  "code": "child-a2",
+                  "display": "Child A2"
+                }
+              ]
+            },
+            {
+              "code": "root-b",
+              "display": "Root B",
+              "concept": [
+                {
+                  "code": "child-b1",
+                  "display": "Child B1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/hier-1773084290919"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/hier-1773084290919",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "root-a",
+                  "display": "Root A",
+                  "concept": [
+                    {
+                      "code": "child-a1",
+                      "display": "Child A1"
+                    },
+                    {
+                      "code": "child-a2",
+                      "display": "Child A2"
+                    }
+                  ]
+                },
+                {
+                  "code": "root-b",
+                  "display": "Root B",
+                  "concept": [
+                    {
+                      "code": "child-b1",
+                      "display": "Child B1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/hier-1773084290919"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/hier-1773084290919",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "root-a",
+                  "display": "Root A",
+                  "concept": [
+                    {
+                      "code": "child-a1",
+                      "display": "Child A1"
+                    },
+                    {
+                      "code": "child-a2",
+                      "display": "Child A2"
+                    }
+                  ]
+                },
+                {
+                  "code": "root-b",
+                  "display": "Root B",
+                  "concept": [
+                    {
+                      "code": "child-b1",
+                      "display": "Child B1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/hier-1773084290919"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/hier-1773084290919",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "root-a",
+                  "display": "Root A",
+                  "concept": [
+                    {
+                      "code": "child-a1",
+                      "display": "Child A1"
+                    },
+                    {
+                      "code": "child-a2",
+                      "display": "Child A2"
+                    }
+                  ]
+                },
+                {
+                  "code": "root-b",
+                  "display": "Root B",
+                  "concept": [
+                    {
+                      "code": "child-b1",
+                      "display": "Child B1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

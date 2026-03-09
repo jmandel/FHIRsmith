@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "id": 197,
+  "slug": "197-inline-supplement-designation-text-filter-works-on-adapter-backed-ucum",
+  "name": "Inline supplement designation text filter works on adapter-backed UCUM",
+  "category": "Supplements",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://unitsofmeasure.org",
+            "concept": [
+              {
+                "code": "m"
+              },
+              {
+                "code": "cm"
+              },
+              {
+                "code": "kg"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "filter": "Lone metre bonus",
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/ucum-supp-text",
+          "content": "supplement",
+          "supplements": "http://unitsofmeasure.org",
+          "concept": [
+            {
+              "code": "m",
+              "designation": [
+                {
+                  "language": "en",
+                  "value": "Lone metre bonus"
+                }
+              ]
+            },
+            {
+              "code": "cm",
+              "designation": [
+                {
+                  "language": "en",
+                  "value": "Grouped centimetre bonus"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/ucum-supp-text"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://unitsofmeasure.org",
+                    "concept": [
+                      {
+                        "code": "m"
+                      },
+                      {
+                        "code": "cm"
+                      },
+                      {
+                        "code": "kg"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "filter",
+            "valueString": "Lone metre bonus"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/ucum-supp-text",
+              "content": "supplement",
+              "supplements": "http://unitsofmeasure.org",
+              "concept": [
+                {
+                  "code": "m",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "value": "Lone metre bonus"
+                    }
+                  ]
+                },
+                {
+                  "code": "cm",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "value": "Grouped centimetre bonus"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/ucum-supp-text"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://unitsofmeasure.org",
+                    "concept": [
+                      {
+                        "code": "m"
+                      },
+                      {
+                        "code": "cm"
+                      },
+                      {
+                        "code": "kg"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "filter",
+            "valueString": "Lone metre bonus"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/ucum-supp-text",
+              "content": "supplement",
+              "supplements": "http://unitsofmeasure.org",
+              "concept": [
+                {
+                  "code": "m",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "value": "Lone metre bonus"
+                    }
+                  ]
+                },
+                {
+                  "code": "cm",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "value": "Grouped centimetre bonus"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/ucum-supp-text"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://unitsofmeasure.org",
+                    "concept": [
+                      {
+                        "code": "m"
+                      },
+                      {
+                        "code": "cm"
+                      },
+                      {
+                        "code": "kg"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "filter",
+            "valueString": "Lone metre bonus"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/ucum-supp-text",
+              "content": "supplement",
+              "supplements": "http://unitsofmeasure.org",
+              "concept": [
+                {
+                  "code": "m",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "value": "Lone metre bonus"
+                    }
+                  ]
+                },
+                {
+                  "code": "cm",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "value": "Grouped centimetre bonus"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/ucum-supp-text"
+          }
+        ]
+      }
+    }
+  }
+}

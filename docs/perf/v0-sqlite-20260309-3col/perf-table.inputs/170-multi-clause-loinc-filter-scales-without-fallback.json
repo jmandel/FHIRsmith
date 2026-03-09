@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "id": 170,
+  "slug": "170-multi-clause-loinc-filter-scales-without-fallback",
+  "name": "Multi-clause LOINC filter scales without fallback",
+  "category": "Stress & Scale",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {
+                "property": "STATUS",
+                "op": "=",
+                "value": "ACTIVE"
+              },
+              {
+                "property": "CLASS",
+                "op": "=",
+                "value": "CHEM"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 100
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      },
+                      {
+                        "property": "CLASS",
+                        "op": "=",
+                        "value": "CHEM"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 100
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      },
+                      {
+                        "property": "CLASS",
+                        "op": "=",
+                        "value": "CHEM"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 100
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      },
+                      {
+                        "property": "CLASS",
+                        "op": "=",
+                        "value": "CHEM"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 100
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

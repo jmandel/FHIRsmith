@@ -1,0 +1,1327 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:25:24.299Z",
+  "rowIndex": 169,
+  "slug": "169-imported-large-system-union-crosses-pagination-boundary-cleanly",
+  "name": "Imported large-system union crosses pagination boundary cleanly",
+  "category": "Stress & Scale",
+  "hrefs": {
+    "input": "../perf-table.inputs/169-imported-large-system-union-crosses-pagination-boundary-cleanly.json",
+    "detailJson": "169-imported-large-system-union-crosses-pagination-boundary-cleanly.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 192,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 192,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-loinc-active"
+                        ]
+                      },
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-clinical-finding-boundary"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 120
+              },
+              {
+                "name": "offset",
+                "valueInteger": 96191
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-loinc-active",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-clinical-finding-boundary",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "20773",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:19 GMT",
+            "etag": "W/\"5125-bIcTe6JdyhHynDEiOUir+MxmNhc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-585"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:19.295Z",
+              "identifier": "urn:uuid:0d46a8ed-4753-431e-8757-2b96d549ea4f",
+              "total": 220653,
+              "offset": 96191,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "99952-4",
+                  "display": "Entity Address panel"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99953-2",
+                  "display": "Entity Address"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99954-0",
+                  "display": "Entity City"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99955-7",
+                  "display": "Entity Country"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99956-5",
+                  "display": "Entity Complete address"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99957-3",
+                  "display": "Entity Address type"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99958-1",
+                  "display": "Entity Address use"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99959-9",
+                  "display": "Urothelial carcinoma gene expression score in Urine by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "9996-0",
+                  "display": "R wave amplitude in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99960-7",
+                  "display": "ADAMTS13 gene full mutation analysis in Blood or Tissue by Sequencing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99961-5",
+                  "display": "Myeloproliferative neoplasm multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99962-3",
+                  "display": "JAK2 gene exon 12 full mutation analysis in Blood or Tissue by Sequencing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99963-1",
+                  "display": "JAK2 gene exon 14 full mutation analysis in Blood or Tissue by Sequencing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99964-9",
+                  "display": "MPL gene exon 10 full mutation analysis in Blood or Tissue by Sequencing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99965-6",
+                  "display": "ASXL1 gene exon 13 full mutation analysis in Blood or Tissue by Sequencing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99966-4",
+                  "display": "KIT gene exon 17 full mutation analysis in Blood or Tissue by Sequencing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99967-2",
+                  "display": "Atypical hemolytic uremic syndrome multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99968-0",
+                  "display": "Thrombotic microangiopathy multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99969-8",
+                  "display": "PLG gene full mutation analysis in Blood or Tissue by Sequencing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "9997-8",
+                  "display": "R wave axis"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99970-6",
+                  "display": "Hereditary thrombocytopenia multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99971-4",
+                  "display": "Hemophagocytic lymphohistiocytosis multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99972-2",
+                  "display": "Hearing loss multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99974-8",
+                  "display": "No risk of injury due to a thermal source"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99975-5",
+                  "display": "No injury related to a chemical source"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99976-3",
+                  "display": "No injury related to a radiation source"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99977-1",
+                  "display": "No injury related to transfer AndOr transport during care"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99978-9",
+                  "display": "No harm related to medications administered"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99979-7",
+                  "display": "No injury related to unintended retained surgical item"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "9998-6",
+                  "display": "R wave duration in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99980-5",
+                  "display": "Wound is healing or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99981-3",
+                  "display": "Culture and demographics incorporated into plan of care"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99982-1",
+                  "display": "Care provided is consistent with established plan of care"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99983-9",
+                  "display": "Patient's right to privacy is maintained"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99984-7",
+                  "display": "Patient receives competent and ethical care within legal standards of practice"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99985-4",
+                  "display": "Patient receives consistent and comparable care regardless of the setting"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99986-2",
+                  "display": "Tissue perfusion is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99987-0",
+                  "display": "Gastrointestinal status is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99988-8",
+                  "display": "Genitourinary status is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99989-6",
+                  "display": "Musculoskeletal status is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "9999-4",
+                  "display": "R wave duration in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99990-4",
+                  "display": "Endocrine status is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99991-2",
+                  "display": "No signs and symptoms of infection"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99992-0",
+                  "display": "Thermoregulation maintained core body temperature at desired range"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99993-8",
+                  "display": "No injury related to an incorrect procedure performed"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99994-6",
+                  "display": "Fluid, electrolyte, and acid-base balances are maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99995-3",
+                  "display": "Respiratory status is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99996-1",
+                  "display": "Cardiovascular status is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99997-9",
+                  "display": "Demonstrates AndOr reports adequate pain control"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "99998-7",
+                  "display": "Neurological status is maintained at or improved from baseline levels"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10000006",
+                  "display": "Radiating chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10001005",
+                  "display": "Bacterial septicemia"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10007009",
+                  "display": "Coffin-Siris syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1001000119102",
+                  "display": "Pulmonary embolism with pulmonary infarction"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10017004",
+                  "display": "Occlusal wear of teeth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100171000119109",
+                  "display": "Eosinophilic mucinous rhinosinusitis"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100191000119105",
+                  "display": "Acquired asymmetry of prostate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100211000119106",
+                  "display": "Muscle spasm of thoracic back"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002191006",
+                  "display": "Increased amino acid level in urine due to decreased renal function"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002194003",
+                  "display": "Transient increase in amino acid level in urine"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002203008",
+                  "display": "Increased 4-hydroxyphenylpyruvic acid level in urine (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002204002",
+                  "display": "Increased 4-hydroxyphenylacetic acid level in urine (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002229008",
+                  "display": "Apocrine miliaria of areola (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002253002",
+                  "display": "Immunization series incomplete (finding)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100231000119101",
+                  "display": "Acquired pericardial cyst (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003002",
+                  "display": "Religious discrimination"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003322006",
+                  "display": "Distal deletion of short arm of chromosome 3 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003324007",
+                  "display": "Congenital synostosis of both tibias and fibulas"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003330007",
+                  "display": "Simple syndactyly of toes of first web space of bilateral feet"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003337005",
+                  "display": "Bilateral split foot"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003339008",
+                  "display": "Congenital split of bilateral hands (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003358004",
+                  "display": "Distal deletion of short arm of chromosome 8 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003364006",
+                  "display": "Distal deletion of chromosome 13 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003367004",
+                  "display": "Molybdenum cofactor deficiency complementation group A"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003368009",
+                  "display": "Molybdenum cofactor deficiency complementation group B"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003369001",
+                  "display": "Microphthalmos due to Delleman syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003370000",
+                  "display": "Microphthalmos due to Fryns syndrome (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003371001",
+                  "display": "Micromelic dwarfism Fryn type"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003372008",
+                  "display": "Microphthalmos due to branchio-oculo-facial syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003373003",
+                  "display": "Microcephaly with simplified gyral pattern"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003374009",
+                  "display": "Microlissencephaly"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003375005",
+                  "display": "Metachromatic leukodystrophy due to sphingolipid activator protein I deficiency (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003376006",
+                  "display": "Medial duplication of long arm of chromosome 9"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003377002",
+                  "display": "Medial duplication of short arm of chromosome 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003378007",
+                  "display": "Optic nerve hypoplasia due to endocrine deficiency"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003379004",
+                  "display": "Osteogenesis imperfecta type V"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003380001",
+                  "display": "Prader-Willi-like syndrome due to microdeletion 6q16"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003381002",
+                  "display": "Onycho-tricho-dysplasia neutropenia syndrome"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003384005",
+                  "display": "Multiple congenital defects of vertebral segmentation"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003385006",
+                  "display": "Neurodevelopmental disorder due to maternal use of alcohol (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003387003",
+                  "display": "Molybdenum cofactor deficiency complementation group C"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003388008",
+                  "display": "X-linked oligodontia (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003389000",
+                  "display": "Mosaic 1q duplication"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003390009",
+                  "display": "X-linked hypodontia (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003391008",
+                  "display": "Medial deletion of long arm of chromosome 4 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003392001",
+                  "display": "Medial deletion of long arm of chromosome 5 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003393006",
+                  "display": "Medial deletion of chromosome 14"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003394000",
+                  "display": "Medial deletion of long arm of chromosome 2"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003395004",
+                  "display": "Maternal uniparental disomy of chromosome 7 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003396003",
+                  "display": "Medial deletion of chromosome 13"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003397007",
+                  "display": "Congenital atresia of intestine at multiple levels"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003398002",
+                  "display": "Intermediate anorectal malformation with fistula"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003399005",
+                  "display": "Congenital anomaly of first branchial cleft (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003400003",
+                  "display": "Congenital gastric heterotopia of duodenum (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003402006",
+                  "display": "Maternal uniparental disomy of chromosome 15"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003403001",
+                  "display": "Maternal uniparental disomy of chromosome 11"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003405008",
+                  "display": "Maternal uniparental disomy of chromosome 14"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003406009",
+                  "display": "Congenital intermediate sized melanocytic naevus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003407000",
+                  "display": "Marfan syndrome type 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003408005",
+                  "display": "Congenital dystrophy of cornea (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003410007",
+                  "display": "Medial duplication of long arm of chromosome 5 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003411006",
+                  "display": "Medial duplication of long arm of chromosome 7 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003412004",
+                  "display": "Medial duplication of long arm of chromosome 2"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003413009",
+                  "display": "Medial duplication of long arm of chromosome 4 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003414003",
+                  "display": "Medial duplication of chromosome 14 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003415002",
+                  "display": "Medial duplication of long arm of chromosome 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003416001",
+                  "display": "Medial duplication of chromosome 13 (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003417005",
+                  "display": "Medial deletion of short arm of chromosome 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003418000",
+                  "display": "Medial deletion of long arm of chromosome 1"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003419008",
+                  "display": "Medial deletion of long arm of chromosome 7 (disorder)"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 96191
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 120
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/imported-loinc-active"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/imported-sct-clinical-finding-boundary"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org, http://snomed.info/sct\ncanonical-ir-hash: 376caef3952055ae86a808b7e1ddd4be4b2a65d1\nruntime-constraints:\n  active-only: true\n  pagination: offset=96191 count=120\noptimized-ir:\n  union [2] [n]\n    selector filter http://loinc.org STATUS = ACTIVE [n.0]\n    selector filter http://snomed.info/sct concept is-a 404684003 [n.1]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":184.37,\"sqlCount\":4,\"sqlMs\":180.85,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":true,\"text\":null,\"offset\":96191,\"count\":120,\"exactTotal\":false,\"omitLazyTotal\":true},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1)\",\"params\":{\"prop_id_0\":37,\"literal_cs_id_1\":1,\"prop_value_2\":\"ACTIVE\"},\"rows\":96241,\"ms\":50.05,\"label\":\"countForIR\"}],\"ms\":50.32,\"result\":{\"count\":96241}}],\"ms\":50.35,\"result\":{\"count\":96241}},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"descendant_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1)\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1},\"rows\":124412,\"ms\":25.24,\"label\":\"countForIR\"}],\"ms\":25.51,\"result\":{\"count\":124412}}],\"ms\":25.55,\"result\":{\"count\":124412}},{\"name\":\"pagination\",\"args\":{\"total\":220653,\"offset\":96191,\"count\":120,\"systems\":2},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":96191,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.22,\"execMs\":105.25},\"t\":183.36}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 50 OFFSET 96191\",\"params\":{\"prop_id_0\":37,\"literal_cs_id_1\":1,\"prop_value_2\":\"ACTIVE\"},\"rows\":50,\"ms\":105.25,\"label\":\"executeIR\"}],\"ms\":105.75,\"result\":{\"candidates\":50,\"total\":null}}],\"ms\":105.77,\"result\":{\"candidates\":50}},{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":70},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.26,\"execMs\":0.31},\"t\":184.22}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_2) AND (\\\"c\\\".\\\"active\\\" = 1) AND EXISTS (SELECT 1 AS \\\"found\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\") WHERE (\\\"cl\\\".\\\"descendant_id\\\" = \\\"c\\\".\\\"concept_id\\\"))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 70\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1,\"cs_id_2\":1},\"rows\":70,\"ms\":0.31,\"label\":\"executeIR\"}],\"ms\":0.8,\"result\":{\"candidates\":70,\"total\":null}}],\"ms\":0.82,\"result\":{\"candidates\":70}}],\"ms\":106.65,\"result\":{\"paged\":120}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":120,\"includeDesignations\":false},\"children\":[],\"ms\":0.06,\"result\":{\"count\":120}}],\"ms\":184.3,\"result\":{\"total\":220653,\"contains\":120}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 184.37,
+          "sqlCount": 4,
+          "sqlMs": 180.85,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": true,
+                "text": null,
+                "offset": 96191,
+                "count": 120,
+                "exactTotal": false,
+                "omitLazyTotal": true
+              },
+              "children": [
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://loinc.org"
+                  },
+                  "children": [
+                    {
+                      "name": "countForIR:compiler",
+                      "args": {
+                        "system": "http://loinc.org"
+                      },
+                      "children": [],
+                      "sql": [
+                        {
+                          "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE (\"c\".\"active\" = 1)",
+                          "params": {
+                            "prop_id_0": 37,
+                            "literal_cs_id_1": 1,
+                            "prop_value_2": "ACTIVE"
+                          },
+                          "rows": 96241,
+                          "ms": 50.05,
+                          "label": "countForIR"
+                        }
+                      ],
+                      "ms": 50.32,
+                      "result": {
+                        "count": 96241
+                      }
+                    }
+                  ],
+                  "ms": 50.35,
+                  "result": {
+                    "count": 96241
+                  }
+                },
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "countForIR:compiler",
+                      "args": {
+                        "system": "http://snomed.info/sct"
+                      },
+                      "children": [],
+                      "sql": [
+                        {
+                          "sql": "SELECT COUNT(*) AS \"cnt\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"descendant_id\") WHERE (\"c\".\"active\" = 1)",
+                          "params": {
+                            "code_0": "404684003",
+                            "cs_id_1": 1
+                          },
+                          "rows": 124412,
+                          "ms": 25.24,
+                          "label": "countForIR"
+                        }
+                      ],
+                      "ms": 25.51,
+                      "result": {
+                        "count": 124412
+                      }
+                    }
+                  ],
+                  "ms": 25.55,
+                  "result": {
+                    "count": 124412
+                  }
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 220653,
+                    "offset": 96191,
+                    "count": 120,
+                    "systems": 2
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 96191,
+                        "sysCount": 50
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.22,
+                                "execMs": 105.25
+                              },
+                              "t": 183.36
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE (\"c\".\"active\" = 1) ORDER BY \"c\".\"code\" ASC LIMIT 50 OFFSET 96191",
+                              "params": {
+                                "prop_id_0": 37,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "ACTIVE"
+                              },
+                              "rows": 50,
+                              "ms": 105.25,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 105.75,
+                          "result": {
+                            "candidates": 50,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 105.77,
+                      "result": {
+                        "candidates": 50
+                      }
+                    },
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 70
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.26,
+                                "execMs": 0.31
+                              },
+                              "t": 184.22
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_2) AND (\"c\".\"active\" = 1) AND EXISTS (SELECT 1 AS \"found\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\") WHERE (\"cl\".\"descendant_id\" = \"c\".\"concept_id\"))) ORDER BY \"c\".\"code\" ASC LIMIT 70",
+                              "params": {
+                                "code_0": "404684003",
+                                "cs_id_1": 1,
+                                "cs_id_2": 1
+                              },
+                              "rows": 70,
+                              "ms": 0.31,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.8,
+                          "result": {
+                            "candidates": 70,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.82,
+                      "result": {
+                        "candidates": 70
+                      }
+                    }
+                  ],
+                  "ms": 106.65,
+                  "result": {
+                    "paged": 120
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 120,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.06,
+                  "result": {
+                    "count": 120
+                  }
+                }
+              ],
+              "ms": 184.3,
+              "result": {
+                "total": 220653,
+                "contains": 120
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org, http://snomed.info/sct\ncanonical-ir-hash: 376caef3952055ae86a808b7e1ddd4be4b2a65d1\nruntime-constraints:\n  active-only: true\n  pagination: offset=96191 count=120\noptimized-ir:\n  union [2] [n]\n    selector filter http://loinc.org STATUS = ACTIVE [n.0]\n    selector filter http://snomed.info/sct concept is-a 404684003 [n.1]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 2440,
+        "error": "The value set 'http://example.org/vs/imported-loinc-active' expansion has too many codes to display (>10000)",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-loinc-active"
+                        ]
+                      },
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-clinical-finding-boundary"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 120
+              },
+              {
+                "name": "offset",
+                "valueInteger": 96191
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-loinc-active",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-clinical-finding-boundary",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "582",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:19 GMT",
+            "etag": "W/\"246-OcztPBlHjnZt5sD/8qdAK9i8JAc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-586"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set 'http://example.org/vs/imported-loinc-active' expansion has too many codes to display (>10000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n0ms compose #2\n0ms import value set http://example.org/vs/imported-loinc-active\n1ms start working\n1ms compose #1\n1ms compose #2\n2ms prepare filters\n596ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 2562,
+        "error": "The value set 'http://example.org/vs/imported-loinc-active' expansion has too many codes to display (>10000)",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-loinc-active"
+                        ]
+                      },
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/imported-sct-clinical-finding-boundary"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 120
+              },
+              {
+                "name": "offset",
+                "valueInteger": 96191
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-loinc-active",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/imported-sct-clinical-finding-boundary",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "582",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:24 GMT",
+            "etag": "W/\"246-QS/9G17MNROkVcuDykRiL/imzN8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-178"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set 'http://example.org/vs/imported-loinc-active' expansion has too many codes to display (>10000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n1ms start working\n1ms compose #1\n1ms compose #2\n1ms import value set http://example.org/vs/imported-loinc-active\n1ms start working\n1ms compose #1\n2ms compose #2\n2ms prepare filters\n197ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}

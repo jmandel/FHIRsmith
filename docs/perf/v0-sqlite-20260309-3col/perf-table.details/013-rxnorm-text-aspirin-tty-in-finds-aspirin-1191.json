@@ -1,0 +1,528 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:24:42.299Z",
+  "rowIndex": 13,
+  "slug": "013-rxnorm-text-aspirin-tty-in-finds-aspirin-1191",
+  "name": "RxNorm text aspirin + TTY=IN: finds aspirin 1191",
+  "category": "Text Search",
+  "hrefs": {
+    "input": "../perf-table.inputs/013-rxnorm-text-aspirin-tty-in-finds-aspirin-1191.json",
+    "detailJson": "013-rxnorm-text-aspirin-tty-in-finds-aspirin-1191.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 7,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 7,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "IN"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 20
+              },
+              {
+                "name": "filter",
+                "valueString": "aspirin"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "4910",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:37 GMT",
+            "etag": "W/\"132e-WG3bCVu8vMUfHeQ/xQhi9tm4P98\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-52"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:37.019Z",
+              "identifier": "urn:uuid:7b9c723d-c7d1-46ed-9d37-080ffd14f519",
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1191",
+                  "display": "aspirin"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "611",
+                  "display": "aluminum aspirin"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 20
+                },
+                {
+                  "name": "filter",
+                  "valueString": "aspirin"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\ncanonical-ir-hash: f6477dd9b1fc417b10e6e6b4443724cc9dbc933a\nruntime-constraints:\n  text-filter: \"aspirin\"\n  pagination: offset=0 count=20\noptimized-ir:\n  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = IN [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":5.77,\"sqlCount\":1,\"sqlMs\":4.64,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":\"aspirin\",\"offset\":0,\"count\":20,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":20},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.22,\"execMs\":4.64},\"t\":5.7}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_5) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_6) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_7) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_4))) AND EXISTS (SELECT 1 AS \\\"found\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE ((\\\"r\\\".\\\"source_concept_id\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 20\",\"params\":{\"prop_id_0\":2,\"literal_cs_id_1\":1,\"prop_value_2\":\"IN\",\"cs_id_3\":1,\"search_match_4\":\"\\\"aspirin\\\"\",\"display_cs_id_5\":1,\"designation_cs_id_6\":1,\"literal_cs_id_7\":1},\"rows\":2,\"ms\":4.64,\"label\":\"executeIR\"}],\"ms\":5.17,\"result\":{\"candidates\":2,\"total\":null}}],\"ms\":5.19,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":2,\"total\":2},\"t\":5.72}],\"ms\":5.2,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":2}}],\"ms\":5.73,\"result\":{\"total\":2,\"contains\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 5.77,
+          "sqlCount": 1,
+          "sqlMs": 4.64,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": "aspirin",
+                "offset": 0,
+                "count": 20,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 20,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://www.nlm.nih.gov/research/umls/rxnorm",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 20
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.22,
+                                "execMs": 4.64
+                              },
+                              "t": 5.7
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_5) AND (\"c\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_6) AND (\"c\".\"active\" = 1) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_7) AND (\"c\".\"active\" = 1) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_4))) AND EXISTS (SELECT 1 AS \"found\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE ((\"r\".\"source_concept_id\" = \"c\".\"concept_id\") AND (\"r\".\"source_concept_id\" IS NOT NULL)))) ORDER BY \"c\".\"code\" ASC LIMIT 20",
+                              "params": {
+                                "prop_id_0": 2,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "IN",
+                                "cs_id_3": 1,
+                                "search_match_4": "\"aspirin\"",
+                                "display_cs_id_5": 1,
+                                "designation_cs_id_6": 1,
+                                "literal_cs_id_7": 1
+                              },
+                              "rows": 2,
+                              "ms": 4.64,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 5.17,
+                          "result": {
+                            "candidates": 2,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 5.19,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 2,
+                        "total": 2
+                      },
+                      "t": 5.72
+                    }
+                  ],
+                  "ms": 5.2,
+                  "result": {
+                    "paged": 2
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 2,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 2
+                  }
+                }
+              ],
+              "ms": 5.73,
+              "result": {
+                "total": 2,
+                "contains": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\ncanonical-ir-hash: f6477dd9b1fc417b10e6e6b4443724cc9dbc933a\nruntime-constraints:\n  text-filter: \"aspirin\"\n  pagination: offset=0 count=20\noptimized-ir:\n  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = IN [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 276,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 276,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "IN"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 20
+              },
+              {
+                "name": "filter",
+                "valueString": "aspirin"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1691",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:37 GMT",
+            "etag": "W/\"69b-ho3cmCPvRqRtoSRA/EgkAm/RZuI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-53"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:37.021Z",
+              "identifier": "urn:uuid:07cb71c3-4f73-4c30-9bb9-2cea04e2f71d",
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "aspirin"
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 20
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1191",
+                  "display": "aspirin"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "611",
+                  "display": "aluminum aspirin"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":275.2,\"sqlCount\":1,\"sqlMs\":235.27,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":true},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"filterCount\":1,\"hasTextSearch\":true},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":2,\"after\":2},\"t\":272.76}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":227845,\"ms\":235.27,\"label\":\"legacy:executeFilters\"}],\"ms\":272.21,\"result\":{\"rows\":2}}],\"ms\":275.18,\"result\":{\"ms\":275.18,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 275.2,
+          "sqlCount": 1,
+          "sqlMs": 235.27,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 20,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": true
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "filterCount": 1,
+                    "hasTextSearch": true
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "legacy:codeSetIntersection",
+                      "data": {
+                        "filters": 2,
+                        "after": 2
+                      },
+                      "t": 272.76
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1
+                      },
+                      "rows": 227845,
+                      "ms": 235.27,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 272.21,
+                  "result": {
+                    "rows": 2
+                  }
+                }
+              ],
+              "ms": 275.18,
+              "result": {
+                "ms": 275.18,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5002,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "IN"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 20
+              },
+              {
+                "name": "filter",
+                "valueString": "aspirin"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}

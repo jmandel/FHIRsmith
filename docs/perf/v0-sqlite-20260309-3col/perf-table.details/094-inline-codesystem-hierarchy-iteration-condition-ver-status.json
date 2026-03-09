@@ -1,0 +1,542 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:24:53.404Z",
+  "rowIndex": 94,
+  "slug": "094-inline-codesystem-hierarchy-iteration-condition-ver-status",
+  "name": "Inline CodeSystem hierarchy iteration (condition-ver-status)",
+  "category": "Provider Execution",
+  "hrefs": {
+    "input": "../perf-table.inputs/094-inline-codesystem-hierarchy-iteration-condition-ver-status.json",
+    "detailJson": "094-inline-codesystem-hierarchy-iteration-condition-ver-status.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2385",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:53 GMT",
+            "etag": "W/\"951-0ZXnGWAwQn4n6nxssrb6rPq18oQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-318"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:53.396Z",
+              "identifier": "urn:uuid:b5a32116-c8f2-4b42-969b-4879384aae7c",
+              "total": 6,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "confirmed",
+                  "display": "Confirmed"
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "entered-in-error",
+                  "display": "Entered in Error"
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "refuted",
+                  "display": "Refuted"
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "unconfirmed",
+                  "display": "Unconfirmed",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                      "code": "provisional",
+                      "display": "Provisional"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                      "code": "differential",
+                      "display": "Differential"
+                    }
+                  ]
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/condition-ver-status|2.0.1"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://terminology.hl7.org/CodeSystem/condition-ver-status\ncanonical-ir-hash: aa0278b6232964dba9c32a8eba7aabe6ba8f2a77\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://terminology.hl7.org/CodeSystem/condition-ver-status [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.34,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://terminology.hl7.org/CodeSystem/condition-ver-status\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.08,\"result\":{\"candidates\":4}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":6,\"total\":6},\"t\":0.28}],\"ms\":0.1,\"result\":{\"paged\":6}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":6,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":6}}],\"ms\":0.3,\"result\":{\"total\":6,\"contains\":4}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.34,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.08,
+                      "result": {
+                        "candidates": 4
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 6,
+                        "total": 6
+                      },
+                      "t": 0.28
+                    }
+                  ],
+                  "ms": 0.1,
+                  "result": {
+                    "paged": 6
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 6,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 6
+                  }
+                }
+              ],
+              "ms": 0.3,
+              "result": {
+                "total": 6,
+                "contains": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://terminology.hl7.org/CodeSystem/condition-ver-status\ncanonical-ir-hash: aa0278b6232964dba9c32a8eba7aabe6ba8f2a77\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://terminology.hl7.org/CodeSystem/condition-ver-status [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1575",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:53 GMT",
+            "etag": "W/\"627-wrpi14nIdCTMCJQXTno7ZN38aRg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-319"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:53.400Z",
+              "identifier": "urn:uuid:d221bffe-0269-4b11-836c-8ea500844571",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/condition-ver-status|2.0.1"
+                }
+              ],
+              "total": 6,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "unconfirmed",
+                  "display": "Unconfirmed",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                      "code": "provisional",
+                      "display": "Provisional"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                      "code": "differential",
+                      "display": "Differential"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "confirmed",
+                  "display": "Confirmed"
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "refuted",
+                  "display": "Refuted"
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "entered-in-error",
+                  "display": "Entered in Error"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.61,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.59,\"result\":{\"ms\":0.58,\"total\":6,\"returned\":4}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.61,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.59,
+              "result": {
+                "ms": 0.58,
+                "total": 6,
+                "returned": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1571",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:53 GMT",
+            "etag": "W/\"623-iwrw6ghU8glJ1jA8UfENjTRCILc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-98"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:53.402Z",
+              "identifier": "urn:uuid:d67e698b-bcf6-48ba-a22a-ee2dcd3830b0",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/condition-ver-status|2.0.1"
+                }
+              ],
+              "total": 6,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "unconfirmed",
+                  "display": "Unconfirmed",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                      "code": "provisional",
+                      "display": "Provisional"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                      "code": "differential",
+                      "display": "Differential"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "confirmed",
+                  "display": "Confirmed"
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "refuted",
+                  "display": "Refuted"
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                  "code": "entered-in-error",
+                  "display": "Entered in Error"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.4,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.39,\"result\":{\"ms\":0.38,\"total\":6,\"returned\":4}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.4,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.39,
+              "result": {
+                "ms": 0.38,
+                "total": 6,
+                "returned": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "id": 30,
+  "slug": "030-mixed-sqlite-v0-single-system-peer-gender-4-snomed-is-a-124",
+  "name": "Mixed SQLite v0 + single-system peer: gender (4) + SNOMED is-a (124)",
+  "category": "Multi-System Composition",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {
+                "property": "concept",
+                "op": "is-a",
+                "value": "73211009"
+              }
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 5,
+      "offset": 2,
+      "activeOnly": true
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "offset",
+            "valueInteger": 2
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "offset",
+            "valueInteger": 2
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "offset",
+            "valueInteger": 2
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

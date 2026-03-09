@@ -1,0 +1,688 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:25:13.103Z",
+  "rowIndex": 148,
+  "slug": "148-loinc-scale-typ-doc-uses-concept-literal-plus-code-or-display",
+  "name": "LOINC SCALE_TYP=Doc uses concept_literal plus code-or-display",
+  "category": "Filter Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/148-loinc-scale-typ-doc-uses-concept-literal-plus-code-or-display.json",
+    "detailJson": "148-loinc-scale-typ-doc-uses-concept-literal-plus-code-or-display.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 10,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 10,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Doc"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "4821",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:11 GMT",
+            "etag": "W/\"12d5-YyoN6ah6LyCI4uVeRhwcW4yN59U\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-513"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:11.939Z",
+              "identifier": "urn:uuid:eb89e8b8-383a-4f38-a47b-ca0778d20e0b",
+              "total": 12421,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "100018-1",
+                  "display": "Hospice care Note"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100029-8",
+                  "display": "Cancer related multigene analysis in Plasma cell-free DNA by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100213-8",
+                  "display": "Prostate cancer multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100214-6",
+                  "display": "Dental model prior authorization Document"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100215-3",
+                  "display": "Episode of care medical records Document Transplant surgery"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: d65bc14dbcf7958e9cee6d7f7ce065a3af497811\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://loinc.org SCALE_TYP = Doc [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":8.24,\"sqlCount\":2,\"sqlMs\":6.51,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.16,\"execMs\":0.58},\"t\":2.02}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_4) AND EXISTS (SELECT 1 AS \\\"found\\\" FROM (SELECT * FROM \\\"concept_link\\\" \\\"l\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"source_concept_id\\\") INNER JOIN \\\"concept\\\" \\\"tgt\\\" ON (\\\"tgt\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"target_concept_id\\\") WHERE ((\\\"l\\\".\\\"property_id\\\" = @prop_id_1) AND (\\\"l\\\".\\\"edge_set_id\\\" = @edge_set_id_2) AND (\\\"l\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @link_cs_id_3) AND (\\\"tgt\\\".\\\"code\\\" COLLATE NOCASE IN (@prop_value_0) OR \\\"tgt\\\".\\\"display\\\" COLLATE NOCASE IN (@prop_value_0)))) \\\"r\\\" WHERE ((\\\"r\\\".\\\"source_concept_id\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 5\",\"params\":{\"prop_value_0\":\"Doc\",\"prop_id_1\":6,\"edge_set_id_2\":1,\"link_cs_id_3\":1,\"cs_id_4\":1},\"rows\":5,\"ms\":0.58,\"label\":\"executeIR\"}],\"ms\":1.01,\"result\":{\"candidates\":5,\"total\":null}}],\"ms\":1.03,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_link\\\" \\\"l\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"source_concept_id\\\") INNER JOIN \\\"concept\\\" \\\"tgt\\\" ON (\\\"tgt\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"target_concept_id\\\") WHERE ((\\\"l\\\".\\\"property_id\\\" = @prop_id_1) AND (\\\"l\\\".\\\"edge_set_id\\\" = @edge_set_id_2) AND (\\\"l\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @link_cs_id_3) AND (\\\"tgt\\\".\\\"code\\\" COLLATE NOCASE IN (@prop_value_0) OR \\\"tgt\\\".\\\"display\\\" COLLATE NOCASE IN (@prop_value_0)))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\"\",\"params\":{\"prop_value_0\":\"Doc\",\"prop_id_1\":6,\"edge_set_id_2\":1,\"link_cs_id_3\":1},\"rows\":12421,\"ms\":5.93,\"label\":\"countForIR\"}],\"ms\":6.08,\"result\":{\"count\":12421}}],\"ms\":6.1,\"result\":{\"count\":12421}}],\"ms\":7.15,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":5}}],\"ms\":8.17,\"result\":{\"total\":12421,\"contains\":5}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 8.24,
+          "sqlCount": 2,
+          "sqlMs": 6.51,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 5,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 5,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 5
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.16,
+                                "execMs": 0.58
+                              },
+                              "t": 2.02
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_4) AND EXISTS (SELECT 1 AS \"found\" FROM (SELECT * FROM \"concept_link\" \"l\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"l\".\"source_concept_id\") INNER JOIN \"concept\" \"tgt\" ON (\"tgt\".\"concept_id\" = \"l\".\"target_concept_id\") WHERE ((\"l\".\"property_id\" = @prop_id_1) AND (\"l\".\"edge_set_id\" = @edge_set_id_2) AND (\"l\".\"active\" = 1) AND (\"src\".\"cs_id\" = @link_cs_id_3) AND (\"tgt\".\"code\" COLLATE NOCASE IN (@prop_value_0) OR \"tgt\".\"display\" COLLATE NOCASE IN (@prop_value_0)))) \"r\" WHERE ((\"r\".\"source_concept_id\" = \"c\".\"concept_id\") AND (\"r\".\"source_concept_id\" IS NOT NULL)))) ORDER BY \"c\".\"code\" ASC LIMIT 5",
+                              "params": {
+                                "prop_value_0": "Doc",
+                                "prop_id_1": 6,
+                                "edge_set_id_2": 1,
+                                "link_cs_id_3": 1,
+                                "cs_id_4": 1
+                              },
+                              "rows": 5,
+                              "ms": 0.58,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 1.01,
+                          "result": {
+                            "candidates": 5,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 1.03,
+                      "result": {
+                        "candidates": 5
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://loinc.org"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_link\" \"l\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"l\".\"source_concept_id\") INNER JOIN \"concept\" \"tgt\" ON (\"tgt\".\"concept_id\" = \"l\".\"target_concept_id\") WHERE ((\"l\".\"property_id\" = @prop_id_1) AND (\"l\".\"edge_set_id\" = @edge_set_id_2) AND (\"l\".\"active\" = 1) AND (\"src\".\"cs_id\" = @link_cs_id_3) AND (\"tgt\".\"code\" COLLATE NOCASE IN (@prop_value_0) OR \"tgt\".\"display\" COLLATE NOCASE IN (@prop_value_0)))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\"",
+                              "params": {
+                                "prop_value_0": "Doc",
+                                "prop_id_1": 6,
+                                "edge_set_id_2": 1,
+                                "link_cs_id_3": 1
+                              },
+                              "rows": 12421,
+                              "ms": 5.93,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 6.08,
+                          "result": {
+                            "count": 12421
+                          }
+                        }
+                      ],
+                      "ms": 6.1,
+                      "result": {
+                        "count": 12421
+                      }
+                    }
+                  ],
+                  "ms": 7.15,
+                  "result": {
+                    "paged": 5
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 5,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 5
+                  }
+                }
+              ],
+              "ms": 8.17,
+              "result": {
+                "total": 12421,
+                "contains": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: d65bc14dbcf7958e9cee6d7f7ce065a3af497811\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://loinc.org SCALE_TYP = Doc [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 706,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 706,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Doc"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2196",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:11 GMT",
+            "etag": "W/\"894-H72JQs3nDBhr37KrGw3LbLtsKQA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-514"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:11.941Z",
+              "identifier": "urn:uuid:7a85c8e8-c51a-4b9f-98fb-0c137e9fa823",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "100018-1",
+                  "display": "Hospice care Note"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100029-8",
+                  "display": "Cancer related multigene analysis in Plasma cell-free DNA by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100213-8",
+                  "display": "Prostate cancer multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100214-6",
+                  "display": "Dental model prior authorization Document"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100215-3",
+                  "display": "Episode of care medical records Document Transplant surgery"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":703.89,\"sqlCount\":1,\"sqlMs\":454.71,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":12421},\"t\":520.43}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":454.71,\"label\":\"legacy:executeFilters\"}],\"ms\":518.71,\"result\":{\"rows\":12421}}],\"ms\":703.86,\"result\":{\"ms\":703.86,\"returned\":5}}]}"
+                },
+                {
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+                  "extension": [
+                    {
+                      "url": "code",
+                      "valueCode": "status"
+                    },
+                    {
+                      "url": "uri",
+                      "valueUri": "http://hl7.org/fhir/concept-properties#status"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 703.89,
+          "sqlCount": 1,
+          "sqlMs": 454.71,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://loinc.org",
+                    "filterCount": 1,
+                    "hasTextSearch": false
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "legacy:codeSetIntersection",
+                      "data": {
+                        "filters": 1,
+                        "after": 12421
+                      },
+                      "t": 520.43
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1
+                      },
+                      "rows": 248426,
+                      "ms": 454.71,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 518.71,
+                  "result": {
+                    "rows": 12421
+                  }
+                }
+              ],
+              "ms": 703.86,
+              "result": {
+                "ms": 703.86,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 457,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 457,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Doc"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1639",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:13 GMT",
+            "etag": "W/\"667-z9BMK2ynIx1RbrFVaqlVmqFactU\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-157"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:12.647Z",
+              "identifier": "urn:uuid:6f12bd8d-1da1-440f-b8d3-37ba0a66ca46",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "100018-1",
+                  "display": "Hospice care Note"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100029-8",
+                  "display": "Cancer related multigene analysis in Plasma cell-free DNA by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100213-8",
+                  "display": "Prostate cancer multigene analysis in Blood or Tissue by Molecular genetics method"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100214-6",
+                  "display": "Dental model prior authorization Document"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100215-3",
+                  "display": "Episode of care medical records Document Transplant surgery"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":454.82,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":454.79,\"result\":{\"ms\":454.78,\"returned\":5}}]}"
+                },
+                {
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+                  "extension": [
+                    {
+                      "url": "code",
+                      "valueCode": "status"
+                    },
+                    {
+                      "url": "uri",
+                      "valueUri": "http://hl7.org/fhir/concept-properties#status"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 454.82,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 454.79,
+              "result": {
+                "ms": 454.78,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

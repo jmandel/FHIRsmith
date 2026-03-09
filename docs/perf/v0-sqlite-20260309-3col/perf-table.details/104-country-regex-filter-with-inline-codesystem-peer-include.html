@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Country regex filter with inline CodeSystem peer include</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:24:59.137Z",
+  "rowIndex": 104,
+  "slug": "104-country-regex-filter-with-inline-codesystem-peer-include",
+  "name": "Country regex filter with inline CodeSystem peer include",
+  "category": "Cross-Source Coverage",
+  "hrefs": {
+    "input": "../perf-table.inputs/104-country-regex-filter-with-inline-codesystem-peer-include.json",
+    "detailJson": "104-country-regex-filter-with-inline-codesystem-peer-include.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:iso:std:iso:3166",
+                        "filter": [
+                          {
+                            "property": "code",
+                            "op": "regex",
+                            "value": "A.*"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "4562",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:59 GMT",
+            "etag": "W/\"11d2-yVc55frbCCQsyjOhPSXw7xE0OS8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-350"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:59.130Z",
+              "identifier": "urn:uuid:4246f124-68fb-4f22-af74-aa5ab18d412e",
+              "total": 35,
+              "contains": [
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AA",
+                  "display": "User-assigned"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ABW",
+                  "display": "Aruba"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AD",
+                  "display": "Andorra"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AE",
+                  "display": "United Arab Emirates"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AF",
+                  "display": "Afghanistan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AFG",
+                  "display": "Afghanistan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AG",
+                  "display": "Antigua and Barbuda"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AGO",
+                  "display": "Angola"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AI",
+                  "display": "Anguilla"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AIA",
+                  "display": "Anguilla"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AL",
+                  "display": "Albania"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ALA",
+                  "display": "Åland Islands"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ALB",
+                  "display": "Albania"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AM",
+                  "display": "Armenia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AND",
+                  "display": "Andorra"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AO",
+                  "display": "Angola"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AQ",
+                  "display": "Antarctica"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AR",
+                  "display": "Argentina"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARE",
+                  "display": "United Arab Emirates"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARG",
+                  "display": "Argentina"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARM",
+                  "display": "Armenia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AS",
+                  "display": "American Samoa"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ASM",
+                  "display": "American Samoa"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AT",
+                  "display": "Austria"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATA",
+                  "display": "Antarctica"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATF",
+                  "display": "French Southern Territories"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATG",
+                  "display": "Antigua and Barbuda"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AU",
+                  "display": "Australia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AUS",
+                  "display": "Australia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AUT",
+                  "display": "Austria"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AW",
+                  "display": "Aruba"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AX",
+                  "display": "Åland Islands"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AZ",
+                  "display": "Azerbaijan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AZE",
+                  "display": "Azerbaijan"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:iso:std:iso:3166|2018"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://hl7.org/fhir/administrative-gender, urn:iso:std:iso:3166\ncanonical-ir-hash: 39054721373b57ca203247c14ee3a30960a38f51\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    selector concept http://hl7.org/fhir/administrative-gender [1] male [n.0]\n    selector filter urn:iso:std:iso:3166 code regex A.* [n.1]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.99,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.29},{\"name\":\"countForIR\",\"args\":{\"system\":\"urn:iso:std:iso:3166\"},\"children\":[],\"ms\":0.28,\"result\":{\"count\":34}},{\"name\":\"pagination\",\"args\":{\"total\":35,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.02,\"result\":{\"candidates\":1}},{\"name\":\"system:urn:iso:std:iso:3166\",\"args\":{\"sysOffset\":0,\"sysCount\":34},\"children\":[],\"ms\":0.27,\"result\":{\"candidates\":34}}],\"ms\":0.31,\"result\":{\"paged\":35}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":35,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":35}}],\"ms\":0.94,\"result\":{\"total\":35,\"contains\":35}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.99,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "count": 1
+                  },
+                  "t": 0.29
+                },
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "urn:iso:std:iso:3166"
+                  },
+                  "children": [],
+                  "ms": 0.28,
+                  "result": {
+                    "count": 34
+                  }
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 35,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 2
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://hl7.org/fhir/administrative-gender",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1
+                      },
+                      "children": [],
+                      "ms": 0.02,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "system:urn:iso:std:iso:3166",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 34
+                      },
+                      "children": [],
+                      "ms": 0.27,
+                      "result": {
+                        "candidates": 34
+                      }
+                    }
+                  ],
+                  "ms": 0.31,
+                  "result": {
+                    "paged": 35
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 35,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 35
+                  }
+                }
+              ],
+              "ms": 0.94,
+              "result": {
+                "total": 35,
+                "contains": 35
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://hl7.org/fhir/administrative-gender, urn:iso:std:iso:3166\ncanonical-ir-hash: 39054721373b57ca203247c14ee3a30960a38f51\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    selector concept http://hl7.org/fhir/administrative-gender [1] male [n.0]\n    selector filter urn:iso:std:iso:3166 code regex A.* [n.1]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:iso:std:iso:3166",
+                        "filter": [
+                          {
+                            "property": "code",
+                            "op": "regex",
+                            "value": "A.*"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3387",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:59 GMT",
+            "etag": "W/\"d3b-d++8RGNMFFTyz88AKxKGz3N5QQA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-351"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:59.131Z",
+              "identifier": "urn:uuid:f91c5ed5-6573-4342-8956-80c4c9d8d1f4",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:iso:std:iso:3166|2018"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                }
+              ],
+              "total": 35,
+              "contains": [
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AD",
+                  "display": "Andorra"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AE",
+                  "display": "United Arab Emirates"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AF",
+                  "display": "Afghanistan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AG",
+                  "display": "Antigua and Barbuda"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AI",
+                  "display": "Anguilla"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AL",
+                  "display": "Albania"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AM",
+                  "display": "Armenia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AO",
+                  "display": "Angola"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AQ",
+                  "display": "Antarctica"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AR",
+                  "display": "Argentina"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AS",
+                  "display": "American Samoa"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AT",
+                  "display": "Austria"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AU",
+                  "display": "Australia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AW",
+                  "display": "Aruba"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AX",
+                  "display": "Åland Islands"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AZ",
+                  "display": "Azerbaijan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AA",
+                  "display": "User-assigned"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ABW",
+                  "display": "Aruba"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AFG",
+                  "display": "Afghanistan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AGO",
+                  "display": "Angola"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AIA",
+                  "display": "Anguilla"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ALA",
+                  "display": "Åland Islands"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ALB",
+                  "display": "Albania"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AND",
+                  "display": "Andorra"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARE",
+                  "display": "United Arab Emirates"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARG",
+                  "display": "Argentina"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARM",
+                  "display": "Armenia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ASM",
+                  "display": "American Samoa"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATA",
+                  "display": "Antarctica"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATF",
+                  "display": "French Southern Territories"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATG",
+                  "display": "Antigua and Barbuda"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AUS",
+                  "display": "Australia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AUT",
+                  "display": "Austria"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AZE",
+                  "display": "Azerbaijan"
+                },
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.34,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.32,\"result\":{\"ms\":1.32,\"total\":35,\"returned\":35}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.34,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1.32,
+              "result": {
+                "ms": 1.32,
+                "total": 35,
+                "returned": 35
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:iso:std:iso:3166",
+                        "filter": [
+                          {
+                            "property": "code",
+                            "op": "regex",
+                            "value": "A.*"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3386",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:59 GMT",
+            "etag": "W/\"d3a-4Jvznq4vGF2j5zBEPyzhte2LGF8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-108"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:59.135Z",
+              "identifier": "urn:uuid:1b81b43b-ac92-43c0-969e-d9546710649c",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:iso:std:iso:3166|2018"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                }
+              ],
+              "total": 35,
+              "contains": [
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AD",
+                  "display": "Andorra"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AE",
+                  "display": "United Arab Emirates"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AF",
+                  "display": "Afghanistan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AG",
+                  "display": "Antigua and Barbuda"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AI",
+                  "display": "Anguilla"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AL",
+                  "display": "Albania"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AM",
+                  "display": "Armenia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AO",
+                  "display": "Angola"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AQ",
+                  "display": "Antarctica"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AR",
+                  "display": "Argentina"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AS",
+                  "display": "American Samoa"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AT",
+                  "display": "Austria"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AU",
+                  "display": "Australia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AW",
+                  "display": "Aruba"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AX",
+                  "display": "Åland Islands"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AZ",
+                  "display": "Azerbaijan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AA",
+                  "display": "User-assigned"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ABW",
+                  "display": "Aruba"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AFG",
+                  "display": "Afghanistan"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AGO",
+                  "display": "Angola"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AIA",
+                  "display": "Anguilla"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ALA",
+                  "display": "Åland Islands"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ALB",
+                  "display": "Albania"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AND",
+                  "display": "Andorra"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARE",
+                  "display": "United Arab Emirates"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARG",
+                  "display": "Argentina"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ARM",
+                  "display": "Armenia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ASM",
+                  "display": "American Samoa"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATA",
+                  "display": "Antarctica"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATF",
+                  "display": "French Southern Territories"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "ATG",
+                  "display": "Antigua and Barbuda"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AUS",
+                  "display": "Australia"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AUT",
+                  "display": "Austria"
+                },
+                {
+                  "system": "urn:iso:std:iso:3166",
+                  "code": "AZE",
+                  "display": "Azerbaijan"
+                },
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.2,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.18,\"result\":{\"ms\":1.18,\"total\":35,\"returned\":35}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.2,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1.18,
+              "result": {
+                "ms": 1.18,
+                "total": 35,
+                "returned": 35
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed';
+    const status = debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a';
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.hasPlan ? (debug?.irPlanText || 'No IR plan payload returned.') : 'N/A (upstream expander)';
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.';
+      } else {
+        label = 'HTTP Response';
+        content = stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

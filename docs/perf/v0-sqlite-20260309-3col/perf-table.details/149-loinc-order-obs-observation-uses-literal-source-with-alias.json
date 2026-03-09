@@ -1,0 +1,686 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:25:14.306Z",
+  "rowIndex": 149,
+  "slug": "149-loinc-order-obs-observation-uses-literal-source-with-alias",
+  "name": "LOINC ORDER_OBS=Observation uses literal source with alias",
+  "category": "Filter Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/149-loinc-order-obs-observation-uses-literal-source-with-alias.json",
+    "detailJson": "149-loinc-order-obs-observation-uses-literal-source-with-alias.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 26,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 26,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "ORDER_OBS",
+                            "op": "=",
+                            "value": "Observation"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "4583",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:13 GMT",
+            "etag": "W/\"11e7-5OjbOrH6EP31eRPRV8uvUgcKAB4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-516"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:13.153Z",
+              "identifier": "urn:uuid:7c4cc459-8aa1-439f-ace7-781452e8b837",
+              "total": 33505,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "10-9",
+                  "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100-8",
+                  "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1000-9",
+                  "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10000-8",
+                  "display": "R wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100000-9",
+                  "display": "Health informatics pioneer and the father of LOINC"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: d59f5cf71883689bf62377aa6545e1ef36cd33fe\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://loinc.org ORDER_OBS = Observation [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":23.95,\"sqlCount\":2,\"sqlMs\":21.63,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.16,\"execMs\":0.29},\"t\":2.25}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND EXISTS (SELECT 1 AS \\\"found\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE ((\\\"r\\\".\\\"source_concept_id\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 5\",\"params\":{\"prop_id_0\":35,\"literal_cs_id_1\":1,\"prop_value_2\":\"Observation\",\"cs_id_3\":1},\"rows\":5,\"ms\":0.29,\"label\":\"executeIR\"}],\"ms\":0.81,\"result\":{\"candidates\":5,\"total\":null}}],\"ms\":0.84,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\"\",\"params\":{\"prop_id_0\":35,\"literal_cs_id_1\":1,\"prop_value_2\":\"Observation\"},\"rows\":33505,\"ms\":21.34,\"label\":\"countForIR\"}],\"ms\":21.53,\"result\":{\"count\":33505}}],\"ms\":21.56,\"result\":{\"count\":33505}}],\"ms\":22.41,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.04,\"result\":{\"count\":5}}],\"ms\":23.86,\"result\":{\"total\":33505,\"contains\":5}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 23.95,
+          "sqlCount": 2,
+          "sqlMs": 21.63,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 5,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 5,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 5
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.16,
+                                "execMs": 0.29
+                              },
+                              "t": 2.25
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND EXISTS (SELECT 1 AS \"found\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE ((\"r\".\"source_concept_id\" = \"c\".\"concept_id\") AND (\"r\".\"source_concept_id\" IS NOT NULL)))) ORDER BY \"c\".\"code\" ASC LIMIT 5",
+                              "params": {
+                                "prop_id_0": 35,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "Observation",
+                                "cs_id_3": 1
+                              },
+                              "rows": 5,
+                              "ms": 0.29,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.81,
+                          "result": {
+                            "candidates": 5,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.84,
+                      "result": {
+                        "candidates": 5
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://loinc.org"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\"",
+                              "params": {
+                                "prop_id_0": 35,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "Observation"
+                              },
+                              "rows": 33505,
+                              "ms": 21.34,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 21.53,
+                          "result": {
+                            "count": 33505
+                          }
+                        }
+                      ],
+                      "ms": 21.56,
+                      "result": {
+                        "count": 33505
+                      }
+                    }
+                  ],
+                  "ms": 22.41,
+                  "result": {
+                    "paged": 5
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 5,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.04,
+                  "result": {
+                    "count": 5
+                  }
+                }
+              ],
+              "ms": 23.86,
+              "result": {
+                "total": 33505,
+                "contains": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: d59f5cf71883689bf62377aa6545e1ef36cd33fe\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://loinc.org ORDER_OBS = Observation [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 771,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 771,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "ORDER_OBS",
+                            "op": "=",
+                            "value": "Observation"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2165",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:13 GMT",
+            "etag": "W/\"875-+4alI7sUX6yD7yDX+Im/K6OA8/8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-517"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:13.156Z",
+              "identifier": "urn:uuid:795fb3d3-52f6-41d6-a2ab-3b7fba3b1be9",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "10-9",
+                  "display": "Amdinocillin [Susceptibility] by Serum bactericidal titer"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100-8",
+                  "display": "Cefoperazone [Susceptibility] by Minimum inhibitory concentration (MIC)"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "1000-9",
+                  "display": "DBG Ab [Presence] in Serum or Plasma from Blood product unit"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10000-8",
+                  "display": "R wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100000-9",
+                  "display": "Health informatics pioneer and the father of LOINC"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":769.1,\"sqlCount\":1,\"sqlMs\":469.33,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":33505},\"t\":563.02}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":469.33,\"label\":\"legacy:executeFilters\"}],\"ms\":561.12,\"result\":{\"rows\":33505}}],\"ms\":769.07,\"result\":{\"ms\":769.06,\"returned\":5}}]}"
+                },
+                {
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+                  "extension": [
+                    {
+                      "url": "code",
+                      "valueCode": "status"
+                    },
+                    {
+                      "url": "uri",
+                      "valueUri": "http://hl7.org/fhir/concept-properties#status"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 769.1,
+          "sqlCount": 1,
+          "sqlMs": 469.33,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://loinc.org",
+                    "filterCount": 1,
+                    "hasTextSearch": false
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "legacy:codeSetIntersection",
+                      "data": {
+                        "filters": 1,
+                        "after": 33505
+                      },
+                      "t": 563.02
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1
+                      },
+                      "rows": 248426,
+                      "ms": 469.33,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 561.12,
+                  "result": {
+                    "rows": 33505
+                  }
+                }
+              ],
+              "ms": 769.07,
+              "result": {
+                "ms": 769.06,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 380,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 380,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "ORDER_OBS",
+                            "op": "=",
+                            "value": "Observation"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1606",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:14 GMT",
+            "etag": "W/\"646-fxI5B/s7usR7dcT/m0fm6bwK/Mw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-158"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:13.927Z",
+              "identifier": "urn:uuid:ead8c74b-b9cf-4d7e-b3e7-b242ac0b8014",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "100000-9",
+                  "display": "Health informatics pioneer and the father of LOINC"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100001-7",
+                  "display": "Health informatics pioneer and cofounder of LOINC"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100002-5",
+                  "display": "Specimen care is maintained"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100003-3",
+                  "display": "Team communication is maintained throughout care"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100004-1",
+                  "display": "Demonstrates knowledge of the expected psychosocial responses to the procedure"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":377.29,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":377.26,\"result\":{\"ms\":377.25,\"returned\":5}}]}"
+                },
+                {
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+                  "extension": [
+                    {
+                      "url": "code",
+                      "valueCode": "status"
+                    },
+                    {
+                      "url": "uri",
+                      "valueUri": "http://hl7.org/fhir/concept-properties#status"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 377.29,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 377.26,
+              "result": {
+                "ms": 377.25,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

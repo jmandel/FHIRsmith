@@ -1,0 +1,716 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:24:50.918Z",
+  "rowIndex": 85,
+  "slug": "085-total-includes-direct-and-imported-include-contributions",
+  "name": "Total includes direct and imported include contributions",
+  "category": "Composition Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/085-total-includes-direct-and-imported-include-contributions.json",
+    "detailJson": "085-total-includes-direct-and-imported-include-contributions.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/total-1773084290911",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      },
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/total-imp-1773084290911"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/total-1773084290911",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/total-imp-1773084290911",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/total-1773084290911",
+                        "concept": [
+                          {
+                            "code": "green"
+                          },
+                          {
+                            "code": "yellow"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2197",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"895-CySOFHiw5btbuaBQ+bGwFGKaD9U\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-284"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:50.914Z",
+              "identifier": "urn:uuid:30d09834-0f8a-4538-8146-1ea483857259",
+              "total": 4,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/total-1773084290911"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/total-imp-1773084290911"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/total-1773084290911\ncanonical-ir-hash: f3f5c71ff7b90bcae2b394aab858da94f6eb7f6c\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs/total-1773084290911 [4] blue, green, red, yellow [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.34,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs/total-1773084290911\",\"count\":4},\"t\":0.23},{\"name\":\"pagination\",\"args\":{\"total\":4,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/total-1773084290911\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":4}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":4,\"total\":4},\"t\":0.29}],\"ms\":0.06,\"result\":{\"paged\":4}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":4,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":4}}],\"ms\":0.3,\"result\":{\"total\":4,\"contains\":4}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.34,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://example.org/cs/total-1773084290911",
+                    "count": 4
+                  },
+                  "t": 0.23
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 4,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/total-1773084290911",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.05,
+                      "result": {
+                        "candidates": 4
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 4,
+                        "total": 4
+                      },
+                      "t": 0.29
+                    }
+                  ],
+                  "ms": 0.06,
+                  "result": {
+                    "paged": 4
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 4,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 4
+                  }
+                }
+              ],
+              "ms": 0.3,
+              "result": {
+                "total": 4,
+                "contains": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/total-1773084290911\ncanonical-ir-hash: f3f5c71ff7b90bcae2b394aab858da94f6eb7f6c\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs/total-1773084290911 [4] blue, green, red, yellow [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/total-1773084290911",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      },
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/total-imp-1773084290911"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/total-1773084290911",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/total-imp-1773084290911",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/total-1773084290911",
+                        "concept": [
+                          {
+                            "code": "green"
+                          },
+                          {
+                            "code": "yellow"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1265",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"4f1-xtDNtAagDf+3QrnmxUXRIWFW3Ys\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-285"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:50.915Z",
+              "identifier": "urn:uuid:d54fdf42-dc7a-4698-a87a-a3ebdc3c9f4f",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/total-1773084290911"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/total-imp-1773084290911"
+                }
+              ],
+              "total": 4,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.42,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.41,\"result\":{\"ms\":0.4,\"total\":4,\"returned\":4}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.42,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.41,
+              "result": {
+                "ms": 0.4,
+                "total": 4,
+                "returned": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/total-1773084290911",
+                        "concept": [
+                          {
+                            "code": "red"
+                          },
+                          {
+                            "code": "blue"
+                          }
+                        ]
+                      },
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/total-imp-1773084290911"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/total-1773084290911",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/total-imp-1773084290911",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/total-1773084290911",
+                        "concept": [
+                          {
+                            "code": "green"
+                          },
+                          {
+                            "code": "yellow"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1269",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"4f5-1qrEg5DDHT2zK2DKsputznpddJE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-89"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:50.917Z",
+              "identifier": "urn:uuid:48d1821d-770a-4ada-96d6-500c21b777ff",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/total-1773084290911"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/total-imp-1773084290911"
+                }
+              ],
+              "total": 4,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "system": "http://example.org/cs/total-1773084290911",
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.59,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.58,\"result\":{\"ms\":0.57,\"total\":4,\"returned\":4}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.59,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.58,
+              "result": {
+                "ms": 0.57,
+                "total": 4,
+                "returned": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,650 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:24:50.815Z",
+  "rowIndex": 74,
+  "slug": "074-txresources-injected-valueset-import-resolves",
+  "name": "txResources-injected ValueSet import resolves",
+  "category": "txResources",
+  "hrefs": {
+    "input": "../perf-table.inputs/074-txresources-injected-valueset-import-resolves.json",
+    "detailJson": "074-txresources-injected-valueset-import-resolves.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/two-shapes"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/shapes",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "circle",
+                      "display": "Circle"
+                    },
+                    {
+                      "code": "square",
+                      "display": "Square"
+                    },
+                    {
+                      "code": "triangle",
+                      "display": "Triangle"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/two-shapes",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/shapes",
+                        "concept": [
+                          {
+                            "code": "circle"
+                          },
+                          {
+                            "code": "square"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1938",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"792-Ft3h2QBsCaQJ7P4GS0DqSQkj0K0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-251"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "status": "active",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:50.809Z",
+              "identifier": "urn:uuid:14c81755-4418-42a6-a947-335b8f865e39",
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/shapes",
+                  "code": "circle",
+                  "display": "Circle"
+                },
+                {
+                  "system": "http://example.org/cs/shapes",
+                  "code": "square",
+                  "display": "Square"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/shapes|1.0.0"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/two-shapes"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/shapes\ncanonical-ir-hash: 6e7a49ae7678d30ab23918d151a8b1f4692ab5d1\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs/shapes [2] circle, square [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.35,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs/shapes\",\"count\":2},\"t\":0.24},{\"name\":\"pagination\",\"args\":{\"total\":2,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/shapes\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":2}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":2,\"total\":2},\"t\":0.3}],\"ms\":0.05,\"result\":{\"paged\":2}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":2,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":2}}],\"ms\":0.3,\"result\":{\"total\":2,\"contains\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.35,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://example.org/cs/shapes",
+                    "count": 2
+                  },
+                  "t": 0.24
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 2,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/shapes",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "candidates": 2
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 2,
+                        "total": 2
+                      },
+                      "t": 0.3
+                    }
+                  ],
+                  "ms": 0.05,
+                  "result": {
+                    "paged": 2
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 2,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 2
+                  }
+                }
+              ],
+              "ms": 0.3,
+              "result": {
+                "total": 2,
+                "contains": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/shapes\ncanonical-ir-hash: 6e7a49ae7678d30ab23918d151a8b1f4692ab5d1\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs/shapes [2] circle, square [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/two-shapes"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/shapes",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "circle",
+                      "display": "Circle"
+                    },
+                    {
+                      "code": "square",
+                      "display": "Square"
+                    },
+                    {
+                      "code": "triangle",
+                      "display": "Triangle"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/two-shapes",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/shapes",
+                        "concept": [
+                          {
+                            "code": "circle"
+                          },
+                          {
+                            "code": "square"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1070",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"42e-9+1m29j9sOXzXz/Z+LjJPVjiLL0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-252"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "status": "active",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:50.810Z",
+              "identifier": "urn:uuid:7af754ec-2b10-469c-b57d-304c32ab9355",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/two-shapes"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/shapes|1.0.0"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/shapes",
+                  "code": "circle",
+                  "display": "Circle"
+                },
+                {
+                  "system": "http://example.org/cs/shapes",
+                  "code": "square",
+                  "display": "Square"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.57,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.55,\"result\":{\"ms\":0.55,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.57,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.55,
+              "result": {
+                "ms": 0.55,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/two-shapes"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/shapes",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "circle",
+                      "display": "Circle"
+                    },
+                    {
+                      "code": "square",
+                      "display": "Square"
+                    },
+                    {
+                      "code": "triangle",
+                      "display": "Triangle"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/two-shapes",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/shapes",
+                        "concept": [
+                          {
+                            "code": "circle"
+                          },
+                          {
+                            "code": "square"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1073",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:50 GMT",
+            "etag": "W/\"431-JVZ/wKxGbx82Ug/+hudP42WuK8k\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-78"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "status": "active",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:50.813Z",
+              "identifier": "urn:uuid:61ecdb64-ae36-4451-8298-005fed334116",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/two-shapes"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/shapes|1.0.0"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/shapes",
+                  "code": "circle",
+                  "display": "Circle"
+                },
+                {
+                  "system": "http://example.org/cs/shapes",
+                  "code": "square",
+                  "display": "Square"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.86,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.84,\"result\":{\"ms\":0.83,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.86,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.84,
+              "result": {
+                "ms": 0.83,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

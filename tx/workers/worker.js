@@ -333,8 +333,10 @@ class TerminologyWorker {
 
   async createCodeSystemProviderWithSupplementRuntime(codeSystem, statedSupplements) {
     const codeSystemObj = codeSystem instanceof CodeSystem ? codeSystem : new CodeSystem(codeSystem);
+    const system = typeof codeSystemObj.system === 'function' ? codeSystemObj.system() : codeSystemObj.url;
+    const version = typeof codeSystemObj.version === 'function' ? codeSystemObj.version() : (codeSystemObj.version || null);
     const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
-      { system: codeSystemObj.system(), version: codeSystemObj.version() || null },
+      { system, version },
       statedSupplements
     );
     return await this.provider.createCodeSystemProvider(this.opContext, codeSystemObj, supplements);

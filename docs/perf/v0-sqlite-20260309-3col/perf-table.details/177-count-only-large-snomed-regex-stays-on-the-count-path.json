@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:25:35.092Z",
+  "rowIndex": 177,
+  "slug": "177-count-only-large-snomed-regex-stays-on-the-count-path",
+  "name": "Count-only large SNOMED regex stays on the count path",
+  "category": "Stress & Scale",
+  "hrefs": {
+    "input": "../perf-table.inputs/177-count-only-large-snomed-regex-stays-on-the-count-path.json",
+    "detailJson": "177-count-only-large-snomed-regex-stays-on-the-count-path.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 42,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 42,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "code",
+                            "op": "regex",
+                            "value": "^7[0-9]{4,}"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 0
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1927",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:33 GMT",
+            "etag": "W/\"787-0BuItX0m2R4WRcT2fdPbutdbnKQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-619"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:33.992Z",
+              "identifier": "urn:uuid:c5ec181b-f6d3-4cce-8279-6a30f88346a5",
+              "total": 58811,
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: 96a9e7b5f7c752fb1fecf918db70825e15f2b451\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=0\n  total-only: true\noptimized-ir:\n  selector filter http://snomed.info/sct code regex ^7[0-9]{4,} [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":40.68,\"sqlCount\":1,\"sqlMs\":39.8,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":null,\"offset\":0,\"count\":0,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"countForIR\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @code_regex_count_cs_id_3) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"c\\\".\\\"code\\\" >= @code_regex_lo_0) AND (\\\"c\\\".\\\"code\\\" < @code_regex_hi_1) AND (\\\"c\\\".\\\"code\\\" REGEXP @code_regex_pattern_2))\",\"params\":{\"code_regex_lo_0\":\"7\",\"code_regex_hi_1\":\"8\",\"code_regex_pattern_2\":\"^7[0-9]{4,}\",\"code_regex_count_cs_id_3\":1},\"rows\":58811,\"ms\":39.8,\"label\":\"countForIR\"}],\"ms\":39.99,\"result\":{\"count\":58811}}],\"ms\":40.02,\"result\":{\"count\":58811}}],\"ms\":40.62}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 40.68,
+          "sqlCount": 1,
+          "sqlMs": 39.8,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": null,
+                "offset": 0,
+                "count": 0,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://snomed.info/sct"
+                  },
+                  "children": [
+                    {
+                      "name": "countForIR:compiler",
+                      "args": {
+                        "system": "http://snomed.info/sct"
+                      },
+                      "children": [],
+                      "sql": [
+                        {
+                          "sql": "SELECT COUNT(*) AS \"cnt\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @code_regex_count_cs_id_3) AND (\"c\".\"active\" = 1) AND (\"c\".\"code\" >= @code_regex_lo_0) AND (\"c\".\"code\" < @code_regex_hi_1) AND (\"c\".\"code\" REGEXP @code_regex_pattern_2))",
+                          "params": {
+                            "code_regex_lo_0": "7",
+                            "code_regex_hi_1": "8",
+                            "code_regex_pattern_2": "^7[0-9]{4,}",
+                            "code_regex_count_cs_id_3": 1
+                          },
+                          "rows": 58811,
+                          "ms": 39.8,
+                          "label": "countForIR"
+                        }
+                      ],
+                      "ms": 39.99,
+                      "result": {
+                        "count": 58811
+                      }
+                    }
+                  ],
+                  "ms": 40.02,
+                  "result": {
+                    "count": 58811
+                  }
+                }
+              ],
+              "ms": 40.62
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: 96a9e7b5f7c752fb1fecf918db70825e15f2b451\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=0\n  total-only: true\noptimized-ir:\n  selector filter http://snomed.info/sct code regex ^7[0-9]{4,} [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 1096,
+        "error": "The value set '??' expansion has too many codes to display (>1000)",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "code",
+                            "op": "regex",
+                            "value": "^7[0-9]{4,}"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 0
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "424",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:33 GMT",
+            "etag": "W/\"1a8-VTxFY843N/3jAmN1XFYd16R8GAA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-620"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set '??' expansion has too many codes to display (>1000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n1ms compose #2\n1ms prepare filters\n1022ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 3,
+        "error": "Unsupported filter property: code",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "code",
+                            "op": "regex",
+                            "value": "^7[0-9]{4,}"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 0
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "190",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:35 GMT",
+            "etag": "W/\"be-fNUyeXw5w4A6VtnDrcoSpjuYfuE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-186"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "Unsupported filter property: code"
+                },
+                "diagnostics": "Unsupported filter property: code"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      }
+    }
+  ]
+}

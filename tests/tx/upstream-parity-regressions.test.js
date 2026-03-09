@@ -49,6 +49,7 @@ describe('upstream parity regressions', () => {
           'internal:usstates',
           'internal:mimetypes',
           'npm:hl7.terminology.r4#7.0.1',
+          'npm:fhir.tx.support.r4',
         ],
       });
       ({ dir, app, txModule } = loaded);
@@ -77,6 +78,38 @@ describe('upstream parity regressions', () => {
       expect(codes.has('AS')).toBe(true);
       expect(codes.has('AZ')).toBe(true);
       expect(codes.has('AR')).toBe(true);
+    }, 60000);
+
+    test('ISO 3166-2 whole-system expansion works when the support package source set matches production', async () => {
+      const res = await request(app)
+        .post('/tx/r4/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'defaultDisplayLanguage', valueCode: 'fr-FR' },
+            { name: 'excludeNested', valueBoolean: true },
+            { name: 'count', valueInteger: 5 },
+            { name: 'offset', valueInteger: 0 },
+            {
+              name: 'valueSet',
+              resource: {
+                resourceType: 'ValueSet',
+                status: 'active',
+                compose: {
+                  inactive: true,
+                  include: [{ system: 'urn:iso:std:iso:3166:-2' }],
+                },
+              },
+            },
+          ],
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.resourceType).toBe('ValueSet');
+      const first = (res.body.expansion?.contains || []).slice(0, 5).map(item => item.code);
+      expect(first).toEqual(['AF-BAL', 'AF-BAM', 'AF-BDG', 'AF-BDS', 'AF-BGL']);
     }, 60000);
 
   });

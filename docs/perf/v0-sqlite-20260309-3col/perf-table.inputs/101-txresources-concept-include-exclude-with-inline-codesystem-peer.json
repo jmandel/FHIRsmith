@@ -1,0 +1,385 @@
+{
+  "schemaVersion": 1,
+  "id": 101,
+  "slug": "101-txresources-concept-include-exclude-with-inline-codesystem-peer",
+  "name": "txResources concept include/exclude with inline CodeSystem peer",
+  "category": "Cross-Source Coverage",
+  "source": {
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/cov-exc-1773084299093",
+            "concept": [
+              {
+                "code": "x"
+              },
+              {
+                "code": "y"
+              },
+              {
+                "code": "z"
+              }
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "concept": [
+              {
+                "code": "male"
+              },
+              {
+                "code": "female"
+              }
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://example.org/cs/cov-exc-1773084299093",
+            "concept": [
+              {
+                "code": "y"
+              }
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "concept": [
+              {
+                "code": "female"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/cov-exc-1773084299093",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "x",
+              "display": "X"
+            },
+            {
+              "code": "y",
+              "display": "Y"
+            },
+            {
+              "code": "z",
+              "display": "Z"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/cov-exc-1773084299093",
+                    "concept": [
+                      {
+                        "code": "x"
+                      },
+                      {
+                        "code": "y"
+                      },
+                      {
+                        "code": "z"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://example.org/cs/cov-exc-1773084299093",
+                    "concept": [
+                      {
+                        "code": "y"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/cov-exc-1773084299093",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "x",
+                  "display": "X"
+                },
+                {
+                  "code": "y",
+                  "display": "Y"
+                },
+                {
+                  "code": "z",
+                  "display": "Z"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:8000/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/cov-exc-1773084299093",
+                    "concept": [
+                      {
+                        "code": "x"
+                      },
+                      {
+                        "code": "y"
+                      },
+                      {
+                        "code": "z"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://example.org/cs/cov-exc-1773084299093",
+                    "concept": [
+                      {
+                        "code": "y"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/cov-exc-1773084299093",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "x",
+                  "display": "X"
+                },
+                {
+                  "code": "y",
+                  "display": "Y"
+                },
+                {
+                  "code": "z",
+                  "display": "Z"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:8001/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/cov-exc-1773084299093",
+                    "concept": [
+                      {
+                        "code": "x"
+                      },
+                      {
+                        "code": "y"
+                      },
+                      {
+                        "code": "z"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://example.org/cs/cov-exc-1773084299093",
+                    "concept": [
+                      {
+                        "code": "y"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/cov-exc-1773084299093",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "x",
+                  "display": "X"
+                },
+                {
+                  "code": "y",
+                  "display": "Y"
+                },
+                {
+                  "code": "z",
+                  "display": "Z"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

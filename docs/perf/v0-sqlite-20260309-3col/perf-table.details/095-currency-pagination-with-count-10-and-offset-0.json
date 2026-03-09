@@ -1,0 +1,643 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:24:53.422Z",
+  "rowIndex": 95,
+  "slug": "095-currency-pagination-with-count-10-and-offset-0",
+  "name": "Currency pagination with count=10 and offset=0",
+  "category": "Pagination",
+  "hrefs": {
+    "input": "../perf-table.inputs/095-currency-pagination-with-count-10-and-offset-0.json",
+    "detailJson": "095-currency-pagination-with-count-10-and-offset-0.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 4,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:iso:std:iso:4217"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2339",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:53 GMT",
+            "etag": "W/\"923-iiMt06npBZyu4qnfPlOXt8ln4Do\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-321"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:53.411Z",
+              "identifier": "urn:uuid:4d42fac1-59e3-46e5-afae-dcc272cb3d62",
+              "total": 182,
+              "contains": [
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AED",
+                  "display": "United Arab Emirates dirham"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AFN",
+                  "display": "Afghan afghani"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ALL",
+                  "display": "Albanian lek"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AMD",
+                  "display": "Armenian dram"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ANG",
+                  "display": "Netherlands Antillean guilder"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AOA",
+                  "display": "Angolan kwanza"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ARS",
+                  "display": "Argentine peso"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AUD",
+                  "display": "Australian dollar"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AWG",
+                  "display": "Aruban florin"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AZN",
+                  "display": "Azerbaijani manat"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:iso:std:iso:4217"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: urn:iso:std:iso:4217\ncanonical-ir-hash: d60e9c8bbb2ed513d6167b13bac48aafc0851d4c\nruntime-constraints:\n  pagination: offset=0 count=10\noptimized-ir:\n  selector whole urn:iso:std:iso:4217 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":2.11,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":10,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":10,\"systems\":1},\"children\":[{\"name\":\"system:urn:iso:std:iso:4217\",\"args\":{\"sysOffset\":0,\"sysCount\":10},\"children\":[],\"ms\":0.94,\"result\":{\"candidates\":10}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"urn:iso:std:iso:4217\"},\"children\":[],\"ms\":0.9,\"result\":{\"count\":182}}],\"ms\":1.87,\"result\":{\"paged\":10}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":10,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":10}}],\"ms\":2.07,\"result\":{\"total\":182,\"contains\":10}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 2.11,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 10,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 10,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:urn:iso:std:iso:4217",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 10
+                      },
+                      "children": [],
+                      "ms": 0.94,
+                      "result": {
+                        "candidates": 10
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "urn:iso:std:iso:4217"
+                      },
+                      "children": [],
+                      "ms": 0.9,
+                      "result": {
+                        "count": 182
+                      }
+                    }
+                  ],
+                  "ms": 1.87,
+                  "result": {
+                    "paged": 10
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 10,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 10
+                  }
+                }
+              ],
+              "ms": 2.07,
+              "result": {
+                "total": 182,
+                "contains": 10
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: urn:iso:std:iso:4217\ncanonical-ir-hash: d60e9c8bbb2ed513d6167b13bac48aafc0851d4c\nruntime-constraints:\n  pagination: offset=0 count=10\noptimized-ir:\n  selector whole urn:iso:std:iso:4217 [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:iso:std:iso:4217"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1671",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:53 GMT",
+            "etag": "W/\"687-rAMzJcpednYWdCLMqYwyJoHK4Hk\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-322"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:53.412Z",
+              "identifier": "urn:uuid:bd2ae6bc-0930-4c6e-b770-8887dd1df6f8",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:iso:std:iso:4217"
+                }
+              ],
+              "offset": 0,
+              "total": 182,
+              "contains": [
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AED",
+                  "display": "United Arab Emirates dirham"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AFN",
+                  "display": "Afghan afghani"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ALL",
+                  "display": "Albanian lek"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AMD",
+                  "display": "Armenian dram"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ANG",
+                  "display": "Netherlands Antillean guilder"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AOA",
+                  "display": "Angolan kwanza"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ARS",
+                  "display": "Argentine peso"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AUD",
+                  "display": "Australian dollar"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AWG",
+                  "display": "Aruban florin"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AZN",
+                  "display": "Azerbaijani manat"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":3.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.35,\"result\":{\"ms\":3.34,\"total\":182,\"returned\":10}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 3.36,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 10,
+                "offset": 0,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 3.35,
+              "result": {
+                "ms": 3.34,
+                "total": 182,
+                "returned": 10
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "urn:iso:std:iso:4217"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1666",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:24:53 GMT",
+            "etag": "W/\"682-1Y6J+zP6qMNsjspxUOn7MT+dPhA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-99"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:24:53.417Z",
+              "identifier": "urn:uuid:0d570c53-4746-4f6f-a1f8-62cff44a915c",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "urn:iso:std:iso:4217"
+                }
+              ],
+              "offset": 0,
+              "total": 182,
+              "contains": [
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AED",
+                  "display": "United Arab Emirates dirham"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AFN",
+                  "display": "Afghan afghani"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ALL",
+                  "display": "Albanian lek"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AMD",
+                  "display": "Armenian dram"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ANG",
+                  "display": "Netherlands Antillean guilder"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AOA",
+                  "display": "Angolan kwanza"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "ARS",
+                  "display": "Argentine peso"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AUD",
+                  "display": "Australian dollar"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AWG",
+                  "display": "Aruban florin"
+                },
+                {
+                  "system": "urn:iso:std:iso:4217",
+                  "code": "AZN",
+                  "display": "Azerbaijani manat"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":3.72,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":3.7,\"result\":{\"ms\":3.7,\"total\":182,\"returned\":10}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 3.72,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 10,
+                "offset": 0,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 3.7,
+              "result": {
+                "ms": 3.7,
+                "total": 182,
+                "returned": 10
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

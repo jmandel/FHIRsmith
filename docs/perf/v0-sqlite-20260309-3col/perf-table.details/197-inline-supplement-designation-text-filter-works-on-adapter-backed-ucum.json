@@ -1,0 +1,652 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:25:02.288Z",
+  "rowIndex": 197,
+  "slug": "197-inline-supplement-designation-text-filter-works-on-adapter-backed-ucum",
+  "name": "Inline supplement designation text filter works on adapter-backed UCUM",
+  "category": "Supplements",
+  "hrefs": {
+    "input": "../perf-table.inputs/197-inline-supplement-designation-text-filter-works-on-adapter-backed-ucum.json",
+    "detailJson": "197-inline-supplement-designation-text-filter-works-on-adapter-backed-ucum.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 4,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unitsofmeasure.org",
+                        "concept": [
+                          {
+                            "code": "m"
+                          },
+                          {
+                            "code": "cm"
+                          },
+                          {
+                            "code": "kg"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "filter",
+                "valueString": "Lone metre bonus"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/ucum-supp-text",
+                  "content": "supplement",
+                  "supplements": "http://unitsofmeasure.org",
+                  "concept": [
+                    {
+                      "code": "m",
+                      "designation": [
+                        {
+                          "language": "en",
+                          "value": "Lone metre bonus"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "cm",
+                      "designation": [
+                        {
+                          "language": "en",
+                          "value": "Grouped centimetre bonus"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/ucum-supp-text"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1971",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:02 GMT",
+            "etag": "W/\"7b3-paoWygpiuQRiVQktu3DF1sCMXCo\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-468"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:02.277Z",
+              "identifier": "urn:uuid:3eb91985-ffe0-40e6-9ee8-a4b48e9f591d",
+              "total": 1,
+              "contains": [
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "m",
+                  "display": "m"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "Lone metre bonus"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unitsofmeasure.org|2.2"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/ucum-supp-text"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://unitsofmeasure.org\ncanonical-ir-hash: b641eee463c869720c65a473613778234ad8e6a4\nruntime-constraints:\n  text-filter: \"Lone metre bonus\"\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://unitsofmeasure.org [3] cm, kg, m [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":2.32,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":\"Lone metre bonus\",\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://unitsofmeasure.org\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"supplementIR:execute\",\"args\":{\"system\":\"http://unitsofmeasure.org\",\"text\":\"Lone metre bonus\"},\"children\":[],\"ms\":0.11,\"result\":{\"candidates\":1}}],\"ms\":0.12,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":2.22}],\"ms\":0.14,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":1}}],\"ms\":0.58,\"result\":{\"total\":1,\"contains\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 2.32,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": "Lone metre bonus",
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://unitsofmeasure.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [
+                        {
+                          "name": "supplementIR:execute",
+                          "args": {
+                            "system": "http://unitsofmeasure.org",
+                            "text": "Lone metre bonus"
+                          },
+                          "children": [],
+                          "ms": 0.11,
+                          "result": {
+                            "candidates": 1
+                          }
+                        }
+                      ],
+                      "ms": 0.12,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 1,
+                        "total": 1
+                      },
+                      "t": 2.22
+                    }
+                  ],
+                  "ms": 0.14,
+                  "result": {
+                    "paged": 1
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 1,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 1
+                  }
+                }
+              ],
+              "ms": 0.58,
+              "result": {
+                "total": 1,
+                "contains": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://unitsofmeasure.org\ncanonical-ir-hash: b641eee463c869720c65a473613778234ad8e6a4\nruntime-constraints:\n  text-filter: \"Lone metre bonus\"\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://unitsofmeasure.org [3] cm, kg, m [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 6,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 6,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unitsofmeasure.org",
+                        "concept": [
+                          {
+                            "code": "m"
+                          },
+                          {
+                            "code": "cm"
+                          },
+                          {
+                            "code": "kg"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "filter",
+                "valueString": "Lone metre bonus"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/ucum-supp-text",
+                  "content": "supplement",
+                  "supplements": "http://unitsofmeasure.org",
+                  "concept": [
+                    {
+                      "code": "m",
+                      "designation": [
+                        {
+                          "language": "en",
+                          "value": "Lone metre bonus"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "cm",
+                      "designation": [
+                        {
+                          "language": "en",
+                          "value": "Grouped centimetre bonus"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/ucum-supp-text"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1079",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:02 GMT",
+            "etag": "W/\"437-iO1Kwq4G1vw1hQq0NNsdNPPp2XU\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-469"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:02.279Z",
+              "identifier": "urn:uuid:3ca1facb-351a-4383-a934-1f9b0fa1542c",
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "lone metre bonus"
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unitsofmeasure.org|2.2"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/ucum-supp-text"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "m",
+                  "display": "m"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "cm",
+                  "display": "cm"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":3.89,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":true},\"children\":[],\"ms\":3.87,\"result\":{\"ms\":3.86,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 3.89,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": true
+              },
+              "children": [],
+              "ms": 3.87,
+              "result": {
+                "ms": 3.86,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 4,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unitsofmeasure.org",
+                        "concept": [
+                          {
+                            "code": "m"
+                          },
+                          {
+                            "code": "cm"
+                          },
+                          {
+                            "code": "kg"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "filter",
+                "valueString": "Lone metre bonus"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/ucum-supp-text",
+                  "content": "supplement",
+                  "supplements": "http://unitsofmeasure.org",
+                  "concept": [
+                    {
+                      "code": "m",
+                      "designation": [
+                        {
+                          "language": "en",
+                          "value": "Lone metre bonus"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "cm",
+                      "designation": [
+                        {
+                          "language": "en",
+                          "value": "Grouped centimetre bonus"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/ucum-supp-text"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1079",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:02 GMT",
+            "etag": "W/\"437-wQc1Cw93mZpKIOg6m/8n5+0NtfM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-143"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:02.286Z",
+              "identifier": "urn:uuid:44efe825-e701-4f53-978a-64000270821b",
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "lone metre bonus"
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unitsofmeasure.org|2.2"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/ucum-supp-text"
+                }
+              ],
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "m",
+                  "display": "m"
+                },
+                {
+                  "system": "http://unitsofmeasure.org",
+                  "code": "cm",
+                  "display": "cm"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.64,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":true},\"children\":[],\"ms\":1.62,\"result\":{\"ms\":1.62,\"total\":2,\"returned\":2}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.64,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": true
+              },
+              "children": [],
+              "ms": 1.62,
+              "result": {
+                "ms": 1.62,
+                "total": 2,
+                "returned": 2
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

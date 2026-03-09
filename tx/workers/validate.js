@@ -2184,18 +2184,12 @@ class ValidateWorker extends TerminologyWorker {
     }
 
     // Check for url parameter
-    const url = this.getStringParam(params, 'url');
-    if (url) {
-      const version = this.determineVersionBase(url, this.getStringParam(params, 'valueSetVersion'), txParams);
-
-      // First check additional resources
-      const fromAdditional = this.findInAdditionalResources(url, version, 'ValueSet', false);
-      if (fromAdditional) {
-        return fromAdditional;
-      }
-
-      let vs = await this.provider.findValueSet(this.opContext, url, version);
-      this.seeSourceVS(vs, url);
+    const canonical = this.getStringParam(params, 'url');
+    if (canonical) {
+      const { system: url, version: urlVersion } = this.parseCanonical(canonical);
+      const version = this.determineVersionBase(url, this.getStringParam(params, 'valueSetVersion') || urlVersion, txParams);
+      let vs = await this.findValueSet(url, version);
+      this.seeSourceVS(vs, canonical);
       if (vs == null) {
         throw new Issue('error', 'not-found', null, 'Unable_to_resolve_value_Set_', this.i18n.translate('Unable_to_resolve_value_Set_', params.HTTPLanguages, [url+(version ? "|"+version : "")]), 'not-found', 422);
       } else {

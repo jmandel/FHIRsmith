@@ -1,0 +1,660 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-09T19:25:16.803Z",
+  "rowIndex": 151,
+  "slug": "151-rxnorm-tty-scd-uses-literal-source",
+  "name": "RxNorm TTY=SCD uses literal source",
+  "category": "Filter Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/151-rxnorm-tty-scd-uses-literal-source.json",
+    "detailJson": "151-rxnorm-tty-scd-uses-literal-source.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + New Expander",
+      "hasPlan": true,
+      "perf": {
+        "ms": 22,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 22,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "SCD"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "4919",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:15 GMT",
+            "etag": "W/\"1337-HQwQ9z9Bwfw0Yzw+X97oRGQP+LM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-522"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:15.764Z",
+              "identifier": "urn:uuid:cb62cc28-040d-4723-84b2-61f48318aec1",
+              "total": 17595,
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000001",
+                  "display": "olmesartan medoxomil 40 MG / amLODIPine 5 MG / hydroCHLOROthiazide 25 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000009",
+                  "display": "miconazole nitrate 2 % / dimethicone 10 % / zinc oxide 10 % Topical Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000013",
+                  "display": "whole wheat allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000024",
+                  "display": "methenamine mandelate 100 MG/ML Oral Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000025",
+                  "display": "methenamine hippurate 1 GM Oral Capsule"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\ncanonical-ir-hash: 72f8097b6769fa7f77defe6e9a69f4fd7bb4eff8\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = SCD [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":20.1,\"sqlCount\":2,\"sqlMs\":18.6,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":5,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.16,\"execMs\":0.11},\"t\":1.31}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND EXISTS (SELECT 1 AS \\\"found\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE ((\\\"r\\\".\\\"source_concept_id\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 5\",\"params\":{\"prop_id_0\":2,\"literal_cs_id_1\":1,\"prop_value_2\":\"SCD\",\"cs_id_3\":1},\"rows\":5,\"ms\":0.11,\"label\":\"executeIR\"}],\"ms\":0.52,\"result\":{\"candidates\":5,\"total\":null}}],\"ms\":0.55,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\"\",\"params\":{\"prop_id_0\":2,\"literal_cs_id_1\":1,\"prop_value_2\":\"SCD\"},\"rows\":17595,\"ms\":18.49,\"label\":\"countForIR\"}],\"ms\":18.63,\"result\":{\"count\":17595}}],\"ms\":18.65,\"result\":{\"count\":17595}}],\"ms\":19.22,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":5}}],\"ms\":20.01,\"result\":{\"total\":17595,\"contains\":5}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 20.1,
+          "sqlCount": 2,
+          "sqlMs": 18.6,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 5,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 5,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://www.nlm.nih.gov/research/umls/rxnorm",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 5
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.16,
+                                "execMs": 0.11
+                              },
+                              "t": 1.31
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND EXISTS (SELECT 1 AS \"found\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE ((\"r\".\"source_concept_id\" = \"c\".\"concept_id\") AND (\"r\".\"source_concept_id\" IS NOT NULL)))) ORDER BY \"c\".\"code\" ASC LIMIT 5",
+                              "params": {
+                                "prop_id_0": 2,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "SCD",
+                                "cs_id_3": 1
+                              },
+                              "rows": 5,
+                              "ms": 0.11,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.52,
+                          "result": {
+                            "candidates": 5,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.55,
+                      "result": {
+                        "candidates": 5
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\"",
+                              "params": {
+                                "prop_id_0": 2,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "SCD"
+                              },
+                              "rows": 17595,
+                              "ms": 18.49,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 18.63,
+                          "result": {
+                            "count": 17595
+                          }
+                        }
+                      ],
+                      "ms": 18.65,
+                      "result": {
+                        "count": 17595
+                      }
+                    }
+                  ],
+                  "ms": 19.22,
+                  "result": {
+                    "paged": 5
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 5,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 5
+                  }
+                }
+              ],
+              "ms": 20.01,
+              "result": {
+                "total": 17595,
+                "contains": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\ncanonical-ir-hash: 72f8097b6769fa7f77defe6e9a69f4fd7bb4eff8\nruntime-constraints:\n  pagination: offset=0 count=5\noptimized-ir:\n  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = SCD [n]"
+      }
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 497,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 497,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8000/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "SCD"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2185",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:15 GMT",
+            "etag": "W/\"889-rTRltwP3rQkXj5OP5Kk2h/k95tg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-523"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:15.766Z",
+              "identifier": "urn:uuid:b520f3e5-5842-4c1c-86dd-5e5ff5262512",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000001",
+                  "display": "olmesartan medoxomil 40 MG / amLODIPine 5 MG / hydroCHLOROthiazide 25 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000009",
+                  "display": "miconazole nitrate 2 % / dimethicone 10 % / zinc oxide 10 % Topical Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000013",
+                  "display": "whole wheat allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000024",
+                  "display": "methenamine mandelate 100 MG/ML Oral Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000025",
+                  "display": "methenamine hippurate 1 GM Oral Capsule"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":494.81,\"sqlCount\":1,\"sqlMs\":312.87,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":17595},\"t\":373.86}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":227845,\"ms\":312.87,\"label\":\"legacy:executeFilters\"}],\"ms\":372.8,\"result\":{\"rows\":17595}}],\"ms\":494.79,\"result\":{\"ms\":494.78,\"returned\":5}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 494.81,
+          "sqlCount": 1,
+          "sqlMs": 312.87,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "filterCount": 1,
+                    "hasTextSearch": false
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "legacy:codeSetIntersection",
+                      "data": {
+                        "filters": 1,
+                        "after": 17595
+                      },
+                      "t": 373.86
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1
+                      },
+                      "rows": 227845,
+                      "ms": 312.87,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 372.8,
+                  "result": {
+                    "rows": 17595
+                  }
+                }
+              ],
+              "ms": 494.79,
+              "result": {
+                "ms": 494.78,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Upstream Expander",
+      "hasPlan": false,
+      "perf": {
+        "ms": 541,
+        "err": false
+      },
+      "debug": {
+        "ok": true,
+        "ms": 541,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:8001/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "SCD"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1644",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Mon, 09 Mar 2026 19:25:16 GMT",
+            "etag": "W/\"66c-35VkappchRiB5rOdpQ1HG02nPDA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-160"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-09T19:25:16.264Z",
+              "identifier": "urn:uuid:217a8ea2-4d83-4177-8fe1-499830de4287",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02032025"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000001",
+                  "display": "amlodipine 5 MG / hydrochlorothiazide 25 MG / olmesartan medoxomil 40 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000009",
+                  "display": "dimethicone 100 MG/ML / miconazole nitrate 20 MG/ML / zinc oxide 100 MG/ML Topical Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000013",
+                  "display": "whole wheat allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000015",
+                  "display": "western wheatgrass pollen extract 10000 UNT/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000024",
+                  "display": "methenamine mandelate 100 MG/ML Oral Suspension"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":538.47,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":5,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":538.43,\"result\":{\"ms\":538.42,\"returned\":5}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 538.47,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 5,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 538.43,
+              "result": {
+                "ms": 538.42,
+                "returned": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      }
+    }
+  ]
+}

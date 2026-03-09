@@ -37,14 +37,17 @@ const mockProvider = {
     }
     return null;
   }),
+  createCodeSystemProvider: jest.fn((opContext, codeSystem, supplements) =>
+    new FhirCodeSystemProvider(opContext, codeSystem instanceof CodeSystem ? codeSystem : new CodeSystem(codeSystem), supplements)
+  ),
   getCodeSystemById: jest.fn((ctx, id) => {
     if (id === 'administrative-gender') {
       return getCodeSystem().jsonObj;
     }
     return null;
   }),
-  findValueSet: jest.fn((ctx, url) => {
-    if (url === 'http://hl7.org/fhir/ValueSet/administrative-gender') {
+  findValueSet: jest.fn((ctx, url, version) => {
+    if (url === 'http://hl7.org/fhir/ValueSet/administrative-gender' && (!version || version === '4.0.1')) {
       return {
         url: 'http://hl7.org/fhir/ValueSet/administrative-gender',
         version: '4.0.1',
@@ -430,6 +433,45 @@ describe('ValidateWorker', () => {
       expect(thrown.cause).toBe('invalid');
       expect(thrown.statusCode).toBe(422);
       expect(thrown.message).toContain('Unable to understand default system version "urn:iso:std:iso:3166"');
+    });
+  });
+
+  describe('resource resolution', () => {
+    test('creates a CodeSystem provider from an inline CodeSystem resource without method-style canonical accessors', async () => {
+      const inline = {
+        resourceType: 'CodeSystem',
+        url: 'http://hl7.org/fhir/administrative-gender',
+        version: '5.0.0',
+        name: 'AdministrativeGender',
+        status: 'active',
+        content: 'complete',
+        concept: [{ code: 'male', display: 'Male' }],
+      };
+
+      const provider = await worker.createCodeSystemProviderWithSupplementRuntime(inline, new Set());
+      expect(provider).toBeInstanceOf(FhirCodeSystemProvider);
+      expect(mockProvider.createCodeSystemProvider).toHaveBeenCalled();
+    });
+
+    test('resolveValueSet parses url|version canonicals the same way as worker.findValueSet', async () => {
+      const params = {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'url', valueUri: 'http://hl7.org/fhir/ValueSet/administrative-gender|4.0.1' },
+        ],
+      };
+      const txp = new TxParameters(opContext.i18n.languageDefinitions, opContext.i18n);
+      txp.readParams(params);
+
+      const valueSet = await worker.resolveValueSet(params, txp);
+
+      expect(valueSet?.url).toBe('http://hl7.org/fhir/ValueSet/administrative-gender');
+      expect(valueSet?.version).toBe('4.0.1');
+      expect(mockProvider.findValueSet).toHaveBeenCalledWith(
+        opContext,
+        'http://hl7.org/fhir/ValueSet/administrative-gender',
+        '4.0.1'
+      );
     });
   });
 
