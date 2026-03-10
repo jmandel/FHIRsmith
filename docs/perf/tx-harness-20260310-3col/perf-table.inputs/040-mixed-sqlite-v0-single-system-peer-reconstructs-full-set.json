@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "id": 40,
+  "slug": "040-mixed-sqlite-v0-single-system-peer-reconstructs-full-set",
+  "name": "Mixed SQLite v0 + single-system peer reconstructs full set",
+  "category": "Pagination Safety",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {
+                "code": "73211009"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 2,
+      "offset": 8
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  {
+                    "system": "http://snomed.info/sct",
+                    "concept": [
+                      {
+                        "code": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 2
+          },
+          {
+            "name": "offset",
+            "valueInteger": 8
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  {
+                    "system": "http://snomed.info/sct",
+                    "concept": [
+                      {
+                        "code": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 2
+          },
+          {
+            "name": "offset",
+            "valueInteger": 8
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  {
+                    "system": "http://snomed.info/sct",
+                    "concept": [
+                      {
+                        "code": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 2
+          },
+          {
+            "name": "offset",
+            "valueInteger": 8
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

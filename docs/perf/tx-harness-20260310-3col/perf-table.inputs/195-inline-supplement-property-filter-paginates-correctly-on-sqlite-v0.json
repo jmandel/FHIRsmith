@@ -1,0 +1,323 @@
+{
+  "schemaVersion": 1,
+  "id": 195,
+  "slug": "195-inline-supplement-property-filter-paginates-correctly-on-sqlite-v0",
+  "name": "Inline supplement property filter paginates correctly on SQLite v0",
+  "category": "Supplements",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {
+                "property": "d20-roll",
+                "op": "=",
+                "value": "20"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/loinc-supp-roll",
+          "content": "supplement",
+          "supplements": "http://loinc.org",
+          "concept": [
+            {
+              "code": "2160-0",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "valueInteger": 20
+                }
+              ]
+            },
+            {
+              "code": "2345-7",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "valueInteger": 20
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "count": 1,
+      "offset": 1,
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/loinc-supp-roll"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 1
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/loinc-supp-roll",
+              "content": "supplement",
+              "supplements": "http://loinc.org",
+              "concept": [
+                {
+                  "code": "2160-0",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                },
+                {
+                  "code": "2345-7",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/loinc-supp-roll"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 1
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/loinc-supp-roll",
+              "content": "supplement",
+              "supplements": "http://loinc.org",
+              "concept": [
+                {
+                  "code": "2160-0",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                },
+                {
+                  "code": "2345-7",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/loinc-supp-roll"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 1
+          },
+          {
+            "name": "offset",
+            "valueInteger": 1
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/loinc-supp-roll",
+              "content": "supplement",
+              "supplements": "http://loinc.org",
+              "concept": [
+                {
+                  "code": "2160-0",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                },
+                {
+                  "code": "2345-7",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/loinc-supp-roll"
+          }
+        ]
+      }
+    }
+  }
+}

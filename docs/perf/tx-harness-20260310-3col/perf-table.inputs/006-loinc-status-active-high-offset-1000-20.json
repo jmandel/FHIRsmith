@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "id": 6,
+  "slug": "006-loinc-status-active-high-offset-1000-20",
+  "name": "LOINC STATUS=ACTIVE high offset (1000,20)",
+  "category": "Pagination",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {
+                "property": "STATUS",
+                "op": "=",
+                "value": "ACTIVE"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 20,
+      "offset": 1000,
+      "params": [
+        {
+          "name": "_exactTotal",
+          "valueBoolean": true
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 20
+          },
+          {
+            "name": "offset",
+            "valueInteger": 1000
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 20
+          },
+          {
+            "name": "offset",
+            "valueInteger": 1000
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 20
+          },
+          {
+            "name": "offset",
+            "valueInteger": 1000
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:00.389Z",
+  "rowIndex": 231,
+  "slug": "231-get-codesystem-instance-validate-male",
+  "name": "GET CodeSystem instance validate male",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/231-get-codesystem-instance-validate-male.json",
+    "detailJson": "231-get-codesystem-instance-validate-male.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:38599/r4/CodeSystem/administrative-gender/$validate-code?code=male&_engine=ir&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "645",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:55 GMT",
+            "etag": "W/\"285-pynXfNs0LN/pnGv//l6W17euFRE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-772"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "display",
+                "valueString": "Male"
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":0.51,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystemInstance\",\"children\":[{\"name\":\"validateIR:doValidationCS\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"version\":\"4.0.1\"},\"children\":[],\"ms\":0.27}],\"ms\":0.5,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.51,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystemInstance",
+              "children": [
+                {
+                  "name": "validateIR:doValidationCS",
+                  "args": {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "version": "4.0.1"
+                  },
+                  "children": [],
+                  "ms": 0.27
+                }
+              ],
+              "ms": 0.5,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:38599/r4/CodeSystem/administrative-gender/$validate-code?code=male&_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "334",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:55 GMT",
+            "etag": "W/\"14e-u6qtsS6jOaa4PNOz7Or00Ty5AF4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-773"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters =codingX:Coding)"
+                },
+                "diagnostics": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters =codingX:Coding)"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5000,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43233/r4/CodeSystem/administrative-gender/$validate-code?code=male&_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

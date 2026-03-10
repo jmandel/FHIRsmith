@@ -1,0 +1,639 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:39:49.487Z",
+  "rowIndex": 200,
+  "slug": "200-extra-requested-inline-supplement-may-be-irrelevant-without-error",
+  "name": "Extra requested inline supplement may be irrelevant without error",
+  "category": "Supplements",
+  "hrefs": {
+    "input": "../perf-table.inputs/200-extra-requested-inline-supplement-may-be-irrelevant-without-error.json",
+    "detailJson": "200-extra-requested-inline-supplement-may-be-irrelevant-without-error.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 5,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs-s2b",
+                        "concept": [
+                          {
+                            "code": "X"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-s2b",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "X",
+                      "display": "Xray"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s2b-rel",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s2b",
+                  "concept": [
+                    {
+                      "code": "X",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Rontgen"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s2b-irr",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s2c",
+                  "concept": [
+                    {
+                      "code": "Y",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Ypsilon"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s2b-rel"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s2b-irr"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2073",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:49 GMT",
+            "etag": "W/\"819-ZsFQ8XDCQM8d642Ktdg9YNVVM7E\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-435"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T07:39:49.473Z",
+              "identifier": "urn:uuid:fbedd191-991b-49f9-8a3f-d7e4febb99a7",
+              "total": 1,
+              "contains": [
+                {
+                  "system": "http://example.org/cs-s2b",
+                  "code": "X",
+                  "display": "Xray",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": null,
+                      "value": "Rontgen"
+                    }
+                  ]
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs-s2b"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/supp-s2b-rel"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs-s2b\ncanonical-ir-hash: caac2ea6a4801a07c5e4458bfdd3e75b2196062c\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs-s2b [1] X [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":3.27,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://example.org/cs-s2b\",\"count\":1},\"t\":3.09},{\"name\":\"pagination\",\"args\":{\"total\":1,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs-s2b\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[{\"name\":\"supplementIR:execute\",\"args\":{\"system\":\"http://example.org/cs-s2b\",\"text\":null},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":1}}],\"ms\":0.05,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":1,\"total\":1},\"t\":3.16}],\"ms\":0.06,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":true},\"children\":[],\"ms\":0.07,\"result\":{\"count\":1}}],\"ms\":0.5,\"result\":{\"total\":1,\"contains\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 3.27,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://example.org/cs-s2b",
+                    "count": 1
+                  },
+                  "t": 3.09
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 1,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs-s2b",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [
+                        {
+                          "name": "supplementIR:execute",
+                          "args": {
+                            "system": "http://example.org/cs-s2b",
+                            "text": null
+                          },
+                          "children": [],
+                          "ms": 0.04,
+                          "result": {
+                            "candidates": 1
+                          }
+                        }
+                      ],
+                      "ms": 0.05,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 1,
+                        "total": 1
+                      },
+                      "t": 3.16
+                    }
+                  ],
+                  "ms": 0.06,
+                  "result": {
+                    "paged": 1
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 1,
+                    "includeDesignations": true
+                  },
+                  "children": [],
+                  "ms": 0.07,
+                  "result": {
+                    "count": 1
+                  }
+                }
+              ],
+              "ms": 0.5,
+              "result": {
+                "total": 1,
+                "contains": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs-s2b\ncanonical-ir-hash: caac2ea6a4801a07c5e4458bfdd3e75b2196062c\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector concept http://example.org/cs-s2b [1] X [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 8,
+        "error": "Required supplement not found: http://example.org/supp-s2b-irr",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs-s2b",
+                        "concept": [
+                          {
+                            "code": "X"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-s2b",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "X",
+                      "display": "Xray"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s2b-rel",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s2b",
+                  "concept": [
+                    {
+                      "code": "X",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Rontgen"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s2b-irr",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s2c",
+                  "concept": [
+                    {
+                      "code": "Y",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Ypsilon"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s2b-rel"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s2b-irr"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "399",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:49 GMT",
+            "etag": "W/\"18f-rwsJh3/u52cTbYwZEV87u0myjPw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-436"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "Required supplement not found: http://example.org/supp-s2b-irr",
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                      "code": "not-found"
+                    }
+                  ]
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_SUPPLEMENT_MISSING"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 4,
+        "error": "Required supplement not found: http://example.org/supp-s2b-irr",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43233/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs-s2b",
+                        "concept": [
+                          {
+                            "code": "X"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-s2b",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "X",
+                      "display": "Xray"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s2b-rel",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s2b",
+                  "concept": [
+                    {
+                      "code": "X",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Rontgen"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/supp-s2b-irr",
+                  "content": "supplement",
+                  "supplements": "http://example.org/cs-s2c",
+                  "concept": [
+                    {
+                      "code": "Y",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Ypsilon"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s2b-rel"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/supp-s2b-irr"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "399",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:49 GMT",
+            "etag": "W/\"18f-rwsJh3/u52cTbYwZEV87u0myjPw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-132"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "Required supplement not found: http://example.org/supp-s2b-irr",
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                      "code": "not-found"
+                    }
+                  ]
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_SUPPLEMENT_MISSING"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:41:50.302Z",
+  "rowIndex": 225,
+  "slug": "225-post-lookup-allows-extra-configured-sqlite-supplement-that-does-not-contribute",
+  "name": "POST lookup allows extra configured sqlite supplement that does not contribute",
+  "category": "Lookup",
+  "hrefs": {
+    "input": "../perf-table.inputs/225-post-lookup-allows-extra-configured-sqlite-supplement-that-does-not-contribute.json",
+    "detailJson": "225-post-lookup-allows-extra-configured-sqlite-supplement-that-does-not-contribute.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 7,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 7,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0001"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "de"
+              },
+              {
+                "name": "property",
+                "valueCode": "designation"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/op-harness-d8"
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1116",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:50 GMT",
+            "etag": "W/\"45c-e5QTmrrM2w47ssUOVV8KEesOdiA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-758"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "name",
+                "valueString": "Synthetic Base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0001"
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "version",
+                "valueString": "1"
+              },
+              {
+                "name": "display",
+                "valueString": "Kritischer Treffer"
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "language",
+                    "valueCode": "en"
+                  },
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Critical Concept"
+                  }
+                ]
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "language",
+                    "valueCode": "de"
+                  },
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Kritischer Treffer"
+                  }
+                ]
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":5.04,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"lookupIR:handle\",\"children\":[{\"name\":\"lookupIR:doLookup\",\"args\":{\"system\":\"http://example.org/op-harness-base\",\"code\":\"C0001\"},\"children\":[],\"ms\":0.8}],\"ms\":5.02,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 5.04,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "lookupIR:handle",
+              "children": [
+                {
+                  "name": "lookupIR:doLookup",
+                  "args": {
+                    "system": "http://example.org/op-harness-base",
+                    "code": "C0001"
+                  },
+                  "children": [],
+                  "ms": 0.8
+                }
+              ],
+              "ms": 5.02,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

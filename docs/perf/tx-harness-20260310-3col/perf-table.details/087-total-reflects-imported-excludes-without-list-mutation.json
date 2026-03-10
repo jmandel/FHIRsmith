@@ -1,0 +1,626 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:39:40.534Z",
+  "rowIndex": 87,
+  "slug": "087-total-reflects-imported-excludes-without-list-mutation",
+  "name": "Total reflects imported excludes without list mutation",
+  "category": "Composition Semantics",
+  "hrefs": {
+    "input": "../perf-table.inputs/087-total-reflects-imported-excludes-without-list-mutation.json",
+    "detailJson": "087-total-reflects-imported-excludes-without-list-mutation.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/exc-total-inc-1773128380526"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/exc-total-exc-1773128380526"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/exc-total-1773128380526",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/exc-total-inc-1773128380526",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/exc-total-1773128380526"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/exc-total-exc-1773128380526",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/exc-total-1773128380526",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "yellow"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2053",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:40 GMT",
+            "etag": "W/\"805-Qvz6z+RlUa6r360ksyfSTLF6pgs\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-291"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T07:39:40.530Z",
+              "identifier": "urn:uuid:da0b1ed3-9ee2-4e18-98f2-421b3e6fac34",
+              "total": 2,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/exc-total-1773128380526",
+                  "code": "green",
+                  "display": "Green"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 1
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/exc-total-1773128380526"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/exc-total-inc-1773128380526"
+                },
+                {
+                  "name": "used-valueset",
+                  "valueUri": "http://example.org/vs/exc-total-exc-1773128380526"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/exc-total-1773128380526\ncanonical-ir-hash: 23bb22ed2dde04f4c60e50c4ade052ef875b6946\nruntime-constraints:\n  pagination: offset=0 count=1\noptimized-ir:\n  diff [n]\n    selector whole http://example.org/cs/exc-total-1773128380526 [n.l]\n    selector concept http://example.org/cs/exc-total-1773128380526 [2] blue, yellow [n.r]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.32,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/exc-total-1773128380526\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.05,\"result\":{\"candidates\":1}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://example.org/cs/exc-total-1773128380526\"},\"children\":[],\"ms\":0.04,\"result\":{\"count\":2}}],\"ms\":0.1,\"result\":{\"paged\":1}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":1,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":1}}],\"ms\":0.29,\"result\":{\"total\":2,\"contains\":1}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.32,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/exc-total-1773128380526",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1
+                      },
+                      "children": [],
+                      "ms": 0.05,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://example.org/cs/exc-total-1773128380526"
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "count": 2
+                      }
+                    }
+                  ],
+                  "ms": 0.1,
+                  "result": {
+                    "paged": 1
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 1,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 1
+                  }
+                }
+              ],
+              "ms": 0.29,
+              "result": {
+                "total": 2,
+                "contains": 1
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/exc-total-1773128380526\ncanonical-ir-hash: 23bb22ed2dde04f4c60e50c4ade052ef875b6946\nruntime-constraints:\n  pagination: offset=0 count=1\noptimized-ir:\n  diff [n]\n    selector whole http://example.org/cs/exc-total-1773128380526 [n.l]\n    selector concept http://example.org/cs/exc-total-1773128380526 [2] blue, yellow [n.r]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 1,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/exc-total-inc-1773128380526"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/exc-total-exc-1773128380526"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/exc-total-1773128380526",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/exc-total-inc-1773128380526",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/exc-total-1773128380526"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/exc-total-exc-1773128380526",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/exc-total-1773128380526",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "yellow"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:40 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-292"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 2,
+        "error": "value must be provided",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43233/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/exc-total-inc-1773128380526"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "valueSet": [
+                          "http://example.org/vs/exc-total-exc-1773128380526"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 1
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/exc-total-1773128380526",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "red",
+                      "display": "Red"
+                    },
+                    {
+                      "code": "blue",
+                      "display": "Blue"
+                    },
+                    {
+                      "code": "green",
+                      "display": "Green"
+                    },
+                    {
+                      "code": "yellow",
+                      "display": "Yellow"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/exc-total-inc-1773128380526",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/exc-total-1773128380526"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/vs/exc-total-exc-1773128380526",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/exc-total-1773128380526",
+                        "concept": [
+                          {
+                            "code": "blue"
+                          },
+                          {
+                            "code": "yellow"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "168",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:40 GMT",
+            "etag": "W/\"a8-8QJDX5wwjt0pBkkMFf3iLv2ny78\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-91"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "value must be provided"
+                },
+                "diagnostics": "value must be provided"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

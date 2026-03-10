@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "id": 254,
+  "slug": "254-post-validate-adapter-backed-inline-supplement-backed-property-filter-via-ir-ret",
+  "name": "POST validate adapter-backed inline supplement-backed property filter via IR returns false",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "POST",
+      "path": "/r4/ValueSet/$validate-code",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "https://www.usps.com/"
+          },
+          {
+            "name": "code",
+            "valueCode": "CA"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "https://www.usps.com/",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "type": "integer"
+                }
+              ],
+              "concept": [
+                {
+                  "code": "TX",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                },
+                {
+                  "code": "CA",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "https://www.usps.com/",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "https://www.usps.com/"
+          },
+          {
+            "name": "code",
+            "valueCode": "CA"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "https://www.usps.com/",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "type": "integer"
+                }
+              ],
+              "concept": [
+                {
+                  "code": "TX",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                },
+                {
+                  "code": "CA",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "https://www.usps.com/",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": null,
+    "third": null
+  }
+}

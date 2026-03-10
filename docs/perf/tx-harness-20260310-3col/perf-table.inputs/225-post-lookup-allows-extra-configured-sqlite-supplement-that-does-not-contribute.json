@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "id": 225,
+  "slug": "225-post-lookup-allows-extra-configured-sqlite-supplement-that-does-not-contribute",
+  "name": "POST lookup allows extra configured sqlite supplement that does not contribute",
+  "category": "Lookup",
+  "source": {
+    "shape": "request",
+    "kind": "lookup",
+    "request": {
+      "method": "POST",
+      "path": "/r4/CodeSystem/$lookup",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/op-harness-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "C0001"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "property",
+            "valueCode": "designation"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d8"
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/op-harness-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "C0001"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "property",
+            "valueCode": "designation"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d8"
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": null,
+    "third": null
+  }
+}

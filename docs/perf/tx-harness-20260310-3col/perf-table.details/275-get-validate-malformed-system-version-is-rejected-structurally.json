@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:43:01.772Z",
+  "rowIndex": 275,
+  "slug": "275-get-validate-malformed-system-version-is-rejected-structurally",
+  "name": "GET validate malformed system-version is rejected structurally",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/275-get-validate-malformed-system-version-is-rejected-structurally.json",
+    "detailJson": "275-get-validate-malformed-system-version-is-rejected-structurally.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:38599/r4/ValueSet/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fadministrative-gender&system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=male&system-version=urn%3Aiso%3Astd%3Aiso%3A3166&_engine=ir&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "470",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:56 GMT",
+            "etag": "W/\"1d6-GzVAgj82XYuUCA1M+YCqInOTf5I\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-880"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to understand default system version \"urn:iso:std:iso:3166\""
+                }
+              }
+            ],
+            "extension": [
+              {
+                "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                "valueString": "{\"totalMs\":0.38,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleValueSet\",\"children\":[],\"ms\":0.36,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.38,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleValueSet",
+              "children": [],
+              "ms": 0.36,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:38599/r4/ValueSet/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fadministrative-gender&system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=male&system-version=urn%3Aiso%3Astd%3Aiso%3A3166&_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "173",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:56 GMT",
+            "etag": "W/\"ad-a5t0fsmnUjEa172VeoPUzZvznTA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-881"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to understand default system version \"urn:iso:std:iso:3166\""
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5001,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43233/r4/ValueSet/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fadministrative-gender&system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=male&system-version=urn%3Aiso%3Astd%3Aiso%3A3166&_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

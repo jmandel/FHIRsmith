@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "id": 169,
+  "slug": "169-imported-large-system-union-crosses-pagination-boundary-cleanly",
+  "name": "Imported large-system union crosses pagination boundary cleanly",
+  "category": "Stress & Scale",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "http://example.org/vs/imported-loinc-active"
+            ]
+          },
+          {
+            "valueSet": [
+              "http://example.org/vs/imported-sct-clinical-finding-boundary"
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/imported-loinc-active",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://loinc.org",
+                "filter": [
+                  {
+                    "property": "STATUS",
+                    "op": "=",
+                    "value": "ACTIVE"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/imported-sct-clinical-finding-boundary",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "404684003"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "activeOnly": true,
+      "offset": 96191,
+      "count": 120
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-loinc-active"
+                    ]
+                  },
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-clinical-finding-boundary"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 120
+          },
+          {
+            "name": "offset",
+            "valueInteger": 96191
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-loinc-active",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-clinical-finding-boundary",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-loinc-active"
+                    ]
+                  },
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-clinical-finding-boundary"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 120
+          },
+          {
+            "name": "offset",
+            "valueInteger": 96191
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-loinc-active",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-clinical-finding-boundary",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-loinc-active"
+                    ]
+                  },
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-clinical-finding-boundary"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 120
+          },
+          {
+            "name": "offset",
+            "valueInteger": 96191
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-loinc-active",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-clinical-finding-boundary",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

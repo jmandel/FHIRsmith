@@ -744,10 +744,10 @@ npm run test:perf:matrix:3col            # opt-in third upstream-providers colum
 
 Measured on this branch with the current full unified harness corpus:
 
-- `271` rows total
-- `199` `$expand`
-- `25` `$lookup`
-- `47` `$validate-code`
+- `277` rows total
+- `201` `$expand`
+- `27` `$lookup`
+- `49` `$validate-code`
 - synthetic supplement rows included by default in perf mode
 - default perf repeat count: `1`
 - default local matrix: `2` columns
@@ -768,7 +768,7 @@ node scripts/tx-harness.mjs \
   --perf-runs 1 \
   --db-dir /home/jmandel/hobby/sct/cache \
   --upstream-db-dir /home/jmandel/hobby/FHIRsmith/data/terminology-cache \
-  --out-dir docs/perf/tx-harness-20260309-3col
+  --out-dir docs/perf/tx-harness-20260310-3col
 ```
 
 Notes:
@@ -781,7 +781,7 @@ Notes:
 
 Latest checked-in static-site snapshot:
 
-- [perf/tx-harness-20260309-3col/perf-table.html](perf/tx-harness-20260309-3col/perf-table.html)
+- [perf/tx-harness-20260310-3col/perf-table.html](perf/tx-harness-20260310-3col/perf-table.html)
 
 To build the docs landing site (used by GitHub Pages workflow):
 

@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 1,
+  "id": 178,
+  "slug": "178-count-only-imported-diff-stays-on-the-count-path",
+  "name": "Count-only imported diff stays on the count path",
+  "category": "Stress & Scale",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "http://example.org/vs/imported-sct-clinical-finding-count-only"
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "valueSet": [
+              "http://example.org/vs/imported-sct-diabetes-count-only"
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/imported-sct-clinical-finding-count-only",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "404684003"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/imported-sct-diabetes-count-only",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://snomed.info/sct",
+                "filter": [
+                  {
+                    "property": "concept",
+                    "op": "is-a",
+                    "value": "73211009"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "activeOnly": true,
+      "count": 0
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-clinical-finding-count-only"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-diabetes-count-only"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 0
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-clinical-finding-count-only",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-diabetes-count-only",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-clinical-finding-count-only"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-diabetes-count-only"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 0
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-clinical-finding-count-only",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-diabetes-count-only",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-clinical-finding-count-only"
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/imported-sct-diabetes-count-only"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 0
+          },
+          {
+            "name": "activeOnly",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-clinical-finding-count-only",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "404684003"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/imported-sct-diabetes-count-only",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "73211009"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

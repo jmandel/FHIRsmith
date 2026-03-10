@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "id": 181,
+  "slug": "181-deep-loinc-text-filter-pagination-stays-stable-under-large-offset",
+  "name": "Deep LOINC text filter pagination stays stable under large offset",
+  "category": "Stress & Scale",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {
+                "property": "STATUS",
+                "op": "=",
+                "value": "ACTIVE"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "filter": "blood",
+      "offset": 14888,
+      "count": 50,
+      "params": [
+        {
+          "name": "_exactTotal",
+          "valueBoolean": true
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 50
+          },
+          {
+            "name": "offset",
+            "valueInteger": 14888
+          },
+          {
+            "name": "filter",
+            "valueString": "blood"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 50
+          },
+          {
+            "name": "offset",
+            "valueInteger": 14888
+          },
+          {
+            "name": "filter",
+            "valueString": "blood"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "STATUS",
+                        "op": "=",
+                        "value": "ACTIVE"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 50
+          },
+          {
+            "name": "offset",
+            "valueInteger": 14888
+          },
+          {
+            "name": "filter",
+            "valueString": "blood"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "_exactTotal",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

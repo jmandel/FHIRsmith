@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:26.291Z",
+  "rowIndex": 252,
+  "slug": "252-post-validate-inline-supplement-backed-property-filter-via-ir-accepts-codeableco",
+  "name": "POST validate inline supplement-backed property filter via IR accepts codeableConcept",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/252-post-validate-inline-supplement-backed-property-filter-via-ir-accepts-codeableco.json",
+    "detailJson": "252-post-validate-inline-supplement-backed-property-filter-via-ir-accepts-codeableco.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 19,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 19,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/administrative-gender",
+                      "code": "male"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-rolls"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-rolls",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    },
+                    {
+                      "code": "female",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 1
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2057",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:26 GMT",
+            "etag": "W/\"809-TGXC0xXIPe1DOORJKJc2gE0N0Kw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-825"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "display",
+                "valueString": "Male"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/administrative-gender",
+                      "version": "4.0.1",
+                      "code": "male",
+                      "display": "Male"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":16.59,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleValueSet\",\"children\":[{\"name\":\"validateIR:doValidationVS\",\"args\":{\"url\":null},\"children\":[{\"name\":\"validateIR:checkConceptSet\",\"args\":{\"role\":\"in\",\"system\":\"http://hl7.org/fhir/administrative-gender\",\"code\":\"male\",\"filterCount\":1},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"supplementIR:execute\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"text\":null},\"children\":[{\"name\":\"note\",\"message\":\"supplementIR:leaf-filter\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"supportClauses\":0,\"supplementClauses\":[\"d20-roll = 20\"],\"before\":1,\"after\":1},\"t\":16.41}],\"ms\":0.15,\"result\":{\"candidates\":1}}],\"ms\":0.16,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:omitted\",\"data\":{\"offset\":0,\"returned\":1,\"exactTotal\":false},\"t\":16.45}],\"ms\":0.18,\"result\":{\"paged\":1}}],\"ms\":3.03}],\"ms\":16.28}],\"ms\":16.57,\"result\":{\"_unclosed\":true}}]}"
+              },
+              {
+                "name": "irPlan",
+                "valueString": "systems: http://hl7.org/fhir/administrative-gender\ncanonical-ir-hash: c3939a6317d1c997b0027af97a7b6346a6b43db5\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://hl7.org/fhir/administrative-gender d20-roll = 20 [n]"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 16.59,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleValueSet",
+              "children": [
+                {
+                  "name": "validateIR:doValidationVS",
+                  "args": {
+                    "url": null
+                  },
+                  "children": [
+                    {
+                      "name": "validateIR:checkConceptSet",
+                      "args": {
+                        "role": "in",
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "code": "male",
+                        "filterCount": 1
+                      },
+                      "children": [
+                        {
+                          "name": "pagination",
+                          "args": {
+                            "total": null,
+                            "offset": 0,
+                            "count": 1,
+                            "systems": 1
+                          },
+                          "children": [
+                            {
+                              "name": "system:http://hl7.org/fhir/administrative-gender",
+                              "args": {
+                                "sysOffset": 0,
+                                "sysCount": 1
+                              },
+                              "children": [
+                                {
+                                  "name": "supplementIR:execute",
+                                  "args": {
+                                    "system": "http://hl7.org/fhir/administrative-gender",
+                                    "text": null
+                                  },
+                                  "children": [
+                                    {
+                                      "name": "note",
+                                      "message": "supplementIR:leaf-filter",
+                                      "data": {
+                                        "system": "http://hl7.org/fhir/administrative-gender",
+                                        "supportClauses": 0,
+                                        "supplementClauses": [
+                                          "d20-roll = 20"
+                                        ],
+                                        "before": 1,
+                                        "after": 1
+                                      },
+                                      "t": 16.41
+                                    }
+                                  ],
+                                  "ms": 0.15,
+                                  "result": {
+                                    "candidates": 1
+                                  }
+                                }
+                              ],
+                              "ms": 0.16,
+                              "result": {
+                                "candidates": 1
+                              }
+                            },
+                            {
+                              "name": "note",
+                              "message": "total:omitted",
+                              "data": {
+                                "offset": 0,
+                                "returned": 1,
+                                "exactTotal": false
+                              },
+                              "t": 16.45
+                            }
+                          ],
+                          "ms": 0.18,
+                          "result": {
+                            "paged": 1
+                          }
+                        }
+                      ],
+                      "ms": 3.03
+                    }
+                  ],
+                  "ms": 16.28
+                }
+              ],
+              "ms": 16.57,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://hl7.org/fhir/administrative-gender\ncanonical-ir-hash: c3939a6317d1c997b0027af97a7b6346a6b43db5\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://hl7.org/fhir/administrative-gender d20-roll = 20 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

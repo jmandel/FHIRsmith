@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "id": 198,
+  "slug": "198-configured-sqlite-sidecars-support-multi-supplement-distinct-filters-on-sqlite-v",
+  "name": "Configured sqlite sidecars support multi-supplement distinct filters on SQLite v0",
+  "category": "Supplements",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {
+                "property": "d20-roll",
+                "op": "=",
+                "value": "20"
+              },
+              {
+                "property": "d8-roll",
+                "op": "=",
+                "value": "2"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 5,
+      "offset": 10,
+      "includeDesignations": true,
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20"
+        },
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d8"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      },
+                      {
+                        "property": "d8-roll",
+                        "op": "=",
+                        "value": "2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "offset",
+            "valueInteger": 10
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d8"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      },
+                      {
+                        "property": "d8-roll",
+                        "op": "=",
+                        "value": "2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "offset",
+            "valueInteger": 10
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d8"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      },
+                      {
+                        "property": "d8-roll",
+                        "op": "=",
+                        "value": "2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 5
+          },
+          {
+            "name": "offset",
+            "valueInteger": 10
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d8"
+          }
+        ]
+      }
+    }
+  }
+}

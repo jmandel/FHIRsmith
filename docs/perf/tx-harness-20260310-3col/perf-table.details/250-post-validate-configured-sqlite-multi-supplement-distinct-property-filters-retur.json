@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:26.206Z",
+  "rowIndex": 250,
+  "slug": "250-post-validate-configured-sqlite-multi-supplement-distinct-property-filters-retur",
+  "name": "POST validate configured sqlite multi-supplement distinct property filters returns false",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/250-post-validate-configured-sqlite-multi-supplement-distinct-property-filters-retur.json",
+    "detailJson": "250-post-validate-configured-sqlite-multi-supplement-distinct-property-filters-retur.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 34,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 34,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0002"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/op-harness-d8"
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/op-harness-base",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          },
+                          {
+                            "property": "d8-roll",
+                            "op": "=",
+                            "value": "2"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "5502",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:26 GMT",
+            "etag": "W/\"157e-86lnoxJkijlrEg44dEUB4f8/Jro\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-821"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "version",
+                "valueString": "1"
+              },
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0002"
+              },
+              {
+                "name": "display",
+                "valueString": "Minor Concept"
+              },
+              {
+                "name": "message",
+                "valueString": "The provided code 'http://example.org/op-harness-base#C0002' was not found in the value set 'undefined'"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "code-invalid",
+                      "details": {
+                        "text": "The provided code 'http://example.org/op-harness-base#C0002' was not found in the value set 'undefined'",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-in-vs"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "code"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "None_of_the_provided_codes_are_in_the_value_set_one"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":30.97,\"sqlCount\":1,\"sqlMs\":0.1,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleValueSet\",\"children\":[{\"name\":\"validateIR:doValidationVS\",\"args\":{\"url\":null},\"children\":[{\"name\":\"validateIR:checkConceptSet\",\"args\":{\"role\":\"in\",\"system\":\"http://example.org/op-harness-base\",\"code\":\"C0002\",\"filterCount\":2},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/op-harness-base\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://example.org/op-harness-base\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.24,\"execMs\":0.1},\"t\":26.45}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0)) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT \\\"src\\\".\\\"concept_id\\\" AS \\\"source_concept_id\\\", \\\"sl\\\".\\\"property_code\\\" AS \\\"property_code\\\", \\\"sl\\\".\\\"value_raw\\\" AS \\\"value_raw\\\", \\\"sl\\\".\\\"value_text\\\" AS \\\"value_text\\\", \\\"sl\\\".\\\"value_num\\\" AS \\\"value_num\\\", \\\"sl\\\".\\\"value_bool\\\" AS \\\"value_bool\\\", \\\"sl\\\".\\\"group_id\\\" AS \\\"group_id\\\", \\\"sl\\\".\\\"active\\\" AS \\\"active\\\" FROM \\\"supp_23feb5065e5d\\\".\\\"supplement_literal\\\" \\\"sl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"code\\\" = \\\"sl\\\".\\\"source_code\\\") WHERE ((\\\"src\\\".\\\"cs_id\\\" = @supp_literal_src_cs_id_4) AND (\\\"sl\\\".\\\"active\\\" = 1) AND (\\\"sl\\\".\\\"property_code\\\" = @supp_prop_code_2) AND (\\\"sl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@supp_prop_value_3) OR ((\\\"sl\\\".\\\"value_text\\\" IS NULL) AND \\\"sl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@supp_prop_value_3))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT \\\"src\\\".\\\"concept_id\\\" AS \\\"source_concept_id\\\", \\\"sl\\\".\\\"property_code\\\" AS \\\"property_code\\\", \\\"sl\\\".\\\"value_raw\\\" AS \\\"value_raw\\\", \\\"sl\\\".\\\"value_text\\\" AS \\\"value_text\\\", \\\"sl\\\".\\\"value_num\\\" AS \\\"value_num\\\", \\\"sl\\\".\\\"value_bool\\\" AS \\\"value_bool\\\", \\\"sl\\\".\\\"group_id\\\" AS \\\"group_id\\\", \\\"sl\\\".\\\"active\\\" AS \\\"active\\\" FROM \\\"supp_cfdff721c71c\\\".\\\"supplement_literal\\\" \\\"sl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"code\\\" = \\\"sl\\\".\\\"source_code\\\") WHERE ((\\\"src\\\".\\\"cs_id\\\" = @supp_literal_src_cs_id_7) AND (\\\"sl\\\".\\\"active\\\" = 1) AND (\\\"sl\\\".\\\"property_code\\\" = @supp_prop_code_5) AND (\\\"sl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@supp_prop_value_6) OR ((\\\"sl\\\".\\\"value_text\\\" IS NULL) AND \\\"sl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@supp_prop_value_6))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 1\",\"params\":{\"code_0\":\"C0002\",\"cs_id_1\":1,\"supp_prop_code_2\":\"d20-roll\",\"supp_prop_value_3\":\"20\",\"supp_literal_src_cs_id_4\":1,\"supp_prop_code_5\":\"d8-roll\",\"supp_prop_value_6\":\"2\",\"supp_literal_src_cs_id_7\":1},\"rows\":0,\"ms\":0.1,\"label\":\"executeIR\"}],\"ms\":2.33,\"result\":{\"candidates\":0,\"total\":null}}],\"ms\":2.37,\"result\":{\"candidates\":0}},{\"name\":\"note\",\"message\":\"total:inferred-empty\",\"data\":{\"offset\":0,\"returned\":0,\"total\":0},\"t\":26.49}],\"ms\":2.4,\"result\":{\"paged\":0}}],\"ms\":6.41}],\"ms\":30.67}],\"ms\":30.95,\"result\":{\"_unclosed\":true}}]}"
+              },
+              {
+                "name": "irPlan",
+                "valueString": "systems: http://example.org/op-harness-base\ncanonical-ir-hash: 713f7e5016b78d1de51f3a21f7fcc55c89b546b7\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://example.org/op-harness-base d20-roll = 20 ; d8-roll = 2 [n]"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 30.97,
+          "sqlCount": 1,
+          "sqlMs": 0.1,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleValueSet",
+              "children": [
+                {
+                  "name": "validateIR:doValidationVS",
+                  "args": {
+                    "url": null
+                  },
+                  "children": [
+                    {
+                      "name": "validateIR:checkConceptSet",
+                      "args": {
+                        "role": "in",
+                        "system": "http://example.org/op-harness-base",
+                        "code": "C0002",
+                        "filterCount": 2
+                      },
+                      "children": [
+                        {
+                          "name": "pagination",
+                          "args": {
+                            "total": null,
+                            "offset": 0,
+                            "count": 1,
+                            "systems": 1
+                          },
+                          "children": [
+                            {
+                              "name": "system:http://example.org/op-harness-base",
+                              "args": {
+                                "sysOffset": 0,
+                                "sysCount": 1
+                              },
+                              "children": [
+                                {
+                                  "name": "executeIR:compiler",
+                                  "args": {
+                                    "system": "http://example.org/op-harness-base"
+                                  },
+                                  "children": [
+                                    {
+                                      "name": "note",
+                                      "message": "executeIR:breakdown",
+                                      "data": {
+                                        "prepMs": 0.24,
+                                        "execMs": 0.1
+                                      },
+                                      "t": 26.45
+                                    }
+                                  ],
+                                  "sql": [
+                                    {
+                                      "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0)) INTERSECT SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT \"src\".\"concept_id\" AS \"source_concept_id\", \"sl\".\"property_code\" AS \"property_code\", \"sl\".\"value_raw\" AS \"value_raw\", \"sl\".\"value_text\" AS \"value_text\", \"sl\".\"value_num\" AS \"value_num\", \"sl\".\"value_bool\" AS \"value_bool\", \"sl\".\"group_id\" AS \"group_id\", \"sl\".\"active\" AS \"active\" FROM \"supp_23feb5065e5d\".\"supplement_literal\" \"sl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"code\" = \"sl\".\"source_code\") WHERE ((\"src\".\"cs_id\" = @supp_literal_src_cs_id_4) AND (\"sl\".\"active\" = 1) AND (\"sl\".\"property_code\" = @supp_prop_code_2) AND (\"sl\".\"value_text\" COLLATE NOCASE IN (@supp_prop_value_3) OR ((\"sl\".\"value_text\" IS NULL) AND \"sl\".\"value_raw\" COLLATE NOCASE IN (@supp_prop_value_3))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL) INTERSECT SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT \"src\".\"concept_id\" AS \"source_concept_id\", \"sl\".\"property_code\" AS \"property_code\", \"sl\".\"value_raw\" AS \"value_raw\", \"sl\".\"value_text\" AS \"value_text\", \"sl\".\"value_num\" AS \"value_num\", \"sl\".\"value_bool\" AS \"value_bool\", \"sl\".\"group_id\" AS \"group_id\", \"sl\".\"active\" AS \"active\" FROM \"supp_cfdff721c71c\".\"supplement_literal\" \"sl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"code\" = \"sl\".\"source_code\") WHERE ((\"src\".\"cs_id\" = @supp_literal_src_cs_id_7) AND (\"sl\".\"active\" = 1) AND (\"sl\".\"property_code\" = @supp_prop_code_5) AND (\"sl\".\"value_text\" COLLATE NOCASE IN (@supp_prop_value_6) OR ((\"sl\".\"value_text\" IS NULL) AND \"sl\".\"value_raw\" COLLATE NOCASE IN (@supp_prop_value_6))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") ORDER BY \"c\".\"code\" ASC LIMIT 1",
+                                      "params": {
+                                        "code_0": "C0002",
+                                        "cs_id_1": 1,
+                                        "supp_prop_code_2": "d20-roll",
+                                        "supp_prop_value_3": "20",
+                                        "supp_literal_src_cs_id_4": 1,
+                                        "supp_prop_code_5": "d8-roll",
+                                        "supp_prop_value_6": "2",
+                                        "supp_literal_src_cs_id_7": 1
+                                      },
+                                      "rows": 0,
+                                      "ms": 0.1,
+                                      "label": "executeIR"
+                                    }
+                                  ],
+                                  "ms": 2.33,
+                                  "result": {
+                                    "candidates": 0,
+                                    "total": null
+                                  }
+                                }
+                              ],
+                              "ms": 2.37,
+                              "result": {
+                                "candidates": 0
+                              }
+                            },
+                            {
+                              "name": "note",
+                              "message": "total:inferred-empty",
+                              "data": {
+                                "offset": 0,
+                                "returned": 0,
+                                "total": 0
+                              },
+                              "t": 26.49
+                            }
+                          ],
+                          "ms": 2.4,
+                          "result": {
+                            "paged": 0
+                          }
+                        }
+                      ],
+                      "ms": 6.41
+                    }
+                  ],
+                  "ms": 30.67
+                }
+              ],
+              "ms": 30.95,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/op-harness-base\ncanonical-ir-hash: 713f7e5016b78d1de51f3a21f7fcc55c89b546b7\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://example.org/op-harness-base d20-roll = 20 ; d8-roll = 2 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

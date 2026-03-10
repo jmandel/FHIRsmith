@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:10.556Z",
+  "rowIndex": 236,
+  "slug": "236-post-codesystem-validate-configured-sqlite-supplement-designation-language-choic",
+  "name": "POST CodeSystem validate configured sqlite supplement designation language choice returns supplement display",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/236-post-codesystem-validate-configured-sqlite-supplement-designation-language-choic.json",
+    "detailJson": "236-post-codesystem-validate-configured-sqlite-supplement-designation-language-choic.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 19,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 19,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "url",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0001"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "de"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "634",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:10 GMT",
+            "etag": "W/\"27a-kCHpm4FFrn1v0qx+WB8YHAL9oCI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-787"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0001"
+              },
+              {
+                "name": "version",
+                "valueString": "1"
+              },
+              {
+                "name": "display",
+                "valueString": "Kritischer Treffer"
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":17.38,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystem\",\"children\":[{\"name\":\"validateIR:doValidationCS\",\"args\":{\"system\":\"http://example.org/op-harness-base\",\"version\":\"1\"},\"children\":[],\"ms\":12.76}],\"ms\":17.36,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 17.38,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystem",
+              "children": [
+                {
+                  "name": "validateIR:doValidationCS",
+                  "args": {
+                    "system": "http://example.org/op-harness-base",
+                    "version": "1"
+                  },
+                  "children": [],
+                  "ms": 12.76
+                }
+              ],
+              "ms": 17.36,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

@@ -1,0 +1,382 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:41:55.381Z",
+  "rowIndex": 230,
+  "slug": "230-post-validate-inline-codesystem-resource-accepts-coding",
+  "name": "POST validate inline CodeSystem resource accepts coding",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/230-post-validate-inline-codesystem-resource-accepts-coding.json",
+    "detailJson": "230-post-validate-inline-codesystem-resource-accepts-coding.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 4,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "female"
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://hl7.org/fhir/administrative-gender",
+                  "version": "5.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "display": "Male"
+                    },
+                    {
+                      "code": "female",
+                      "display": "Female"
+                    },
+                    {
+                      "code": "unknown",
+                      "display": "Unknown"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "642",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:55 GMT",
+            "etag": "W/\"282-Q2p0qIlUr6lxNQXmKH/cfDWpfWo\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-769"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "female"
+              },
+              {
+                "name": "version",
+                "valueString": "5.0.0"
+              },
+              {
+                "name": "display",
+                "valueString": "Female"
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":1.13,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystem\",\"children\":[{\"name\":\"validateIR:doValidationCS\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"version\":\"5.0.0\"},\"children\":[],\"ms\":0.84}],\"ms\":1.11,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 1.13,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystem",
+              "children": [
+                {
+                  "name": "validateIR:doValidationCS",
+                  "args": {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "version": "5.0.0"
+                  },
+                  "children": [],
+                  "ms": 0.84
+                }
+              ],
+              "ms": 1.11,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "female"
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://hl7.org/fhir/administrative-gender",
+                  "version": "5.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "display": "Male"
+                    },
+                    {
+                      "code": "female",
+                      "display": "Female"
+                    },
+                    {
+                      "code": "unknown",
+                      "display": "Unknown"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "274",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:55 GMT",
+            "etag": "W/\"112-LOVRYUcHZ/gOyApFsYcJ4PFYMus\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-770"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "female"
+              },
+              {
+                "name": "version",
+                "valueString": "5.0.0"
+              },
+              {
+                "name": "display",
+                "valueString": "Female"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 8,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 8,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43233/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "female"
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://hl7.org/fhir/administrative-gender",
+                  "version": "5.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "display": "Male"
+                    },
+                    {
+                      "code": "female",
+                      "display": "Female"
+                    },
+                    {
+                      "code": "unknown",
+                      "display": "Unknown"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "274",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:55 GMT",
+            "etag": "W/\"112-LOVRYUcHZ/gOyApFsYcJ4PFYMus\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-215"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "female"
+              },
+              {
+                "name": "version",
+                "valueString": "5.0.0"
+              },
+              {
+                "name": "display",
+                "valueString": "Female"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

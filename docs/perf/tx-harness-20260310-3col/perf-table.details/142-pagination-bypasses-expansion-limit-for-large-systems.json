@@ -1,0 +1,749 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:39:53.560Z",
+  "rowIndex": 142,
+  "slug": "142-pagination-bypasses-expansion-limit-for-large-systems",
+  "name": "Pagination bypasses expansion limit for large systems",
+  "category": "Safety Limits",
+  "hrefs": {
+    "input": "../perf-table.inputs/142-pagination-bypasses-expansion-limit-for-large-systems.json",
+    "detailJson": "142-pagination-bypasses-expansion-limit-for-large-systems.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 17,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 17,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3811",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:52 GMT",
+            "etag": "W/\"ee3-9iEg64LniSO6EBa87aIXy1a2EtI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-498"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T07:39:52.455Z",
+              "identifier": "urn:uuid:b7e6e924-7cbd-4e79-9c3d-bc16cb0b8758",
+              "total": 519624,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100000000",
+                  "display": "BITTER-3",
+                  "inactive": true
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10000006",
+                  "display": "Radiating chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1000001000004108",
+                  "display": "DNA mismatch repair protein PMS2"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1000004",
+                  "display": "Sprain",
+                  "inactive": true
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100001001",
+                  "display": "BIZOLIN 200",
+                  "inactive": true
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100002008",
+                  "display": "BIZOLIN GEL",
+                  "inactive": true
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100003003",
+                  "display": "BLACKLEGOL 4 WITH SPUR",
+                  "inactive": true
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100004009",
+                  "display": "BLACKLEGOL 7 SOMNUS WITH SPUR",
+                  "inactive": true
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100005",
+                  "display": "SNOMED RT Version 1.0 Concept",
+                  "inactive": true
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100005005",
+                  "display": "BLACKLEGOL 7 WITH SPUR",
+                  "inactive": true
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: fe28c3f9d5a801c9c346a758994da5fc3d36f73c\nruntime-constraints:\n  pagination: offset=0 count=10\noptimized-ir:\n  selector whole http://snomed.info/sct [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":15.16,\"sqlCount\":2,\"sqlMs\":14.28,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":10,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":10,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":10},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.03,\"execMs\":0.08},\"t\":0.74}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_0) AND 1) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 10\",\"params\":{\"cs_id_0\":1},\"rows\":10,\"ms\":0.08,\"label\":\"executeIR\"}],\"ms\":0.23,\"result\":{\"candidates\":10,\"total\":null}}],\"ms\":0.25,\"result\":{\"candidates\":10}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE (\\\"c\\\".\\\"cs_id\\\" = @cs_id_0)) \\\"m\\\"\",\"params\":{\"cs_id_0\":1},\"rows\":519624,\"ms\":14.2,\"label\":\"countForIR\"}],\"ms\":14.28,\"result\":{\"count\":519624}}],\"ms\":14.3,\"result\":{\"count\":519624}}],\"ms\":14.56,\"result\":{\"paged\":10}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":10,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":10}}],\"ms\":15.09,\"result\":{\"total\":519624,\"contains\":10}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 15.16,
+          "sqlCount": 2,
+          "sqlMs": 14.28,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 10,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 10,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 10
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.03,
+                                "execMs": 0.08
+                              },
+                              "t": 0.74
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_0) AND 1) ORDER BY \"c\".\"code\" ASC LIMIT 10",
+                              "params": {
+                                "cs_id_0": 1
+                              },
+                              "rows": 10,
+                              "ms": 0.08,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.23,
+                          "result": {
+                            "candidates": 10,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.25,
+                      "result": {
+                        "candidates": 10
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://snomed.info/sct"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE (\"c\".\"cs_id\" = @cs_id_0)) \"m\"",
+                              "params": {
+                                "cs_id_0": 1
+                              },
+                              "rows": 519624,
+                              "ms": 14.2,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 14.28,
+                          "result": {
+                            "count": 519624
+                          }
+                        }
+                      ],
+                      "ms": 14.3,
+                      "result": {
+                        "count": 519624
+                      }
+                    }
+                  ],
+                  "ms": 14.56,
+                  "result": {
+                    "paged": 10
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 10,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 10
+                  }
+                }
+              ],
+              "ms": 15.09,
+              "result": {
+                "total": 519624,
+                "contains": 10
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: fe28c3f9d5a801c9c346a758994da5fc3d36f73c\nruntime-constraints:\n  pagination: offset=0 count=10\noptimized-ir:\n  selector whole http://snomed.info/sct [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1100,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1100,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3790",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:52 GMT",
+            "etag": "W/\"ece-LJx6hAMCPlzkPb22ZBGucAVvUWQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-499"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T07:39:52.457Z",
+              "identifier": "urn:uuid:98a111dd-fda3-4ea6-ba3b-bfeeaaaeae9d",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "offset",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 10
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "offset": 0,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100000000",
+                  "inactive": true,
+                  "display": "BITTER-3",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10000006",
+                  "display": "Radiating chest pain"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1000001000004108",
+                  "display": "DNA mismatch repair protein PMS2"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1000004",
+                  "inactive": true,
+                  "display": "Sprain",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100001001",
+                  "inactive": true,
+                  "display": "BIZOLIN 200",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100002008",
+                  "inactive": true,
+                  "display": "BIZOLIN GEL",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100003003",
+                  "inactive": true,
+                  "display": "BLACKLEGOL 4 WITH SPUR",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100004009",
+                  "inactive": true,
+                  "display": "BLACKLEGOL 7 SOMNUS WITH SPUR",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100005",
+                  "inactive": true,
+                  "display": "SNOMED RT Version 1.0 Concept",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100005005",
+                  "inactive": true,
+                  "display": "BLACKLEGOL 7 WITH SPUR",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "inactive"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1098.33,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":10,\"offset\":0,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1098.3,\"result\":{\"ms\":1098.29,\"returned\":10}}]}"
+                },
+                {
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+                  "extension": [
+                    {
+                      "url": "code",
+                      "valueCode": "status"
+                    },
+                    {
+                      "url": "uri",
+                      "valueUri": "http://hl7.org/fhir/concept-properties#status"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1098.33,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 10,
+                "offset": 0,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1098.3,
+              "result": {
+                "ms": 1098.29,
+                "returned": 10
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 3,
+        "error": "The code System \"http://snomed.info/sct\" has a grammar, and cannot be enumerated directly",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43233/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 10
+              },
+              {
+                "name": "offset",
+                "valueInteger": 0
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "260",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:53 GMT",
+            "etag": "W/\"104-i9fmOiesCQRQ/vbfuEuJ4Rv39GU\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-153"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The code System \"http://snomed.info/sct\" has a grammar, and cannot be enumerated directly"
+                },
+                "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

@@ -1,0 +1,330 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:26.382Z",
+  "rowIndex": 254,
+  "slug": "254-post-validate-adapter-backed-inline-supplement-backed-property-filter-via-ir-ret",
+  "name": "POST validate adapter-backed inline supplement-backed property filter via IR returns false",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/254-post-validate-adapter-backed-inline-supplement-backed-property-filter-via-ir-ret.json",
+    "detailJson": "254-post-validate-adapter-backed-inline-supplement-backed-property-filter-via-ir-ret.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 22,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 22,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "https://www.usps.com/"
+              },
+              {
+                "name": "code",
+                "valueCode": "CA"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "https://www.usps.com/",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "type": "integer"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "TX",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    },
+                    {
+                      "code": "CA",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 1
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2336",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:26 GMT",
+            "etag": "W/\"920-4iP3ha/YVrbDZbjsEhP5fbiKdZk\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-829"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "https://www.usps.com/"
+              },
+              {
+                "name": "code",
+                "valueCode": "CA"
+              },
+              {
+                "name": "display",
+                "valueString": "California"
+              },
+              {
+                "name": "message",
+                "valueString": "The provided code 'https://www.usps.com/#CA' was not found in the value set 'undefined'"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "code-invalid",
+                      "details": {
+                        "text": "The provided code 'https://www.usps.com/#CA' was not found in the value set 'undefined'",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-in-vs"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "code"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "None_of_the_provided_codes_are_in_the_value_set_one"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":20.16,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleValueSet\",\"children\":[{\"name\":\"validateIR:doValidationVS\",\"args\":{\"url\":null},\"children\":[{\"name\":\"validateIR:checkConceptSet\",\"args\":{\"role\":\"in\",\"system\":\"https://www.usps.com/\",\"code\":\"CA\",\"filterCount\":1},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:https://www.usps.com/\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"supplementIR:execute\",\"args\":{\"system\":\"https://www.usps.com/\",\"text\":null},\"children\":[{\"name\":\"note\",\"message\":\"supplementIR:leaf-filter\",\"data\":{\"system\":\"https://www.usps.com/\",\"supportClauses\":0,\"supplementClauses\":[\"d20-roll = 20\"],\"before\":1,\"after\":0},\"t\":17.03}],\"ms\":0.11,\"result\":{\"candidates\":0}}],\"ms\":0.13,\"result\":{\"candidates\":0}},{\"name\":\"note\",\"message\":\"total:inferred-empty\",\"data\":{\"offset\":0,\"returned\":0,\"total\":0},\"t\":17.06}],\"ms\":0.14,\"result\":{\"paged\":0}}],\"ms\":3.05}],\"ms\":19.84}],\"ms\":20.14,\"result\":{\"_unclosed\":true}}]}"
+              },
+              {
+                "name": "irPlan",
+                "valueString": "systems: https://www.usps.com/\ncanonical-ir-hash: 22fde29a6ed58a415c323a132321c0ca38a4692c\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter https://www.usps.com/ d20-roll = 20 [n]"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 20.16,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleValueSet",
+              "children": [
+                {
+                  "name": "validateIR:doValidationVS",
+                  "args": {
+                    "url": null
+                  },
+                  "children": [
+                    {
+                      "name": "validateIR:checkConceptSet",
+                      "args": {
+                        "role": "in",
+                        "system": "https://www.usps.com/",
+                        "code": "CA",
+                        "filterCount": 1
+                      },
+                      "children": [
+                        {
+                          "name": "pagination",
+                          "args": {
+                            "total": null,
+                            "offset": 0,
+                            "count": 1,
+                            "systems": 1
+                          },
+                          "children": [
+                            {
+                              "name": "system:https://www.usps.com/",
+                              "args": {
+                                "sysOffset": 0,
+                                "sysCount": 1
+                              },
+                              "children": [
+                                {
+                                  "name": "supplementIR:execute",
+                                  "args": {
+                                    "system": "https://www.usps.com/",
+                                    "text": null
+                                  },
+                                  "children": [
+                                    {
+                                      "name": "note",
+                                      "message": "supplementIR:leaf-filter",
+                                      "data": {
+                                        "system": "https://www.usps.com/",
+                                        "supportClauses": 0,
+                                        "supplementClauses": [
+                                          "d20-roll = 20"
+                                        ],
+                                        "before": 1,
+                                        "after": 0
+                                      },
+                                      "t": 17.03
+                                    }
+                                  ],
+                                  "ms": 0.11,
+                                  "result": {
+                                    "candidates": 0
+                                  }
+                                }
+                              ],
+                              "ms": 0.13,
+                              "result": {
+                                "candidates": 0
+                              }
+                            },
+                            {
+                              "name": "note",
+                              "message": "total:inferred-empty",
+                              "data": {
+                                "offset": 0,
+                                "returned": 0,
+                                "total": 0
+                              },
+                              "t": 17.06
+                            }
+                          ],
+                          "ms": 0.14,
+                          "result": {
+                            "paged": 0
+                          }
+                        }
+                      ],
+                      "ms": 3.05
+                    }
+                  ],
+                  "ms": 19.84
+                }
+              ],
+              "ms": 20.14,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: https://www.usps.com/\ncanonical-ir-hash: 22fde29a6ed58a415c323a132321c0ca38a4692c\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter https://www.usps.com/ d20-roll = 20 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

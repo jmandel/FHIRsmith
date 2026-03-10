@@ -374,6 +374,72 @@ export const TX_LOOKUP_CASES = [
 {
     category: 'Lookup',
     kind: 'lookup',
+    name: 'POST lookup allows extra inline supplement that is resolved but irrelevant',
+    engines: ['ir'],
+    request: {
+      method: 'POST',
+      path: '/r4/CodeSystem/$lookup',
+      body: params([
+        { name: 'system', valueUri: 'http://hl7.org/fhir/administrative-gender' },
+        { name: 'code', valueCode: 'male' },
+        { name: 'displayLanguage', valueCode: 'de' },
+        { name: 'property', valueCode: 'designation' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/admin-gender-de' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/usps-rolls' },
+        {
+          name: 'tx-resource',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/fhir/CodeSystem/admin-gender-de',
+            version: '1.0.0',
+            status: 'active',
+            content: 'supplement',
+            supplements: 'http://hl7.org/fhir/administrative-gender',
+            concept: [
+              {
+                code: 'male',
+                designation: [
+                  {
+                    language: 'de',
+                    use: {
+                      system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra',
+                      code: 'preferredForLanguage',
+                    },
+                    value: 'Männlich',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          name: 'tx-resource',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/fhir/CodeSystem/usps-rolls',
+            version: '1.0.0',
+            status: 'active',
+            content: 'supplement',
+            supplements: SYS.USPS,
+            property: [{ code: 'd20-roll', type: 'integer' }],
+            concept: [{ code: 'TX', property: [{ code: 'd20-roll', valueInteger: 20 }] }],
+          },
+        },
+      ]),
+    },
+    assertLocal: (res) => {
+      assert(res.status === 200, `expected 200, got ${res.status}`);
+      assert(getParam(res.body, 'display')?.valueString === 'Männlich', 'expected relevant inline supplement-selected display');
+      const designations = (res.body?.parameter || []).filter((p) => p.name === 'designation');
+      const hasGermanDesignation = designations.some((p) =>
+        (p.part || []).some((pp) => pp.name === 'value' && pp.valueString === 'Männlich')
+      );
+      assert(hasGermanDesignation, 'expected german designation in lookup response');
+    },
+  },
+{
+    category: 'Lookup',
+    kind: 'lookup',
     name: 'POST lookup inline supplement ambiguity fails explicitly',
     request: {
       method: 'POST',
@@ -546,6 +612,28 @@ export const TX_LOOKUP_CASES = [
         (p.part || []).some((pp) => pp.name === 'value' && String(pp.valueString || '').includes('Kritischer Treffer'))
       );
       assert(hasDesignation, 'expected designation payload even when displayLanguage does not match');
+    },
+  },
+{
+    category: 'Lookup',
+    kind: 'lookup',
+    name: 'POST lookup allows extra configured sqlite supplement that does not contribute',
+    engines: ['ir'],
+    request: {
+      method: 'POST',
+      path: '/r4/CodeSystem/$lookup',
+      body: params([
+        { name: 'system', valueUri: 'http://example.org/op-harness-base' },
+        { name: 'code', valueCode: 'C0001' },
+        { name: 'displayLanguage', valueCode: 'de' },
+        { name: 'property', valueCode: 'designation' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/op-harness-d20' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/op-harness-d8' },
+      ]),
+    },
+    assertLocal: (res) => {
+      assert(res.status === 200, `expected 200, got ${res.status}`);
+      assert(getParam(res.body, 'display')?.valueString === 'Kritischer Treffer', 'expected contributing configured supplement-selected display');
     },
   },
 {

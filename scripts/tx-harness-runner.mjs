@@ -1309,7 +1309,10 @@ async function timeOperationCaseEngine(caseDef, engine, runs, baseUrl = BASE, ti
   const times = [];
   let sample = null;
   for (let i = 0; i < runs; i++) {
-    const spec = injectEngineIntoOperationSpec(caseDef.request, engine);
+    const wantTrace = i === 0;
+    const spec = wantTrace
+      ? injectTraceIntoOperationSpec(injectEngineIntoOperationSpec(caseDef.request, engine))
+      : injectEngineIntoOperationSpec(caseDef.request, engine);
     const outcome = await executeOperationRequest(spec, baseUrl, timeoutMs);
     try {
       if (outcome.error) throw new Error(outcome.error);

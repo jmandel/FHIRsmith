@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:25.929Z",
+  "rowIndex": 245,
+  "slug": "245-post-validate-configured-sqlite-supplement-falls-back-to-base-display-when-langu",
+  "name": "POST validate configured sqlite supplement falls back to base display when language is absent",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/245-post-validate-configured-sqlite-supplement-falls-back-to-base-display-when-langu.json",
+    "detailJson": "245-post-validate-configured-sqlite-supplement-falls-back-to-base-display-when-langu.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 23,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 23,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0001"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "fr"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/op-harness-base",
+                        "concept": [
+                          {
+                            "code": "C0001"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "573",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:25 GMT",
+            "etag": "W/\"23d-zANYdMdKR7/2mJnzgtp+95+2yvk\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-811"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/op-harness-base"
+              },
+              {
+                "name": "code",
+                "valueCode": "C0001"
+              },
+              {
+                "name": "version",
+                "valueString": "1"
+              },
+              {
+                "name": "display",
+                "valueString": "Critical Concept"
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":20.4,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleValueSet\",\"children\":[{\"name\":\"validateIR:doValidationVS\",\"args\":{\"url\":null},\"children\":[],\"ms\":20.1}],\"ms\":20.38,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 20.4,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleValueSet",
+              "children": [
+                {
+                  "name": "validateIR:doValidationVS",
+                  "args": {
+                    "url": null
+                  },
+                  "children": [],
+                  "ms": 20.1
+                }
+              ],
+              "ms": 20.38,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

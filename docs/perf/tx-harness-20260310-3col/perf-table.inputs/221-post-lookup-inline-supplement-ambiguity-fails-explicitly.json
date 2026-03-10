@@ -1,0 +1,313 @@
+{
+  "schemaVersion": 1,
+  "id": 221,
+  "slug": "221-post-lookup-inline-supplement-ambiguity-fails-explicitly",
+  "name": "POST lookup inline supplement ambiguity fails explicitly",
+  "category": "Lookup",
+  "source": {
+    "shape": "request",
+    "kind": "lookup",
+    "request": {
+      "method": "POST",
+      "path": "/r4/CodeSystem/$lookup",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "2.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Mann"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "2.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Mann"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "2.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Mann"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:43233/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "2.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Mann"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

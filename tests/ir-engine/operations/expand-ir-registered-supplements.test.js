@@ -169,6 +169,91 @@ describe('IR $expand with registered supplements', () => {
     }
   });
 
+  test('allows an extra requested registered supplement that targets a different base system', async () => {
+    const seed = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const baseUrl = `http://example.org/supp-extra-base-${seed}`;
+    const irrelevantBaseUrl = `http://example.org/supp-extra-irr-base-${seed}`;
+    const relSuppUrl = `http://example.org/supp-extra-rel-${seed}`;
+    const irrSuppUrl = `http://example.org/supp-extra-irr-${seed}`;
+    const relSupp = new CodeSystem({
+      resourceType: 'CodeSystem',
+      url: relSuppUrl,
+      version: '1.0',
+      status: 'active',
+      content: 'supplement',
+      supplements: baseUrl,
+      concept: [{
+        code: 'apple',
+        designation: [{
+          language: 'de',
+          use: {
+            system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra',
+            code: 'preferredForLanguage',
+          },
+          value: 'Apfel',
+        }],
+      }],
+    });
+    const irrSupp = new CodeSystem({
+      resourceType: 'CodeSystem',
+      url: irrSuppUrl,
+      version: '1.0',
+      status: 'active',
+      content: 'supplement',
+      supplements: irrelevantBaseUrl,
+      concept: [{
+        code: 'other',
+        designation: [{ language: 'de', value: 'Anders' }],
+      }],
+    });
+    registerSupplement(relSupp);
+    registerSupplement(irrSupp);
+    try {
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: '_engine', valueCode: 'ir' },
+            { name: 'useSupplement', valueString: relSuppUrl },
+            { name: 'useSupplement', valueString: irrSuppUrl },
+            { name: 'includeDesignations', valueBoolean: true },
+            { name: 'displayLanguage', valueCode: 'de' },
+            {
+              name: 'tx-resource',
+              resource: {
+                resourceType: 'CodeSystem',
+                url: baseUrl,
+                version: '1',
+                status: 'active',
+                content: 'complete',
+                concept: [{ code: 'apple', display: 'Apple' }],
+              },
+            },
+            {
+              name: 'valueSet',
+              resource: {
+                resourceType: 'ValueSet',
+                status: 'active',
+                compose: {
+                  include: [{ system: baseUrl, concept: [{ code: 'apple' }] }],
+                },
+              },
+            },
+          ],
+        });
+
+      expect(res.status).toBe(200);
+      const apple = (res.body.expansion?.contains || []).find(c => c.code === 'apple');
+      expect(apple).toBeTruthy();
+    } finally {
+      unregisterSupplement(relSupp);
+      unregisterSupplement(irrSupp);
+    }
+  });
+
   test('projects registered supplement extensions through generic overlay merge', async () => {
     const seed = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     const baseUrl = `http://example.org/supp-ext-base-${seed}`;

@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:41:15.021Z",
+  "rowIndex": 208,
+  "slug": "208-get-lookup-unknown-codesystem-instance-id-returns-not-found",
+  "name": "GET lookup unknown CodeSystem instance id returns not-found",
+  "category": "Lookup",
+  "hrefs": {
+    "input": "../perf-table.inputs/208-get-lookup-unknown-codesystem-instance-id-returns-not-found.json",
+    "detailJson": "208-get-lookup-unknown-codesystem-instance-id-returns-not-found.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:38599/r4/CodeSystem/nonexistent-id/$lookup?code=test&_engine=ir&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 404,
+          "statusText": "Not Found",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "437",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:10 GMT",
+            "etag": "W/\"1b5-tU7E6yt3TSjiaBQ+ABbFCYyQ/l4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-710"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem/nonexistent-id not found"
+                }
+              }
+            ],
+            "extension": [
+              {
+                "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                "valueString": "{\"totalMs\":1.04,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"lookupIR:handleInstance\",\"children\":[],\"ms\":1.01,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 1.04,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "lookupIR:handleInstance",
+              "children": [],
+              "ms": 1.01,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:38599/r4/CodeSystem/nonexistent-id/$lookup?code=test&_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 404,
+          "statusText": "Not Found",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "142",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:41:10 GMT",
+            "etag": "W/\"8e-BfRPSq/RScm/p1lIMni+NDOXgUI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-711"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem/nonexistent-id not found"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5000,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43233/r4/CodeSystem/nonexistent-id/$lookup?code=test&_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

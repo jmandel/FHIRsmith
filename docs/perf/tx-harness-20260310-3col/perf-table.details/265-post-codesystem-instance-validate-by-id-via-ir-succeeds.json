@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:46.684Z",
+  "rowIndex": 265,
+  "slug": "265-post-codesystem-instance-validate-by-id-via-ir-succeeds",
+  "name": "POST CodeSystem instance validate by id via IR succeeds",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/265-post-codesystem-instance-validate-by-id-via-ir-succeeds.json",
+    "detailJson": "265-post-codesystem-instance-validate-by-id-via-ir-succeeds.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/CodeSystem/administrative-gender/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "645",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:46 GMT",
+            "etag": "W/\"285-OTN+M02tkJG6gPBXmtMyqMEO7Vs\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-855"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "display",
+                "valueString": "Male"
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":0.5,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystemInstance\",\"children\":[{\"name\":\"validateIR:doValidationCS\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"version\":\"4.0.1\"},\"children\":[],\"ms\":0.25}],\"ms\":0.48,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.5,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystemInstance",
+              "children": [
+                {
+                  "name": "validateIR:doValidationCS",
+                  "args": {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "version": "4.0.1"
+                  },
+                  "children": [],
+                  "ms": 0.25
+                }
+              ],
+              "ms": 0.48,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

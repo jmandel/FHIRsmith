@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "id": 252,
+  "slug": "252-post-validate-inline-supplement-backed-property-filter-via-ir-accepts-codeableco",
+  "name": "POST validate inline supplement-backed property filter via IR accepts codeableConcept",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "POST",
+      "path": "/r4/ValueSet/$validate-code",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male"
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                },
+                {
+                  "code": "female",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male"
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                },
+                {
+                  "code": "female",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": null,
+    "third": null
+  }
+}

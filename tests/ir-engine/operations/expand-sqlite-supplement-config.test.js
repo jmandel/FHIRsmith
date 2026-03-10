@@ -241,6 +241,40 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
     expect((concept.designation || []).filter(item => item.value === designationValue)).toHaveLength(1);
   }, 60000);
 
+  test('allows an extra requested configured sqlite supplement that does not contribute', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/ValueSet/$expand')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send({
+        resourceType: 'Parameters',
+        parameter: [
+          { name: '_engine', valueCode: 'ir' },
+          { name: 'useSupplement', valueString: d20.url },
+          { name: 'useSupplement', valueString: d8.url },
+          { name: 'includeDesignations', valueBoolean: true },
+          { name: 'displayLanguage', valueCode: 'de' },
+          {
+            name: 'valueSet',
+            resource: {
+              resourceType: 'ValueSet',
+              status: 'active',
+              compose: {
+                include: [{
+                  system,
+                  concept: [{ code: 'C0001' }],
+                }],
+              },
+            },
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    const concept = (res.body.expansion?.contains || []).find(item => item.code === 'C0001');
+    expect(concept).toBeTruthy();
+  }, 60000);
+
   test('legacy expand fails closed for configured sqlite supplement sidecars', async () => {
     const res = await request(fixture.app)
       .post('/tx/r5/ValueSet/$expand')

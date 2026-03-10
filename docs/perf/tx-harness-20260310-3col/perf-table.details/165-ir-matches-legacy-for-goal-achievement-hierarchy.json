@@ -1,0 +1,605 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:40:00.462Z",
+  "rowIndex": 165,
+  "slug": "165-ir-matches-legacy-for-goal-achievement-hierarchy",
+  "name": "IR matches legacy for goal-achievement hierarchy",
+  "category": "Hierarchy",
+  "hrefs": {
+    "input": "../perf-table.inputs/165-ir-matches-legacy-for-goal-achievement-hierarchy.json",
+    "detailJson": "165-ir-matches-legacy-for-goal-achievement-hierarchy.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/goal-achievement"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2699",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:40:00 GMT",
+            "etag": "W/\"a8b-XgN952X1eybn6q2QC394ub01e9c\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-572"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T07:40:00.457Z",
+              "identifier": "urn:uuid:e136a443-9f6e-465e-aee9-5cab4d4851c6",
+              "total": 9,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "achieved",
+                  "display": "Achieved",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "sustaining",
+                      "display": "Sustaining"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "in-progress",
+                  "display": "In Progress",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "improving",
+                      "display": "Improving"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "worsening",
+                      "display": "Worsening"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "no-change",
+                      "display": "No Change"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "not-achieved",
+                  "display": "Not Achieved",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "no-progress",
+                      "display": "No Progress"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "not-attainable",
+                      "display": "Not Attainable"
+                    }
+                  ]
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/goal-achievement|1.0.1"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://terminology.hl7.org/CodeSystem/goal-achievement\ncanonical-ir-hash: a8c467556e84cc5faafee9d46b9a0ec6d8423ec9\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://terminology.hl7.org/CodeSystem/goal-achievement [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.39,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://terminology.hl7.org/CodeSystem/goal-achievement\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.1,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":9,\"total\":9},\"t\":0.32}],\"ms\":0.12,\"result\":{\"paged\":9}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":9,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":9}}],\"ms\":0.34,\"result\":{\"total\":9,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.39,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.1,
+                      "result": {
+                        "candidates": 3
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 9,
+                        "total": 9
+                      },
+                      "t": 0.32
+                    }
+                  ],
+                  "ms": 0.12,
+                  "result": {
+                    "paged": 9
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 9,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 9
+                  }
+                }
+              ],
+              "ms": 0.34,
+              "result": {
+                "total": 9,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://terminology.hl7.org/CodeSystem/goal-achievement\ncanonical-ir-hash: a8c467556e84cc5faafee9d46b9a0ec6d8423ec9\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://terminology.hl7.org/CodeSystem/goal-achievement [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/goal-achievement"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1895",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:40:00 GMT",
+            "etag": "W/\"767-ysxdwsXK2qzVwuYPaaCB1EthH6o\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-573"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T07:40:00.459Z",
+              "identifier": "urn:uuid:5c8665c0-76de-4bdd-8454-7b7433f0c30c",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/goal-achievement|1.0.1"
+                }
+              ],
+              "total": 9,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "in-progress",
+                  "display": "In Progress",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "improving",
+                      "display": "Improving"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "worsening",
+                      "display": "Worsening"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "no-change",
+                      "display": "No Change"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "achieved",
+                  "display": "Achieved",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "sustaining",
+                      "display": "Sustaining"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "not-achieved",
+                  "display": "Not Achieved",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "no-progress",
+                      "display": "No Progress"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "not-attainable",
+                      "display": "Not Attainable"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.42,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.4,\"result\":{\"ms\":0.4,\"total\":9,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.42,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.4,
+              "result": {
+                "ms": 0.4,
+                "total": 9,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43233/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/goal-achievement"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1900",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:40:00 GMT",
+            "etag": "W/\"76c-XR55UmDAuPMcnwABR3WagkqgnRI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-176"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T07:40:00.461Z",
+              "identifier": "urn:uuid:b8568063-007b-4073-a3c9-d0fec8114e61",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://terminology.hl7.org/CodeSystem/goal-achievement|1.0.1"
+                }
+              ],
+              "total": 9,
+              "contains": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "in-progress",
+                  "display": "In Progress",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "improving",
+                      "display": "Improving"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "worsening",
+                      "display": "Worsening"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "no-change",
+                      "display": "No Change"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "achieved",
+                  "display": "Achieved",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "sustaining",
+                      "display": "Sustaining"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                  "code": "not-achieved",
+                  "display": "Not Achieved",
+                  "contains": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "no-progress",
+                      "display": "No Progress"
+                    },
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/goal-achievement",
+                      "code": "not-attainable",
+                      "display": "Not Attainable"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.46,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.44,\"result\":{\"ms\":0.44,\"total\":9,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.46,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.44,
+              "result": {
+                "ms": 0.44,
+                "total": 9,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

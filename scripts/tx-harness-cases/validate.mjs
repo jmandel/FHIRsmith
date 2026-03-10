@@ -372,6 +372,80 @@ export const TX_VALIDATE_CASES = [
 {
     category: 'Validate',
     kind: 'validate',
+    name: 'POST validate allows extra inline supplement that is resolved but irrelevant',
+    engines: ['ir'],
+    request: {
+      method: 'POST',
+      path: '/r4/ValueSet/$validate-code',
+      body: params([
+        { name: 'system', valueUri: 'http://hl7.org/fhir/administrative-gender' },
+        { name: 'code', valueCode: 'male' },
+        { name: 'displayLanguage', valueCode: 'de' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/admin-gender-de' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/usps-rolls' },
+        {
+          name: 'tx-resource',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/fhir/CodeSystem/admin-gender-de',
+            version: '1.0.0',
+            status: 'active',
+            content: 'supplement',
+            supplements: 'http://hl7.org/fhir/administrative-gender',
+            concept: [
+              {
+                code: 'male',
+                designation: [
+                  {
+                    language: 'de',
+                    use: {
+                      system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra',
+                      code: 'preferredForLanguage',
+                    },
+                    value: 'Männlich',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          name: 'tx-resource',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/fhir/CodeSystem/usps-rolls',
+            version: '1.0.0',
+            status: 'active',
+            content: 'supplement',
+            supplements: SYS.USPS,
+            property: [{ code: 'd20-roll', type: 'integer' }],
+            concept: [{ code: 'TX', property: [{ code: 'd20-roll', valueInteger: 20 }] }],
+          },
+        },
+        {
+          name: 'valueSet',
+          resource: {
+            resourceType: 'ValueSet',
+            status: 'active',
+            compose: {
+              include: [{
+                system: 'http://hl7.org/fhir/administrative-gender',
+                concept: [{ code: 'male' }],
+              }],
+            },
+          },
+        },
+      ]),
+    },
+    assertLocal: (res) => {
+      assert(res.status === 200, `expected 200, got ${res.status}`);
+      assert(getParam(res.body, 'result')?.valueBoolean === true, 'expected result=true');
+      assert(getParam(res.body, 'display')?.valueString === 'Männlich', 'expected relevant inline supplement-selected display');
+    },
+  },
+{
+    category: 'Validate',
+    kind: 'validate',
     name: 'POST validate repeated inline supplements choose requested language display',
     request: {
       method: 'POST',
@@ -521,6 +595,41 @@ export const TX_VALIDATE_CASES = [
       assert(res.status === 200, `expected 200, got ${res.status}`);
       assert(getParam(res.body, 'result')?.valueBoolean === true, 'expected result=true');
       assert(getParam(res.body, 'display')?.valueString === 'Critical Concept', 'expected base display when configured supplement has no matching language');
+    },
+  },
+{
+    category: 'Validate',
+    kind: 'validate',
+    name: 'POST validate allows extra configured sqlite supplement that does not contribute',
+    engines: ['ir'],
+    request: {
+      method: 'POST',
+      path: '/r4/ValueSet/$validate-code',
+      body: params([
+        { name: 'system', valueUri: 'http://example.org/op-harness-base' },
+        { name: 'code', valueCode: 'C0001' },
+        { name: 'displayLanguage', valueCode: 'de' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/op-harness-d20' },
+        { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/op-harness-d8' },
+        {
+          name: 'valueSet',
+          resource: {
+            resourceType: 'ValueSet',
+            status: 'active',
+            compose: {
+              include: [{
+                system: 'http://example.org/op-harness-base',
+                concept: [{ code: 'C0001' }],
+              }],
+            },
+          },
+        },
+      ]),
+    },
+    assertLocal: (res) => {
+      assert(res.status === 200, `expected 200, got ${res.status}`);
+      assert(getParam(res.body, 'result')?.valueBoolean === true, 'expected result=true');
+      assert(getParam(res.body, 'display')?.valueString === 'Kritischer Treffer', 'expected contributing configured supplement-selected display');
     },
   },
 {

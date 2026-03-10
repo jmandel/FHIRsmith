@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": 228,
+  "slug": "228-post-lookup-configured-sqlite-supplement-wildcard-properties-include-typed-suppl",
+  "name": "POST lookup configured sqlite supplement wildcard properties include typed supplement values",
+  "category": "Lookup",
+  "source": {
+    "shape": "request",
+    "kind": "lookup",
+    "request": {
+      "method": "POST",
+      "path": "/r4/CodeSystem/$lookup",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/op-harness-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "C0001"
+          },
+          {
+            "name": "property",
+            "valueCode": "*"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:38599/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/op-harness-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "C0001"
+          },
+          {
+            "name": "property",
+            "valueCode": "*"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": null,
+    "third": null
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": 208,
+  "slug": "208-get-lookup-unknown-codesystem-instance-id-returns-not-found",
+  "name": "GET lookup unknown CodeSystem instance id returns not-found",
+  "category": "Lookup",
+  "source": {
+    "shape": "request",
+    "kind": "lookup",
+    "request": {
+      "method": "GET",
+      "path": "/r4/CodeSystem/nonexistent-id/$lookup",
+      "query": {
+        "code": "test"
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "GET",
+      "url": "http://localhost:38599/r4/CodeSystem/nonexistent-id/$lookup?code=test&_engine=ir&_trace=true",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "secondary": {
+      "method": "GET",
+      "url": "http://localhost:38599/r4/CodeSystem/nonexistent-id/$lookup?code=test&_engine=legacy&_trace=true",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "third": {
+      "method": "GET",
+      "url": "http://localhost:43233/r4/CodeSystem/nonexistent-id/$lookup?code=test&_engine=legacy&_trace=true",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    }
+  }
+}

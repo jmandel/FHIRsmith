@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:42:46.704Z",
+  "rowIndex": 268,
+  "slug": "268-post-valueset-instance-validate-by-id-via-ir-accepts-codeableconcept",
+  "name": "POST ValueSet instance validate by id via IR accepts codeableConcept",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/268-post-valueset-instance-validate-by-id-via-ir-accepts-codeableconcept.json",
+    "detailJson": "268-post-valueset-instance-validate-by-id-via-ir-accepts-codeableconcept.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/administrative-gender/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/administrative-gender",
+                      "code": "female"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "803",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:42:46 GMT",
+            "etag": "W/\"323-MZUGqNNriKCIjVSrRwuJdM4fBMI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-861"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "female"
+              },
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "display",
+                "valueString": "Female"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/administrative-gender",
+                      "version": "4.0.1",
+                      "code": "female",
+                      "display": "Female"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":0.46,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleValueSetInstance\",\"children\":[{\"name\":\"validateIR:doValidationVS\",\"args\":{\"url\":\"http://hl7.org/fhir/ValueSet/administrative-gender\"},\"children\":[],\"ms\":0.26}],\"ms\":0.45,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.46,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleValueSetInstance",
+              "children": [
+                {
+                  "name": "validateIR:doValidationVS",
+                  "args": {
+                    "url": "http://hl7.org/fhir/ValueSet/administrative-gender"
+                  },
+                  "children": [],
+                  "ms": 0.26
+                }
+              ],
+              "ms": 0.45,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

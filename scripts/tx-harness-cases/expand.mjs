@@ -1664,6 +1664,33 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(usedSupp.length === 0, 'used-supplement should not be emitted');
   });
 
+  await expandTest({ id: 200, rawName: 'supplement: extra requested inline supplement may be irrelevant without error', name: 'Extra requested inline supplement may be irrelevant without error', category: 'Supplements', engines: ['ir'] }, async () => {
+    const [cs, relSupp] = suppFixture(
+      'http://example.org/cs-s2b', 'http://example.org/supp-s2b-rel',
+      [{code:'X', display:'Xray'}],
+      [{code:'X', designation:[{language:'de', value:'Rontgen'}]}]
+    );
+    const [, irrSupp] = suppFixture(
+      'http://example.org/cs-s2c', 'http://example.org/supp-s2b-irr',
+      [{code:'Y', display:'Yankee'}],
+      [{code:'Y', designation:[{language:'de', value:'Ypsilon'}]}]
+    );
+    const { result } = await expand(
+      vs({system:cs.url, concept:[{code:'X'}]}),
+      {
+        txResources: [cs, relSupp, irrSupp],
+        includeDesignations: true,
+        displayLanguage: 'de',
+        params: [
+          {name:'useSupplement', valueString: relSupp.url},
+          {name:'useSupplement', valueString: irrSupp.url},
+        ],
+      }
+    );
+    const x = findCode(result, 'X');
+    assert(x, 'code X missing');
+  });
+
   await expandTest({ id: 128, rawName: 'supplement: valueset-supplement extension activates', name: 'ValueSet supplement extension activates supplement application', category: 'Supplements' }, async () => {
     const [cs, supp] = suppFixture(
       'http://example.org/cs-s3', 'http://example.org/supp-s3',
@@ -1775,6 +1802,22 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     const v = findCode(result, 'V');
     const jaDes = (v?.designation||[]).find(d => d.language === 'ja');
     assert(jaDes, 'version-pinned supplement designation should appear');
+  });
+
+  await expandTest({ id: 201, rawName: 'supplement: extra requested configured sqlite supplement may be irrelevant without error', name: 'Extra requested configured sqlite supplement may be irrelevant without error', category: 'Supplements', engines: ['ir'] }, async () => {
+    const { result } = await expand(
+      vs({ system: 'http://example.org/op-harness-base', concept: [{ code: 'C0001' }] }),
+      {
+        includeDesignations: true,
+        displayLanguage: 'de',
+        params: [
+          { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/op-harness-d20' },
+          { name: 'useSupplement', valueString: 'http://example.org/fhir/CodeSystem/op-harness-d8' },
+        ],
+      }
+    );
+    const concept = findCode(result, 'C0001');
+    assert(concept, 'code C0001 missing');
   });
 
   await expandTest({ id: 134, rawName: 'supplement: itemWeight extension projected', name: 'itemWeight supplement extension is projected', category: 'Supplements' }, async () => {

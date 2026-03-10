@@ -153,6 +153,10 @@ async function maybeExpandValueSetViaIR(opts = {}) {
         for (const refKey of supplementSet.matchedRefKeys || []) {
           matchedSupplementRefKeys.add(refKey);
         }
+        for (const ref of supplementSet.inapplicableRefs || []) {
+          const refKey = supplementRefKey(ref);
+          if (refKey) matchedSupplementRefKeys.add(refKey);
+        }
         supplementSetCache.set(key, supplementSet);
         return supplementSet;
       }
@@ -200,9 +204,9 @@ async function maybeExpandValueSetViaIR(opts = {}) {
       }
 
       if (supplementRefs.length > 0) {
-        const unresolved = supplementRefs
-          .filter(ref => !matchedSupplementRefKeys.has(supplementRefKey(ref)))
-          .map(ref => ref.canonical);
+        const unresolved = supplementRefs.filter(ref => !matchedSupplementRefKeys.has(supplementRefKey(ref)))
+          .map(ref => ref.canonical)
+          .filter(Boolean);
         if (unresolved.length > 0) {
           throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING',
             `Required supplement(s) not found: ${unresolved.join(', ')}`,

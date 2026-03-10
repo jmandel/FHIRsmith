@@ -1,0 +1,597 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T07:39:39.285Z",
+  "rowIndex": 56,
+  "slug": "056-experimental-codesystem-emits-warning-for-non-experimental-valueset",
+  "name": "Experimental CodeSystem emits warning for non-experimental ValueSet",
+  "category": "Expansion Metadata",
+  "hrefs": {
+    "input": "../perf-table.inputs/056-experimental-codesystem-emits-warning-for-non-experimental-valueset.json",
+    "detailJson": "056-experimental-codesystem-emits-warning-for-non-experimental-valueset.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 1,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/test-vs",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/experimental-1"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/experimental-1",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    },
+                    {
+                      "code": "C",
+                      "display": "Charlie"
+                    }
+                  ],
+                  "experimental": true
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2003",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:39 GMT",
+            "etag": "W/\"7d3-SsitNQnC01jiggkfV0FSO6kL57E\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-197"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "url": "http://example.org/test-vs",
+            "status": "active",
+            "expansion": {
+              "timestamp": "2026-03-10T07:39:39.281Z",
+              "identifier": "urn:uuid:56d1b4b3-2c94-4ea3-a8cc-991e9acf575b",
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/experimental-1|1.0.0"
+                },
+                {
+                  "name": "warning-experimental",
+                  "valueUri": "http://example.org/cs/experimental-1|1.0.0"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://example.org/cs/experimental-1\ncanonical-ir-hash: 3f302b9598344d54bb7aa85ed2ac287259664b29\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/experimental-1 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.23,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"url\":\"http://example.org/test-vs\",\"systems\":1,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1000,\"systems\":1},\"children\":[{\"name\":\"system:http://example.org/cs/experimental-1\",\"args\":{\"sysOffset\":0,\"sysCount\":1000},\"children\":[],\"ms\":0.04,\"result\":{\"candidates\":3}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":3,\"total\":3},\"t\":0.19}],\"ms\":0.05,\"result\":{\"paged\":3}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":3,\"includeDesignations\":false},\"children\":[],\"ms\":0.01,\"result\":{\"count\":3}}],\"ms\":0.19,\"result\":{\"total\":3,\"contains\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.23,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "url": "http://example.org/test-vs",
+                "systems": 1,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://example.org/cs/experimental-1",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1000
+                      },
+                      "children": [],
+                      "ms": 0.04,
+                      "result": {
+                        "candidates": 3
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 3,
+                        "total": 3
+                      },
+                      "t": 0.19
+                    }
+                  ],
+                  "ms": 0.05,
+                  "result": {
+                    "paged": 3
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 3,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.01,
+                  "result": {
+                    "count": 3
+                  }
+                }
+              ],
+              "ms": 0.19,
+              "result": {
+                "total": 3,
+                "contains": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://example.org/cs/experimental-1\ncanonical-ir-hash: 3f302b9598344d54bb7aa85ed2ac287259664b29\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector whole http://example.org/cs/experimental-1 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:38599/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/test-vs",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/experimental-1"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/experimental-1",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    },
+                    {
+                      "code": "C",
+                      "display": "Charlie"
+                    }
+                  ],
+                  "experimental": true
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1215",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:39 GMT",
+            "etag": "W/\"4bf-nR4QMOUdvFpto9YO6uRjU9l8goU\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-198"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "url": "http://example.org/test-vs",
+            "status": "active",
+            "expansion": {
+              "timestamp": "2026-03-10T07:39:39.282Z",
+              "identifier": "urn:uuid:36b15ddf-dd52-41d5-a737-329bdc8f8ef3",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "warning-experimental",
+                  "valueUri": "http://example.org/cs/experimental-1|1.0.0"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/experimental-1|1.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.25,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.24,\"result\":{\"ms\":0.24,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.25,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.24,
+              "result": {
+                "ms": 0.24,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43233/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://example.org/test-vs",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://example.org/cs/experimental-1"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs/experimental-1",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Bravo"
+                    },
+                    {
+                      "code": "C",
+                      "display": "Charlie"
+                    }
+                  ],
+                  "experimental": true
+                }
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1215",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 07:39:39 GMT",
+            "etag": "W/\"4bf-Dccgt9TznMzTmgmu1YOBIer/mi4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-60"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "url": "http://example.org/test-vs",
+            "status": "active",
+            "expansion": {
+              "timestamp": "2026-03-10T07:39:39.284Z",
+              "identifier": "urn:uuid:e614352b-c8d4-4f7f-bd37-2e932d2a55ea",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "warning-experimental",
+                  "valueUri": "http://example.org/cs/experimental-1|1.0.0"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://example.org/cs/experimental-1|1.0.0"
+                }
+              ],
+              "total": 3,
+              "contains": [
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "system": "http://example.org/cs/experimental-1",
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":0.28,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":0.26,\"result\":{\"ms\":0.26,\"total\":3,\"returned\":3}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 0.28,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 0.26,
+              "result": {
+                "ms": 0.26,
+                "total": 3,
+                "returned": 3
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}
