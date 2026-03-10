@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "id": 271,
+  "slug": "271-inline-ips-procedures-valueset-validate-survives-exclude-filters",
+  "name": "Inline IPS procedures ValueSet validate survives exclude filters",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "POST",
+      "path": "/r4/ValueSet/$validate-code",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "36969009",
+                  "display": "Placement of stent in coronary artery (procedure)"
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips",
+              "version": "2.0.0",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "descendent-of",
+                        "value": "71388002"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "787480003"
+                      }
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "14734007"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:43775/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "36969009",
+                  "display": "Placement of stent in coronary artery (procedure)"
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips",
+              "version": "2.0.0",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "descendent-of",
+                        "value": "71388002"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "787480003"
+                      }
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "14734007"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:43775/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "36969009",
+                  "display": "Placement of stent in coronary artery (procedure)"
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips",
+              "version": "2.0.0",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "descendent-of",
+                        "value": "71388002"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "787480003"
+                      }
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "14734007"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33979/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "36969009",
+                  "display": "Placement of stent in coronary artery (procedure)"
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips",
+              "version": "2.0.0",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "descendent-of",
+                        "value": "71388002"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "787480003"
+                      }
+                    ]
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "filter": [
+                      {
+                        "property": "concept",
+                        "op": "is-a",
+                        "value": "14734007"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          }
+        ]
+      }
+    }
+  }
+}

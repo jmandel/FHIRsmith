@@ -1,5 +1,6 @@
 'use strict';
 
+const { Issue } = require('../library/operation-outcome');
 const {
   dedupeSupplementRefs,
   descriptorKey,
@@ -16,8 +17,14 @@ function chooseCandidate(target, ref, candidates) {
   if (scoped.length === 1) return scoped[0];
 
   const labels = scoped.map(c => c.descriptor.canonical).sort();
-  throw new Error(
-    `Ambiguous supplement '${ref.canonical}' for ${target.system}${target.version ? `|${target.version}` : ''}: ${labels.join(', ')}`
+  throw new Issue(
+    'error',
+    'invalid',
+    null,
+    'VALUESET_SUPPLEMENT_AMBIGUOUS',
+    `Ambiguous supplement '${ref.canonical}' for ${target.system}${target.version ? `|${target.version}` : ''}: ${labels.join(', ')}`,
+    'invalid',
+    422
   );
 }
 
@@ -42,6 +49,8 @@ async function resolveSupplementsForBaseScope({ target, refs, registry }) {
     items,
     matchedRefKeys: selected.matchedRefKeys,
     unresolvedRefs: selected.unresolvedRefs,
+    missingRefs: selected.missingRefs,
+    inapplicableRefs: selected.inapplicableRefs,
   };
 }
 
@@ -100,13 +109,17 @@ function selectSupplementEntriesForBaseScope({ target, refs, registry }) {
   const entries = [];
   const matchedRefKeys = [];
   const unresolvedRefs = [];
+  const missingRefs = [];
+  const inapplicableRefs = [];
   const seenDescriptors = new Set();
 
   for (const ref of orderedRefs) {
-    const candidates = findCandidates(registry, ref)
-      .filter(entry => targetMatchesDescriptor(baseScope, entry.descriptor));
+    const allCandidates = findCandidates(registry, ref);
+    const candidates = allCandidates.filter(entry => targetMatchesDescriptor(baseScope, entry.descriptor));
     if (candidates.length === 0) {
       unresolvedRefs.push(ref);
+      if (allCandidates.length === 0) missingRefs.push(ref);
+      else inapplicableRefs.push(ref);
       continue;
     }
     const chosen = chooseCandidate(baseScope, ref, candidates);
@@ -122,6 +135,8 @@ function selectSupplementEntriesForBaseScope({ target, refs, registry }) {
     entries,
     matchedRefKeys: matchedRefKeys.filter(Boolean),
     unresolvedRefs,
+    missingRefs,
+    inapplicableRefs,
   };
 }
 

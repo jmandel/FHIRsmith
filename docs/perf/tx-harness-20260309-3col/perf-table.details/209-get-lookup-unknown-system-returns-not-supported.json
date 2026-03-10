@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:50:37.860Z",
+  "rowIndex": 209,
+  "slug": "209-get-lookup-unknown-system-returns-not-supported",
+  "name": "GET lookup unknown system returns not-supported",
+  "category": "Lookup",
+  "hrefs": {
+    "input": "../perf-table.inputs/209-get-lookup-unknown-system-returns-not-supported.json",
+    "detailJson": "209-get-lookup-unknown-system-returns-not-supported.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43775/r4/CodeSystem/$lookup?system=http%3A%2F%2Fnonexistent.org%2Fcodesystem&code=test&_engine=ir",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "138",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:50:32 GMT",
+            "etag": "W/\"8a-ghP0fkDVuL5kRjQUNhQmZEV1m5E\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-713"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem not found: undefined"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43775/r4/CodeSystem/$lookup?system=http%3A%2F%2Fnonexistent.org%2Fcodesystem&code=test&_engine=legacy",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "138",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:50:32 GMT",
+            "etag": "W/\"8a-ghP0fkDVuL5kRjQUNhQmZEV1m5E\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-714"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem not found: undefined"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5000,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:33979/r4/CodeSystem/$lookup?system=http%3A%2F%2Fnonexistent.org%2Fcodesystem&code=test&_engine=legacy",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

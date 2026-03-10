@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:51:59.964Z",
+  "rowIndex": 264,
+  "slug": "264-get-codesystem-instance-unknown-id-returns-unsupported",
+  "name": "GET CodeSystem instance unknown id returns unsupported",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/264-get-codesystem-instance-unknown-id-returns-unsupported.json",
+    "detailJson": "264-get-codesystem-instance-unknown-id-returns-unsupported.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43775/r4/CodeSystem/unknown/$validate-code?code=male&_engine=ir",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "180",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:51:54 GMT",
+            "etag": "W/\"b4-ZW0ObMn/ksnc9glqPLZpTZZA5FM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-851"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem/unknown not found"
+                },
+                "diagnostics": "CodeSystem/unknown not found"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43775/r4/CodeSystem/unknown/$validate-code?code=male&_engine=legacy",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "180",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:51:54 GMT",
+            "etag": "W/\"b4-ZW0ObMn/ksnc9glqPLZpTZZA5FM\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-852"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem/unknown not found"
+                },
+                "diagnostics": "CodeSystem/unknown not found"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5001,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:33979/r4/CodeSystem/unknown/$validate-code?code=male&_engine=legacy",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

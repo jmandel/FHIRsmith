@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:51:34.162Z",
+  "rowIndex": 242,
+  "slug": "242-post-validate-inline-multi-supplement-distinct-property-filters-returns-false",
+  "name": "POST validate inline multi-supplement distinct property filters returns false",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/242-post-validate-inline-multi-supplement-distinct-property-filters-returns-false.json",
+    "detailJson": "242-post-validate-inline-multi-supplement-distinct-property-filters-returns-false.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 29,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 29,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43775/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "female"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-d20"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-d8"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-d20",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "type": "integer"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "male",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    },
+                    {
+                      "code": "female",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 1
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-d8",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "property": [
+                    {
+                      "code": "d8-roll",
+                      "type": "integer"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "male",
+                      "property": [
+                        {
+                          "code": "d8-roll",
+                          "valueInteger": 2
+                        }
+                      ]
+                    },
+                    {
+                      "code": "female",
+                      "property": [
+                        {
+                          "code": "d8-roll",
+                          "valueInteger": 7
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          },
+                          {
+                            "property": "d8-roll",
+                            "op": "=",
+                            "value": "2"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "949",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:51:34 GMT",
+            "etag": "W/\"3b5-OSGCdP+yRhn+MR03qmHeueXaVAw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-803"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "female"
+              },
+              {
+                "name": "display",
+                "valueString": "Female"
+              },
+              {
+                "name": "message",
+                "valueString": "The provided code 'http://hl7.org/fhir/administrative-gender#female' was not found in the value set 'undefined'"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "code-invalid",
+                      "details": {
+                        "text": "The provided code 'http://hl7.org/fhir/administrative-gender#female' was not found in the value set 'undefined'",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-in-vs"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "code"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "None_of_the_provided_codes_are_in_the_value_set_one"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

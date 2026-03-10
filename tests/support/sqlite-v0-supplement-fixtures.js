@@ -23,6 +23,9 @@ function makeBaseConcepts(count = 320) {
 function buildTempV0DbFile(baseConcepts, opts = {}) {
   const dir = opts.dir || fs.mkdtempSync(path.join(os.tmpdir(), 'sqlite-v0-supp-config-'));
   const dbPath = path.join(dir, 'base.v0.db');
+  if (fs.existsSync(dbPath)) {
+    fs.unlinkSync(dbPath);
+  }
   const db = new BetterSqlite3(dbPath);
   try {
     db.exec(`
@@ -175,18 +178,28 @@ function buildTempV0DbFile(baseConcepts, opts = {}) {
       });
     }
     const propertyIdByCode = new Map(propertyDefs.map(def => [String(def.property_code), def.property_id]));
-    for (const concept of baseConcepts) {
+    const normalizedConcepts = baseConcepts.map((concept, index) => ({
+      concept_id: concept.concept_id ?? (index + 1),
+      cs_id: concept.cs_id ?? 1,
+      code: concept.code,
+      active: concept.active === 0 || concept.active === false ? 0 : 1,
+      display: concept.display ?? concept.code,
+      definition: concept.definition ?? null,
+    }));
+    const conceptIdByCode = new Map(normalizedConcepts.map((concept) => [String(concept.code), concept.concept_id]));
+    for (const concept of normalizedConcepts) {
       insConcept.run(concept);
       insDisplayFts.run({ rowid: concept.concept_id, term: concept.display });
     }
     let literalId = 1;
     for (const literal of opts.literals || []) {
       const propertyId = literal.property_id ?? propertyIdByCode.get(String(literal.property_code || ''));
-      if (!Number.isInteger(propertyId)) continue;
+      const sourceConceptId = literal.source_concept_id ?? conceptIdByCode.get(String(literal.source_code || ''));
+      if (!Number.isInteger(propertyId) || !Number.isInteger(sourceConceptId)) continue;
       insLiteral.run({
         literal_id: literal.literal_id ?? literalId++,
         edge_set_id: literal.edge_set_id ?? 1,
-        source_concept_id: literal.source_concept_id,
+        source_concept_id: sourceConceptId,
         property_id: propertyId,
         value_raw: literal.value_raw ?? null,
         value_text: literal.value_text ?? null,
@@ -201,13 +214,15 @@ function buildTempV0DbFile(baseConcepts, opts = {}) {
     let edgeId = 1;
     for (const link of opts.links || []) {
       const propertyId = link.property_id ?? propertyIdByCode.get(String(link.property_code || ''));
-      if (!Number.isInteger(propertyId)) continue;
+      const sourceConceptId = link.source_concept_id ?? conceptIdByCode.get(String(link.source_code || ''));
+      const targetConceptId = link.target_concept_id ?? conceptIdByCode.get(String(link.target_code || ''));
+      if (!Number.isInteger(propertyId) || !Number.isInteger(sourceConceptId) || !Number.isInteger(targetConceptId)) continue;
       insLink.run({
         edge_id: link.edge_id ?? edgeId++,
         edge_set_id: link.edge_set_id ?? 1,
-        source_concept_id: link.source_concept_id,
+        source_concept_id: sourceConceptId,
         property_id: propertyId,
-        target_concept_id: link.target_concept_id,
+        target_concept_id: targetConceptId,
         group_id: link.group_id ?? 0,
         active: link.active === 0 || link.active === false ? 0 : 1,
       });

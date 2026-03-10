@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": 210,
+  "slug": "210-get-lookup-unknown-code-returns-not-found",
+  "name": "GET lookup unknown code returns not-found",
+  "category": "Lookup",
+  "source": {
+    "shape": "request",
+    "kind": "lookup",
+    "request": {
+      "method": "GET",
+      "path": "/r4/CodeSystem/$lookup",
+      "query": {
+        "system": "http://hl7.org/fhir/administrative-gender",
+        "code": "nonexistent-code"
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "GET",
+      "url": "http://localhost:43775/r4/CodeSystem/$lookup?system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=nonexistent-code&_engine=ir",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "secondary": {
+      "method": "GET",
+      "url": "http://localhost:43775/r4/CodeSystem/$lookup?system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=nonexistent-code&_engine=legacy",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "third": {
+      "method": "GET",
+      "url": "http://localhost:33979/r4/CodeSystem/$lookup?system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=nonexistent-code&_engine=legacy",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    }
+  }
+}

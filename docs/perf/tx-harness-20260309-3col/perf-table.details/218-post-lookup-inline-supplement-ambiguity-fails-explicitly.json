@@ -1,0 +1,413 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:50:58.123Z",
+  "rowIndex": 218,
+  "slug": "218-post-lookup-inline-supplement-ambiguity-fails-explicitly",
+  "name": "POST lookup inline supplement ambiguity fails explicitly",
+  "category": "Lookup",
+  "hrefs": {
+    "input": "../perf-table.inputs/218-post-lookup-inline-supplement-ambiguity-fails-explicitly.json",
+    "detailJson": "218-post-lookup-inline-supplement-ambiguity-fails-explicitly.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 9,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 9,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43775/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Männlich"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "2.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Mann"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "576",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:50:58 GMT",
+            "etag": "W/\"240-LLU8HwgCEmIfov38iCeNeufc5Rg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-740"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Ambiguous supplement 'http://example.org/fhir/CodeSystem/admin-gender-de' for http://hl7.org/fhir/administrative-gender|4.0.1: http://example.org/fhir/CodeSystem/admin-gender-de|1.0.0, http://example.org/fhir/CodeSystem/admin-gender-de|2.0.0",
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                      "code": "invalid"
+                    }
+                  ]
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_SUPPLEMENT_AMBIGUOUS"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 7,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 7,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43775/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Männlich"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "2.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Mann"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "576",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:50:58 GMT",
+            "etag": "W/\"240-LLU8HwgCEmIfov38iCeNeufc5Rg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-741"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Ambiguous supplement 'http://example.org/fhir/CodeSystem/admin-gender-de' for http://hl7.org/fhir/administrative-gender|4.0.1: http://example.org/fhir/CodeSystem/admin-gender-de|1.0.0, http://example.org/fhir/CodeSystem/admin-gender-de|2.0.0",
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                      "code": "invalid"
+                    }
+                  ]
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_SUPPLEMENT_AMBIGUOUS"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 8,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 8,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33979/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Männlich"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "2.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "value": "Mann"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "576",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:50:58 GMT",
+            "etag": "W/\"240-LLU8HwgCEmIfov38iCeNeufc5Rg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-211"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Ambiguous supplement 'http://example.org/fhir/CodeSystem/admin-gender-de' for http://hl7.org/fhir/administrative-gender|4.0.1: http://example.org/fhir/CodeSystem/admin-gender-de|1.0.0, http://example.org/fhir/CodeSystem/admin-gender-de|2.0.0",
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                      "code": "invalid"
+                    }
+                  ]
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_SUPPLEMENT_AMBIGUOUS"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

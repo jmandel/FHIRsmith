@@ -1,0 +1,516 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:52:45.274Z",
+  "rowIndex": 199,
+  "slug": "199-configured-sqlite-sidecar-designation-text-filter-works-on-sqlite-v0",
+  "name": "Configured sqlite sidecar designation text filter works on SQLite v0",
+  "category": "Supplements",
+  "hrefs": {
+    "input": "../perf-table.inputs/199-configured-sqlite-sidecar-designation-text-filter-works-on-sqlite-v0.json",
+    "detailJson": "199-configured-sqlite-sidecar-designation-text-filter-works-on-sqlite-v0.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 140,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 140,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "filter",
+                "valueString": "D20 critical success"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "8979",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:52:45 GMT",
+            "etag": "W/\"2313-XLgydugnYaK+ObY6PxXK45ARyv8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-474"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:52:45.218Z",
+              "identifier": "urn:uuid:4308b7c6-594b-42d2-b756-b37d5d074005",
+              "total": 12176,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "100045-4",
+                  "display": "Cefozopran [Susceptibility]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100074-4",
+                  "display": "Right cornea Hexagonality"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100077-7",
+                  "display": "Left cornea Endothelial cells counted"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100087-6",
+                  "display": "Toxocara canis 24-35kD IgG Ab [Presence] in Serum by Immunoblot"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100202-1",
+                  "display": "Pre-op discretionary knee activities score [Knee Society Score]"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 5
+                },
+                {
+                  "name": "filter",
+                  "valueString": "D20 critical success"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                },
+                {
+                  "name": "used-supplement",
+                  "valueUri": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20|1"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: 2c2c4033a4e56c07ed8a6da19eedbc278f14f65c\nruntime-constraints:\n  text-filter: \"D20 critical success\"\n  pagination: offset=0 count=5\noptimized-ir:\n  selector whole http://loinc.org [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":136.56,\"sqlCount\":2,\"sqlMs\":125.45,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":\"D20 critical success\",\"offset\":0,\"count\":5,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":5,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":5},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.54,\"execMs\":65.47},\"t\":75.85}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_0) AND \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_2) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_3) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"supp_43a96e91efd0\\\".\\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"supp_43a96e91efd0\\\".\\\"supplement_designation\\\" \\\"sd\\\" ON (\\\"sd\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"code\\\" = \\\"sd\\\".\\\"source_code\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @supp_designation_cs_id_4) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"sd\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_5) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"supp_43a96e91efd0\\\".\\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"supp_43a96e91efd0\\\".\\\"supplement_literal\\\" \\\"sl\\\" ON (\\\"sl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"code\\\" = \\\"sl\\\".\\\"source_code\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @supp_literal_cs_id_6) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"sl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1))) AND 1) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 5\",\"params\":{\"cs_id_0\":1,\"search_match_1\":\"\\\"D20 critical success\\\"\",\"display_cs_id_2\":1,\"designation_cs_id_3\":1,\"supp_designation_cs_id_4\":1,\"literal_cs_id_5\":1,\"supp_literal_cs_id_6\":1},\"rows\":5,\"ms\":65.47,\"label\":\"executeIR\"}],\"ms\":66.4,\"result\":{\"candidates\":5,\"total\":null}}],\"ms\":66.55,\"result\":{\"candidates\":5}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE (\\\"c\\\".\\\"cs_id\\\" = @cs_id_0)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_2) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_3) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"supp_43a96e91efd0\\\".\\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"supp_43a96e91efd0\\\".\\\"supplement_designation\\\" \\\"sd\\\" ON (\\\"sd\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"code\\\" = \\\"sd\\\".\\\"source_code\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @supp_designation_cs_id_4) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"sd\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_5) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)) UNION SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"supp_43a96e91efd0\\\".\\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"supp_43a96e91efd0\\\".\\\"supplement_literal\\\" \\\"sl\\\" ON (\\\"sl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"code\\\" = \\\"sl\\\".\\\"source_code\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @supp_literal_cs_id_6) AND (\\\"c\\\".\\\"active\\\" = 1) AND (\\\"sl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_1)))\",\"params\":{\"cs_id_0\":1,\"search_match_1\":\"\\\"D20 critical success\\\"\",\"display_cs_id_2\":1,\"designation_cs_id_3\":1,\"supp_designation_cs_id_4\":1,\"literal_cs_id_5\":1,\"supp_literal_cs_id_6\":1},\"rows\":12176,\"ms\":59.98,\"label\":\"countForIR\"}],\"ms\":60.45,\"result\":{\"count\":12176}}],\"ms\":60.49,\"result\":{\"count\":12176}}],\"ms\":127.07,\"result\":{\"paged\":5}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":5,\"includeDesignations\":false},\"children\":[],\"ms\":0.06,\"result\":{\"count\":5}}],\"ms\":129.39,\"result\":{\"total\":12176,\"contains\":5}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 136.56,
+          "sqlCount": 2,
+          "sqlMs": 125.45,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": "D20 critical success",
+                "offset": 0,
+                "count": 5,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 5,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 5
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.54,
+                                "execMs": 65.47
+                              },
+                              "t": 75.85
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_0) AND \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_2) AND (\"c\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_3) AND (\"c\".\"active\" = 1) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"supp_43a96e91efd0\".\"search_fts_designation\" \"f\" INNER JOIN \"supp_43a96e91efd0\".\"supplement_designation\" \"sd\" ON (\"sd\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"code\" = \"sd\".\"source_code\") WHERE ((\"c\".\"cs_id\" = @supp_designation_cs_id_4) AND (\"c\".\"active\" = 1) AND (\"sd\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_5) AND (\"c\".\"active\" = 1) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"supp_43a96e91efd0\".\"search_fts_literal\" \"f\" INNER JOIN \"supp_43a96e91efd0\".\"supplement_literal\" \"sl\" ON (\"sl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"code\" = \"sl\".\"source_code\") WHERE ((\"c\".\"cs_id\" = @supp_literal_cs_id_6) AND (\"c\".\"active\" = 1) AND (\"sl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1))) AND 1) ORDER BY \"c\".\"code\" ASC LIMIT 5",
+                              "params": {
+                                "cs_id_0": 1,
+                                "search_match_1": "\"D20 critical success\"",
+                                "display_cs_id_2": 1,
+                                "designation_cs_id_3": 1,
+                                "supp_designation_cs_id_4": 1,
+                                "literal_cs_id_5": 1,
+                                "supp_literal_cs_id_6": 1
+                              },
+                              "rows": 5,
+                              "ms": 65.47,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 66.4,
+                          "result": {
+                            "candidates": 5,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 66.55,
+                      "result": {
+                        "candidates": 5
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://loinc.org"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE (\"c\".\"cs_id\" = @cs_id_0)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_2) AND (\"c\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_3) AND (\"c\".\"active\" = 1) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"supp_43a96e91efd0\".\"search_fts_designation\" \"f\" INNER JOIN \"supp_43a96e91efd0\".\"supplement_designation\" \"sd\" ON (\"sd\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"code\" = \"sd\".\"source_code\") WHERE ((\"c\".\"cs_id\" = @supp_designation_cs_id_4) AND (\"c\".\"active\" = 1) AND (\"sd\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_5) AND (\"c\".\"active\" = 1) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)) UNION SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"supp_43a96e91efd0\".\"search_fts_literal\" \"f\" INNER JOIN \"supp_43a96e91efd0\".\"supplement_literal\" \"sl\" ON (\"sl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"code\" = \"sl\".\"source_code\") WHERE ((\"c\".\"cs_id\" = @supp_literal_cs_id_6) AND (\"c\".\"active\" = 1) AND (\"sl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_1)))",
+                              "params": {
+                                "cs_id_0": 1,
+                                "search_match_1": "\"D20 critical success\"",
+                                "display_cs_id_2": 1,
+                                "designation_cs_id_3": 1,
+                                "supp_designation_cs_id_4": 1,
+                                "literal_cs_id_5": 1,
+                                "supp_literal_cs_id_6": 1
+                              },
+                              "rows": 12176,
+                              "ms": 59.98,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 60.45,
+                          "result": {
+                            "count": 12176
+                          }
+                        }
+                      ],
+                      "ms": 60.49,
+                      "result": {
+                        "count": 12176
+                      }
+                    }
+                  ],
+                  "ms": 127.07,
+                  "result": {
+                    "paged": 5
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 5,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.06,
+                  "result": {
+                    "count": 5
+                  }
+                }
+              ],
+              "ms": 129.39,
+              "result": {
+                "total": 12176,
+                "contains": 5
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: 2c2c4033a4e56c07ed8a6da19eedbc278f14f65c\nruntime-constraints:\n  text-filter: \"D20 critical success\"\n  pagination: offset=0 count=5\noptimized-ir:\n  selector whole http://loinc.org [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 19,
+        "error": "Required supplement not found: http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "filter",
+                "valueString": "D20 critical success"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "440",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:52:45 GMT",
+            "etag": "W/\"1b8-xP8OoVLnMJ3yGqWPoJVAmBPGNf0\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-475"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "Required supplement not found: http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20",
+                  "coding": [
+                    {
+                      "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                      "code": "not-found"
+                    }
+                  ]
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_SUPPLEMENT_MISSING"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 34,
+        "error": "Text Search is not supported",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:39871/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 5
+              },
+              {
+                "name": "filter",
+                "valueString": "D20 critical success"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/harness-dice-supplement/loinc-org/d20"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "180",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:52:45 GMT",
+            "etag": "W/\"b4-W9LoFDu/2im5NcYwmq6h9/E7PSc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-145"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "Text Search is not supported"
+                },
+                "diagnostics": "Text Search is not supported"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

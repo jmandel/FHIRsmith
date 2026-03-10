@@ -1,0 +1,3300 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Large SNOMED designation-filter page uses displayLanguage and bulk decoration</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:53:12.478Z",
+  "rowIndex": 172,
+  "slug": "172-large-snomed-designation-filter-page-uses-displaylanguage-and-bulk-decoration",
+  "name": "Large SNOMED designation-filter page uses displayLanguage and bulk decoration",
+  "category": "Designations \u0026 Language",
+  "hrefs": {
+    "input": "../perf-table.inputs/172-large-snomed-designation-filter-page-uses-displaylanguage-and-bulk-decoration.json",
+    "detailJson": "172-large-snomed-designation-filter-page-uses-displaylanguage-and-bulk-decoration.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 30,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 30,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "designation",
+                "valueString": "http://snomed.info/sct|900000000000003001"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "en"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "19378",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:53:12 GMT",
+            "etag": "W/\"4bb2-uPh/fm+KP8Yksao0tkS3qBO5kHc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-595"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:53:12.141Z",
+              "identifier": "urn:uuid:69bdfa4b-f379-41ff-af1e-5ac73e94a4ec",
+              "total": 124412,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10000006",
+                  "display": "Radiating chest pain",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Radiating chest pain (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10001005",
+                  "display": "Bacterial septicemia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Bacterial sepsis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10007009",
+                  "display": "Coffin-Siris syndrome",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Coffin-Siris syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1001000119102",
+                  "display": "Pulmonary embolism with pulmonary infarction",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Pulmonary embolism with pulmonary infarction (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10017004",
+                  "display": "Occlusal wear of teeth",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Occlusal wear of teeth (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100171000119109",
+                  "display": "Eosinophilic mucinous rhinosinusitis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Eosinophilic mucin rhinosinusitis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100191000119105",
+                  "display": "Acquired asymmetry of prostate",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Asymmetry of prostate (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100211000119106",
+                  "display": "Muscle spasm of thoracic back",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Muscle spasm of thoracic back (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002191006",
+                  "display": "Increased amino acid level in urine due to decreased renal function",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Increased amino acid level in urine due to decreased renal function (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002194003",
+                  "display": "Transient increase in amino acid level in urine",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Transient increase in amino acid level in urine (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002203008",
+                  "display": "Increased 4-hydroxyphenylpyruvic acid level in urine (finding)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Increased 4-hydroxyphenylpyruvic acid level in urine (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002204002",
+                  "display": "Increased 4-hydroxyphenylacetic acid level in urine (finding)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Increased 4-hydroxyphenylacetic acid level in urine (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002229008",
+                  "display": "Apocrine miliaria of areola (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Apocrine miliaria of areola (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002253002",
+                  "display": "Immunization series incomplete (finding)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Immunization series incomplete (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100231000119101",
+                  "display": "Acquired pericardial cyst (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Acquired pericardial cyst (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003002",
+                  "display": "Religious discrimination",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Religious discrimination (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003322006",
+                  "display": "Distal deletion of short arm of chromosome 3 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Distal deletion of short arm of chromosome 3 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003324007",
+                  "display": "Congenital synostosis of both tibias and fibulas",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Congenital synostosis of bilateral tibias and fibulas (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003330007",
+                  "display": "Simple syndactyly of toes of first web space of bilateral feet",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Simple syndactyly of toes of first web space of bilateral feet (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003337005",
+                  "display": "Bilateral split foot",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Congenital split of bilateral feet (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003339008",
+                  "display": "Congenital split of bilateral hands (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Congenital split of bilateral hands (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003358004",
+                  "display": "Distal deletion of short arm of chromosome 8 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Distal deletion of short arm of chromosome 8 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003364006",
+                  "display": "Distal deletion of chromosome 13 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Distal deletion of chromosome 13 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003367004",
+                  "display": "Molybdenum cofactor deficiency complementation group A",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Molybdenum cofactor deficiency complementation group A (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003368009",
+                  "display": "Molybdenum cofactor deficiency complementation group B",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Molybdenum cofactor deficiency complementation group B (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003369001",
+                  "display": "Microphthalmos due to Delleman syndrome (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microphthalmos due to Delleman syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003370000",
+                  "display": "Microphthalmos due to Fryns syndrome (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microphthalmos due to Fryns syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003371001",
+                  "display": "Micromelic dwarfism Fryn type",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Micromelic dwarfism Fryn type (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003372008",
+                  "display": "Microphthalmos due to branchio-oculo-facial syndrome",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microphthalmos due to branchio-oculo-facial syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003373003",
+                  "display": "Microcephaly with simplified gyral pattern",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microcephaly with simplified gyral pattern (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003374009",
+                  "display": "Microlissencephaly",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microlissencephaly (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003375005",
+                  "display": "Metachromatic leukodystrophy due to sphingolipid activator protein I deficiency (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Metachromatic leukodystrophy due to sphingolipid activator protein I deficiency (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003376006",
+                  "display": "Medial duplication of long arm of chromosome 9",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial duplication of long arm of chromosome 9 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003377002",
+                  "display": "Medial duplication of short arm of chromosome 1",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial duplication of short arm of chromosome 1 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003378007",
+                  "display": "Optic nerve hypoplasia due to endocrine deficiency",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Optic nerve hypoplasia due to endocrine deficiency (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003379004",
+                  "display": "Osteogenesis imperfecta type V",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Osteogenesis imperfecta type 5 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003380001",
+                  "display": "Prader-Willi-like syndrome due to microdeletion 6q16",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "6q16 microdeletion syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003381002",
+                  "display": "Onycho-tricho-dysplasia neutropenia syndrome",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Onycho-tricho-dysplasia neutropenia syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003384005",
+                  "display": "Multiple congenital defects of vertebral segmentation",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Multiple congenital defects of vertebral segmentation (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003385006",
+                  "display": "Neurodevelopmental disorder due to maternal use of alcohol (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Neurodevelopmental disorder due to maternal use of alcohol (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003387003",
+                  "display": "Molybdenum cofactor deficiency complementation group C",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Molybdenum cofactor deficiency complementation group C (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003388008",
+                  "display": "X-linked oligodontia (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "X-linked oligodontia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003389000",
+                  "display": "Mosaic 1q duplication",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Mosaic 1q duplication (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003390009",
+                  "display": "X-linked hypodontia (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "X-linked hypodontia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003391008",
+                  "display": "Medial deletion of long arm of chromosome 4 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of long arm of chromosome 4 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003392001",
+                  "display": "Medial deletion of long arm of chromosome 5 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of long arm of chromosome 5 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003393006",
+                  "display": "Medial deletion of chromosome 14",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of chromosome 14 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003394000",
+                  "display": "Medial deletion of long arm of chromosome 2",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of long arm of chromosome 2 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003395004",
+                  "display": "Maternal uniparental disomy of chromosome 7 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Maternal uniparental disomy of chromosome 7 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003396003",
+                  "display": "Medial deletion of chromosome 13",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of chromosome 13 (disorder)"
+                    }
+                  ]
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "en"
+                },
+                {
+                  "name": "designation",
+                  "valueString": "http://snomed.info/sct|900000000000003001"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: 2b535b27c3e12803d75a2eff6a6616f978c6480e\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=50\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 404684003 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":27.99,\"sqlCount\":2,\"sqlMs\":25.51,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":null,\"offset\":0,\"count\":50,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.08,\"execMs\":0.32},\"t\":1.21}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_2) AND (\\\"c\\\".\\\"active\\\" = 1) AND EXISTS (SELECT 1 AS \\\"found\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\") WHERE (\\\"cl\\\".\\\"descendant_id\\\" = \\\"c\\\".\\\"concept_id\\\"))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 50\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1,\"cs_id_2\":1},\"rows\":50,\"ms\":0.32,\"label\":\"executeIR\"}],\"ms\":0.63,\"result\":{\"candidates\":50,\"total\":null}}],\"ms\":0.65,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"descendant_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1)\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1},\"rows\":124412,\"ms\":25.19,\"label\":\"countForIR\"}],\"ms\":25.33,\"result\":{\"count\":124412}}],\"ms\":25.35,\"result\":{\"count\":124412}}],\"ms\":26.03,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":true},\"children\":[],\"ms\":1.28,\"result\":{\"count\":50}}],\"ms\":27.9,\"result\":{\"total\":124412,\"contains\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 27.99,
+          "sqlCount": 2,
+          "sqlMs": 25.51,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": null,
+                "offset": 0,
+                "count": 50,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 50,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 50
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.08,
+                                "execMs": 0.32
+                              },
+                              "t": 1.21
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_2) AND (\"c\".\"active\" = 1) AND EXISTS (SELECT 1 AS \"found\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\") WHERE (\"cl\".\"descendant_id\" = \"c\".\"concept_id\"))) ORDER BY \"c\".\"code\" ASC LIMIT 50",
+                              "params": {
+                                "code_0": "404684003",
+                                "cs_id_1": 1,
+                                "cs_id_2": 1
+                              },
+                              "rows": 50,
+                              "ms": 0.32,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 0.63,
+                          "result": {
+                            "candidates": 50,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 0.65,
+                      "result": {
+                        "candidates": 50
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://snomed.info/sct"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"descendant_id\") WHERE (\"c\".\"active\" = 1)",
+                              "params": {
+                                "code_0": "404684003",
+                                "cs_id_1": 1
+                              },
+                              "rows": 124412,
+                              "ms": 25.19,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 25.33,
+                          "result": {
+                            "count": 124412
+                          }
+                        }
+                      ],
+                      "ms": 25.35,
+                      "result": {
+                        "count": 124412
+                      }
+                    }
+                  ],
+                  "ms": 26.03,
+                  "result": {
+                    "paged": 50
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 50,
+                    "includeDesignations": true
+                  },
+                  "children": [],
+                  "ms": 1.28,
+                  "result": {
+                    "count": 50
+                  }
+                }
+              ],
+              "ms": 27.9,
+              "result": {
+                "total": 124412,
+                "contains": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: 2b535b27c3e12803d75a2eff6a6616f978c6480e\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=50\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 404684003 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 291,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 291,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "designation",
+                "valueString": "http://snomed.info/sct|900000000000003001"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "en"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "17735",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:53:12 GMT",
+            "etag": "W/\"4547-MSz/Orm/mq3NnhpAZnAl/7AY5jY\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-596"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:53:12.143Z",
+              "identifier": "urn:uuid:d1fe6390-247e-4712-8f40-1f7befbcde42",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "en"
+                },
+                {
+                  "name": "designation",
+                  "valueString": "http://snomed.info/sct|900000000000003001"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10000006",
+                  "display": "Radiating chest pain",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Radiating chest pain (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10001005",
+                  "display": "Bacterial septicemia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Bacterial septicemia (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Bacterial sepsis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10007009",
+                  "display": "Coffin-Siris syndrome",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Coffin-Siris syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1001000119102",
+                  "display": "Pulmonary embolism with pulmonary infarction",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Pulmonary embolism with pulmonary infarction (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "10017004",
+                  "display": "Occlusal wear of teeth",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Occlusal wear of teeth (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100171000119109",
+                  "display": "Eosinophilic mucinous rhinosinusitis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Eosinophilic mucin rhinosinusitis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100191000119105",
+                  "display": "Acquired asymmetry of prostate",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Acquired asymmetry of prostate (finding)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Asymmetry of prostate (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100211000119106",
+                  "display": "Muscle spasm of thoracic back",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Muscle spasm of thoracic back (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Muscle spasm of thoracic back (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002191006",
+                  "display": "Increased amino acid level in urine due to decreased renal function",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Increased amino acid level in urine due to decreased renal function (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002194003",
+                  "display": "Transient increase in amino acid level in urine",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Transient increase in amino acid level in urine (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002203008",
+                  "display": "Increased 4-hydroxyphenylpyruvic acid level in urine (finding)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Increased 4-hydroxyphenylpyruvic acid level in urine (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002204002",
+                  "display": "Increased 4-hydroxyphenylacetic acid level in urine (finding)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Increased 4-hydroxyphenylacetic acid level in urine (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002229008",
+                  "display": "Apocrine miliaria of areola (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Apocrine miliaria of areola (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1002253002",
+                  "display": "Immunization series incomplete (finding)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Immunization series incomplete (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "100231000119101",
+                  "display": "Acquired pericardial cyst (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Acquired pericardial cyst (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003002",
+                  "display": "Religious discrimination",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Religious discrimination (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003322006",
+                  "display": "Distal deletion of short arm of chromosome 3 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Distal deletion of short arm of chromosome 3 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003324007",
+                  "display": "Congenital synostosis of both tibias and fibulas",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Congenital synostosis of bilateral tibias and fibulas (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003330007",
+                  "display": "Simple syndactyly of toes of first web space of bilateral feet",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Simple syndactyly of toes of first web space of bilateral feet (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003337005",
+                  "display": "Bilateral split foot",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Congenital split of bilateral feet (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003339008",
+                  "display": "Congenital split of bilateral hands (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Congenital split of bilateral hands (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003358004",
+                  "display": "Distal deletion of short arm of chromosome 8 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Distal deletion of short arm of chromosome 8 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003364006",
+                  "display": "Distal deletion of chromosome 13 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Distal deletion of chromosome 13 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003367004",
+                  "display": "Molybdenum cofactor deficiency complementation group A",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Molybdenum cofactor deficiency complementation group A (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003368009",
+                  "display": "Molybdenum cofactor deficiency complementation group B",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Molybdenum cofactor deficiency complementation group B (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003369001",
+                  "display": "Microphthalmos due to Delleman syndrome (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microphthalmos due to Delleman syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003370000",
+                  "display": "Microphthalmos due to Fryns syndrome (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microphthalmos due to Fryns syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003371001",
+                  "display": "Micromelic dwarfism Fryn type",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Micromelic dwarfism Fryn type (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003372008",
+                  "display": "Microphthalmos due to branchio-oculo-facial syndrome",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microphthalmos due to branchio-oculo-facial syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003373003",
+                  "display": "Microcephaly with simplified gyral pattern",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microcephaly with simplified gyral pattern (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003374009",
+                  "display": "Microlissencephaly",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Microlissencephaly (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003375005",
+                  "display": "Metachromatic leukodystrophy due to sphingolipid activator protein I deficiency (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Metachromatic leukodystrophy due to sphingolipid activator protein I deficiency (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003376006",
+                  "display": "Medial duplication of long arm of chromosome 9",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial duplication of long arm of chromosome 9 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003377002",
+                  "display": "Medial duplication of short arm of chromosome 1",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial duplication of short arm of chromosome 1 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003378007",
+                  "display": "Optic nerve hypoplasia due to endocrine deficiency",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Optic nerve hypoplasia due to endocrine deficiency (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003379004",
+                  "display": "Osteogenesis imperfecta type V",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Osteogenesis imperfecta type 5 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003380001",
+                  "display": "Prader-Willi-like syndrome due to microdeletion 6q16",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "6q16 microdeletion syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003381002",
+                  "display": "Onycho-tricho-dysplasia neutropenia syndrome",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Onycho-tricho-dysplasia neutropenia syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003384005",
+                  "display": "Multiple congenital defects of vertebral segmentation",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Multiple congenital defects of vertebral segmentation (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003385006",
+                  "display": "Neurodevelopmental disorder due to maternal use of alcohol (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Neurodevelopmental disorder due to maternal use of alcohol (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003387003",
+                  "display": "Molybdenum cofactor deficiency complementation group C",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Molybdenum cofactor deficiency complementation group C (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003388008",
+                  "display": "X-linked oligodontia (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "X-linked oligodontia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003389000",
+                  "display": "Mosaic 1q duplication",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Mosaic 1q duplication (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003390009",
+                  "display": "X-linked hypodontia (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "X-linked hypodontia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003391008",
+                  "display": "Medial deletion of long arm of chromosome 4 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of long arm of chromosome 4 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003392001",
+                  "display": "Medial deletion of long arm of chromosome 5 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of long arm of chromosome 5 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003393006",
+                  "display": "Medial deletion of chromosome 14",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of chromosome 14 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003394000",
+                  "display": "Medial deletion of long arm of chromosome 2",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of long arm of chromosome 2 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003395004",
+                  "display": "Maternal uniparental disomy of chromosome 7 (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Maternal uniparental disomy of chromosome 7 (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1003396003",
+                  "display": "Medial deletion of chromosome 13",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Medial deletion of chromosome 13 (disorder)"
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":288.64,\"sqlCount\":1,\"sqlMs\":208.47,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://snomed.info/sct\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\\n        WHERE c.cs_id = @cs AND 1=1\\n        ORDER BY c.code\",\"params\":{\"cs\":1,\"f0_anc_code\":\"404684003\",\"f0_cs\":1},\"rows\":124412,\"ms\":208.47,\"label\":\"legacy:executeFilters\"}],\"ms\":208.52,\"result\":{\"rows\":124412}}],\"ms\":288.61,\"result\":{\"ms\":288.6,\"returned\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 288.64,
+          "sqlCount": 1,
+          "sqlMs": 208.47,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 50,
+                "offset": -1,
+                "activeOnly": true,
+                "hasTextFilter": false
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://snomed.info/sct",
+                    "filterCount": 1,
+                    "hasTextSearch": false
+                  },
+                  "children": [],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c JOIN closure cl_f0 ON cl_f0.descendant_id = c.concept_id AND cl_f0.ancestor_id = (SELECT concept_id FROM concept WHERE code = @f0_anc_code AND cs_id = @f0_cs)\n        WHERE c.cs_id = @cs AND 1=1\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1,
+                        "f0_anc_code": "404684003",
+                        "f0_cs": 1
+                      },
+                      "rows": 124412,
+                      "ms": 208.47,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 208.52,
+                  "result": {
+                    "rows": 124412
+                  }
+                }
+              ],
+              "ms": 288.61,
+              "result": {
+                "ms": 288.6,
+                "returned": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 44,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 44,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:39871/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "includeDesignations",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "designation",
+                "valueString": "http://snomed.info/sct|900000000000003001"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "en"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "16556",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:53:12 GMT",
+            "etag": "W/\"40ac-syI0oimG2SQgLWpxUez+kKCC3lY\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-181"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:53:12.435Z",
+              "identifier": "urn:uuid:ed62400f-c64d-4ef5-a998-70448fbbddca",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "en"
+                },
+                {
+                  "name": "designation",
+                  "valueString": "http://snomed.info/sct|900000000000003001"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "includeDesignations",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/valueset-unclosed",
+                  "valueBoolean": true
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":41.88,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":50,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[],\"ms\":41.85,\"result\":{\"ms\":41.84,\"returned\":50}}]}"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "404684003",
+                  "display": "Clinical finding (finding)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Clinical finding (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "109006",
+                  "display": "Anxiety disorder of childhood OR adolescence",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Anxiety disorder of childhood OR adolescence (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "122003",
+                  "display": "Choroidal hemorrhage",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Choroidal hemorrhage (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "127009",
+                  "display": "Spontaneous abortion with laceration of cervix",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Spontaneous abortion with laceration of cervix (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Miscarriage with laceration of cervix (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "129007",
+                  "display": "Homoiothermia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Homoiothermia (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "134006",
+                  "display": "Decreased hair growth",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Decreased hair growth (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "140004",
+                  "display": "Chronic pharyngitis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Chronic pharyngitis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "144008",
+                  "display": "Normal peripheral vision",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Normal peripheral vision (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "150003",
+                  "display": "Abnormal bladder continence",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Abnormal bladder continence (finding)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Abnormal urinary bladder continence (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "151004",
+                  "display": "Gonococcal meningitis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Gonococcal meningitis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "162004",
+                  "display": "Severe manic bipolar I disorder without psychotic features",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Severe manic bipolar I disorder without psychotic features (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "165002",
+                  "display": "Accident-prone",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Accident prone (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "168000",
+                  "display": "Typhlolithiasis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Typhlolithiasis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "171008",
+                  "display": "Injury of ascending right colon without open wound into abdominal cavity",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Injury of ascending right colon without open wound into abdominal cavity (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "175004",
+                  "display": "Supraorbital neuralgia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Supraorbital neuralgia (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Supraorbital neuralgia (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "177007",
+                  "display": "Poisoning by sawfly larvae",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Poisoning by sawfly larvae (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "179005",
+                  "display": "Apraxia of dressing",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Apraxia of dressing (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "181007",
+                  "display": "Hemorrhagic bronchopneumonia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Hemorrhagic bronchopneumonia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "183005",
+                  "display": "Autoimmune pancytopenia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Autoimmune pancytopenia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "184004",
+                  "display": "Withdrawal arrhythmia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Withdrawal arrhythmia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "188001",
+                  "display": "Injury of intercostal artery",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Injury of intercostal artery (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "192008",
+                  "display": "Congenital syphilitic hepatomegaly",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Congenital syphilitic hepatomegaly (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "193003",
+                  "display": "Benign hypertensive renal disease",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Benign hypertensive renal disease (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "198007",
+                  "display": "Disease caused by Filoviridae (disorder)",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Disease due to Filovirus (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Disease due to Filoviridae (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Disease caused by Filoviridae (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "199004",
+                  "display": "Decreased lactation",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Decreased lactation (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "216004",
+                  "display": "Delusion of persecution",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Delusion of persecution (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "219006",
+                  "display": "Alcohol user",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Current drinker (life style)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Current drinker of alcohol (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "222008",
+                  "display": "Acute epiglottitis with obstruction",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Acute epiglottitis with obstruction (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "223003",
+                  "display": "Tumor of body of uterus affecting pregnancy",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Tumor of body of uterus affecting pregnancy (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "228007",
+                  "display": "Lucio phenomenon",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Lucio phenomenon (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "241006",
+                  "display": "Epilepsia partialis continua",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Epilepsia partialis continua (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Epilepsia partialis continua (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "242004",
+                  "display": "Noninfectious jejunitis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Noninfectious jejunitis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "253005",
+                  "display": "Sycosis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Sycosis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "257006",
+                  "display": "Acne rosacea, erythematous telangiectatic type",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Acne rosacea, erythematous telangiectatic type (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Rosacea, erythematous telangiectatic type (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "264008",
+                  "display": "Blind hypertensive eye",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Blind hypertensive eye (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "276008",
+                  "display": "Poisoning by oxytocin",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Poisoning by oxytocin (disorder)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Poisoning caused by oxytocin (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "279001",
+                  "display": "Senile myocarditis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Senile myocarditis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "281004",
+                  "display": "Dementia associated with alcoholism",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Dementia associated with alcoholism (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "290006",
+                  "display": "Melnick-Fraser syndrome",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Melnick-Fraser syndrome (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "292003",
+                  "display": "EEG finding",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "EEG finding (finding)"
+                    },
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Electroencephalogram finding (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "297009",
+                  "display": "Acute myringitis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Acute myringitis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "299007",
+                  "display": "Paraffinoma of skin",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Paraffinoma of skin (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "303002",
+                  "display": "Apoplectic pancreatitis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Apoplectic pancreatitis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "308006",
+                  "display": "Pearly penile papules",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Pearly penile papules (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "310008",
+                  "display": "Boil of penis",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Boil of penis (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "313005",
+                  "display": "Déjà vu",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Déjà vu (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "317006",
+                  "display": "Reactive hypoglycemia",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Reactive hypoglycemia (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "320003",
+                  "display": "Cervical dilatation, 1cm",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Cervical dilatation, 1cm (finding)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "324007",
+                  "display": "Plaster ulcer",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Plaster ulcer (disorder)"
+                    }
+                  ]
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "330007",
+                  "display": "Occipital headache",
+                  "designation": [
+                    {
+                      "language": "en",
+                      "use": {
+                        "system": "http://snomed.info/sct",
+                        "code": "900000000000003001",
+                        "display": "Fully specified name"
+                      },
+                      "value": "Occipital headache (finding)"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 41.88,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 50,
+                "offset": -1,
+                "activeOnly": true,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 41.85,
+              "result": {
+                "ms": 41.84,
+                "returned": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf || perf.supported === false) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = target.supported === false ? 'not exercised for this case' : (debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed');
+    const status = target.supported === false ? 'n/a' : (debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a');
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.supported === false ? 'N/A for this case' : (debug?.irPlanText || 'N/A for this target');
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = target.supported === false ? 'N/A for this case' : (debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.');
+      } else {
+        label = 'HTTP Response';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

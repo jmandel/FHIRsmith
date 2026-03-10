@@ -250,9 +250,9 @@ What it proves:
 
 Primary tests:
 
-- `tests/tx/expand-sqlite-supplement-config.test.js`
-- `tests/tx/lookup-sqlite-supplement-config.test.js`
-- `tests/tx/validate-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/expand-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/lookup-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/validate-sqlite-supplement-config.test.js`
 - `tests/cs/sqlite-v0-native-supplements.test.js`
 
 ### 2. IR + sqlite-v0 + inline `tx-resource` supplement
@@ -268,11 +268,11 @@ What it proves:
 
 Primary tests:
 
-- `tests/tx/expand-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/expand-sqlite-supplement-config.test.js`
   - inline-vs-sidecar expansion equivalence
-- `tests/tx/lookup-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/lookup-sqlite-supplement-config.test.js`
   - inline-vs-sidecar lookup equivalence
-- `tests/tx/validate-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/validate-sqlite-supplement-config.test.js`
   - inline-vs-sidecar validate-code equivalence
 
 ### 3. IR + non-sqlite provider + inline `tx-resource` supplement
@@ -288,8 +288,8 @@ What it proves:
 
 Primary tests:
 
-- `tests/tx/expand-adapter-supplement-runtime.test.js`
-- `tests/tx/supplement-ir-adapter-providers.test.js`
+- `tests/ir-engine/operations/expand-adapter-supplement-runtime.test.js`
+- `tests/ir-engine/supplements/supplement-ir-adapter-providers.test.js`
 
 Current covered providers:
 
@@ -1393,12 +1393,12 @@ Implementation notes:
   - parity tests proving inline `CodeSystem` supplements can take either the
     generic overlay path or the sqlite-v0 in-memory native path with the same
     results
-  - strict IR harness coverage now includes inline supplement-backed property
+  - strict unified TX harness coverage now includes inline supplement-backed property
     filtering on sqlite-v0 with paging, so the native path is exercised in the
     same no-fallback matrix as the rest of the execution engine
-  - strict IR harness coverage now also includes configured server-loaded
-    sqlite sidecars on real LOINC v0 data via `scripts/run-ir-harness.sh
-    --with-synthetic-supplements`
+  - strict unified TX harness coverage now also includes configured
+    server-loaded sqlite sidecars on real LOINC v0 data via
+    `node scripts/tx-harness.mjs --perf --db-dir /home/jmandel/hobby/sct/cache`
   - attached-query tests proving distinct-property and multi-supplement
     shared-property query shapes
   - manual attached-query probes against full LOINC synthetic sidecars,
@@ -1473,24 +1473,22 @@ Implemented notes:
     without paying sidecar -> `CodeSystem` conversion
   - generic consumers can still request the overlay on demand
   - targeted tests pin this behavior in:
-    - `tests/tx/supplement-sqlite-source.test.js`
-    - `tests/tx/supplements-resolver.test.js`
+    - `tests/ir-engine/supplements/supplement-sqlite-source.test.js`
+    - `tests/ir-engine/supplements/supplements-resolver.test.js`
 - legacy `$expand` now fails closed for requested configured sqlite sidecars
   instead of returning a misleading success that omits supplement semantics
 - request-level tests now cover server-loaded sqlite supplement resolution from
   config in `$expand`, `$lookup`, and `$validate-code`
 - harness/perf runner support is now live for generated server-loaded sqlite
   supplements:
-  - `scripts/run-ir-harness.sh --with-synthetic-supplements`
+  - `node scripts/tx-harness.mjs --perf --db-dir /home/jmandel/hobby/sct/cache`
   - generates deterministic LOINC `d20` / `d8` sidecars under the run output
   - patches the active library YAML so the LOINC `sqlite-v0:` source gets
     `options.supplements`
   - exposes the generated supplement canonical root to the harness through
     `HARNESS_SQLITE_SUPP_URL_ROOT`
-- a full supplement-aware perf run now exists at:
-  - `tmp/ir-harness-runs/perf-supp-20260306/perf-table.html`
-  - that run covers both inline supplement rows and configured sqlite-sidecar
-    rows in the same matrix
+- full supplement-aware perf coverage now lives in the shared TX harness
+  matrix; checked-in snapshots are published under `docs/perf/`
 
 Still missing:
 
@@ -1541,7 +1539,7 @@ Implemented notes:
   - `internal:usstates` inline supplement numeric filters affect membership
     before paging
   - `ucum` inline supplement designations affect IR text filtering
-- strict IR harness coverage now includes those same adapter-backed supplement
+- strict unified TX harness coverage now includes those same adapter-backed supplement
   query shapes
 
 Deliberate non-work in this phase:

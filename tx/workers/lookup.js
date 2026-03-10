@@ -149,14 +149,6 @@ class LookupWorker extends TerminologyWorker {
         return res.status(422).json(this.operationOutcome('error', 'not-found', msg));
       }
 
-      // check supplements
-      const used = new Set();
-      this.checkSupplements(csProvider, null, txp.supplements, used);
-      const unused = new Set([...txp.supplements].filter(s => !used.has(s)));
-      if (unused.size > 0) {
-        throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', txp.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(400);
-      }
-
       // Perform the lookup
       const result = await this.doLookup(csProvider, code, txp);
       return res.status(200).json(result);

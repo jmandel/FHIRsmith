@@ -310,12 +310,58 @@ class TerminologyWorker {
     return await resolveSupplementsForBaseScope({ target, refs, registry: activeRegistry });
   }
 
+  assertResolvableSupplements(supplementSet, languages = null, statusCode = 422) {
+    const missing = new Set((supplementSet?.missingRefs || []).map((ref) => ref?.canonical).filter(Boolean));
+    if (missing.size === 0) return;
+    throw new Issue(
+      'error',
+      'not-found',
+      null,
+      'VALUESET_SUPPLEMENT_MISSING',
+      this.i18n.translatePlural(
+        missing.size,
+        'VALUESET_SUPPLEMENT_MISSING',
+        languages || this.params?.HTTPLanguages || this.opContext?.langs,
+        [[...missing].join(',')]
+      ),
+      'not-found',
+      statusCode
+    );
+  }
+
   async materializeSupplementSetOverlaySources(supplementSet) {
     return await materializeSupplementSetOverlaySources(supplementSet);
   }
 
   async bindIRScopeForExpansion(provider, supplementSet) {
     return await bindIRScope(provider, supplementSet);
+  }
+
+  async bindIRScopeForOperation(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, statedSupplements = null) {
+    if (!url) return null;
+
+    let resolvedVersion = version;
+    if (!noVParams) {
+      resolvedVersion = this.determineVersionBase(url, version, params);
+    }
+
+    const baseProvider = await this._findCodeSystemWithResolvedSupplements(
+      url, resolvedVersion, params, kinds, op, nullOk, checkVer, []
+    );
+    if (!baseProvider) return null;
+
+    const refs = dedupeSupplementRefs(
+      Array.from(statedSupplements || []).map((canonical, index) =>
+        makeSupplementRef(canonical, 'useSupplement', index))
+    );
+    const targetVersion = resolvedVersion
+      || (typeof baseProvider.version === 'function' ? baseProvider.version() : null)
+      || null;
+    const supplementSet = refs.length > 0
+      ? await this.resolveSupplementsForIRBaseScope({ system: url, version: targetVersion }, refs)
+      : null;
+    this.assertResolvableSupplements(supplementSet, params?.HTTPLanguages, 422);
+    return await bindIRScope(baseProvider, supplementSet);
   }
 
   async resolveSupplementCodeSystemsForBaseScope(target, statedSupplements, registry = null) {
@@ -325,6 +371,7 @@ class TerminologyWorker {
     );
     if (refs.length === 0) return [];
     const supplementSet = await this.resolveSupplementsForIRBaseScope(target, refs, registry);
+    this.assertResolvableSupplements(supplementSet, this.params?.HTTPLanguages, 422);
     await this.materializeSupplementSetOverlaySources(supplementSet);
     return (supplementSet?.items || [])
       .map(item => item?.overlaySource)
@@ -419,6 +466,7 @@ class TerminologyWorker {
           makeSupplementRef(canonical, 'useSupplement', index))
       )
     );
+    this.assertResolvableSupplements(supplementSet, params?.HTTPLanguages, 422);
     if (typeof baseProvider.attachIRSupplements === 'function') {
       await baseProvider.attachIRSupplements(supplementSet);
       return baseProvider;
@@ -840,17 +888,19 @@ class TerminologyWorker {
   // ========== Additional Resources Handling ==========
 
   /**
-   * Set up additional resources from tx-resource parameters and cache
+   * Set up additional resources from inline resource parameters and cache
    * @param {Object} params - Parameters resource
    */
   setupAdditionalResources(params) {
     if (!params || !params.parameter) return;
 
-    // Collect tx-resource parameters (resources provided inline)
+    // Collect inline CodeSystem/ValueSet resources supplied on the request.
+    // `tx-resource` is the generic form, but some operations also use
+    // named resource parameters such as `codeSystem` and `valueSet`.
     const txResources = [];
     for (const param of params.parameter) {
       this.deadCheck('setupAdditionalResources');
-      if (param.name === 'tx-resource' && param.resource) {
+      if (param.resource) {
         let res = this.wrapRawResource(param.resource);
         if (res) {
           txResources.push(res);

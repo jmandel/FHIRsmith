@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:51:34.519Z",
+  "rowIndex": 248,
+  "slug": "248-post-validate-adapter-backed-inline-supplement-backed-property-filter-via-ir-ret",
+  "name": "POST validate adapter-backed inline supplement-backed property filter via IR returns false",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/248-post-validate-adapter-backed-inline-supplement-backed-property-filter-via-ir-ret.json",
+    "detailJson": "248-post-validate-adapter-backed-inline-supplement-backed-property-filter-via-ir-ret.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 24,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 24,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:43775/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "https://www.usps.com/"
+              },
+              {
+                "name": "code",
+                "valueCode": "CA"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "https://www.usps.com/",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "type": "integer"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "TX",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 20
+                        }
+                      ]
+                    },
+                    {
+                      "code": "CA",
+                      "property": [
+                        {
+                          "code": "d20-roll",
+                          "valueInteger": 1
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "status": "active",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "https://www.usps.com/",
+                        "filter": [
+                          {
+                            "property": "d20-roll",
+                            "op": "=",
+                            "value": "20"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "840",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:51:34 GMT",
+            "etag": "W/\"348-AHDpOfmSdauIR782Ngut/QmKID4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-815"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "https://www.usps.com/"
+              },
+              {
+                "name": "code",
+                "valueCode": "CA"
+              },
+              {
+                "name": "display",
+                "valueString": "California"
+              },
+              {
+                "name": "message",
+                "valueString": "The provided code 'https://www.usps.com/#CA' was not found in the value set 'undefined'"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "code-invalid",
+                      "details": {
+                        "text": "The provided code 'https://www.usps.com/#CA' was not found in the value set 'undefined'",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-in-vs"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "code"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "None_of_the_provided_codes_are_in_the_value_set_one"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": false,
+        "supported": false
+      },
+      "debug": null,
+      "supported": false
+    }
+  ]
+}

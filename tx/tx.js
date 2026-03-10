@@ -21,9 +21,12 @@ const packageJson = require("../package.json");
 const ReadWorker = require('./workers/read');
 const SearchWorker = require('./workers/search');
 const { ExpandWorker, INTERNAL_DEFAULT_LIMIT, EXTERNAL_DEFAULT_LIMIT} = require('./workers/expand');
+const { ExpandIRWorker } = require('./workers/expand-ir');
 const { ValidateWorker } = require('./workers/validate');
+const { ValidateIRWorker } = require('./workers/validate-ir');
 const TranslateWorker = require('./workers/translate');
 const LookupWorker = require('./workers/lookup');
+const { LookupIRWorker } = require('./workers/lookup-ir');
 const SubsumesWorker = require('./workers/subsumes');
 const { MetadataHandler } = require('./workers/metadata');
 const { BatchValidateWorker } = require('./workers/batch-validate');
@@ -50,6 +53,7 @@ const ClosureWorker = require("./workers/closure");
 const {BundleXML} = require("./xml/bundle-xml");
 const ConceptUsageTracker = require("./usage-tracker");
 const ProblemFinder = require("./problems");
+const { getRequestedEngine, shouldUseIRExpandByDefault } = require('./workers/engine-selection');
 // const {writeFileSync} = require("fs");
 
 class TXModule {
@@ -125,6 +129,41 @@ class TXModule {
     } else {
       return 'application/fhir+json';
     }
+  }
+
+  createExpandOpWorker(req) {
+    const requestedEngine = getRequestedEngine(req);
+    const useIR = requestedEngine === 'ir'
+      || (requestedEngine !== 'legacy' && shouldUseIRExpandByDefault());
+    if (useIR) {
+      return new ExpandIRWorker(
+        req.txOpContext,
+        this.log,
+        req.txProvider,
+        this.languages,
+        this.i18n,
+        this.internalLimit(req),
+        this.externalLimit(req),
+        requestedEngine === 'ir'
+      );
+    }
+    return new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
+  }
+
+  createValidateOpWorker(req) {
+    const requestedEngine = getRequestedEngine(req);
+    if (requestedEngine === 'ir') {
+      return new ValidateIRWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+    }
+    return new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+  }
+
+  createLookupOpWorker(req) {
+    const requestedEngine = getRequestedEngine(req);
+    if (requestedEngine === 'ir') {
+      return new LookupIRWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+    }
+    return new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
   }
 
   /**
@@ -482,7 +521,7 @@ class TXModule {
     router.get('/CodeSystem/\\$lookup', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createLookupOpWorker(req);
         await worker.handle(req, res);
       } finally {
         this.countRequest('$lookup', Date.now() - start);
@@ -491,7 +530,7 @@ class TXModule {
     router.post('/CodeSystem/\\$lookup', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createLookupOpWorker(req);
         await worker.handle(req, res);
       } finally {
         this.countRequest('$lookup', Date.now() - start);
@@ -522,7 +561,7 @@ class TXModule {
     router.get('/CodeSystem/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createValidateOpWorker(req);
         await worker.handleCodeSystem(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
@@ -531,7 +570,7 @@ class TXModule {
     router.post('/CodeSystem/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createValidateOpWorker(req);
         await worker.handleCodeSystem(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
@@ -561,7 +600,7 @@ class TXModule {
     router.get('/ValueSet/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createValidateOpWorker(req);
         await worker.handleValueSet(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
@@ -570,7 +609,7 @@ class TXModule {
     router.post('/ValueSet/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createValidateOpWorker(req);
         await worker.handleValueSet(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
@@ -621,7 +660,7 @@ class TXModule {
     router.get('/ValueSet/\\$expand', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
+        let worker = this.createExpandOpWorker(req);
         await worker.handle(req, res, this.log);
       } finally {
         this.countRequest('$expand', Date.now() - start);
@@ -630,7 +669,7 @@ class TXModule {
     router.post('/ValueSet/\\$expand', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
+        let worker = this.createExpandOpWorker(req);
         await worker.handle(req, res, this.log);
       } finally {
         this.countRequest('$expand', Date.now() - start);
@@ -683,7 +722,7 @@ class TXModule {
     router.get('/CodeSystem/:id/\\$lookup', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createLookupOpWorker(req);
         await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$lookup', Date.now() - start);
@@ -692,7 +731,7 @@ class TXModule {
     router.post('/CodeSystem/:id/\\$lookup', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createLookupOpWorker(req);
         await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$lookup', Date.now() - start);
@@ -723,7 +762,7 @@ class TXModule {
     router.get('/CodeSystem/:id/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-      let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+      let worker = this.createValidateOpWorker(req);
         await worker.handleCodeSystemInstance(req, res, this.log);
     } finally {
       this.countRequest('$validate', Date.now() - start);
@@ -732,7 +771,7 @@ class TXModule {
     router.post('/CodeSystem/:id/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createValidateOpWorker(req);
         await worker.handleCodeSystemInstance(req, res, this.log);
       } finally {
         this.countRequest('$validate', Date.now() - start);
@@ -744,7 +783,7 @@ class TXModule {
     router.get('/ValueSet/:id/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createValidateOpWorker(req);
         await worker.handleValueSetInstance(req, res, this.log);
       } finally {
         this.countRequest('$validate', Date.now() - start);
@@ -753,7 +792,7 @@ class TXModule {
     router.post('/ValueSet/:id/\\$validate-code', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = this.createValidateOpWorker(req);
         await worker.handleValueSetInstance(req, res, this.log);
       } finally {
         this.countRequest('$validate', Date.now() - start);
@@ -785,7 +824,7 @@ class TXModule {
     router.get('/ValueSet/:id/\\$expand', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
+        let worker = this.createExpandOpWorker(req);
         await worker.handleInstance(req, res, this.log);
       } finally {
         this.countRequest('$expand', Date.now() - start);
@@ -794,7 +833,7 @@ class TXModule {
     router.post('/ValueSet/:id/\\$expand', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
+        let worker = this.createExpandOpWorker(req);
         await worker.handleInstance(req, res, this.log);
       } finally {
         this.countRequest('$expand', Date.now() - start);

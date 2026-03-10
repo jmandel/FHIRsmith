@@ -7,6 +7,7 @@ This branch has three distinct test layers. They serve different purposes and sh
 Use these for day-to-day development. They cover:
 
 - engine semantics
+- IR-engine-specific runtime and request-flow coverage
 - sqlite-v0 compiler behavior
 - provider contracts
 - targeted worker/runtime behavior
@@ -15,11 +16,12 @@ Typical commands:
 
 ```bash
 npm run test:engine
+npm run test:ir
 npm run test:cs
 npm run test:tx
 
 # or target a specific file/batch when you are iterating
-npm test -- tests/tx/expand-ir-typed-properties.test.js --runInBand
+npm test -- tests/ir-engine/operations/expand-ir-typed-properties.test.js --runInBand
 ```
 
 Notes:
@@ -31,18 +33,18 @@ Example batched command for supplement/runtime integration work:
 
 ```bash
 npm test -- \
-  tests/tx/expand-sqlite-supplement-config.test.js \
-  tests/tx/lookup-sqlite-supplement-config.test.js \
-  tests/tx/validate-sqlite-supplement-config.test.js \
-  tests/tx/expand-adapter-supplement-runtime.test.js \
-  tests/tx/expand-ir-error-propagation.test.js \
-  tests/tx/expand-ir-typed-properties.test.js \
-  tests/tx/expand-sqlite-v0-base-typed-properties.test.js \
-  tests/tx/upstream-parity-regressions.test.js \
+  tests/ir-engine/operations/expand-sqlite-supplement-config.test.js \
+  tests/ir-engine/operations/lookup-sqlite-supplement-config.test.js \
+  tests/ir-engine/operations/validate-sqlite-supplement-config.test.js \
+  tests/ir-engine/operations/expand-adapter-supplement-runtime.test.js \
+  tests/ir-engine/operations/expand-ir-error-propagation.test.js \
+  tests/ir-engine/operations/expand-ir-typed-properties.test.js \
+  tests/ir-engine/operations/expand-ir-compose-overrides.test.js \
+  tests/ir-engine/operations/validate-ir-runtime.test.js \
   --runInBand
 ```
 
-## 2. HTTP integration suites under `tests/tx/`
+## 2. HTTP integration suites under `tests/tx/` and `tests/ir-engine/operations/`
 
 These tests start a temporary TX app and send real HTTP requests through the worker layer.
 
@@ -100,26 +102,25 @@ Why:
 - sharing one app per file keeps coverage the same while cutting wall-clock noticeably
 - `buildTempV0DbFile(..., { dir })` lets the managed fixture own the whole temp tree for cleanup
 
-## 3. Harness and perf matrix
+## 3. Unified HTTP harness and perf matrix
 
-The full expand corpus and the 3-column performance matrix are **not** part of the Jest refactor. They stay in the harness.
+The broad request matrix and the 3-column performance comparison are **not** part of the Jest refactor. They stay in the harness.
 
 Main entry points:
 
-- [`scripts/ir-harness.mjs`](../scripts/ir-harness.mjs)
-- [`scripts/run-ir-harness.sh`](../scripts/run-ir-harness.sh)
+- [`scripts/tx-harness.mjs`](../scripts/tx-harness.mjs)
 
 Common commands:
 
 ```bash
-# IR engine corpus
+# unified local matrix (expand + validate + lookup rows)
 npm run test:harness
 
-# legacy expander corpus
+# legacy-default matrix
 npm run test:harness:legacy
 
-# one-shot wrapper: start server(s), run harness, collect artifacts
-scripts/run-ir-harness.sh --ir
+# one-shot managed harness: start server(s), run matrix cases, collect artifacts
+node scripts/tx-harness.mjs --ir --db-dir /home/jmandel/hobby/sct/cache
 
 # default perf matrix: 2 columns, 1 repeat, synthetic supplement sidecars enabled
 npm run test:perf:matrix
@@ -128,28 +129,60 @@ npm run test:perf:matrix
 npm run test:perf:matrix:3col
 ```
 
+The harness auto-selects free local ports for the primary and optional third
+server. You do not need to pass `--port` or `--third-port` unless you want to
+prefer a specific starting port.
+
+The harness keeps a persistent package cache under `tmp/tx-harness-cache/` by
+default, so repeated runs do not need to cold-fetch terminology packages unless
+you point `--cache-root` somewhere else.
+
 Useful perf tuning flags:
 
 ```bash
 # focus on a subset
-scripts/run-ir-harness.sh --perf --filter "supplement|diabetes"
+node scripts/tx-harness.mjs --perf --db-dir /home/jmandel/hobby/sct/cache --filter "supplement|diabetes"
 
 # disable generated sqlite supplement sidecars if you only want the base corpus
-scripts/run-ir-harness.sh --perf --without-synthetic-supplements
+node scripts/tx-harness.mjs --perf --db-dir /home/jmandel/hobby/sct/cache --without-synthetic-supplements
 ```
 
 Important:
 
 - The 3-column HTML matrix and per-row detail pages remain the broad benchmark/parity layer.
+- The harness now uses one matrix runner and one output format for:
+  - `$expand`
+  - `$validate-code`
+  - `$lookup`
 - Reorganizing Jest suites should not change harness coverage.
 - Perf mode now avoids a second debug request for rows that already have a captured perf sample.
 - The third column is opt-in and uses a shorter timeout budget than the primary/local columns.
+
+Current unified harness inventory:
+
+- `199` `$expand` rows
+- `25` `$lookup` rows
+- `47` `$validate-code` rows
+
+Legacy expectations inside the shared harness are parity-driven:
+
+- inline supplement cases are enabled for legacy only when current
+  `tx.fhir.org` supports them
+- configured sqlite supplement cases remain IR-only unless there is real
+  legacy support to compare against
+
+See also:
+
+- [tx-harness-plan.md](tx-harness-plan.md) — unified harness coverage plan for `$expand`, `$validate-code`, and `$lookup`
 
 ## Choosing the right layer
 
 Use this rule of thumb:
 
-- `tests/engine/`: IR semantics, rewrite rules, orchestration shaping
+- `tests/engine/`: shared engine semantics and long-running semantic/model checks
+- `tests/ir-engine/core/`: branch-specific IR runtime and execution seams
+- `tests/ir-engine/supplements/`: new supplement runtime unit/integration coverage
+- `tests/ir-engine/operations/`: request-level IR operation flows (`$expand`, `$validate-code`, `$lookup`)
 - `tests/cs/`: provider contracts, sqlite-v0 planner/compiler behavior
 - `tests/tx/`: HTTP worker integration and request/response behavior
 - harness/perf: broad expand corpus, matrix comparison, traces, and performance artifacts

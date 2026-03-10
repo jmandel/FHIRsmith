@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: Area-code class filter with inline CodeSystem peer</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:52:41.936Z",
+  "rowIndex": 122,
+  "slug": "122-area-code-class-filter-with-inline-codesystem-peer",
+  "name": "Area-code class filter with inline CodeSystem peer",
+  "category": "Cross-Source Coverage",
+  "hrefs": {
+    "input": "../perf-table.inputs/122-area-code-class-filter-with-inline-codesystem-peer.json",
+    "detailJson": "122-area-code-class-filter-with-inline-codesystem-peer.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                        "filter": [
+                          {
+                            "property": "class",
+                            "op": "=",
+                            "value": "region"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "5161",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:52:41 GMT",
+            "etag": "W/\"1429-foTZVbHDdQGCamWGkRWSESb3XvU\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-417"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:52:41.929Z",
+              "identifier": "urn:uuid:7f882b8a-da72-4072-94c4-bbd66d7d200a",
+              "total": 30,
+              "contains": [
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "001",
+                  "display": "World"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "002",
+                  "display": "Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "005",
+                  "display": "South America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "009",
+                  "display": "Oceania"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "011",
+                  "display": "Western Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "013",
+                  "display": "Central America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "014",
+                  "display": "Eastern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "015",
+                  "display": "Northern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "017",
+                  "display": "Middle Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "018",
+                  "display": "Southern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "019",
+                  "display": "Americas"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "021",
+                  "display": "Northern America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "029",
+                  "display": "Caribbean"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "030",
+                  "display": "Eastern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "034",
+                  "display": "Southern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "035",
+                  "display": "South-Eastern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "039",
+                  "display": "Southern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "053",
+                  "display": "Australia and New Zealand"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "054",
+                  "display": "Melanesia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "057",
+                  "display": "Micronesia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "061",
+                  "display": "Polynesia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "142",
+                  "display": "Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "143",
+                  "display": "Central Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "145",
+                  "display": "Western Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "150",
+                  "display": "Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "151",
+                  "display": "Eastern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "154",
+                  "display": "Northern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "155",
+                  "display": "Western Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "419",
+                  "display": "Latin America and the Caribbean"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://hl7.org/fhir/administrative-gender, http://unstats.un.org/unsd/methods/m49/m49.htm\ncanonical-ir-hash: 9bc5a6a4d8448522a3c5a2f0a0cb0c75a7bfa99f\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    selector concept http://hl7.org/fhir/administrative-gender [1] male [n.0]\n    selector filter http://unstats.un.org/unsd/methods/m49/m49.htm class = region [n.1]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.02,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":2,\"activeOnly\":false,\"text\":null,\"offset\":0,\"count\":1000,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"note\",\"message\":\"count:static\",\"data\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"count\":1},\"t\":0.32},{\"name\":\"countForIR\",\"args\":{\"system\":\"http://unstats.un.org/unsd/methods/m49/m49.htm\"},\"children\":[],\"ms\":0.28,\"result\":{\"count\":29}},{\"name\":\"pagination\",\"args\":{\"total\":30,\"offset\":0,\"count\":1000,\"systems\":2},\"children\":[{\"name\":\"system:http://hl7.org/fhir/administrative-gender\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[],\"ms\":0.03,\"result\":{\"candidates\":1}},{\"name\":\"system:http://unstats.un.org/unsd/methods/m49/m49.htm\",\"args\":{\"sysOffset\":0,\"sysCount\":29},\"children\":[],\"ms\":0.23,\"result\":{\"candidates\":29}}],\"ms\":0.27,\"result\":{\"paged\":30}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":30,\"includeDesignations\":false},\"children\":[],\"ms\":0.03,\"result\":{\"count\":30}}],\"ms\":0.94,\"result\":{\"total\":30,\"contains\":30}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.02,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 2,
+                "activeOnly": false,
+                "text": null,
+                "offset": 0,
+                "count": 1000,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "note",
+                  "message": "count:static",
+                  "data": {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "count": 1
+                  },
+                  "t": 0.32
+                },
+                {
+                  "name": "countForIR",
+                  "args": {
+                    "system": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+                  },
+                  "children": [],
+                  "ms": 0.28,
+                  "result": {
+                    "count": 29
+                  }
+                },
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": 30,
+                    "offset": 0,
+                    "count": 1000,
+                    "systems": 2
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://hl7.org/fhir/administrative-gender",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 1
+                      },
+                      "children": [],
+                      "ms": 0.03,
+                      "result": {
+                        "candidates": 1
+                      }
+                    },
+                    {
+                      "name": "system:http://unstats.un.org/unsd/methods/m49/m49.htm",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 29
+                      },
+                      "children": [],
+                      "ms": 0.23,
+                      "result": {
+                        "candidates": 29
+                      }
+                    }
+                  ],
+                  "ms": 0.27,
+                  "result": {
+                    "paged": 30
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 30,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.03,
+                  "result": {
+                    "count": 30
+                  }
+                }
+              ],
+              "ms": 0.94,
+              "result": {
+                "total": 30,
+                "contains": 30
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://hl7.org/fhir/administrative-gender, http://unstats.un.org/unsd/methods/m49/m49.htm\ncanonical-ir-hash: 9bc5a6a4d8448522a3c5a2f0a0cb0c75a7bfa99f\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  union [2] [n]\n    selector concept http://hl7.org/fhir/administrative-gender [1] male [n.0]\n    selector filter http://unstats.un.org/unsd/methods/m49/m49.htm class = region [n.1]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                        "filter": [
+                          {
+                            "property": "class",
+                            "op": "=",
+                            "value": "region"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3882",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:52:41 GMT",
+            "etag": "W/\"f2a-wg+Nwt5rt7+7smmso6uFMUjNp9o\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-418"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:52:41.931Z",
+              "identifier": "urn:uuid:ea1636eb-9cb2-44c5-8fb4-ac8f2ed96569",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                }
+              ],
+              "total": 30,
+              "contains": [
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "001",
+                  "display": "World"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "002",
+                  "display": "Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "014",
+                  "display": "Eastern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "017",
+                  "display": "Middle Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "015",
+                  "display": "Northern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "018",
+                  "display": "Southern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "011",
+                  "display": "Western Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "019",
+                  "display": "Americas"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "419",
+                  "display": "Latin America and the Caribbean"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "029",
+                  "display": "Caribbean"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "013",
+                  "display": "Central America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "005",
+                  "display": "South America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "021",
+                  "display": "Northern America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "142",
+                  "display": "Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "143",
+                  "display": "Central Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "030",
+                  "display": "Eastern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "034",
+                  "display": "Southern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "035",
+                  "display": "South-Eastern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "145",
+                  "display": "Western Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "150",
+                  "display": "Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "151",
+                  "display": "Eastern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "154",
+                  "display": "Northern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "039",
+                  "display": "Southern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "155",
+                  "display": "Western Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "009",
+                  "display": "Oceania"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "053",
+                  "display": "Australia and New Zealand"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "054",
+                  "display": "Melanesia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "057",
+                  "display": "Micronesia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "061",
+                  "display": "Polynesia"
+                },
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.39,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.37,\"result\":{\"ms\":1.37,\"total\":30,\"returned\":30}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.39,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1.37,
+              "result": {
+                "ms": 1.37,
+                "total": 30,
+                "returned": 30
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:39871/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                        "filter": [
+                          {
+                            "property": "class",
+                            "op": "=",
+                            "value": "region"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "concept": [
+                          {
+                            "code": "male"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3882",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:52:41 GMT",
+            "etag": "W/\"f2a-H5ShmGX7+Zad4SVc6AsHhTCP8rc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-126"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:52:41.935Z",
+              "identifier": "urn:uuid:cfc5b38e-0195-41fb-bf55-d23a60cda3cd",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://hl7.org/fhir/administrative-gender|4.0.1"
+                }
+              ],
+              "total": 30,
+              "contains": [
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "001",
+                  "display": "World"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "002",
+                  "display": "Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "014",
+                  "display": "Eastern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "017",
+                  "display": "Middle Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "015",
+                  "display": "Northern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "018",
+                  "display": "Southern Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "011",
+                  "display": "Western Africa"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "019",
+                  "display": "Americas"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "419",
+                  "display": "Latin America and the Caribbean"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "029",
+                  "display": "Caribbean"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "013",
+                  "display": "Central America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "005",
+                  "display": "South America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "021",
+                  "display": "Northern America"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "142",
+                  "display": "Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "143",
+                  "display": "Central Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "030",
+                  "display": "Eastern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "034",
+                  "display": "Southern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "035",
+                  "display": "South-Eastern Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "145",
+                  "display": "Western Asia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "150",
+                  "display": "Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "151",
+                  "display": "Eastern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "154",
+                  "display": "Northern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "039",
+                  "display": "Southern Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "155",
+                  "display": "Western Europe"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "009",
+                  "display": "Oceania"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "053",
+                  "display": "Australia and New Zealand"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "054",
+                  "display": "Melanesia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "057",
+                  "display": "Micronesia"
+                },
+                {
+                  "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+                  "code": "061",
+                  "display": "Polynesia"
+                },
+                {
+                  "system": "http://hl7.org/fhir/administrative-gender",
+                  "code": "male",
+                  "display": "Male"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.09,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":-1,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":false},\"children\":[],\"ms\":1.07,\"result\":{\"ms\":1.06,\"total\":30,\"returned\":30}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.09,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": -1,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 1.07,
+              "result": {
+                "ms": 1.06,
+                "total": 30,
+                "returned": 30
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf || perf.supported === false) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = target.supported === false ? 'not exercised for this case' : (debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed');
+    const status = target.supported === false ? 'n/a' : (debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a');
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.supported === false ? 'N/A for this case' : (debug?.irPlanText || 'N/A for this target');
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = target.supported === false ? 'N/A for this case' : (debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.');
+      } else {
+        label = 'HTTP Response';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

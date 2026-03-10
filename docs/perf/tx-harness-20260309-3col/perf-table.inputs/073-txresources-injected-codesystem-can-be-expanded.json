@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "id": 73,
+  "slug": "073-txresources-injected-codesystem-can-be-expanded",
+  "name": "txResources-injected CodeSystem can be expanded",
+  "category": "txResources",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/colors"
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": {
+        "resourceType": "CodeSystem",
+        "url": "http://example.org/cs/colors",
+        "version": "1.0.0",
+        "status": "active",
+        "content": "complete",
+        "concept": [
+          {
+            "code": "red",
+            "display": "Red"
+          },
+          {
+            "code": "green",
+            "display": "Green"
+          },
+          {
+            "code": "blue",
+            "display": "Blue"
+          }
+        ]
+      }
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:45521/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/colors"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/colors",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:45521/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/colors"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/colors",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:39871/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/colors"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/colors",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

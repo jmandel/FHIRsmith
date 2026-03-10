@@ -706,7 +706,7 @@ is that the request-level supplement resolution is the same either way.
 
 Related tests:
 
-- `tests/tx/expand-sqlite-supplement-config.test.js`
-- `tests/tx/lookup-sqlite-supplement-config.test.js`
-- `tests/tx/validate-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/expand-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/lookup-sqlite-supplement-config.test.js`
+- `tests/ir-engine/operations/validate-sqlite-supplement-config.test.js`
 - `tests/cs/sqlite-v0-native-supplements.test.js`

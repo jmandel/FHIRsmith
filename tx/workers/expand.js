@@ -19,12 +19,6 @@ const crypto = require('crypto');
 const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
 
-let _irExpandEntry;
-function getIRExpandEntry() {
-  if (!_irExpandEntry) _irExpandEntry = require('../engine/expand-entry');
-  return _irExpandEntry;
-}
-
 // Trace infrastructure (lazy-loaded)
 let _expandTrace;
 function getExpandTrace() {
@@ -1998,60 +1992,7 @@ class ExpandWorker extends TerminologyWorker {
       params.limit = EXTERNAL_DEFAULT_LIMIT; // can't ask for more than this externally, though you can internally
     }
 
-    // Try IR engine first (opt-in via EXPAND_IR_ENGINE=1).
-    // Per-request override: _engine=ir is strict IR-only.
-    // _engine=ir-strict is accepted as a deprecated alias for compatibility.
-    // _engine=legacy forces legacy.
-    const engineOverride = params._engine === 'ir-strict' ? 'ir' : params._engine;
-    const strictIR = engineOverride === 'ir';
-    const useIR = strictIR || (engineOverride !== 'legacy' && process.env.EXPAND_IR_ENGINE === '1');
     const wantTrace = !!params._trace;
-    let irAttempt = null;
-    if (useIR) {
-      const { maybeExpandValueSetViaIR } = getIRExpandEntry();
-      const irResult = await maybeExpandValueSetViaIR({
-        valueSet,
-        params,
-        strictIR,
-        externalDefaultLimit: EXTERNAL_DEFAULT_LIMIT,
-        traceExtensionUrl: TRACE_EXTENSION_URL,
-        services: {
-          findBaseProvider: async (system, version) => (
-            await this.findCodeSystemWithSupplements(
-              system, version, params, ['complete', 'fragment'],
-              false, true, false, false, []
-            )
-          ),
-          buildSupplementRegistry: async () => await this.buildSupplementRegistryForIR(),
-          resolveSupplementSet: async (target, refs, registry) => (
-            await this.resolveSupplementsForIRBaseScope(target, refs, registry)
-          ),
-          bindIRScope: async (provider, supplementSet) => (
-            await this.bindIRScopeForExpansion(provider, supplementSet)
-          ),
-          resolveValueSet: async (url, version) => {
-            try {
-              const vs = await this.findValueSet(url, version);
-              return vs?.jsonObj || vs;
-            } catch {
-              return null;
-            }
-          },
-          resolveVersionAtDate: async (system, lockedDate) => {
-            try {
-              if (typeof this.resolveCodeSystemVersionAtDate !== 'function') return null;
-              return await this.resolveCodeSystemVersionAtDate(system, lockedDate, params);
-            } catch {
-              return null;
-            }
-          },
-          log: message => this.opContext?.log?.(message),
-          diagnostics: () => this.opContext?.diagnostics?.(),
-        },
-      });
-      if (irResult?.expansion) return irResult.expansion;
-      irAttempt = irResult?.irAttempt || null;
-    }
 
     const filter = new SearchFilterText(params.filter);
     const expander = new ValueSetExpander(this, params);
@@ -2061,10 +2002,9 @@ class ExpandWorker extends TerminologyWorker {
       const { ExpandTrace, traceStore, formatTraceSummary } = getExpandTrace();
       const traceObj = new ExpandTrace();
       traceObj.note('engine-selection', {
-        requested: engineOverride || null,
+        requested: params._engine || null,
         selected: 'legacy',
-        irAttempted: !!irAttempt,
-        irAttempt: irAttempt || undefined,
+        irAttempted: false,
       });
       const legacySpan = traceObj.begin('legacy-expand', {
         count: params.count,

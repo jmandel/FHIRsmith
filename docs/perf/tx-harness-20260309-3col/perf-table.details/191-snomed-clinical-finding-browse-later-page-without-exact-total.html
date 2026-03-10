@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: SNOMED clinical finding browse later page without exact total</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:53:46.476Z",
+  "rowIndex": 191,
+  "slug": "191-snomed-clinical-finding-browse-later-page-without-exact-total",
+  "name": "SNOMED clinical finding browse later page without exact total",
+  "category": "Clinical Workloads",
+  "hrefs": {
+    "input": "../perf-table.inputs/191-snomed-clinical-finding-browse-later-page-without-exact-total.json",
+    "detailJson": "191-snomed-clinical-finding-browse-later-page-without-exact-total.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 88,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 88,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "offset",
+                "valueInteger": 5000
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "13428",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:53:45 GMT",
+            "etag": "W/\"3474-n3UvUWJ2NGmNMBSwlCA7Vl1XHpQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-674"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-10T06:53:45.866Z",
+              "identifier": "urn:uuid:b9c67c65-0973-42a6-b9db-9644c0b54c9e",
+              "offset": 5000,
+              "contains": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110082000",
+                  "display": "Avulsion of mandible"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110083005",
+                  "display": "Avulsion of maxilla"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110084004",
+                  "display": "Simple laceration of tongue"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110085003",
+                  "display": "Contaminated simple laceration of tongue"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110086002",
+                  "display": "Complex laceration of tongue"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110087006",
+                  "display": "Contaminated complex laceration of tongue"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110088001",
+                  "display": "Avulsion of tongue"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110089009",
+                  "display": "Simple laceration of floor of mouth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110090000",
+                  "display": "Contaminated simple laceration of floor of mouth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110091000119107",
+                  "display": "Candidiasis of vagina in pregnancy (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110091001",
+                  "display": "Complex laceration of floor of mouth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110092008",
+                  "display": "Contaminated complex laceration of floor of mouth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110093003",
+                  "display": "Avulsion of floor of mouth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110094009",
+                  "display": "Simple laceration of labial mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110095005",
+                  "display": "Contaminated simple laceration of labial mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110096006",
+                  "display": "Complex laceration of labial mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110097002",
+                  "display": "Contaminated complex laceration of labial mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110098007",
+                  "display": "Avulsion of labial mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110099004",
+                  "display": "Simple laceration of buccal mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110100007",
+                  "display": "Contaminated simple laceration of buccal mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "1101000119103",
+                  "display": "Obstructive sleep apnea of adult"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110101006",
+                  "display": "Complex laceration of buccal mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110102004",
+                  "display": "Contaminated complex laceration of buccal mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110103009",
+                  "display": "Avulsion of buccal mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110104003",
+                  "display": "Simple laceration of mandibular vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "11010461000119101",
+                  "display": "Small cell carcinoma (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110105002",
+                  "display": "Contaminated simple laceration of mandibular vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110106001",
+                  "display": "Complex laceration of mandibular vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110107005",
+                  "display": "Contaminated complex laceration of mandibular vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110108000",
+                  "display": "Avulsion of mandibular vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110109008",
+                  "display": "Simple laceration of maxillary vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110110003",
+                  "display": "Contaminated simple laceration of maxillary vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "11011007",
+                  "display": "Acute infantile eczema"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110111004",
+                  "display": "Complex laceration of maxillary vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110112006",
+                  "display": "Contaminated complex laceration of maxillary vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110113001",
+                  "display": "Avulsion of maxillary vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110114007",
+                  "display": "Simple laceration of mandibular attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110115008",
+                  "display": "Contaminated simple laceration of mandibular attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110116009",
+                  "display": "Complex laceration of mandibular attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110117000",
+                  "display": "Contaminated complex laceration of mandibular attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110118005",
+                  "display": "Avulsion of mandibular attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "11011871000119101",
+                  "display": "Acquired arteriovenous fistula (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110119002",
+                  "display": "Simple laceration of maxillary attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110120008",
+                  "display": "Contaminated simple laceration of maxillary attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110121007",
+                  "display": "Complex laceration of maxillary attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110122000",
+                  "display": "Contaminated complex laceration of maxillary attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110123005",
+                  "display": "Avulsion of maxillary attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110124004",
+                  "display": "Simple laceration of hard palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110125003",
+                  "display": "Contaminated simple laceration of hard palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110126002",
+                  "display": "Complex laceration of hard palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110127006",
+                  "display": "Contaminated complex laceration of hard palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110128001",
+                  "display": "Avulsion of hard palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110129009",
+                  "display": "Simple laceration of soft palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110130004",
+                  "display": "Contaminated simple laceration of soft palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "11013005",
+                  "display": "SLE glomerulonephritis syndrome, WHO class VI"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110131000",
+                  "display": "Complex laceration of soft palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110132007",
+                  "display": "Contaminated complex laceration of soft palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110133002",
+                  "display": "Avulsion of soft palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110134008",
+                  "display": "Simple laceration of tonsil"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110135009",
+                  "display": "Contaminated simple laceration of tonsil"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110136005",
+                  "display": "Complex laceration of tonsil"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110137001",
+                  "display": "Contaminated complex laceration of tonsil"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110138006",
+                  "display": "Avulsion of tonsil"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110139003",
+                  "display": "Simple laceration of oropharynx"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110140001",
+                  "display": "Contaminated simple laceration of oropharynx"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110141000119100",
+                  "display": "Ulcer of lower limb due to type 1 diabetes mellitus (disorder)"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110141002",
+                  "display": "Complex laceration of oropharynx"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110142009",
+                  "display": "Contaminated complex laceration of oropharynx"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110143004",
+                  "display": "Avulsion of oropharynx"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110144005",
+                  "display": "Simple laceration of neck"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110145006",
+                  "display": "Contaminated simple laceration of neck"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110146007",
+                  "display": "Complex laceration of neck"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110147003",
+                  "display": "Contaminated complex laceration of neck"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110148008",
+                  "display": "Avulsion of neck"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110149000",
+                  "display": "Traumatic hemorrhage"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110150000",
+                  "display": "Spinal cord concussion"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110151001",
+                  "display": "Superficial injury of mouth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110152008",
+                  "display": "Abrasion of buccal mucosa"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110153003",
+                  "display": "Abrasion of maxillary vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110154009",
+                  "display": "Abrasion of mandibular vestibule"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110155005",
+                  "display": "Abrasion of maxillary attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110156006",
+                  "display": "Abrasion of mandibular attached gingiva"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110157002",
+                  "display": "Abrasion of floor of mouth"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110158007",
+                  "display": "Superficial injury of palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110159004",
+                  "display": "Abrasion of hard palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110160009",
+                  "display": "Abrasion of soft palate"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110161008",
+                  "display": "Abrasion of tonsil"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110162001",
+                  "display": "Abrasion of oropharynx"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110163006",
+                  "display": "Abrasion of tongue"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110164000",
+                  "display": "Abrasion of forehead"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110165004",
+                  "display": "Abrasion of periorbital region of face"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110166003",
+                  "display": "Abrasion of malar region of face"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110167007",
+                  "display": "Abrasion of circumoral region of face"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110168002",
+                  "display": "Abrasion of chin"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110169005",
+                  "display": "Abrasion of preauricular region of face"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110170006",
+                  "display": "Burn of periorbital region"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110171000119107",
+                  "display": "Leg ulcer due to type 2 diabetes mellitus"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110171005",
+                  "display": "Burn erythema of periorbital region"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110172003",
+                  "display": "Second degree burn of periorbital region"
+                },
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "110173008",
+                  "display": "Third degree burn of periorbital region"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 5000
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://snomed.info/sct|http://snomed.info/sct/900000000000207008/version/20250201"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: 2b535b27c3e12803d75a2eff6a6616f978c6480e\nruntime-constraints:\n  active-only: true\n  pagination: offset=5000 count=100\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 404684003 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":83.68,\"sqlCount\":1,\"sqlMs\":82.02,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":null,\"offset\":5000,\"count\":100,\"exactTotal\":false,\"omitLazyTotal\":true},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":5000,\"count\":100,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":5000,\"sysCount\":100},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.12,\"execMs\":82.02},\"t\":83.43}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"descendant_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @reachability_cs_id_2) AND (\\\"c\\\".\\\"active\\\" = 1)) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 100 OFFSET 5000\",\"params\":{\"code_0\":\"404684003\",\"cs_id_1\":1,\"reachability_cs_id_2\":1},\"rows\":100,\"ms\":82.02,\"label\":\"executeIR\"}],\"ms\":82.53,\"result\":{\"candidates\":100,\"total\":null}}],\"ms\":82.57,\"result\":{\"candidates\":100}},{\"name\":\"note\",\"message\":\"total:omitted\",\"data\":{\"offset\":5000,\"returned\":100,\"exactTotal\":false},\"t\":83.54}],\"ms\":82.62,\"result\":{\"paged\":100}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":100,\"includeDesignations\":false},\"children\":[],\"ms\":0.07,\"result\":{\"count\":100}}],\"ms\":83.58,\"result\":{\"total\":null,\"contains\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 83.68,
+          "sqlCount": 1,
+          "sqlMs": 82.02,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": null,
+                "offset": 5000,
+                "count": 100,
+                "exactTotal": false,
+                "omitLazyTotal": true
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 5000,
+                    "count": 100,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://snomed.info/sct",
+                      "args": {
+                        "sysOffset": 5000,
+                        "sysCount": 100
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://snomed.info/sct"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.12,
+                                "execMs": 82.02
+                              },
+                              "t": 83.43
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"descendant_id\") WHERE ((\"c\".\"cs_id\" = @reachability_cs_id_2) AND (\"c\".\"active\" = 1)) ORDER BY \"c\".\"code\" ASC LIMIT 100 OFFSET 5000",
+                              "params": {
+                                "code_0": "404684003",
+                                "cs_id_1": 1,
+                                "reachability_cs_id_2": 1
+                              },
+                              "rows": 100,
+                              "ms": 82.02,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 82.53,
+                          "result": {
+                            "candidates": 100,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 82.57,
+                      "result": {
+                        "candidates": 100
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:omitted",
+                      "data": {
+                        "offset": 5000,
+                        "returned": 100,
+                        "exactTotal": false
+                      },
+                      "t": 83.54
+                    }
+                  ],
+                  "ms": 82.62,
+                  "result": {
+                    "paged": 100
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 100,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.07,
+                  "result": {
+                    "count": 100
+                  }
+                }
+              ],
+              "ms": 83.58,
+              "result": {
+                "total": null,
+                "contains": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: 2b535b27c3e12803d75a2eff6a6616f978c6480e\nruntime-constraints:\n  active-only: true\n  pagination: offset=5000 count=100\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 404684003 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 516,
+        "error": "The value set '??' expansion has too many codes to display (\u003e1000)",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:45521/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "offset",
+                "valueInteger": 5000
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "423",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:53:45 GMT",
+            "etag": "W/\"1a7-Xnc0TQxCpvPDMgB0Szyma6ohAj8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-675"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set '??' expansion has too many codes to display (\u003e1000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n1ms compose #2\n2ms prepare filters\n396ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 91,
+        "error": "The value set '??' expansion has too many codes to display (\u003e1000)",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:39871/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "404684003"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "offset",
+                "valueInteger": 5000
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "422",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:53:46 GMT",
+            "etag": "W/\"1a6-K3AwZqkXyzQPL1O8wYdRjh8YCEI\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-200"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set '??' expansion has too many codes to display (\u003e1000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n1ms start working\n1ms compose #1\n1ms compose #2\n1ms prepare filters\n14ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf || perf.supported === false) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = target.supported === false ? 'not exercised for this case' : (debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed');
+    const status = target.supported === false ? 'n/a' : (debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a');
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.supported === false ? 'N/A for this case' : (debug?.irPlanText || 'N/A for this target');
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = target.supported === false ? 'N/A for this case' : (debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.');
+      } else {
+        label = 'HTTP Response';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

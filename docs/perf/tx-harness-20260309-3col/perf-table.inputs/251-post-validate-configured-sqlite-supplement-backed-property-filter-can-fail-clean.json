@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "id": 251,
+  "slug": "251-post-validate-configured-sqlite-supplement-backed-property-filter-can-fail-clean",
+  "name": "POST validate configured sqlite supplement-backed property filter can fail cleanly",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "POST",
+      "path": "/r4/ValueSet/$validate-code",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/op-harness-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "C0002"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/op-harness-base",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:43775/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/op-harness-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "C0002"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/op-harness-d20"
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/op-harness-base",
+                    "filter": [
+                      {
+                        "property": "d20-roll",
+                        "op": "=",
+                        "value": "20"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          }
+        ]
+      }
+    },
+    "secondary": null,
+    "third": null
+  }
+}

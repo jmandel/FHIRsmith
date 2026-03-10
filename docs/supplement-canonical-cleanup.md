@@ -218,9 +218,9 @@ Update supplement tests and fixtures that currently encode the wrapper shape.
 
 Expected changes include:
 
-- `tests/tx/supplement-ir-provider.test.js`
-- `tests/tx/supplement-ir-adapter-providers.test.js`
-- `tests/tx/supplement-sqlite-source.test.js`
+- `tests/ir-engine/supplements/supplement-ir-provider.test.js`
+- `tests/ir-engine/supplements/supplement-ir-adapter-providers.test.js`
+- `tests/ir-engine/supplements/supplement-sqlite-source.test.js`
 - any other supplement tests that manually construct
   `{ overlaySource: { codeSystem: supplement } }`
 

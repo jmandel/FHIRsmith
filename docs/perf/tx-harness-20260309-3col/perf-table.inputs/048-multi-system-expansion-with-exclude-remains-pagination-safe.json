@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "id": 48,
+  "slug": "048-multi-system-expansion-with-exclude-remains-pagination-safe",
+  "name": "Multi-system expansion with exclude remains pagination-safe",
+  "category": "Composition Semantics",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "system": "http://hl7.org/fhir/publication-status"
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "concept": [
+              {
+                "code": "unknown"
+              }
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/publication-status",
+            "concept": [
+              {
+                "code": "unknown"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 2,
+      "offset": 4
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:45521/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/publication-status"
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/publication-status",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 2
+          },
+          {
+            "name": "offset",
+            "valueInteger": 4
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:45521/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/publication-status"
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/publication-status",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 2
+          },
+          {
+            "name": "offset",
+            "valueInteger": 4
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:39871/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender"
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/publication-status"
+                  }
+                ],
+                "exclude": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/publication-status",
+                    "concept": [
+                      {
+                        "code": "unknown"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 2
+          },
+          {
+            "name": "offset",
+            "valueInteger": 4
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

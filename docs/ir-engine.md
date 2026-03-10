@@ -310,14 +310,12 @@ All the new pipeline logic lives in `tx/engine/`. Existing providers
 </table>
 
 The systemd service on tx-dev.fhir.org sets `EXPAND_IR_ENGINE=1`.
-Per-request `_engine=ir` or `_engine=legacy` overrides. (`legacy` refers to
-the original expander.)
-
-`_engine=ir-strict` is still accepted as a deprecated alias for compatibility,
-but it is not a distinct mode anymore.
+Per-request `_engine=ir` or `_engine=legacy` overrides route dispatch in
+`tx/tx.js`. (`legacy` refers to the original expander/worker path.)
 
 For cutover/readiness work, use `_engine=ir`. We do not want silent fallback
-when we are explicitly asking whether the IR path is ready.
+when we are explicitly asking whether the IR path is ready. This applies to
+the new IR worker paths for `$expand`, `$validate-code`, and `$lookup`.
 
 ### Fallback rules
 
@@ -637,10 +635,16 @@ counts, and pagination decisions. Zero overhead when not requested.
 
 ## Testing
 
-### HTTP test harness — 166 tests (`scripts/ir-harness.mjs`)
+### Unified HTTP harness (`scripts/tx-harness.mjs`)
 
-The primary test suite. Runs against a live server, exercising real
-`$expand` calls:
+The matrix harness runs against a live server and now covers multiple
+operations through one runner and one output format:
+
+- `$expand`
+- `$validate-code`
+- `$lookup`
+
+Perf mode remains `$expand`-focused for timing comparability, but the main matrix includes the broader operation corpus.
 
 <table>
   <thead>
@@ -720,28 +724,31 @@ The primary test suite. Runs against a live server, exercising real
     </tr>
     <tr>
       <td><strong>IR vs original comparison</strong></td>
-      <td>Side-by-side comparison of both engines for hierarchy output</td>
+      <td>Side-by-side comparison of both engines where legacy rows are meaningful</td>
     </tr>
   </tbody>
 </table>
 
-```
-node scripts/ir-harness.mjs              # all tests, IR engine
-node scripts/ir-harness.mjs --legacy     # all tests, original expander
-node scripts/ir-harness.mjs "SNOMED"     # filter by name
-node scripts/ir-harness.mjs --perf       # performance comparison table
-scripts/run-ir-harness.sh --all --db-dir /home/jmandel/hobby/sct/cache
-# one-command start/wait/run/teardown wrapper; writes logs + perf artifacts under tmp/ir-harness-runs/
+```bash
+node scripts/tx-harness.mjs --db-dir /home/jmandel/hobby/sct/cache              # unified local matrix
+node scripts/tx-harness.mjs --legacy --db-dir /home/jmandel/hobby/sct/cache     # legacy-default matrix
+node scripts/tx-harness.mjs --db-dir /home/jmandel/hobby/sct/cache "SNOMED"     # filter by name
+node scripts/tx-harness.mjs --perf --db-dir /home/jmandel/hobby/sct/cache       # performance comparison table
+node scripts/tx-harness.mjs --all --db-dir /home/jmandel/hobby/sct/cache
+# single JS entrypoint; manages local servers, reuses a persistent harness package cache, and writes matrix/perf artifacts under tmp/tx-harness-runs/
 npm run test:perf:matrix                 # default 2-column perf matrix, synthetic supplement rows included
 npm run test:perf:matrix:3col            # opt-in third upstream-providers column
 ```
 
-### v0 SQLite perf snapshots
+### Unified perf snapshots
 
-Measured on this branch with the current full harness corpus:
+Measured on this branch with the current full unified harness corpus:
 
-- `199` rows
-- synthetic supplement rows included by default
+- `271` rows total
+- `199` `$expand`
+- `25` `$lookup`
+- `47` `$validate-code`
+- synthetic supplement rows included by default in perf mode
 - default perf repeat count: `1`
 - default local matrix: `2` columns
 - opt-in full comparison matrix: `3` columns
@@ -755,13 +762,13 @@ npm run test:perf:matrix
 For the full checked-in comparison matrix, use the `3`-column run:
 
 ```bash
-scripts/run-ir-harness.sh \
+node scripts/tx-harness.mjs \
   --perf \
   --perf-third-upstream \
   --perf-runs 1 \
   --db-dir /home/jmandel/hobby/sct/cache \
   --upstream-db-dir /home/jmandel/hobby/FHIRsmith/data/terminology-cache \
-  --out-dir docs/perf/v0-sqlite-20260309-3col
+  --out-dir docs/perf/tx-harness-20260309-3col
 ```
 
 Notes:
@@ -774,7 +781,7 @@ Notes:
 
 Latest checked-in static-site snapshot:
 
-- [perf/v0-sqlite-20260309-3col/perf-table.html](perf/v0-sqlite-20260309-3col/perf-table.html)
+- [perf/tx-harness-20260309-3col/perf-table.html](perf/tx-harness-20260309-3col/perf-table.html)
 
 To build the docs landing site (used by GitHub Pages workflow):
 
@@ -792,56 +799,46 @@ Tests the expansion plan simplification logic directly (no server
 needed): concept-list merging, filter deduplication, multi-system diff
 splitting, cross-system empty elimination.
 
-### Jest unit tests (`tests/engine/`, `tests/cs/`)
+### Jest unit tests (`tests/engine/`, `tests/ir-engine/`, `tests/cs/`)
 
 <table>
   <thead>
     <tr>
-      <th>File</th>
-      <th>Tests</th>
+      <th>Area</th>
+      <th>Examples</th>
       <th>What</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><code>cs-sqlite-v0.test.js</code></td>
-      <td>30</td>
+      <td><strong>sqlite-v0 provider/compiler</strong></td>
+      <td><code>tests/cs/cs-sqlite-v0.test.js</code>, <code>tests/cs/sqlite-v0-compiler.test.js</code></td>
       <td>v0 provider: locate, filter, iterate, IR execution, designations, properties</td>
     </tr>
     <tr>
-      <td><code>orchestrator.test.js</code></td>
-      <td>21</td>
+      <td><strong>core IR engine</strong></td>
+      <td><code>tests/engine/orchestrator.test.js</code>, <code>tests/engine/partition-safety.test.js</code></td>
       <td>Full pipeline: expansion, pagination, count=0, designations, properties, metadata</td>
     </tr>
     <tr>
-      <td><code>legacy-ir-adapter.test.js</code></td>
-      <td>11</td>
+      <td><strong>legacy adapter + generic executor</strong></td>
+      <td><code>tests/engine/legacy-ir-adapter.test.js</code>, <code>tests/ir-engine/core/generic-ir-executor.test.js</code></td>
       <td>Filter-protocol adapter: concept, filter, union, diff, intersect; parity with native</td>
     </tr>
     <tr>
-      <td><code>comparison.test.js</code></td>
-      <td>10</td>
-      <td>IR vs original expander code-for-code parity on real SNOMED/LOINC data</td>
+      <td><strong>IR request flows</strong></td>
+      <td><code>tests/ir-engine/operations/*</code></td>
+      <td>IR-specific `$expand`, `$validate-code`, and `$lookup` request flows and dispatch behavior</td>
     </tr>
     <tr>
-      <td><code>e2e-comparison.test.js</code></td>
-      <td>8</td>
-      <td>HTTP-level IR vs original expander comparison (requires running server)</td>
+      <td><strong>supplement runtime</strong></td>
+      <td><code>tests/ir-engine/supplements/*</code></td>
+      <td>Resolver, overlay, native sqlite sidecars, adapter-backed providers, and request-scoped supplement behavior</td>
     </tr>
     <tr>
-      <td><code>hierarchy-regressions.test.js</code></td>
-      <td>2</td>
+      <td><strong>regression edge cases</strong></td>
+      <td><code>tests/engine/hierarchy-regressions.test.js</code>, <code>tests/engine/library-error-handling.test.js</code></td>
       <td>Edge cases: pagination window order, cross-system identity</td>
-    </tr>
-    <tr>
-      <td><code>partition-safety.test.js</code></td>
-      <td>8</td>
-      <td>Validates expansion plan before execution (rejects unsafe partitions)</td>
-    </tr>
-    <tr>
-      <td><code>library-error-handling.test.js</code></td>
-      <td>6</td>
-      <td>Library config loading, error reporting, env var substitution</td>
     </tr>
   </tbody>
 </table>
@@ -989,8 +986,16 @@ Use it for:
   </thead>
   <tbody>
     <tr>
-      <td><code>tx/workers/expand.js</code></td>
-      <td>Added <code>_tryIRExpansion()</code> entry point with fallback</td>
+      <td><code>tx/tx.js</code></td>
+      <td>Owns route-level engine dispatch for <code>$expand</code> and <code>$validate-code</code></td>
+    </tr>
+    <tr>
+      <td><code>tx/workers/expand-ir.js</code></td>
+      <td>IR-specific expand worker using the new engine/runtime seam</td>
+    </tr>
+    <tr>
+      <td><code>tx/workers/validate-ir.js</code></td>
+      <td>IR-specific validate worker using IR membership checks and the new supplement runtime</td>
     </tr>
     <tr>
       <td><code>tx/workers/worker.js</code></td>
@@ -999,10 +1004,6 @@ Use it for:
     <tr>
       <td><code>tx/workers/lookup.js</code></td>
       <td>Routes supplement-aware lookup through the new supplement runtime</td>
-    </tr>
-    <tr>
-      <td><code>tx/workers/validate.js</code></td>
-      <td>Reuses the supplement runtime for supplement-aware <code>$validate-code</code></td>
     </tr>
     <tr>
       <td><code>tx/params.js</code></td>
@@ -1037,5 +1038,6 @@ Use it for:
   diagnostics
 - [legacy-expansion-gap.md](legacy-expansion-gap.md) — Hierarchical vs flat
   expansion differences
-- `scripts/ir-harness.mjs` — HTTP test harness (source of truth)
+- `scripts/tx-harness.mjs` — unified HTTP harness entrypoint (managed-server + matrix/perf)
+- `scripts/tx-harness-runner.mjs` — internal matrix/perf runner used by the entrypoint
 - `scripts/ir-rewrite-tests.mjs` — Simplification unit tests

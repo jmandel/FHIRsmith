@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "id": 25,
+  "slug": "025-same-system-dedup-returns-3-unique-gender-codes",
+  "name": "Same-system dedup returns 3 unique gender codes",
+  "category": "Single-System Composition",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "concept": [
+              {
+                "code": "male"
+              },
+              {
+                "code": "female"
+              }
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/administrative-gender",
+            "concept": [
+              {
+                "code": "female"
+              },
+              {
+                "code": "other"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {}
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:45521/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "female"
+                      },
+                      {
+                        "code": "other"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:45521/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "female"
+                      },
+                      {
+                        "code": "other"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:39871/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      },
+                      {
+                        "code": "female"
+                      }
+                    ]
+                  },
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "female"
+                      },
+                      {
+                        "code": "other"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

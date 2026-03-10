@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-10T06:51:13.395Z",
+  "rowIndex": 229,
+  "slug": "229-get-codesystem-validate-missing-code-returns-invalid-request",
+  "name": "GET CodeSystem validate missing code returns invalid request",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/229-get-codesystem-validate-missing-code-returns-invalid-request.json",
+    "detailJson": "229-get-codesystem-validate-missing-code-returns-invalid-request.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 10,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 10,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43775/r4/CodeSystem/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&_engine=ir",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "195",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:51:08 GMT",
+            "etag": "W/\"c3-VQUSuSf3pvKUJdxc60DjBtgFi3U\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-768"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters)"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:43775/r4/CodeSystem/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&_engine=legacy",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "195",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Tue, 10 Mar 2026 06:51:08 GMT",
+            "etag": "W/\"c3-VQUSuSf3pvKUJdxc60DjBtgFi3U\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-769"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters)"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5000,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:33979/r4/CodeSystem/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&_engine=legacy",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

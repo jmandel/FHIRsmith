@@ -103,17 +103,17 @@ Not covered here:
 Run live HTTP harness checks:
 
 ```bash
-scripts/run-ir-harness.sh --all --db-dir /home/jmandel/hobby/sct/cache --out-dir tmp/ir-harness-runs/manual-all
+node scripts/tx-harness.mjs --all --db-dir /home/jmandel/hobby/sct/cache --out-dir tmp/tx-harness-runs/manual-all
 ```
 
 Run perf matrix output:
 
 ```bash
-scripts/run-ir-harness.sh \
+node scripts/tx-harness.mjs \
   --perf \
   --db-dir /home/jmandel/hobby/sct/cache \
-  --out-dir tmp/ir-harness-runs/manual-perf \
-  --perf-out tmp/ir-harness-runs/manual-perf/perf-table.html
+  --out-dir tmp/tx-harness-runs/manual-perf \
+  --perf-out tmp/tx-harness-runs/manual-perf/perf-table.html
 ```
 
 ## Rewrite-Only Sanity Check

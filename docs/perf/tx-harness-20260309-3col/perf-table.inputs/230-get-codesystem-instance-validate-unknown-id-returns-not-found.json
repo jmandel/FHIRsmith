@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": 230,
+  "slug": "230-get-codesystem-instance-validate-unknown-id-returns-not-found",
+  "name": "GET CodeSystem instance validate unknown id returns not-found",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "GET",
+      "path": "/r4/CodeSystem/nonexistent-id/$validate-code",
+      "query": {
+        "code": "male"
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "GET",
+      "url": "http://localhost:43775/r4/CodeSystem/nonexistent-id/$validate-code?code=male&_engine=ir",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "secondary": {
+      "method": "GET",
+      "url": "http://localhost:43775/r4/CodeSystem/nonexistent-id/$validate-code?code=male&_engine=legacy",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "third": {
+      "method": "GET",
+      "url": "http://localhost:33979/r4/CodeSystem/nonexistent-id/$validate-code?code=male&_engine=legacy",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    }
+  }
+}
