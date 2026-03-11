@@ -158,11 +158,9 @@ Important:
 - Perf mode now avoids a second debug request for rows that already have a captured perf sample.
 - The third column is opt-in and uses a shorter timeout budget than the primary/local columns.
 
-Current unified harness inventory:
-
-- `199` `$expand` rows
-- `25` `$lookup` rows
-- `47` `$validate-code` rows
+The unified harness covers `$expand`, `$lookup`, and `$validate-code`
+through one shared matrix runner. Prefer checking the current harness
+artifacts or the case files when you need the live row inventory.
 
 Legacy expectations inside the shared harness are parity-driven:
 
@@ -174,6 +172,7 @@ Legacy expectations inside the shared harness are parity-driven:
 See also:
 
 - [tx-harness-plan.md](tx-harness-plan.md) — unified harness coverage plan for `$expand`, `$validate-code`, and `$lookup`
+- [tx-review-workflow.md](tx-review-workflow.md) — fresh harness run -> analysis batch -> external agent review workflow
 
 ## Choosing the right layer
 

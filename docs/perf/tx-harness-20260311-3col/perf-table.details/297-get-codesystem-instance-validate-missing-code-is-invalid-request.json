@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:40:08.336Z",
+  "rowIndex": 297,
+  "slug": "297-get-codesystem-instance-validate-missing-code-is-invalid-request",
+  "name": "GET CodeSystem instance validate missing code is invalid request",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/297-get-codesystem-instance-validate-missing-code-is-invalid-request.json",
+    "detailJson": "297-get-codesystem-instance-validate-missing-code-is-invalid-request.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:34715/r4/CodeSystem/administrative-gender/$validate-code?_engine=ir&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "641",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:03 GMT",
+            "etag": "W/\"281-R777oSsl35NNUY1CGeeYSDQFb58\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-993"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters =codingX:Coding)"
+                },
+                "diagnostics": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters =codingX:Coding)"
+              }
+            ],
+            "extension": [
+              {
+                "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                "valueString": "{\"totalMs\":0.36,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystemInstance\",\"children\":[],\"ms\":0.32,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.36,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystemInstance",
+              "children": [],
+              "ms": 0.32,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:34715/r4/CodeSystem/administrative-gender/$validate-code?_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "334",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:03 GMT",
+            "etag": "W/\"14e-u6qtsS6jOaa4PNOz7Or00Ty5AF4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-994"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters =codingX:Coding)"
+                },
+                "diagnostics": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters =codingX:Coding)"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 5000,
+        "error": "This operation was aborted",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:33043/r4/CodeSystem/administrative-gender/$validate-code?_engine=legacy&_trace=true",
+          "headers": {
+            "Accept": "application/fhir+json"
+          },
+          "body": null
+        },
+        "response": null,
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

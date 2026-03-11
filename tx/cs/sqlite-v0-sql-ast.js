@@ -1467,6 +1467,13 @@ function lowerPredicate(predicate, alias, ctx) {
       binary('REGEXP', call('COALESCE', [column('value_text', alias), column('value_raw', alias), literal('')]), ctx.add('regex', String(predicate.pattern || ''))),
     ]);
   }
+  case 'literalPropertyExists': {
+    const propDef = requirePropertyDef(ctx, predicate.property);
+    return and([
+      binary('=', column('property_id', alias), ctx.add('prop_id', propDef.property_id)),
+      binary('=', column('active', alias), literal(1)),
+    ]);
+  }
   case 'linkPropertyMatch': {
     const values = (predicate.values || []).map(v => ctx.add('prop_value', String(v)));
     const codeMatch = {
@@ -1485,6 +1492,11 @@ function lowerPredicate(predicate, alias, ctx) {
       predicate.linkMatch === 'code-or-display' ? or([codeMatch, displayMatch]) : codeMatch,
     ]);
   }
+  case 'linkPropertyExists':
+    return and([
+      binary('=', column('property_id', alias), ctx.add('prop_id', requirePropertyDef(ctx, predicate.property).property_id)),
+      binary('=', column('active', alias), literal(1)),
+    ]);
   default:
     throw new Error(`Unknown predicate kind ${String(predicate.kind || '(missing)')}`);
   }

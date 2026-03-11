@@ -1,0 +1,480 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:37:35.962Z",
+  "rowIndex": 207,
+  "slug": "207-post-lookup-inline-codesystem-resource-returns-typed-properties-via-ir",
+  "name": "POST lookup inline CodeSystem resource returns typed properties via IR",
+  "category": "Lookup",
+  "hrefs": {
+    "input": "../perf-table.inputs/207-post-lookup-inline-codesystem-resource-returns-typed-properties-via-ir.json",
+    "detailJson": "207-post-lookup-inline-codesystem-resource-returns-typed-properties-via-ir.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-inline-lookup"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "property",
+                "valueCode": "*"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-lookup",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "property": [
+                    {
+                      "code": "rank",
+                      "type": "integer"
+                    },
+                    {
+                      "code": "kind",
+                      "type": "code"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha",
+                      "property": [
+                        {
+                          "code": "rank",
+                          "valueInteger": 7
+                        },
+                        {
+                          "code": "kind",
+                          "valueCode": "primary"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1174",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:35 GMT",
+            "etag": "W/\"496-oMD7y5yosY30Z4YbrqLBH6yIC8k\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-723"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "name",
+                "valueString": "http://example.org/cs-inline-lookup"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-inline-lookup"
+              },
+              {
+                "name": "version",
+                "valueString": "1.0.0"
+              },
+              {
+                "name": "display",
+                "valueString": "Alpha"
+              },
+              {
+                "name": "abstract",
+                "valueBoolean": false
+              },
+              {
+                "name": "property",
+                "part": [
+                  {
+                    "name": "code",
+                    "valueCode": "inactive"
+                  },
+                  {
+                    "name": "value",
+                    "valueBoolean": false
+                  }
+                ]
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Alpha"
+                  }
+                ]
+              },
+              {
+                "name": "property",
+                "part": [
+                  {
+                    "name": "code",
+                    "valueCode": "rank"
+                  },
+                  {
+                    "name": "value",
+                    "valueInteger": 7
+                  }
+                ]
+              },
+              {
+                "name": "property",
+                "part": [
+                  {
+                    "name": "code",
+                    "valueCode": "kind"
+                  },
+                  {
+                    "name": "value",
+                    "valueCode": "primary"
+                  }
+                ]
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":0.34,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"lookupIR:handle\",\"children\":[{\"name\":\"lookupIR:doLookup\",\"args\":{\"system\":\"http://example.org/cs-inline-lookup\",\"code\":\"A\"},\"children\":[],\"ms\":0.17}],\"ms\":0.32,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.34,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "lookupIR:handle",
+              "children": [
+                {
+                  "name": "lookupIR:doLookup",
+                  "args": {
+                    "system": "http://example.org/cs-inline-lookup",
+                    "code": "A"
+                  },
+                  "children": [],
+                  "ms": 0.17
+                }
+              ],
+              "ms": 0.32,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 2,
+        "error": "expected 400, got 422",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-inline-lookup"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "property",
+                "valueCode": "*"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-lookup",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "property": [
+                    {
+                      "code": "rank",
+                      "type": "integer"
+                    },
+                    {
+                      "code": "kind",
+                      "type": "code"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha",
+                      "property": [
+                        {
+                          "code": "rank",
+                          "valueInteger": 7
+                        },
+                        {
+                          "code": "kind",
+                          "valueCode": "primary"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "138",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:35 GMT",
+            "etag": "W/\"8a-ghP0fkDVuL5kRjQUNhQmZEV1m5E\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-724"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem not found: undefined"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 3,
+        "error": "expected 400, got 422",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-inline-lookup"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "property",
+                "valueCode": "*"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-lookup",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "property": [
+                    {
+                      "code": "rank",
+                      "type": "integer"
+                    },
+                    {
+                      "code": "kind",
+                      "type": "code"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha",
+                      "property": [
+                        {
+                          "code": "rank",
+                          "valueInteger": 7
+                        },
+                        {
+                          "code": "kind",
+                          "valueCode": "primary"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "138",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:35 GMT",
+            "etag": "W/\"8a-ghP0fkDVuL5kRjQUNhQmZEV1m5E\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-215"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "not-found",
+                "details": {
+                  "text": "CodeSystem not found: undefined"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

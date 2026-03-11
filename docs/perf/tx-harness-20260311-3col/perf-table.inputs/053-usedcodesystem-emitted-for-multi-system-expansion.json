@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "id": 53,
+  "slug": "053-usedcodesystem-emitted-for-multi-system-expansion",
+  "name": "usedCodeSystem emitted for multi-system expansion",
+  "category": "Expansion Metadata",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://example.org/test-vs-multi",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/multi-1"
+          },
+          {
+            "system": "http://example.org/cs/multi-2"
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/multi-1",
+          "version": "1.0.0",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "A",
+              "display": "Alpha"
+            },
+            {
+              "code": "B",
+              "display": "Bravo"
+            },
+            {
+              "code": "C",
+              "display": "Charlie"
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/multi-2",
+          "version": "1.0.0",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "X",
+              "display": "Xray"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs-multi",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/multi-1"
+                  },
+                  {
+                    "system": "http://example.org/cs/multi-2"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/multi-1",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/multi-2",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs-multi",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/multi-1"
+                  },
+                  {
+                    "system": "http://example.org/cs/multi-2"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/multi-1",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/multi-2",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/test-vs-multi",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/multi-1"
+                  },
+                  {
+                    "system": "http://example.org/cs/multi-2"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/multi-1",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Bravo"
+                },
+                {
+                  "code": "C",
+                  "display": "Charlie"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/multi-2",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

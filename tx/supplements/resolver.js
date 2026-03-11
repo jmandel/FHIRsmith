@@ -1,5 +1,6 @@
 'use strict';
 
+const { VersionUtilities } = require('../../library/version-utilities');
 const { Issue } = require('../library/operation-outcome');
 const {
   dedupeSupplementRefs,
@@ -10,11 +11,53 @@ const {
 } = require('./types');
 const { findCandidates } = require('./registry');
 
+function compareCandidateVersions(left, right) {
+  const leftVersion = String(left?.descriptor?.version || '').trim();
+  const rightVersion = String(right?.descriptor?.version || '').trim();
+  if (!leftVersion && !rightVersion) return 0;
+  if (!leftVersion) return -1;
+  if (!rightVersion) return 1;
+  if (leftVersion === rightVersion) return 0;
+
+  const algorithm = left?.descriptor?.versionAlgorithm
+    || right?.descriptor?.versionAlgorithm
+    || VersionUtilities.guessVersionFormat(leftVersion)
+    || VersionUtilities.guessVersionFormat(rightVersion);
+
+  if (algorithm === 'semver'
+    && VersionUtilities.isSemVer(leftVersion)
+    && VersionUtilities.isSemVer(rightVersion)) {
+    return VersionUtilities.compareVersions(leftVersion, rightVersion);
+  }
+
+  if (algorithm === 'integer'
+    || (/^\d+$/.test(leftVersion) && /^\d+$/.test(rightVersion))) {
+    return Math.sign(parseInt(leftVersion, 10) - parseInt(rightVersion, 10));
+  }
+
+  if (algorithm === 'date') {
+    return leftVersion.replace(/[^0-9]/g, '').localeCompare(rightVersion.replace(/[^0-9]/g, ''));
+  }
+
+  return leftVersion.localeCompare(rightVersion);
+}
+
 function chooseCandidate(target, ref, candidates) {
   if (!Array.isArray(candidates) || candidates.length === 0) return null;
   const minPrecedence = Math.min(...candidates.map(c => Number(c.precedence) || 0));
   const scoped = candidates.filter(c => (Number(c.precedence) || 0) === minPrecedence);
   if (scoped.length === 1) return scoped[0];
+
+  if (!ref?.version) {
+    const ranked = [...scoped].sort((left, right) => {
+      const versionCmp = compareCandidateVersions(right, left);
+      if (versionCmp !== 0) return versionCmp;
+      return String(left?.descriptor?.canonical || '').localeCompare(String(right?.descriptor?.canonical || ''));
+    });
+    if (ranked.length > 1 && compareCandidateVersions(ranked[0], ranked[1]) > 0) {
+      return ranked[0];
+    }
+  }
 
   const labels = scoped.map(c => c.descriptor.canonical).sort();
   throw new Issue(

@@ -1,6 +1,13 @@
 'use strict';
 
 const { ExpandWorker, EXTERNAL_DEFAULT_LIMIT } = require('./expand');
+const {
+  bindIRScopeForExpansion,
+  buildSupplementRegistryForIR,
+  findBaseCodeSystemProvider,
+  resolveSupplementsForIRBaseScope,
+  resolveCodeSystemVersionAtDate,
+} = require('./ir-runtime-support');
 
 const TRACE_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace';
 
@@ -26,22 +33,23 @@ class ExpandIRWorker extends ExpandWorker {
     const irResult = await maybeExpandValueSetViaIR({
       valueSet,
       params,
-      strictIR: this.strictIR,
-      externalDefaultLimit: EXTERNAL_DEFAULT_LIMIT,
-      traceExtensionUrl: TRACE_EXTENSION_URL,
-      services: {
+        strictIR: this.strictIR,
+        externalDefaultLimit: EXTERNAL_DEFAULT_LIMIT,
+        traceExtensionUrl: TRACE_EXTENSION_URL,
+        services: {
         findBaseProvider: async (system, version) => (
-          await this.findCodeSystemWithSupplements(
+          await findBaseCodeSystemProvider(
+            this,
             system, version, params, ['complete', 'fragment'],
-            false, true, false, false, []
+            false, true, false, false
           )
         ),
-        buildSupplementRegistry: async () => await this.buildSupplementRegistryForIR(),
+        buildSupplementRegistry: async () => await buildSupplementRegistryForIR(this),
         resolveSupplementSet: async (target, refs, registry) => (
-          await this.resolveSupplementsForIRBaseScope(target, refs, registry)
+          await resolveSupplementsForIRBaseScope(this, target, refs, registry)
         ),
         bindIRScope: async (provider, supplementSet) => (
-          await this.bindIRScopeForExpansion(provider, supplementSet)
+          await bindIRScopeForExpansion(this, provider, supplementSet)
         ),
         resolveValueSet: async (url, version) => {
           try {
@@ -53,8 +61,7 @@ class ExpandIRWorker extends ExpandWorker {
         },
         resolveVersionAtDate: async (system, lockedDate) => {
           try {
-            if (typeof this.resolveCodeSystemVersionAtDate !== 'function') return null;
-            return await this.resolveCodeSystemVersionAtDate(system, lockedDate, params);
+            return await resolveCodeSystemVersionAtDate(this, system, lockedDate);
           } catch {
             return null;
           }

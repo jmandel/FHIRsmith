@@ -1,0 +1,413 @@
+{
+  "schemaVersion": 1,
+  "id": 200,
+  "slug": "200-extra-requested-inline-supplement-may-be-irrelevant-without-error",
+  "name": "Extra requested inline supplement may be irrelevant without error",
+  "category": "Supplements",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs-s2b",
+            "concept": [
+              {
+                "code": "X"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs-s2b",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "X",
+              "display": "Xray"
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s2b-rel",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s2b",
+          "concept": [
+            {
+              "code": "X",
+              "designation": [
+                {
+                  "language": "de",
+                  "value": "Rontgen"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/supp-s2b-irr",
+          "content": "supplement",
+          "supplements": "http://example.org/cs-s2c",
+          "concept": [
+            {
+              "code": "Y",
+              "designation": [
+                {
+                  "language": "de",
+                  "value": "Ypsilon"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "includeDesignations": true,
+      "displayLanguage": "de",
+      "params": [
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/supp-s2b-rel"
+        },
+        {
+          "name": "useSupplement",
+          "valueString": "http://example.org/supp-s2b-irr"
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s2b",
+                    "concept": [
+                      {
+                        "code": "X"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s2b",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2b-rel",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2b",
+              "concept": [
+                {
+                  "code": "X",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Rontgen"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2b-irr",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2c",
+              "concept": [
+                {
+                  "code": "Y",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Ypsilon"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s2b-rel"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s2b-irr"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s2b",
+                    "concept": [
+                      {
+                        "code": "X"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s2b",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2b-rel",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2b",
+              "concept": [
+                {
+                  "code": "X",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Rontgen"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2b-irr",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2c",
+              "concept": [
+                {
+                  "code": "Y",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Ypsilon"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s2b-rel"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s2b-irr"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs-s2b",
+                    "concept": [
+                      {
+                        "code": "X"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "includeDesignations",
+            "valueBoolean": true
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-s2b",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "X",
+                  "display": "Xray"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2b-rel",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2b",
+              "concept": [
+                {
+                  "code": "X",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Rontgen"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/supp-s2b-irr",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-s2c",
+              "concept": [
+                {
+                  "code": "Y",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Ypsilon"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s2b-rel"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/supp-s2b-irr"
+          }
+        ]
+      }
+    }
+  }
+}

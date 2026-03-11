@@ -14,12 +14,30 @@ function candidateListOf(value) {
   return [];
 }
 
+function normalizeValueSetMeta(items) {
+  const out = [];
+  const seen = new Set();
+  for (const item of Array.isArray(items) ? items : []) {
+    const vurl = String(item?.vurl || '').trim();
+    if (!vurl || seen.has(vurl)) continue;
+    seen.add(vurl);
+    out.push({
+      vurl,
+      status: String(item?.status || '').trim(),
+      standardsStatus: String(item?.standardsStatus || '').trim(),
+      experimental: !!item?.experimental,
+    });
+  }
+  return out;
+}
+
 function executionResult(candidates = [], meta = {}) {
   return {
     candidates: Array.isArray(candidates) ? candidates : [],
     unclosed: meta?.unclosed || null,
     limitedExpansion: !!meta?.limitedExpansion,
     tooCostly: !!meta?.tooCostly,
+    valueSetMeta: normalizeValueSetMeta(meta?.valueSetMeta),
   };
 }
 
@@ -30,6 +48,7 @@ function toExecutionResult(value) {
       unclosed: value._unclosed || null,
       limitedExpansion: !!value._limitedExpansion,
       tooCostly: !!value._tooCostly,
+      valueSetMeta: value._valueSetMeta || [],
     });
   }
   if (Array.isArray(value.candidates)) {
@@ -37,6 +56,7 @@ function toExecutionResult(value) {
       unclosed: value.unclosed || null,
       limitedExpansion: !!value.limitedExpansion,
       tooCostly: !!value.tooCostly,
+      valueSetMeta: value.valueSetMeta || [],
     });
   }
   return executionResult([]);
@@ -49,6 +69,9 @@ function mergeExecutionMetadata(target, ...sources) {
     if (meta.unclosed && !out.unclosed) out.unclosed = meta.unclosed;
     if (meta.limitedExpansion && !out.limitedExpansion) out.limitedExpansion = true;
     if (meta.tooCostly && !out.tooCostly) out.tooCostly = true;
+    if (meta.valueSetMeta?.length > 0) {
+      out.valueSetMeta = normalizeValueSetMeta([...(out.valueSetMeta || []), ...meta.valueSetMeta]);
+    }
   }
   return out;
 }
@@ -253,7 +276,13 @@ function createGenericIRExecutor({
         limitedExpansion: filtered.limitedExpansion || result.limitedExpansion,
         tooCostly: filtered.tooCostly || result.tooCostly,
       });
-      result.candidates.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+      const preserveSourceOrder = result.candidates.length > 0
+        && result.candidates.every(c => Number.isInteger(c?._order));
+      if (preserveSourceOrder) {
+        result.candidates.sort((a, b) => a._order - b._order);
+      } else {
+        result.candidates.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+      }
       if (opts.offset > 0 || opts.count != null) {
         const off = opts.offset || 0;
         if (hasHierarchyCandidates(result)) {

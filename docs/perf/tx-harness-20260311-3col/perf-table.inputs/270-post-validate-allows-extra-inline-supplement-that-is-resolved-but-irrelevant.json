@@ -1,0 +1,461 @@
+{
+  "schemaVersion": 1,
+  "id": 270,
+  "slug": "270-post-validate-allows-extra-inline-supplement-that-is-resolved-but-irrelevant",
+  "name": "POST validate allows extra inline supplement that is resolved but irrelevant",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "POST",
+      "path": "/r4/ValueSet/$validate-code",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "https://www.usps.com/",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "type": "integer"
+                }
+              ],
+              "concept": [
+                {
+                  "code": "TX",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "https://www.usps.com/",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "type": "integer"
+                }
+              ],
+              "concept": [
+                {
+                  "code": "TX",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "https://www.usps.com/",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "type": "integer"
+                }
+              ],
+              "concept": [
+                {
+                  "code": "TX",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/ValueSet/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://hl7.org/fhir/administrative-gender"
+          },
+          {
+            "name": "code",
+            "valueCode": "male"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/fhir/CodeSystem/usps-rolls"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://hl7.org/fhir/administrative-gender",
+              "concept": [
+                {
+                  "code": "male",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Männlich"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/fhir/CodeSystem/usps-rolls",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "https://www.usps.com/",
+              "property": [
+                {
+                  "code": "d20-roll",
+                  "type": "integer"
+                }
+              ],
+              "concept": [
+                {
+                  "code": "TX",
+                  "property": [
+                    {
+                      "code": "d20-roll",
+                      "valueInteger": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "concept": [
+                      {
+                        "code": "male"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

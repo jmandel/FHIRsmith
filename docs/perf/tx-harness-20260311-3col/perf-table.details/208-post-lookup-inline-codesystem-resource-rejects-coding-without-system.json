@@ -1,0 +1,392 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:37:35.973Z",
+  "rowIndex": 208,
+  "slug": "208-post-lookup-inline-codesystem-resource-rejects-coding-without-system",
+  "name": "POST lookup inline CodeSystem resource rejects coding without system",
+  "category": "Lookup",
+  "hrefs": {
+    "input": "../perf-table.inputs/208-post-lookup-inline-codesystem-resource-rejects-coding-without-system.json",
+    "detailJson": "208-post-lookup-inline-codesystem-resource-rejects-coding-without-system.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "code": "A"
+                }
+              },
+              {
+                "name": "property",
+                "valueCode": "*"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-lookup-coding",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "property": [
+                    {
+                      "code": "rank",
+                      "type": "integer"
+                    },
+                    {
+                      "code": "kind",
+                      "type": "code"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha Coding",
+                      "property": [
+                        {
+                          "code": "rank",
+                          "valueInteger": 9
+                        },
+                        {
+                          "code": "kind",
+                          "valueCode": "coding"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "430",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:35 GMT",
+            "etag": "W/\"1ae-Y4Pg4J0PvLHHrW8QnriUu0+DlO8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-726"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Coding parameter must include a system"
+                }
+              }
+            ],
+            "extension": [
+              {
+                "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                "valueString": "{\"totalMs\":0.16,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"lookupIR:handle\",\"children\":[],\"ms\":0.14,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.16,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "lookupIR:handle",
+              "children": [],
+              "ms": 0.14,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "code": "A"
+                }
+              },
+              {
+                "name": "property",
+                "valueCode": "*"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-lookup-coding",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "property": [
+                    {
+                      "code": "rank",
+                      "type": "integer"
+                    },
+                    {
+                      "code": "kind",
+                      "type": "code"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha Coding",
+                      "property": [
+                        {
+                          "code": "rank",
+                          "valueInteger": 9
+                        },
+                        {
+                          "code": "kind",
+                          "valueCode": "coding"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "143",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:35 GMT",
+            "etag": "W/\"8f-vK6d0t2RdA0dN6/VIOgLMUBi0yo\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-727"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Coding parameter must include a system"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "code": "A"
+                }
+              },
+              {
+                "name": "property",
+                "valueCode": "*"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-lookup-coding",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "complete",
+                  "property": [
+                    {
+                      "code": "rank",
+                      "type": "integer"
+                    },
+                    {
+                      "code": "kind",
+                      "type": "code"
+                    }
+                  ],
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha Coding",
+                      "property": [
+                        {
+                          "code": "rank",
+                          "valueInteger": 9
+                        },
+                        {
+                          "code": "kind",
+                          "valueCode": "coding"
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "143",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:35 GMT",
+            "etag": "W/\"8f-vK6d0t2RdA0dN6/VIOgLMUBi0yo\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-216"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Coding parameter must include a system"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

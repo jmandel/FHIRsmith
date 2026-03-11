@@ -128,6 +128,21 @@ async function executeIRExpansionPage(resolved, opts = {}) {
   const knownTotal = resolved.every(r => r.count != null)
     ? resolved.reduce((s, r) => s + r.count, 0)
     : null;
+  const unclosedMessages = [];
+  let limitedExpansion = false;
+  let tooCostly = false;
+  const valueSetMeta = [];
+
+  for (const r of resolved) {
+    if (r.irProvider._discoveredUnclosed) {
+      for (const msg of r.irProvider._discoveredUnclosed) unclosedMessages.push(msg);
+    }
+    if (r.irProvider._discoveredLimitedExpansion) limitedExpansion = true;
+    if (r.irProvider._discoveredTooCostly) tooCostly = true;
+    mergeValueSetMeta(valueSetMeta, r.irProvider._discoveredValueSetMeta);
+  }
+
+  const hasUnclosedExpansion = unclosedMessages.length > 0;
 
   if (limit > 0 && knownTotal != null && knownTotal > limit) {
     const e = new Error(`Expansion of ${vsJson.url || 'ValueSet'} would produce ${knownTotal} codes (limit = ${limit})`);
@@ -137,13 +152,14 @@ async function executeIRExpansionPage(resolved, opts = {}) {
 
   if (totalOnly) {
     return {
-      total: knownTotal ?? 0,
+      total: hasUnclosedExpansion ? null : (knownTotal ?? 0),
       candidates: [],
       knownTotal,
       deferredTotal: null,
-      unclosedMessages: [],
-      limitedExpansion: false,
-      tooCostly: false,
+      unclosedMessages,
+      limitedExpansion,
+      tooCostly,
+      valueSetMeta,
     };
   }
 
@@ -151,17 +167,6 @@ async function executeIRExpansionPage(resolved, opts = {}) {
   let cursor = 0;
   let remaining = count;
   let deferredTotal = null;
-  const unclosedMessages = [];
-  let limitedExpansion = false;
-  let tooCostly = false;
-
-  for (const r of resolved) {
-    if (r.irProvider._discoveredUnclosed) {
-      for (const msg of r.irProvider._discoveredUnclosed) unclosedMessages.push(msg);
-    }
-    if (r.irProvider._discoveredLimitedExpansion) limitedExpansion = true;
-    if (r.irProvider._discoveredTooCostly) tooCostly = true;
-  }
 
   const pagSpan = trace.begin('pagination', { total: knownTotal, offset, count, systems: resolved.length });
 
@@ -175,6 +180,7 @@ async function executeIRExpansionPage(resolved, opts = {}) {
     if (result.unclosed) unclosedMessages.push(result.unclosed);
     if (result.limitedExpansion) limitedExpansion = true;
     if (result.tooCostly) tooCostly = true;
+    mergeValueSetMeta(valueSetMeta, result.valueSetMeta);
 
     appendAll(allCandidates, flattenCandidates(result.candidates, r, null));
 
@@ -198,6 +204,7 @@ async function executeIRExpansionPage(resolved, opts = {}) {
       }
       if (r.irProvider._discoveredLimitedExpansion) limitedExpansion = true;
       if (r.irProvider._discoveredTooCostly) tooCostly = true;
+      mergeValueSetMeta(valueSetMeta, r.irProvider._discoveredValueSetMeta);
       cntSpan.end({ count: deferredTotal });
     }
 
@@ -231,6 +238,7 @@ async function executeIRExpansionPage(resolved, opts = {}) {
       if (result.unclosed) unclosedMessages.push(result.unclosed);
       if (result.limitedExpansion) limitedExpansion = true;
       if (result.tooCostly) tooCostly = true;
+      mergeValueSetMeta(valueSetMeta, result.valueSetMeta);
 
       appendAll(allCandidates, flattenCandidates(result.candidates, r, null));
 
@@ -240,15 +248,29 @@ async function executeIRExpansionPage(resolved, opts = {}) {
   }
   pagSpan.end({ paged: allCandidates.length });
 
+  const finalHasUnclosedExpansion = unclosedMessages.length > 0;
+
   return {
-    total: knownTotal ?? deferredTotal,
+    total: finalHasUnclosedExpansion ? null : (knownTotal ?? deferredTotal),
     knownTotal,
-    deferredTotal,
+    deferredTotal: finalHasUnclosedExpansion ? null : deferredTotal,
     candidates: allCandidates,
     unclosedMessages,
     limitedExpansion,
     tooCostly,
+    valueSetMeta,
   };
+}
+
+function mergeValueSetMeta(target, items) {
+  if (!Array.isArray(target) || !Array.isArray(items)) return;
+  const seen = new Set(target.map(item => item?.vurl).filter(Boolean));
+  for (const item of items) {
+    const vurl = String(item?.vurl || '').trim();
+    if (!vurl || seen.has(vurl)) continue;
+    seen.add(vurl);
+    target.push(item);
+  }
 }
 
 module.exports = {

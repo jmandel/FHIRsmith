@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "id": 209,
+  "slug": "209-post-lookup-inline-codesystem-resource-honors-inline-supplement-designation-lang",
+  "name": "POST lookup inline CodeSystem resource honors inline supplement designation language choice via IR",
+  "category": "Lookup",
+  "source": {
+    "shape": "request",
+    "kind": "lookup",
+    "request": {
+      "method": "POST",
+      "path": "/r4/CodeSystem/$lookup",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-lookup-supp-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "property",
+            "valueCode": "designation"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-lookup-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-base",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-lookup-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-lookup-supp-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "property",
+            "valueCode": "designation"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-lookup-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-base",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-lookup-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-lookup-supp-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "property",
+            "valueCode": "designation"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-lookup-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-base",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-lookup-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/CodeSystem/$lookup",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-lookup-supp-base"
+          },
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "property",
+            "valueCode": "designation"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-lookup-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-base",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-lookup-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-lookup-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

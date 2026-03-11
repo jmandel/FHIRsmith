@@ -461,6 +461,7 @@ class LoincSqliteV0Importer {
 
     this.propertyIdByCode = new Map();
     this.conceptIdByCode = new Map();
+    this.activeByCode = new Map();
     this.classPartByName = new Map();
     this.loincClassByCode = new Map();
 
@@ -694,11 +695,13 @@ class LoincSqliteV0Importer {
 
       const display = trim(row.LONG_COMMON_NAME) || trim(row.DisplayName) || trim(row.SHORTNAME) || code;
       const definition = trim(row.DefinitionDescription) || null;
-      const active = isActiveLoincStatus(row.STATUS) ? 1 : 0;
+      const status = loincCodeStatusValue(row.STATUS);
+      const active = isActiveLoincStatus(status) ? 1 : 0;
       const conceptId = this.nextConceptId++;
 
       rows.push([conceptId, this.csId, code, active, display, definition]);
       this.conceptIdByCode.set(code, conceptId);
+      this.activeByCode.set(code, active);
 
       const className = trim(row.CLASS);
       if (className) {
@@ -724,11 +727,13 @@ class LoincSqliteV0Importer {
         // Keep parity with legacy LOINC provider:
         // PartName is the primary display; PartDisplayName is a designation.
         const display = trim(row.PartName) || trim(row.PartDisplayName) || code;
-        const active = String(row.Status || '').toUpperCase() === 'ACTIVE' ? 1 : 0;
+        const status = loincPartStatusValue(row.Status);
+        const active = isActiveLoincStatus(status) ? 1 : 0;
         const conceptId = this.nextConceptId++;
 
         rows.push([conceptId, this.csId, code, active, display, null]);
         this.conceptIdByCode.set(code, conceptId);
+        this.activeByCode.set(code, active);
         partCount += 1;
 
         const partTypeName = trim(row.PartTypeName);
@@ -757,6 +762,7 @@ class LoincSqliteV0Importer {
           const conceptId = this.nextConceptId++;
           rows.push([conceptId, this.csId, code, 1, trim(row.CODE_TEXT) || code, null]);
           this.conceptIdByCode.set(code, conceptId);
+          this.activeByCode.set(code, 1);
           hierarchyNodeCount += 1;
         }
 
@@ -764,6 +770,7 @@ class LoincSqliteV0Importer {
           const parentId = this.nextConceptId++;
           rows.push([parentId, this.csId, parent, 1, parent, null]);
           this.conceptIdByCode.set(parent, parentId);
+          this.activeByCode.set(parent, 1);
           hierarchyNodeCount += 1;
         }
 
@@ -786,6 +793,7 @@ class LoincSqliteV0Importer {
           const display = trim(row.AnswerListName) || listCode;
           rows.push([conceptId, this.csId, listCode, 1, display, trim(row.Description) || null]);
           this.conceptIdByCode.set(listCode, conceptId);
+          this.activeByCode.set(listCode, 1);
           answerListCount += 1;
         }
 
@@ -795,6 +803,7 @@ class LoincSqliteV0Importer {
           const display = trim(row.DisplayText) || answerCode;
           rows.push([conceptId, this.csId, answerCode, 1, display, trim(row.Description) || null]);
           this.conceptIdByCode.set(answerCode, conceptId);
+          this.activeByCode.set(answerCode, 1);
           answerCodeCount += 1;
         }
 
@@ -837,7 +846,7 @@ class LoincSqliteV0Importer {
       const conceptId = this.conceptIdByCode.get(code);
       if (!conceptId) continue;
 
-      const active = isActiveLoincStatus(row.STATUS) ? 1 : 0;
+      const active = this.activeByCode.get(code) ? 1 : 0;
 
       const longName = trim(row.LONG_COMMON_NAME);
       if (longName) {
@@ -880,7 +889,7 @@ class LoincSqliteV0Importer {
         const consumer = trim(row.ConsumerName);
         if (!conceptId || !consumer) continue;
 
-        rows.push([conceptId, 1, 'en-US', 'ConsumerName', consumer, 0]);
+        rows.push([conceptId, this.activeByCode.get(code) ? 1 : 0, 'en-US', 'ConsumerName', consumer, 0]);
         imported += 1;
 
         if (rows.length >= FLUSH_ROW_TARGET) {
@@ -902,20 +911,21 @@ class LoincSqliteV0Importer {
         const code = trim(row.LOINC_NUM);
         const conceptId = this.conceptIdByCode.get(code);
         if (!conceptId) continue;
+        const active = this.activeByCode.get(code) ? 1 : 0;
 
         const longName = trim(row.LONG_COMMON_NAME);
         const shortName = trim(row.SHORTNAME);
         const variantDisplay = trim(row.LinguisticVariantDisplayName);
         if (longName) {
-          rows.push([conceptId, 1, lang, 'LONG_COMMON_NAME', longName, 0]);
+          rows.push([conceptId, active, lang, 'LONG_COMMON_NAME', longName, 0]);
           imported += 1;
         }
         if (shortName) {
-          rows.push([conceptId, 1, lang, 'SHORTNAME', shortName, 0]);
+          rows.push([conceptId, active, lang, 'SHORTNAME', shortName, 0]);
           imported += 1;
         }
         if (variantDisplay) {
-          rows.push([conceptId, 1, lang, 'LinguisticVariantDisplayName', variantDisplay, 0]);
+          rows.push([conceptId, active, lang, 'LinguisticVariantDisplayName', variantDisplay, 0]);
           imported += 1;
         }
 
@@ -939,7 +949,7 @@ class LoincSqliteV0Importer {
         const display = trim(row.PartDisplayName) || trim(row.PartName);
         if (!display) continue;
 
-        rows.push([conceptId, 1, 'en-US', 'DisplayName', display, 0]);
+        rows.push([conceptId, this.activeByCode.get(code) ? 1 : 0, 'en-US', 'DisplayName', display, 0]);
         imported += 1;
 
         if (rows.length >= FLUSH_ROW_TARGET) {
@@ -1134,7 +1144,9 @@ class LoincSqliteV0Importer {
       if (!conceptId) continue;
 
       for (const spec of LITERAL_COLUMN_MAP) {
-        const raw = trim(row[spec.column]);
+        const raw = spec.property === 'STATUS'
+          ? loincCodeStatusValue(row.STATUS)
+          : trim(row[spec.column]);
         if (!raw) continue;
         const propertyId = this.propertyIdByCode.get(spec.property);
         if (!propertyId) continue;
@@ -1144,6 +1156,39 @@ class LoincSqliteV0Importer {
           EDGE_SET_PRIMARY,
           conceptId,
           propertyId,
+          0,
+          1,
+          raw,
+          parsed.valueText,
+          parsed.valueNum,
+          parsed.valueBool
+        ]);
+        imported += 1;
+
+        if (rows.length >= FLUSH_ROW_TARGET) {
+          await this.bulkInsert(
+            `INSERT INTO concept_literal (edge_set_id, source_concept_id, property_id, group_id, active, value_raw, value_text, value_num, value_bool)`,
+            9,
+            rows
+          );
+          rows.length = 0;
+        }
+      }
+    }
+
+    const statusPropertyId = this.propertyIdByCode.get('STATUS');
+    if (statusPropertyId && files.part) {
+      for await (const row of readCsv(files.part)) {
+        const code = trim(row.PartNumber);
+        const conceptId = this.conceptIdByCode.get(code);
+        const raw = loincPartStatusValue(row.Status);
+        if (!conceptId || !raw) continue;
+
+        const parsed = parseLiteralValue(raw);
+        rows.push([
+          EDGE_SET_PRIMARY,
+          conceptId,
+          statusPropertyId,
           0,
           1,
           raw,
@@ -1430,7 +1475,7 @@ class LoincSqliteV0Importer {
   async writeCsConfig() {
     const runtimeSearch = {
       mode: 'fts-broad',
-      activeOnly: true,
+      activeOnly: false,
       designationActiveOnly: true,
       literalActiveOnly: true,
       sources: ['display', 'designation', 'literal'],
@@ -1719,9 +1764,36 @@ function detectVersionFromPath(value) {
   return match ? match[1] : null;
 }
 
+const LEGACY_LOINC_STATUS_BY_KEY = new Map([
+  ['NOTSTATED', 'NotStated'],
+  ['ACTIVE', 'ACTIVE'],
+  ['DEPRECATED', 'DEPRECATED'],
+  ['TRIAL', 'TRIAL'],
+  ['DISCOURAGED', 'DISCOURAGED'],
+  ['EXAMPLE', 'EXAMPLE'],
+  ['PREFERRED', 'PREFERRED'],
+  ['PRIMARY', 'Primary'],
+  ['DOCUMENTONTOLOGY', 'DocumentOntology'],
+  ['RADIOLOGY', 'Radiology'],
+  ['NORMATIVE', 'NORMATIVE']
+]);
+
+function normalizeLoincLegacyStatus(status, fallback = null) {
+  const key = String(status || '').trim().toUpperCase();
+  if (!key) return fallback;
+  return LEGACY_LOINC_STATUS_BY_KEY.get(key) || fallback;
+}
+
+function loincCodeStatusValue(status) {
+  return normalizeLoincLegacyStatus(status, 'ACTIVE');
+}
+
+function loincPartStatusValue(status) {
+  return normalizeLoincLegacyStatus(status, null);
+}
+
 function isActiveLoincStatus(status) {
-  const s = String(status || '').toUpperCase();
-  return s === 'ACTIVE' || s === 'TRIAL';
+  return status === 'ACTIVE' || status === 'TRIAL';
 }
 
 function parseLiteralValue(raw) {

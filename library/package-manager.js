@@ -403,6 +403,15 @@ class PackageManager {
             return version;
         }
 
+        // Prefer locally cached versions before hitting the network. This keeps
+        // request-level tests and harness runs deterministic/offline when the
+        // package payloads are already available in the terminology cache.
+        const cachedVersions = await this.getCachedPackageVersions(packageId);
+        const cachedResolvedVersion = this.selectBestVersion(cachedVersions, version);
+        if (cachedResolvedVersion) {
+            return cachedResolvedVersion;
+        }
+
         // Need to get version list and find best match
         for (const server of this.packageServers) {
             try {
@@ -419,6 +428,24 @@ class PackageManager {
         }
 
         throw new Error(`Could not resolve version ${version} for package ${packageId}`);
+    }
+
+    /**
+     * Find locally cached versions for a package.
+     * @param {string} packageId - Package identifier
+     * @returns {Promise<string[]>} Cached version strings
+     */
+    async getCachedPackageVersions(packageId) {
+        try {
+            const entries = await fs.readdir(this.cacheFolder, { withFileTypes: true });
+            const prefix = `${packageId}#`;
+            return entries
+                .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))
+                .map((entry) => entry.name.substring(prefix.length))
+                .filter(Boolean);
+        } catch (error) {
+            return [];
+        }
     }
 
     /**

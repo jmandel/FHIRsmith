@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: LOINC active quantitative browse first 100</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:37:01.098Z",
+  "rowIndex": 186,
+  "slug": "186-loinc-active-quantitative-browse-first-100",
+  "name": "LOINC active quantitative browse first 100",
+  "category": "Lab Workloads",
+  "hrefs": {
+    "input": "../perf-table.inputs/186-loinc-active-quantitative-browse-first-100.json",
+    "detailJson": "186-loinc-active-quantitative-browse-first-100.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 279,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 279,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Qn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "16035",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:36:58 GMT",
+            "etag": "W/\"3ea3-OfAGmCoiO3k6UJZ1o4m/XeC3Skw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-676"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:36:59.266Z",
+              "identifier": "urn:uuid:bebb27d5-929c-425c-b0a2-3ff5ee8aaac7",
+              "total": 40256,
+              "offset": 0,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "10000-8",
+                  "display": "R wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10001-6",
+                  "display": "R wave duration in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10002-4",
+                  "display": "R wave duration in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10003-2",
+                  "display": "R wave duration in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100030-6",
+                  "display": "Axis I: Temporal aspects score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100031-4",
+                  "display": "Axis II: Spatial aspects score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100032-2",
+                  "display": "Axis III: Drug taking behavior score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100033-0",
+                  "display": "Axis IV: Utilization of the health care system score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10004-0",
+                  "display": "R wave duration in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10005-7",
+                  "display": "R wave duration in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10006-5",
+                  "display": "R wave duration in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10007-3",
+                  "display": "R wave duration in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10008-1",
+                  "display": "R wave duration in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10009-9",
+                  "display": "R wave duration in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100091-8",
+                  "display": "Trypanosoma cruzi Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10010-7",
+                  "display": "R' wave amplitude in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100108-0",
+                  "display": "Leishmania sp IgG Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10011-5",
+                  "display": "R' wave amplitude in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10012-3",
+                  "display": "R' wave amplitude in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100124-7",
+                  "display": "Chlamydophila pneumoniae IgA Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10013-1",
+                  "display": "R' wave amplitude in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10014-9",
+                  "display": "R' wave amplitude in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10015-6",
+                  "display": "R' wave amplitude in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100150-2",
+                  "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate [Moles/volume] in Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100151-0",
+                  "display": "6-oxo-piperidine-2-carboxylate [Moles/volume] in Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100152-8",
+                  "display": "6-oxo-piperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100153-6",
+                  "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100158-5",
+                  "display": "Microalbumin [Mass/volume] in Urine collected for unspecified duration"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10016-4",
+                  "display": "R' wave amplitude in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100165-0",
+                  "display": "Knee range of motion"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10017-2",
+                  "display": "R' wave amplitude in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10018-0",
+                  "display": "R' wave amplitude in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10019-8",
+                  "display": "R' wave amplitude in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100196-5",
+                  "display": "Pre-op total score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100198-1",
+                  "display": "Pre-op objective knee indicators score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100199-9",
+                  "display": "Pre-op symptoms score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10020-6",
+                  "display": "R' wave amplitude in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100200-5",
+                  "display": "Pre-op patient expectations score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100201-3",
+                  "display": "Pre-op functional activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100202-1",
+                  "display": "Pre-op discretionary knee activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100207-0",
+                  "display": "Post-op total score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100208-8",
+                  "display": "Post-op objective knee indicators score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100209-6",
+                  "display": "Post-op symptoms score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10021-4",
+                  "display": "R' wave amplitude in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100210-4",
+                  "display": "Post-op patient expectations score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100211-2",
+                  "display": "Post-op functional activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100212-0",
+                  "display": "Post-op discretionary knee activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10022-2",
+                  "display": "R' wave duration in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10023-0",
+                  "display": "R' wave duration in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10024-8",
+                  "display": "R' wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10025-5",
+                  "display": "R' wave duration in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100255-9",
+                  "display": "Total score [Impact of Event Scale-Revised]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10026-3",
+                  "display": "R' wave duration in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10027-1",
+                  "display": "R' wave duration in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100274-0",
+                  "display": "Observing score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100275-7",
+                  "display": "Describing score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100276-5",
+                  "display": "Acting with awareness score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100277-3",
+                  "display": "Nonjudging score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100278-1",
+                  "display": "Nonreactivity score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100279-9",
+                  "display": "Total score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10028-9",
+                  "display": "R' wave duration in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100281-5",
+                  "display": "D Ab [Units/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100288-0",
+                  "display": "Absence of deformity score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10029-7",
+                  "display": "R' wave duration in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100290-6",
+                  "display": "Range of motion score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100291-4",
+                  "display": "Total score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100292-2",
+                  "display": "Pre-op patient satisfaction score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100298-9",
+                  "display": "Repetition count"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100299-7",
+                  "display": "Post-op patient satisfaction score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10030-5",
+                  "display": "R' wave duration in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100300-3",
+                  "display": "End time Unspecified body region"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100301-1",
+                  "display": "Start time Unspecified body region"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100304-5",
+                  "display": "Flights climbed [#] Reporting Period"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10031-3",
+                  "display": "R' wave duration in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10032-1",
+                  "display": "R' wave duration in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10033-9",
+                  "display": "R' wave duration in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10034-7",
+                  "display": "S wave amplitude in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100341-7",
+                  "display": "Rubella virus IgG Ab index [Units/volume] in Serum and CSF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100346-6",
+                  "display": "Clotting time.extrinsic coagulation system activated.platelets inhibited of Blood by Rotational TEG"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100347-4",
+                  "display": "Clot formation.extrinsic coagulation system activated.platelets inhibited [Time] in Blood by Rotational TEG"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100348-2",
+                  "display": "Model for end-stage liver disease sodium score"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10035-4",
+                  "display": "S wave amplitude in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100350-8",
+                  "display": "Sesamum indicum 1 IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100359-9",
+                  "display": "Gliadin 33 mer peptide [Mass/volume] in Stool by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10036-2",
+                  "display": "S wave amplitude in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100367-2",
+                  "display": "Total Score BRS"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10037-0",
+                  "display": "S wave amplitude in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100371-4",
+                  "display": "Titin Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100372-2",
+                  "display": "Abiraterone [Mass/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100373-0",
+                  "display": "Eucheuma IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100374-8",
+                  "display": "Aloe vera IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100375-5",
+                  "display": "Anise IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100376-3",
+                  "display": "Bamboo sprouts IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100377-1",
+                  "display": "Goat cheese IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100378-9",
+                  "display": "Sheep cheese IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100379-7",
+                  "display": "Leeks IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10038-8",
+                  "display": "S wave amplitude in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100380-5",
+                  "display": "Red cabbage IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100381-3",
+                  "display": "Peppermint IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100384-7",
+                  "display": "Turnip IgG Ab [Units/volume] in Serum"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: a3fdd443b1e2a180ab9c0923c6aab5326b9c0dbd\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=100\noptimized-ir:\n  selector filter http://loinc.org SCALE_TYP = Qn ; STATUS = ACTIVE [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":277.08,\"sqlCount\":2,\"sqlMs\":275.2,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":null,\"offset\":0,\"count\":100,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":100,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":100},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.24,\"execMs\":138.38},\"t\":139.51}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_link\\\" \\\"l\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"source_concept_id\\\") INNER JOIN \\\"concept\\\" \\\"tgt\\\" ON (\\\"tgt\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"target_concept_id\\\") WHERE ((\\\"l\\\".\\\"property_id\\\" = @prop_id_1) AND (\\\"l\\\".\\\"edge_set_id\\\" = @edge_set_id_2) AND (\\\"l\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @link_cs_id_3) AND (\\\"tgt\\\".\\\"code\\\" COLLATE NOCASE IN (@prop_value_0) OR \\\"tgt\\\".\\\"display\\\" COLLATE NOCASE IN (@prop_value_0)))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_4) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_5) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_6) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_6))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 100\",\"params\":{\"prop_value_0\":\"Qn\",\"prop_id_1\":6,\"edge_set_id_2\":1,\"link_cs_id_3\":1,\"prop_id_4\":37,\"literal_cs_id_5\":1,\"prop_value_6\":\"ACTIVE\"},\"rows\":100,\"ms\":138.38,\"label\":\"executeIR\"}],\"ms\":138.96,\"result\":{\"candidates\":100,\"total\":null}}],\"ms\":138.98,\"result\":{\"candidates\":100}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_link\\\" \\\"l\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"source_concept_id\\\") INNER JOIN \\\"concept\\\" \\\"tgt\\\" ON (\\\"tgt\\\".\\\"concept_id\\\" = \\\"l\\\".\\\"target_concept_id\\\") WHERE ((\\\"l\\\".\\\"property_id\\\" = @prop_id_1) AND (\\\"l\\\".\\\"edge_set_id\\\" = @edge_set_id_2) AND (\\\"l\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @link_cs_id_3) AND (\\\"tgt\\\".\\\"code\\\" COLLATE NOCASE IN (@prop_value_0) OR \\\"tgt\\\".\\\"display\\\" COLLATE NOCASE IN (@prop_value_0)))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_4) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_5) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_6) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_6))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1)\",\"params\":{\"prop_value_0\":\"Qn\",\"prop_id_1\":6,\"edge_set_id_2\":1,\"link_cs_id_3\":1,\"prop_id_4\":37,\"literal_cs_id_5\":1,\"prop_value_6\":\"ACTIVE\"},\"rows\":40256,\"ms\":136.82,\"label\":\"countForIR\"}],\"ms\":137.36,\"result\":{\"count\":40256}}],\"ms\":137.39,\"result\":{\"count\":40256}}],\"ms\":276.4,\"result\":{\"paged\":100}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":100,\"includeDesignations\":false},\"children\":[],\"ms\":0.06,\"result\":{\"count\":100}}],\"ms\":277.01,\"result\":{\"total\":40256,\"contains\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 277.08,
+          "sqlCount": 2,
+          "sqlMs": 275.2,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": null,
+                "offset": 0,
+                "count": 100,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 100,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 100
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.24,
+                                "execMs": 138.38
+                              },
+                              "t": 139.51
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_link\" \"l\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"l\".\"source_concept_id\") INNER JOIN \"concept\" \"tgt\" ON (\"tgt\".\"concept_id\" = \"l\".\"target_concept_id\") WHERE ((\"l\".\"property_id\" = @prop_id_1) AND (\"l\".\"edge_set_id\" = @edge_set_id_2) AND (\"l\".\"active\" = 1) AND (\"src\".\"cs_id\" = @link_cs_id_3) AND (\"tgt\".\"code\" COLLATE NOCASE IN (@prop_value_0) OR \"tgt\".\"display\" COLLATE NOCASE IN (@prop_value_0)))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL) INTERSECT SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_4) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_5) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_6) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_6))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE (\"c\".\"active\" = 1) ORDER BY \"c\".\"code\" ASC LIMIT 100",
+                              "params": {
+                                "prop_value_0": "Qn",
+                                "prop_id_1": 6,
+                                "edge_set_id_2": 1,
+                                "link_cs_id_3": 1,
+                                "prop_id_4": 37,
+                                "literal_cs_id_5": 1,
+                                "prop_value_6": "ACTIVE"
+                              },
+                              "rows": 100,
+                              "ms": 138.38,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 138.96,
+                          "result": {
+                            "candidates": 100,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 138.98,
+                      "result": {
+                        "candidates": 100
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://loinc.org"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_link\" \"l\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"l\".\"source_concept_id\") INNER JOIN \"concept\" \"tgt\" ON (\"tgt\".\"concept_id\" = \"l\".\"target_concept_id\") WHERE ((\"l\".\"property_id\" = @prop_id_1) AND (\"l\".\"edge_set_id\" = @edge_set_id_2) AND (\"l\".\"active\" = 1) AND (\"src\".\"cs_id\" = @link_cs_id_3) AND (\"tgt\".\"code\" COLLATE NOCASE IN (@prop_value_0) OR \"tgt\".\"display\" COLLATE NOCASE IN (@prop_value_0)))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL) INTERSECT SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_4) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_5) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_6) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_6))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE (\"c\".\"active\" = 1)",
+                              "params": {
+                                "prop_value_0": "Qn",
+                                "prop_id_1": 6,
+                                "edge_set_id_2": 1,
+                                "link_cs_id_3": 1,
+                                "prop_id_4": 37,
+                                "literal_cs_id_5": 1,
+                                "prop_value_6": "ACTIVE"
+                              },
+                              "rows": 40256,
+                              "ms": 136.82,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 137.36,
+                          "result": {
+                            "count": 40256
+                          }
+                        }
+                      ],
+                      "ms": 137.39,
+                      "result": {
+                        "count": 40256
+                      }
+                    }
+                  ],
+                  "ms": 276.4,
+                  "result": {
+                    "paged": 100
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 100,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.06,
+                  "result": {
+                    "count": 100
+                  }
+                }
+              ],
+              "ms": 277.01,
+              "result": {
+                "total": 40256,
+                "contains": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: a3fdd443b1e2a180ab9c0923c6aab5326b9c0dbd\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=100\noptimized-ir:\n  selector filter http://loinc.org SCALE_TYP = Qn ; STATUS = ACTIVE [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 1023,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 1023,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Qn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "11486",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:00 GMT",
+            "etag": "W/\"2cde-h+DKwKNTgTFkDqF4XxteLgjlPdw\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-677"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:36:59.269Z",
+              "identifier": "urn:uuid:75ccf6fb-3404-4603-aaa2-2a6d06e31d2c",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "10000-8",
+                  "display": "R wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10001-6",
+                  "display": "R wave duration in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10002-4",
+                  "display": "R wave duration in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10003-2",
+                  "display": "R wave duration in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100030-6",
+                  "display": "Axis I: Temporal aspects score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100031-4",
+                  "display": "Axis II: Spatial aspects score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100032-2",
+                  "display": "Axis III: Drug taking behavior score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100033-0",
+                  "display": "Axis IV: Utilization of the health care system score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10004-0",
+                  "display": "R wave duration in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10005-7",
+                  "display": "R wave duration in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10006-5",
+                  "display": "R wave duration in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10007-3",
+                  "display": "R wave duration in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10008-1",
+                  "display": "R wave duration in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10009-9",
+                  "display": "R wave duration in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100091-8",
+                  "display": "Trypanosoma cruzi Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10010-7",
+                  "display": "R' wave amplitude in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100108-0",
+                  "display": "Leishmania sp IgG Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10011-5",
+                  "display": "R' wave amplitude in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10012-3",
+                  "display": "R' wave amplitude in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100124-7",
+                  "display": "Chlamydophila pneumoniae IgA Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10013-1",
+                  "display": "R' wave amplitude in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10014-9",
+                  "display": "R' wave amplitude in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10015-6",
+                  "display": "R' wave amplitude in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100150-2",
+                  "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate [Moles/volume] in Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100151-0",
+                  "display": "6-oxo-piperidine-2-carboxylate [Moles/volume] in Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100152-8",
+                  "display": "6-oxo-piperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100153-6",
+                  "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100158-5",
+                  "display": "Microalbumin [Mass/volume] in Urine collected for unspecified duration"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10016-4",
+                  "display": "R' wave amplitude in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100165-0",
+                  "display": "Knee range of motion"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10017-2",
+                  "display": "R' wave amplitude in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10018-0",
+                  "display": "R' wave amplitude in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10019-8",
+                  "display": "R' wave amplitude in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100196-5",
+                  "display": "Pre-op total score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100198-1",
+                  "display": "Pre-op objective knee indicators score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100199-9",
+                  "display": "Pre-op symptoms score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10020-6",
+                  "display": "R' wave amplitude in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100200-5",
+                  "display": "Pre-op patient expectations score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100201-3",
+                  "display": "Pre-op functional activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100202-1",
+                  "display": "Pre-op discretionary knee activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100207-0",
+                  "display": "Post-op total score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100208-8",
+                  "display": "Post-op objective knee indicators score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100209-6",
+                  "display": "Post-op symptoms score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10021-4",
+                  "display": "R' wave amplitude in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100210-4",
+                  "display": "Post-op patient expectations score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100211-2",
+                  "display": "Post-op functional activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100212-0",
+                  "display": "Post-op discretionary knee activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10022-2",
+                  "display": "R' wave duration in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10023-0",
+                  "display": "R' wave duration in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10024-8",
+                  "display": "R' wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10025-5",
+                  "display": "R' wave duration in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100255-9",
+                  "display": "Total score [Impact of Event Scale-Revised]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10026-3",
+                  "display": "R' wave duration in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10027-1",
+                  "display": "R' wave duration in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100274-0",
+                  "display": "Observing score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100275-7",
+                  "display": "Describing score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100276-5",
+                  "display": "Acting with awareness score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100277-3",
+                  "display": "Nonjudging score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100278-1",
+                  "display": "Nonreactivity score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100279-9",
+                  "display": "Total score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10028-9",
+                  "display": "R' wave duration in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100281-5",
+                  "display": "D Ab [Units/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100288-0",
+                  "display": "Absence of deformity score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10029-7",
+                  "display": "R' wave duration in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100290-6",
+                  "display": "Range of motion score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100291-4",
+                  "display": "Total score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100292-2",
+                  "display": "Pre-op patient satisfaction score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100298-9",
+                  "display": "Repetition count"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100299-7",
+                  "display": "Post-op patient satisfaction score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10030-5",
+                  "display": "R' wave duration in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100300-3",
+                  "display": "End time Unspecified body region"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100301-1",
+                  "display": "Start time Unspecified body region"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100304-5",
+                  "display": "Flights climbed [#] Reporting Period"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10031-3",
+                  "display": "R' wave duration in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10032-1",
+                  "display": "R' wave duration in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10033-9",
+                  "display": "R' wave duration in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10034-7",
+                  "display": "S wave amplitude in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100341-7",
+                  "display": "Rubella virus IgG Ab index [Units/volume] in Serum and CSF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100346-6",
+                  "display": "Clotting time.extrinsic coagulation system activated.platelets inhibited of Blood by Rotational TEG"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100347-4",
+                  "display": "Clot formation.extrinsic coagulation system activated.platelets inhibited [Time] in Blood by Rotational TEG"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100348-2",
+                  "display": "Model for end-stage liver disease sodium score"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10035-4",
+                  "display": "S wave amplitude in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100350-8",
+                  "display": "Sesamum indicum 1 IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100359-9",
+                  "display": "Gliadin 33 mer peptide [Mass/volume] in Stool by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10036-2",
+                  "display": "S wave amplitude in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100367-2",
+                  "display": "Total Score BRS"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10037-0",
+                  "display": "S wave amplitude in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100371-4",
+                  "display": "Titin Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100372-2",
+                  "display": "Abiraterone [Mass/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100373-0",
+                  "display": "Eucheuma IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100374-8",
+                  "display": "Aloe vera IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100375-5",
+                  "display": "Anise IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100376-3",
+                  "display": "Bamboo sprouts IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100377-1",
+                  "display": "Goat cheese IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100378-9",
+                  "display": "Sheep cheese IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100379-7",
+                  "display": "Leeks IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10038-8",
+                  "display": "S wave amplitude in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100380-5",
+                  "display": "Red cabbage IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100381-3",
+                  "display": "Peppermint IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100384-7",
+                  "display": "Turnip IgG Ab [Units/volume] in Serum"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1020.73,\"sqlCount\":1,\"sqlMs\":347.34,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":100,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://loinc.org\",\"filterCount\":2,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":2,\"after\":40256},\"t\":929.94}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":248426,\"ms\":347.34,\"label\":\"legacy:executeFilters\"}],\"ms\":929.14,\"result\":{\"rows\":40256}}],\"ms\":1020.7,\"result\":{\"ms\":1020.7,\"returned\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1020.73,
+          "sqlCount": 1,
+          "sqlMs": 347.34,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 100,
+                "offset": -1,
+                "activeOnly": true,
+                "hasTextFilter": false
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://loinc.org",
+                    "filterCount": 2,
+                    "hasTextSearch": false
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "legacy:codeSetIntersection",
+                      "data": {
+                        "filters": 2,
+                        "after": 40256
+                      },
+                      "t": 929.94
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1
+                      },
+                      "rows": 248426,
+                      "ms": 347.34,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 929.14,
+                  "result": {
+                    "rows": 40256
+                  }
+                }
+              ],
+              "ms": 1020.7,
+              "result": {
+                "ms": 1020.7,
+                "returned": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 807,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 807,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          },
+                          {
+                            "property": "SCALE_TYP",
+                            "op": "=",
+                            "value": "Qn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "10942",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:01 GMT",
+            "etag": "W/\"2abe-W9n2JKGb5HninDFsG6UqFxxvo/E\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-202"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:37:00.292Z",
+              "identifier": "urn:uuid:934c38e5-0081-4473-9ffe-04bc68728ded",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "10000-8",
+                  "display": "R wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10001-6",
+                  "display": "R wave duration in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10002-4",
+                  "display": "R wave duration in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100030-6",
+                  "display": "Axis I: Temporal aspects score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100031-4",
+                  "display": "Axis II: Spatial aspects score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10003-2",
+                  "display": "R wave duration in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100032-2",
+                  "display": "Axis III: Drug taking behavior score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100033-0",
+                  "display": "Axis IV: Utilization of the health care system score [Mainz Pain Staging System]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10004-0",
+                  "display": "R wave duration in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10005-7",
+                  "display": "R wave duration in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10006-5",
+                  "display": "R wave duration in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10007-3",
+                  "display": "R wave duration in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10008-1",
+                  "display": "R wave duration in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100091-8",
+                  "display": "Trypanosoma cruzi Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10009-9",
+                  "display": "R wave duration in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10010-7",
+                  "display": "R' wave amplitude in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100108-0",
+                  "display": "Leishmania sp IgG Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10011-5",
+                  "display": "R' wave amplitude in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10012-3",
+                  "display": "R' wave amplitude in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100124-7",
+                  "display": "Chlamydophila pneumoniae IgA Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10013-1",
+                  "display": "R' wave amplitude in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10014-9",
+                  "display": "R' wave amplitude in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100150-2",
+                  "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate [Moles/volume] in Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100151-0",
+                  "display": "6-oxo-piperidine-2-carboxylate [Moles/volume] in Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100152-8",
+                  "display": "6-oxo-piperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100153-6",
+                  "display": "6(R+S)-oxo-propylpiperidine-2-carboxylate/Creatinine [Molar ratio] in Urine"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10015-6",
+                  "display": "R' wave amplitude in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100158-5",
+                  "display": "Microalbumin [Mass/volume] in Urine collected for unspecified duration"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10016-4",
+                  "display": "R' wave amplitude in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100165-0",
+                  "display": "Knee range of motion"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10017-2",
+                  "display": "R' wave amplitude in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10018-0",
+                  "display": "R' wave amplitude in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100196-5",
+                  "display": "Pre-op total score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10019-8",
+                  "display": "R' wave amplitude in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100198-1",
+                  "display": "Pre-op objective knee indicators score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100199-9",
+                  "display": "Pre-op symptoms score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100200-5",
+                  "display": "Pre-op patient expectations score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100201-3",
+                  "display": "Pre-op functional activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100202-1",
+                  "display": "Pre-op discretionary knee activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10020-6",
+                  "display": "R' wave amplitude in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100207-0",
+                  "display": "Post-op total score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100208-8",
+                  "display": "Post-op objective knee indicators score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100209-6",
+                  "display": "Post-op symptoms score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100210-4",
+                  "display": "Post-op patient expectations score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100211-2",
+                  "display": "Post-op functional activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100212-0",
+                  "display": "Post-op discretionary knee activities score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10021-4",
+                  "display": "R' wave amplitude in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10022-2",
+                  "display": "R' wave duration in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10023-0",
+                  "display": "R' wave duration in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10024-8",
+                  "display": "R' wave duration in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10025-5",
+                  "display": "R' wave duration in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100255-9",
+                  "display": "Total score [Impact of Event Scale-Revised]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10026-3",
+                  "display": "R' wave duration in lead II"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10027-1",
+                  "display": "R' wave duration in lead III"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100274-0",
+                  "display": "Observing score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100275-7",
+                  "display": "Describing score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100276-5",
+                  "display": "Acting with awareness score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100277-3",
+                  "display": "Nonjudging score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100278-1",
+                  "display": "Nonreactivity score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100279-9",
+                  "display": "Total score [FFMQ]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100281-5",
+                  "display": "D Ab [Units/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100288-0",
+                  "display": "Absence of deformity score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10028-9",
+                  "display": "R' wave duration in lead V1"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100290-6",
+                  "display": "Range of motion score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100291-4",
+                  "display": "Total score [Harris Hip Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100292-2",
+                  "display": "Pre-op patient satisfaction score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10029-7",
+                  "display": "R' wave duration in lead V2"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100298-9",
+                  "display": "Repetition count"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100299-7",
+                  "display": "Post-op patient satisfaction score [Knee Society Score]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100300-3",
+                  "display": "End time Unspecified body region"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100301-1",
+                  "display": "Start time Unspecified body region"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100304-5",
+                  "display": "Flights climbed [#] Reporting Period"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10030-5",
+                  "display": "R' wave duration in lead V3"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10031-3",
+                  "display": "R' wave duration in lead V4"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10032-1",
+                  "display": "R' wave duration in lead V5"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10033-9",
+                  "display": "R' wave duration in lead V6"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100341-7",
+                  "display": "Rubella virus IgG Ab index [Units/volume] in Serum and CSF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100346-6",
+                  "display": "Clotting time.extrinsic coagulation system activated.platelets inhibited of Blood by Rotational TEG"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10034-7",
+                  "display": "S wave amplitude in lead AVF"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100347-4",
+                  "display": "Clot formation.extrinsic coagulation system activated.platelets inhibited [Time] in Blood by Rotational TEG"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100348-2",
+                  "display": "Model for end-stage liver disease sodium score"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100350-8",
+                  "display": "Sesamum indicum 1 IgE Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10035-4",
+                  "display": "S wave amplitude in lead AVL"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100359-9",
+                  "display": "Gliadin 33 mer peptide [Mass/volume] in Stool by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10036-2",
+                  "display": "S wave amplitude in lead AVR"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100367-2",
+                  "display": "Total Score BRS"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "10037-0",
+                  "display": "S wave amplitude in lead I"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100371-4",
+                  "display": "Titin Ab [Units/volume] in Serum by Immunoassay"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100372-2",
+                  "display": "Abiraterone [Mass/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100373-0",
+                  "display": "Eucheuma IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100374-8",
+                  "display": "Aloe vera IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100375-5",
+                  "display": "Anise IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100376-3",
+                  "display": "Bamboo sprouts IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100377-1",
+                  "display": "Goat cheese IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100378-9",
+                  "display": "Sheep cheese IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100379-7",
+                  "display": "Leeks IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100380-5",
+                  "display": "Red cabbage IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100381-3",
+                  "display": "Peppermint IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100384-7",
+                  "display": "Turnip IgG Ab [Units/volume] in Serum"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "100385-4",
+                  "display": "Corn salad IgG Ab [Units/volume] in Serum"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":805.13,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":100,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[],\"ms\":805.1,\"result\":{\"ms\":805.09,\"returned\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 805.13,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 100,
+                "offset": -1,
+                "activeOnly": true,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 805.1,
+              "result": {
+                "ms": 805.09,
+                "returned": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf || perf.supported === false) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = target.supported === false ? 'not exercised for this case' : (debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed');
+    const status = target.supported === false ? 'n/a' : (debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a');
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.supported === false ? 'N/A for this case' : (debug?.irPlanText || 'N/A for this target');
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = target.supported === false ? 'N/A for this case' : (debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.');
+      } else {
+        label = 'HTTP Response';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

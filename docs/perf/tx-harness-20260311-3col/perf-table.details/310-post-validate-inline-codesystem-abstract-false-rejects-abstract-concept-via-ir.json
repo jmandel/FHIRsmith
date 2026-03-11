@@ -1,0 +1,491 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:40:43.516Z",
+  "rowIndex": 310,
+  "slug": "310-post-validate-inline-codesystem-abstract-false-rejects-abstract-concept-via-ir",
+  "name": "POST validate inline CodeSystem abstract=false rejects abstract concept via IR",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/310-post-validate-inline-codesystem-abstract-false-rejects-abstract-concept-via-ir.json",
+    "detailJson": "310-post-validate-inline-codesystem-abstract-false-rejects-abstract-concept-via-ir.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 4,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://example.org/cs-abstract",
+                  "code": "A"
+                }
+              },
+              {
+                "name": "abstract",
+                "valueBoolean": false
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-abstract",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha",
+                      "property": [
+                        {
+                          "code": "abstract",
+                          "valueBoolean": true
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1217",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:43 GMT",
+            "etag": "W/\"4c1-6Bo2xd0KU+q97aSgXGRSaQBbd6k\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-1032"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "version",
+                "valueString": "1.0.0"
+              },
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-abstract"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "display",
+                "valueString": "Alpha"
+              },
+              {
+                "name": "message",
+                "valueString": "Code 'http://example.org/cs-abstract#A' is abstract, and not allowed in this context"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "business-rule",
+                      "details": {
+                        "text": "Code 'http://example.org/cs-abstract#A' is abstract, and not allowed in this context",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "code-rule"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "Coding.code"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "ABSTRACT_CODE_NOT_ALLOWED"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":0.65,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystem\",\"children\":[{\"name\":\"validateIR:doValidationCS\",\"args\":{\"system\":\"http://example.org/cs-abstract\",\"version\":\"1.0.0\"},\"children\":[],\"ms\":0.34}],\"ms\":0.63,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.65,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystem",
+              "children": [
+                {
+                  "name": "validateIR:doValidationCS",
+                  "args": {
+                    "system": "http://example.org/cs-abstract",
+                    "version": "1.0.0"
+                  },
+                  "children": [],
+                  "ms": 0.34
+                }
+              ],
+              "ms": 0.63,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 9,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 9,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://example.org/cs-abstract",
+                  "code": "A"
+                }
+              },
+              {
+                "name": "abstract",
+                "valueBoolean": false
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-abstract",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha",
+                      "property": [
+                        {
+                          "code": "abstract",
+                          "valueBoolean": true
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1158",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:43 GMT",
+            "etag": "W/\"486-roYWUHCOUpDiChAJOUg/79/C/Yc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-1033"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-abstract"
+              },
+              {
+                "name": "x-caused-by-unknown-system",
+                "valueCanonical": "http://example.org/cs-abstract"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "message",
+                "valueString": "A definition for CodeSystem 'http://example.org/cs-abstract' could not be found, so the code cannot be validated; A definition for CodeSystem 'http://example.org/cs-abstract' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "not-found",
+                      "details": {
+                        "text": "A definition for CodeSystem 'http://example.org/cs-abstract' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-found"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "Coding.system"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "UNKNOWN_CODESYSTEM_VERSION_NONE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 4,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://example.org/cs-abstract",
+                  "code": "A"
+                }
+              },
+              {
+                "name": "abstract",
+                "valueBoolean": false
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-abstract",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha",
+                      "property": [
+                        {
+                          "code": "abstract",
+                          "valueBoolean": true
+                        }
+                      ]
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1158",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:43 GMT",
+            "etag": "W/\"486-roYWUHCOUpDiChAJOUg/79/C/Yc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-281"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-abstract"
+              },
+              {
+                "name": "x-caused-by-unknown-system",
+                "valueCanonical": "http://example.org/cs-abstract"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "message",
+                "valueString": "A definition for CodeSystem 'http://example.org/cs-abstract' could not be found, so the code cannot be validated; A definition for CodeSystem 'http://example.org/cs-abstract' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "not-found",
+                      "details": {
+                        "text": "A definition for CodeSystem 'http://example.org/cs-abstract' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-found"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "Coding.system"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "UNKNOWN_CODESYSTEM_VERSION_NONE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

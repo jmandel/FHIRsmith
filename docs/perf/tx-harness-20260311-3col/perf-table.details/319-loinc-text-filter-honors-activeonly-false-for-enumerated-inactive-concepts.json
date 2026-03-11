@@ -1,0 +1,800 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:35:50.899Z",
+  "rowIndex": 319,
+  "slug": "319-loinc-text-filter-honors-activeonly-false-for-enumerated-inactive-concepts",
+  "name": "LOINC text filter honors activeOnly=false for enumerated inactive concepts",
+  "category": "Text Search",
+  "hrefs": {
+    "input": "../perf-table.inputs/319-loinc-text-filter-honors-activeonly-false-for-enumerated-inactive-concepts.json",
+    "detailJson": "319-loinc-text-filter-honors-activeonly-false-for-enumerated-inactive-concepts.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 4,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "concept": [
+                          {
+                            "code": "11214-4"
+                          },
+                          {
+                            "code": "12571-6"
+                          },
+                          {
+                            "code": "13445-2"
+                          },
+                          {
+                            "code": "14400-6"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 20
+              },
+              {
+                "name": "filter",
+                "valueString": "Deprecated"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "3996",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:35:50 GMT",
+            "etag": "W/\"f9c-GyQboD8XM2C5qLn8CAOQ8WOUCqg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-52"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:35:50.884Z",
+              "identifier": "urn:uuid:f1823b55-9674-4626-bcbc-4383781088a0",
+              "total": 4,
+              "offset": 0,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "11214-4",
+                  "display": "Deprecated Creatinine",
+                  "inactive": true
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "12571-6",
+                  "display": "Deprecated Creatinine [Mass/volume] in Body fluid",
+                  "inactive": true
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "13445-2",
+                  "display": "Deprecated Creatinine renal clearance/1.73 sq M in 24 hour",
+                  "inactive": true
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "14400-6",
+                  "display": "Deprecated Creatinine [Mass/volume] in Peritoneal fluid",
+                  "inactive": true
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 20
+                },
+                {
+                  "name": "filter",
+                  "valueString": "Deprecated"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: 2db15a681c51a25ebdde866a1455a0edb01fd51f\nruntime-constraints:\n  text-filter: \"Deprecated\"\n  pagination: offset=0 count=20\noptimized-ir:\n  selector concept http://loinc.org [4] 11214-4, 12571-6, 13445-2, 14400-6 [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":2.6,\"sqlCount\":1,\"sqlMs\":1.6,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":\"Deprecated\",\"offset\":0,\"count\":20,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":20,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":0,\"sysCount\":20},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.15,\"execMs\":1.6},\"t\":2.53}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_4) AND (EXISTS (SELECT 1 AS \\\"found\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" WHERE ((\\\"f\\\".\\\"rowid\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_5))) OR EXISTS (SELECT 1 AS \\\"found\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"d\\\".\\\"concept_id\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_5))) OR EXISTS (SELECT 1 AS \\\"found\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"cl\\\".\\\"source_concept_id\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_5)))) AND \\\"c\\\".\\\"code\\\" IN (@code_0, @code_1, @code_2, @code_3)) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 20\",\"params\":{\"code_0\":\"11214-4\",\"code_1\":\"12571-6\",\"code_2\":\"13445-2\",\"code_3\":\"14400-6\",\"cs_id_4\":1,\"search_match_5\":\"deprecated*\"},\"rows\":4,\"ms\":1.6,\"label\":\"executeIR\"}],\"ms\":1.95,\"result\":{\"candidates\":4,\"total\":null}}],\"ms\":1.97,\"result\":{\"candidates\":4}},{\"name\":\"note\",\"message\":\"total:inferred\",\"data\":{\"offset\":0,\"returned\":4,\"total\":4},\"t\":2.55}],\"ms\":1.98,\"result\":{\"paged\":4}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":4,\"includeDesignations\":false},\"children\":[],\"ms\":0.02,\"result\":{\"count\":4}}],\"ms\":2.56,\"result\":{\"total\":4,\"contains\":4}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 2.6,
+          "sqlCount": 1,
+          "sqlMs": 1.6,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": "Deprecated",
+                "offset": 0,
+                "count": 20,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 20,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 20
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.15,
+                                "execMs": 1.6
+                              },
+                              "t": 2.53
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_4) AND (EXISTS (SELECT 1 AS \"found\" FROM \"search_fts_display\" \"f\" WHERE ((\"f\".\"rowid\" = \"c\".\"concept_id\") AND (\"f\".\"term\" MATCH @search_match_5))) OR EXISTS (SELECT 1 AS \"found\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") WHERE ((\"d\".\"concept_id\" = \"c\".\"concept_id\") AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_5))) OR EXISTS (SELECT 1 AS \"found\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") WHERE ((\"cl\".\"source_concept_id\" = \"c\".\"concept_id\") AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_5)))) AND \"c\".\"code\" IN (@code_0, @code_1, @code_2, @code_3)) ORDER BY \"c\".\"code\" ASC LIMIT 20",
+                              "params": {
+                                "code_0": "11214-4",
+                                "code_1": "12571-6",
+                                "code_2": "13445-2",
+                                "code_3": "14400-6",
+                                "cs_id_4": 1,
+                                "search_match_5": "deprecated*"
+                              },
+                              "rows": 4,
+                              "ms": 1.6,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 1.95,
+                          "result": {
+                            "candidates": 4,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 1.97,
+                      "result": {
+                        "candidates": 4
+                      }
+                    },
+                    {
+                      "name": "note",
+                      "message": "total:inferred",
+                      "data": {
+                        "offset": 0,
+                        "returned": 4,
+                        "total": 4
+                      },
+                      "t": 2.55
+                    }
+                  ],
+                  "ms": 1.98,
+                  "result": {
+                    "paged": 4
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 4,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.02,
+                  "result": {
+                    "count": 4
+                  }
+                }
+              ],
+              "ms": 2.56,
+              "result": {
+                "total": 4,
+                "contains": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: 2db15a681c51a25ebdde866a1455a0edb01fd51f\nruntime-constraints:\n  text-filter: \"Deprecated\"\n  pagination: offset=0 count=20\noptimized-ir:\n  selector concept http://loinc.org [4] 11214-4, 12571-6, 13445-2, 14400-6 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "concept": [
+                          {
+                            "code": "11214-4"
+                          },
+                          {
+                            "code": "12571-6"
+                          },
+                          {
+                            "code": "13445-2"
+                          },
+                          {
+                            "code": "14400-6"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 20
+              },
+              {
+                "name": "filter",
+                "valueString": "Deprecated"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2419",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:35:50 GMT",
+            "etag": "W/\"973-JaMFc38Djn+PDy1T3HZjqlWM+8c\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-53"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:35:50.886Z",
+              "identifier": "urn:uuid:e773bd4d-3688-4e14-b3f0-c4a5f012f555",
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "deprecated"
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 20
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "total": 4,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "11214-4",
+                  "inactive": true,
+                  "display": "Deprecated Creatinine",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "12571-6",
+                  "inactive": true,
+                  "display": "Deprecated Creatinine [Mass/volume] in Body fluid",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "13445-2",
+                  "inactive": true,
+                  "display": "Deprecated Creatinine renal clearance/1.73 sq M in 24 hour",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "14400-6",
+                  "inactive": true,
+                  "display": "Deprecated Creatinine [Mass/volume] in Peritoneal fluid",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":1.83,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":true},\"children\":[],\"ms\":1.82,\"result\":{\"ms\":1.82,\"total\":4,\"returned\":4}}]}"
+                },
+                {
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+                  "extension": [
+                    {
+                      "url": "code",
+                      "valueCode": "status"
+                    },
+                    {
+                      "url": "uri",
+                      "valueUri": "http://hl7.org/fhir/concept-properties#status"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 1.83,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 20,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": true
+              },
+              "children": [],
+              "ms": 1.82,
+              "result": {
+                "ms": 1.82,
+                "total": 4,
+                "returned": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 10,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 10,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "concept": [
+                          {
+                            "code": "11214-4"
+                          },
+                          {
+                            "code": "12571-6"
+                          },
+                          {
+                            "code": "13445-2"
+                          },
+                          {
+                            "code": "14400-6"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 20
+              },
+              {
+                "name": "filter",
+                "valueString": "Deprecated"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "2355",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:35:50 GMT",
+            "etag": "W/\"933-tLIbyBOMaa5na5QUU3Kwab5SkUA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-17"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:35:50.889Z",
+              "identifier": "urn:uuid:1a4bdea5-e7bd-4a74-a31a-b3a0a0db6e0a",
+              "parameter": [
+                {
+                  "name": "filter",
+                  "valueString": "deprecated"
+                },
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 20
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "total": 4,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "11214-4",
+                  "display": "Deprecated Creatinine",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "12571-6",
+                  "display": "Deprecated Creatinine [Mass/volume] in Body fluid",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "13445-2",
+                  "display": "Deprecated Creatinine renal clearance/1.73 sq M in 24 hour",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "14400-6",
+                  "display": "Deprecated Creatinine [Mass/volume] in Peritoneal fluid",
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
+                      "extension": [
+                        {
+                          "url": "code",
+                          "valueCode": "status"
+                        },
+                        {
+                          "url": "value",
+                          "valueCode": "DEPRECATED"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":8.48,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0},{\"name\":\"legacy-expand\",\"args\":{\"count\":20,\"offset\":-1,\"activeOnly\":false,\"hasTextFilter\":true},\"children\":[],\"ms\":8.46,\"result\":{\"ms\":8.45,\"total\":4,\"returned\":4}}]}"
+                },
+                {
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
+                  "extension": [
+                    {
+                      "url": "code",
+                      "valueCode": "status"
+                    },
+                    {
+                      "url": "uri",
+                      "valueUri": "http://hl7.org/fhir/concept-properties#status"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 8.48,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 20,
+                "offset": -1,
+                "activeOnly": false,
+                "hasTextFilter": true
+              },
+              "children": [],
+              "ms": 8.46,
+              "result": {
+                "ms": 8.45,
+                "total": 4,
+                "returned": 4
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

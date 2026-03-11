@@ -1,0 +1,466 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:39:01.721Z",
+  "rowIndex": 250,
+  "slug": "250-post-validate-inline-codesystem-resource-rejects-codeableconcept-without-system",
+  "name": "POST validate inline CodeSystem resource rejects codeableConcept without system",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/250-post-validate-inline-codesystem-resource-rejects-codeableconcept-without-system.json",
+    "detailJson": "250-post-validate-inline-codesystem-resource-rejects-codeableconcept-without-system.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-validate-cc",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1247",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"4df-1iuF8aU2jnlDi98LH6xN1++aEDs\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-852"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "message",
+                "valueString": "Coding has no system. A code with no system has no defined meaning, and it cannot be validated. A system should be provided"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "warning",
+                      "code": "invalid",
+                      "details": {
+                        "text": "Coding has no system. A code with no system has no defined meaning, and it cannot be validated. A system should be provided",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "invalid-data"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "CodeableConcept.coding[0]"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "Coding_has_no_system__cannot_validate"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":0.42,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystem\",\"children\":[{\"name\":\"validateIR:doValidationCS\",\"args\":{\"system\":\"http://example.org/cs-inline-validate-cc\",\"version\":\"1.0.0\"},\"children\":[],\"ms\":0.14}],\"ms\":0.4,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.42,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystem",
+              "children": [
+                {
+                  "name": "validateIR:doValidationCS",
+                  "args": {
+                    "system": "http://example.org/cs-inline-validate-cc",
+                    "version": "1.0.0"
+                  },
+                  "children": [],
+                  "ms": 0.14
+                }
+              ],
+              "ms": 0.4,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-validate-cc",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "881",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"371-vzeUzidfBpA6+Nq8bapb7D+SWT4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-853"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "message",
+                "valueString": "Coding has no system. A code with no system has no defined meaning, and it cannot be validated. A system should be provided"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "warning",
+                      "code": "invalid",
+                      "details": {
+                        "text": "Coding has no system. A code with no system has no defined meaning, and it cannot be validated. A system should be provided",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "invalid-data"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "CodeableConcept.coding[0]"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "Coding_has_no_system__cannot_validate"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-validate-cc",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "881",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"371-vzeUzidfBpA6+Nq8bapb7D+SWT4\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-241"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "message",
+                "valueString": "Coding has no system. A code with no system has no defined meaning, and it cannot be validated. A system should be provided"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "warning",
+                      "code": "invalid",
+                      "details": {
+                        "text": "Coding has no system. A code with no system has no defined meaning, and it cannot be validated. A system should be provided",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "invalid-data"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "CodeableConcept.coding[0]"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "Coding_has_no_system__cannot_validate"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

@@ -103,7 +103,7 @@ describe('supplement-aware IR adapter-backed providers', () => {
     });
 
     const result = await wrapped.executeIR(subtree, { text: 'Lone metre bonus' });
-    expect(result.candidates.map(candidate => candidate.code)).toEqual(['m']);
-    expect(await wrapped.countForIR(subtree, { text: 'Lone metre bonus' })).toBe(1);
+    expect(result.candidates.map(candidate => candidate.code).sort()).toEqual(['cm', 'm']);
+    expect(await wrapped.countForIR(subtree, { text: 'Lone metre bonus' })).toBe(2);
   });
 });

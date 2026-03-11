@@ -1,6 +1,11 @@
 'use strict';
 
 const { CodeSystem } = require('../library/codesystem');
+const {
+  expansionPropertyAliases,
+  normalizeKnownExpansionExtension,
+  requestedExpansionPropertyMatches,
+} = require('../library/expansion-properties');
 const { getValueName, getValuePrimitive, getValueDT } = require('../../library/utilities');
 
 function cloneJson(value) {
@@ -56,7 +61,7 @@ function buildSupplementOverlay(supplementSet) {
       for (const prop of concept.property || []) {
         const value = valueFromProperty(prop);
         if (value == null) continue;
-        if (prop.code) propertyCodes.add(String(prop.code));
+        for (const alias of expansionPropertyAliases(prop)) propertyCodes.add(alias);
         entry.properties.push({
           ...cloneJson(prop),
           code: prop.code,
@@ -64,7 +69,13 @@ function buildSupplementOverlay(supplementSet) {
         });
       }
       for (const ext of concept.extension || []) {
-        entry.extensions.push(cloneJson(ext));
+        const normalized = normalizeKnownExpansionExtension(ext);
+        if (normalized) {
+          for (const alias of expansionPropertyAliases(normalized)) propertyCodes.add(alias);
+          entry.properties.push(normalized);
+        } else {
+          entry.extensions.push(cloneJson(ext));
+        }
       }
     }
   }
@@ -73,7 +84,10 @@ function buildSupplementOverlay(supplementSet) {
 
 function overlayTouchesProperty(overlay, property) {
   if (!overlay?.propertyCodes || overlay.propertyCodes.size === 0) return false;
-  return overlay.propertyCodes.has(String(property || ''));
+  for (const alias of expansionPropertyAliases(property)) {
+    if (overlay.propertyCodes.has(alias)) return true;
+  }
+  return false;
 }
 
 function mergeSupplementOverlayIntoCandidates(candidates, overlay, opts = {}) {
@@ -94,7 +108,7 @@ function mergeSupplementOverlayIntoCandidates(candidates, overlay, opts = {}) {
     if ((wantAllProperties || properties.length > 0) && extra.properties.length > 0) {
       if (!candidate._properties) candidate._properties = [];
       for (const prop of extra.properties) {
-        if (wantAllProperties || properties.includes(prop.code)) {
+        if (wantAllProperties || requestedExpansionPropertyMatches(prop, properties)) {
           candidate._properties.push(cloneJson(prop));
         }
       }

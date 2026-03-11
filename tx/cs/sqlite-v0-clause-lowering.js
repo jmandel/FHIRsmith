@@ -137,6 +137,24 @@ function literalMatchSet({ scope, origin, meta, property, values }) {
   });
 }
 
+function literalExistsSet({ scope, origin, meta, property }) {
+  return Types.fromRows({
+    scope,
+    rows: Types.rowFilter({
+      input: literalScan(scope, origin, meta),
+      predicate: {
+        kind: 'literalPropertyExists',
+        property: String(property || ''),
+      },
+      origin,
+      meta,
+    }),
+    key: 'source_concept_id',
+    origin,
+    meta,
+  });
+}
+
 function linkMatchSet({ scope, origin, meta, property, values, linkMatch }) {
   return Types.fromRows({
     scope,
@@ -147,6 +165,24 @@ function linkMatchSet({ scope, origin, meta, property, values, linkMatch }) {
         property: String(property || ''),
         values: [...new Set((values || []).map(String).filter(Boolean))].sort(),
         linkMatch: String(linkMatch || 'code-only'),
+      },
+      origin,
+      meta,
+    }),
+    key: 'source_concept_id',
+    origin,
+    meta,
+  });
+}
+
+function linkExistsSet({ scope, origin, meta, property }) {
+  return Types.fromRows({
+    scope,
+    rows: Types.rowFilter({
+      input: linkScan(scope, origin, meta),
+      predicate: {
+        kind: 'linkPropertyExists',
+        property: String(property || ''),
       },
       origin,
       meta,
@@ -313,6 +349,37 @@ function lowerFilterClauseToSetPlan(clause, propertyDefs, runtime, opts = {}) {
       origin,
       meta,
     }));
+  }
+
+  if (op === 'exists') {
+    const wantExists = String(value || '') === 'true'
+      ? true
+      : (String(value || '') === 'false' ? false : null);
+    if (wantExists == null) {
+      return fail('invalid-exists-value', { property, op, value }, meta);
+    }
+
+    const items = [];
+    if (activeSources.includes('literal')) {
+      items.push(literalExistsSet({ scope, origin, meta, property }));
+    }
+    if (activeSources.includes('link')) {
+      items.push(linkExistsSet({ scope, origin, meta, property }));
+    }
+
+    const existsSet = items.length === 0
+      ? Types.emptySet({ scope, origin, meta })
+      : (items.length === 1 ? items[0] : Types.setUnion({ scope, items, origin, meta }));
+
+    return ok(wantExists
+      ? existsSet
+      : Types.setDiff({
+          scope,
+          left: Types.allConcepts({ scope, origin, meta }),
+          right: existsSet,
+          origin,
+          meta,
+        }));
   }
 
   return fail('unsupported-property-filter', { property, op, value }, meta);

@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 1,
+  "id": 317,
+  "slug": "317-designation-counts-display-as-a-designation-via-ir-adapter",
+  "name": "designation = counts display as a designation via IR adapter",
+  "category": "Property Filters",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/common-designation-equals",
+            "filter": [
+              {
+                "property": "designation",
+                "op": "=",
+                "value": "Alpha Base"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/common-designation-equals",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "alpha",
+              "display": "Alpha Base"
+            },
+            {
+              "code": "beta",
+              "display": "Beta Base",
+              "designation": [
+                {
+                  "language": "de",
+                  "value": "Beta Deutsch"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/common-designation-equals",
+                    "filter": [
+                      {
+                        "property": "designation",
+                        "op": "=",
+                        "value": "Alpha Base"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/common-designation-equals",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "alpha",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "beta",
+                  "display": "Beta Base",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Beta Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/common-designation-equals",
+                    "filter": [
+                      {
+                        "property": "designation",
+                        "op": "=",
+                        "value": "Alpha Base"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/common-designation-equals",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "alpha",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "beta",
+                  "display": "Beta Base",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Beta Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/common-designation-equals",
+                    "filter": [
+                      {
+                        "property": "designation",
+                        "op": "=",
+                        "value": "Alpha Base"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/common-designation-equals",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "alpha",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "beta",
+                  "display": "Beta Base",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "value": "Beta Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

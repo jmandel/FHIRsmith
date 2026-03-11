@@ -289,12 +289,22 @@ function normalizePredicate(predicate) {
       property: String(predicate.property || ''),
       pattern: String(predicate.pattern || ''),
     };
+  case 'literalPropertyExists':
+    return {
+      kind: 'literalPropertyExists',
+      property: String(predicate.property || ''),
+    };
   case 'linkPropertyMatch':
     return {
       kind: 'linkPropertyMatch',
       property: String(predicate.property || ''),
       values: uniqueStrings(predicate.values || []),
       linkMatch: String(predicate.linkMatch || 'code-only'),
+    };
+  case 'linkPropertyExists':
+    return {
+      kind: 'linkPropertyExists',
+      property: String(predicate.property || ''),
     };
   default:
     return canonicalJson(predicate);

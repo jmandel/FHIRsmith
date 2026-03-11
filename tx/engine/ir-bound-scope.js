@@ -1,6 +1,7 @@
 'use strict';
 
 const { wrapWithLegacyIR } = require('./legacy-ir-adapter');
+const { requestedExpansionPropertyMatches } = require('../library/expansion-properties');
 const { wrapIRProviderWithSupplements } = require('../supplements/ir-provider');
 const { buildSupplementOverlay, mergeSupplementOverlayIntoCandidates } = require('../supplements/overlay');
 
@@ -38,12 +39,13 @@ function makeDesignationCollector() {
   };
 }
 
-async function bindIRScope(provider, supplementSet = null) {
+async function bindIRScope(provider, supplementSet = null, opts = {}) {
   if (!provider) return null;
 
-  let execution = typeof provider.executeIR === 'function'
+  const baseIRProvider = typeof provider.executeIR === 'function'
     ? provider
-    : wrapWithLegacyIR(provider);
+    : wrapWithLegacyIR(provider, opts);
+  let execution = baseIRProvider;
 
   const items = supplementSet?.items || [];
   const hasSupplements = items.length > 0;
@@ -57,7 +59,7 @@ async function bindIRScope(provider, supplementSet = null) {
   const nativeComplete = !hasSupplements || provider._irAllSupplementsNativeBound === true;
 
   if (hasOverlaySupplements && !nativeComplete) {
-    execution = wrapIRProviderWithSupplements(provider, supplementSet);
+    execution = wrapIRProviderWithSupplements(provider, supplementSet, { ...opts, baseIRProvider });
   }
 
   const coverage = nativeComplete ? 'native-complete' : 'overlay-complete';
@@ -94,7 +96,9 @@ async function bindIRScope(provider, supplementSet = null) {
         for (const c of candidates) {
           const desigs = designMap.get(c.conceptId) || [];
           c._designations = desigs
-            .filter(d => d.active && d.value)
+            // Match legacy expansion behavior: serialize stored designation rows
+            // regardless of active flag, but still drop empty values.
+            .filter(d => d.value)
             .map(d => {
               const obj = {};
               if (d.language) obj.language = d.language;
@@ -129,7 +133,7 @@ async function bindIRScope(provider, supplementSet = null) {
         for (const c of candidates) {
           const allProps = propMap.get(c.conceptId) || [];
           c._properties = allProps
-            .filter(p => properties.includes(p.code) || properties.includes('*'))
+            .filter(p => requestedExpansionPropertyMatches(p, properties))
             .map(p => attachPropertyDefinition(p, propertyDefsByCode));
 
           if (properties.includes('definition') && c.definition) {
@@ -153,7 +157,7 @@ async function bindIRScope(provider, supplementSet = null) {
               const props = await provider.properties(ctx);
               if (props?.length > 0) {
                 for (const p of props) {
-                  if (properties.includes(p.code) || properties.includes('*')) {
+                  if (requestedExpansionPropertyMatches(p, properties)) {
                     c._properties.push(attachPropertyDefinition(p, propertyDefsByCode));
                   }
                 }

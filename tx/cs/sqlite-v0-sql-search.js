@@ -269,7 +269,13 @@ function runtimeFtsTables(tables) {
 }
 
 function toFtsMatchText(text) {
-  return `"${String(text || '').replace(/"/g, '""')}"`;
+  const tokens = String(text || '').match(/[0-9A-Za-z]+/g) || [];
+  if (tokens.length === 0) {
+    return `"${String(text || '').replace(/"/g, '""')}"`;
+  }
+  return tokens
+    .map(token => `${token.toLowerCase()}*`)
+    .join(' OR ');
 }
 
 module.exports = {

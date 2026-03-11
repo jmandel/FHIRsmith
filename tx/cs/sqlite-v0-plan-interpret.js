@@ -248,6 +248,9 @@ function interpretMembershipPlan(plan, fixture) {
       return String(row?.property || '') === String(predicate.property || '')
         && isRowActive(row)
         && safeRegexTest(predicate.pattern, row?.value_text ?? row?.value_raw ?? row?.value);
+    case 'literalPropertyExists':
+      return String(row?.property || '') === String(predicate.property || '')
+        && isRowActive(row);
     case 'linkPropertyMatch': {
       if (String(row?.property || '') !== String(predicate.property || '') || !isRowActive(row)) return false;
       const targetId = row.target_concept_id ?? state.byCode.get(String(row.target_code || ''))?.concept_id;
@@ -258,6 +261,9 @@ function interpretMembershipPlan(plan, fixture) {
       const displayMatch = values.has(lowerText(target.display));
       return codeMatch || (String(predicate.linkMatch || 'code-only') === 'code-or-display' && displayMatch);
     }
+    case 'linkPropertyExists':
+      return String(row?.property || '') === String(predicate.property || '')
+        && isRowActive(row);
     default:
       throw new Error(`Unknown predicate kind ${String(predicate.kind || '(missing)')}`);
     }

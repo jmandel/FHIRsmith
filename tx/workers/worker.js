@@ -7,71 +7,6 @@ const {Issue} = require("../library/operation-outcome");
 const {Languages} = require("../../library/languages");
 const {ConceptMap} = require("../library/conceptmap");
 const {Renderer} = require("../library/renderer");
-const { buildSupplementRegistry } = require('../supplements/registry');
-const {
-  materializeSupplementSetOverlaySources,
-  resolveSupplementsForBaseScope,
-  selectSupplementEntriesForBaseScope,
-} = require('../supplements/resolver');
-const { dedupeSupplementRefs, makeSupplementRef } = require('../supplements/types');
-const { bindIRScope } = require('../engine/ir-bound-scope');
-
-function parseISODatePrefix(value) {
-  const raw = String(value || '').trim();
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  const y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null;
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-  return Date.UTC(y, mo - 1, d);
-}
-
-function parseYYYYMMDD(raw) {
-  const s = String(raw || '').trim();
-  if (!/^\d{8}$/.test(s)) return null;
-  const y = Number(s.slice(0, 4));
-  const mo = Number(s.slice(4, 6));
-  const d = Number(s.slice(6, 8));
-  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-  return Date.UTC(y, mo - 1, d);
-}
-
-function parseMMDDYYYY(raw) {
-  const s = String(raw || '').trim();
-  if (!/^\d{8}$/.test(s)) return null;
-  const mo = Number(s.slice(0, 2));
-  const d = Number(s.slice(2, 4));
-  const y = Number(s.slice(4, 8));
-  if (y < 1800 || y > 2400 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-  return Date.UTC(y, mo - 1, d);
-}
-
-function parseVersionDate(version) {
-  const v = String(version || '').trim();
-  if (!v) return null;
-  const directIso = parseISODatePrefix(v);
-  if (directIso != null) return directIso;
-  const directYmd = parseYYYYMMDD(v);
-  if (directYmd != null) return directYmd;
-  const directMdy = parseMMDDYYYY(v);
-  if (directMdy != null) return directMdy;
-
-  const mIso = v.match(/(\d{4}-\d{2}-\d{2})/);
-  if (mIso) {
-    const iso = parseISODatePrefix(mIso[1]);
-    if (iso != null) return iso;
-  }
-  const mDigits = v.match(/(\d{8})/);
-  if (mDigits) {
-    const ymd = parseYYYYMMDD(mDigits[1]);
-    if (ymd != null) return ymd;
-    const mdy = parseMMDDYYYY(mDigits[1]);
-    if (mdy != null) return mdy;
-  }
-  return null;
-}
 
 /**
  * Custom error for terminology setup issues
@@ -209,31 +144,9 @@ class TerminologyWorker {
     if (!noVParams) {
       version = this.determineVersionBase(url, version, params);
     }
-    if (statedSupplements?.size > 0 && this.opName() === 'expand') {
-      await this.assertLegacyExpansionSupplementsSupported(url, version, statedSupplements);
-    }
-    const supplements = this.loadSupplements(url, version, statedSupplements);
-    return await this._findCodeSystemWithResolvedSupplements(
-      url, version, params, kinds, op, nullOk, checkVer, supplements
-    );
-  }
-
-  async findCodeSystemWithSupplements(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, supplements = []) {
-    if (!url) {
-      return null;
-    }
-
-    if (!noVParams) {
-      version = this.determineVersionBase(url, version, params);
-    }
-    return await this._findCodeSystemWithResolvedSupplements(
-      url, version, params, kinds, op, nullOk, checkVer, supplements || []
-    );
-  }
-
-  async _findCodeSystemWithResolvedSupplements(url, version, params, kinds, op, nullOk, checkVer, supplements) {
     let codeSystemResource = null;
     let provider = null;
+    const supplements = this.loadSupplements(url, version, statedSupplements);
 
     // First check additional resources
     codeSystemResource = this.findInAdditionalResources(url, version, 'CodeSystem', !nullOk);
@@ -276,211 +189,6 @@ class TerminologyWorker {
     return provider;
   }
 
-  async buildSupplementRegistryForIR() {
-    const registeredCodeSystems = [];
-    const seenResources = new Set();
-
-    if (this.provider?.codeSystems?.values) {
-      for (const resource of this.provider.codeSystems.values()) {
-        if (!resource || seenResources.has(resource)) continue;
-        seenResources.add(resource);
-        registeredCodeSystems.push(resource);
-      }
-    }
-
-    const providerFactories = [];
-    const seenFactories = new Set();
-    if (this.provider?.codeSystemFactories?.values) {
-      for (const factory of this.provider.codeSystemFactories.values()) {
-        if (!factory || seenFactories.has(factory)) continue;
-        seenFactories.add(factory);
-        providerFactories.push(factory);
-      }
-    }
-
-    return await buildSupplementRegistry({
-      inlineResources: this.additionalResources || [],
-      registeredCodeSystems,
-      providerFactories,
-    });
-  }
-
-  async resolveSupplementsForIRBaseScope(target, refs, registry = null) {
-    const activeRegistry = registry || await this.buildSupplementRegistryForIR();
-    return await resolveSupplementsForBaseScope({ target, refs, registry: activeRegistry });
-  }
-
-  assertResolvableSupplements(supplementSet, languages = null, statusCode = 422) {
-    const missing = new Set((supplementSet?.missingRefs || []).map((ref) => ref?.canonical).filter(Boolean));
-    if (missing.size === 0) return;
-    throw new Issue(
-      'error',
-      'not-found',
-      null,
-      'VALUESET_SUPPLEMENT_MISSING',
-      this.i18n.translatePlural(
-        missing.size,
-        'VALUESET_SUPPLEMENT_MISSING',
-        languages || this.params?.HTTPLanguages || this.opContext?.langs,
-        [[...missing].join(',')]
-      ),
-      'not-found',
-      statusCode
-    );
-  }
-
-  async materializeSupplementSetOverlaySources(supplementSet) {
-    return await materializeSupplementSetOverlaySources(supplementSet);
-  }
-
-  async bindIRScopeForExpansion(provider, supplementSet) {
-    return await bindIRScope(provider, supplementSet);
-  }
-
-  async bindIRScopeForOperation(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, statedSupplements = null) {
-    if (!url) return null;
-
-    let resolvedVersion = version;
-    if (!noVParams) {
-      resolvedVersion = this.determineVersionBase(url, version, params);
-    }
-
-    const baseProvider = await this._findCodeSystemWithResolvedSupplements(
-      url, resolvedVersion, params, kinds, op, nullOk, checkVer, []
-    );
-    if (!baseProvider) return null;
-
-    const refs = dedupeSupplementRefs(
-      Array.from(statedSupplements || []).map((canonical, index) =>
-        makeSupplementRef(canonical, 'useSupplement', index))
-    );
-    const targetVersion = resolvedVersion
-      || (typeof baseProvider.version === 'function' ? baseProvider.version() : null)
-      || null;
-    const supplementSet = refs.length > 0
-      ? await this.resolveSupplementsForIRBaseScope({ system: url, version: targetVersion }, refs)
-      : null;
-    this.assertResolvableSupplements(supplementSet, params?.HTTPLanguages, 422);
-    return await bindIRScope(baseProvider, supplementSet);
-  }
-
-  async resolveSupplementCodeSystemsForBaseScope(target, statedSupplements, registry = null) {
-    const refs = dedupeSupplementRefs(
-      Array.from(statedSupplements || []).map((canonical, index) =>
-        makeSupplementRef(canonical, 'useSupplement', index))
-    );
-    if (refs.length === 0) return [];
-    const supplementSet = await this.resolveSupplementsForIRBaseScope(target, refs, registry);
-    this.assertResolvableSupplements(supplementSet, this.params?.HTTPLanguages, 422);
-    await this.materializeSupplementSetOverlaySources(supplementSet);
-    return (supplementSet?.items || [])
-      .map(item => item?.overlaySource)
-      .filter(codeSystem => codeSystem instanceof CodeSystem);
-  }
-
-  async createCodeSystemProviderWithSupplementRuntime(codeSystem, statedSupplements) {
-    const codeSystemObj = codeSystem instanceof CodeSystem ? codeSystem : new CodeSystem(codeSystem);
-    const system = typeof codeSystemObj.system === 'function' ? codeSystemObj.system() : codeSystemObj.url;
-    const version = typeof codeSystemObj.version === 'function' ? codeSystemObj.version() : (codeSystemObj.version || null);
-    const supplements = await this.resolveSupplementCodeSystemsForBaseScope(
-      { system, version },
-      statedSupplements
-    );
-    return await this.provider.createCodeSystemProvider(this.opContext, codeSystemObj, supplements);
-  }
-
-  async assertLegacyExpansionSupplementsSupported(url, version = '', statedSupplements, registry = null) {
-    const refs = dedupeSupplementRefs(
-      Array.from(statedSupplements || []).map((canonical, index) =>
-        makeSupplementRef(canonical, 'useSupplement', index))
-    );
-    if (refs.length === 0) return;
-
-    const activeRegistry = registry || await this.buildSupplementRegistryForIR();
-    const selected = selectSupplementEntriesForBaseScope({
-      target: { system: url, version: version || null },
-      refs,
-      registry: activeRegistry,
-    });
-    if (!Array.isArray(selected.entries) || selected.entries.length === 0) return;
-
-    const legacySupplements = this.loadSupplements(url, version, statedSupplements);
-    const legacyKeys = new Set();
-    for (const cs of legacySupplements || []) {
-      if (cs?.url) legacyKeys.add(cs.url);
-      if (cs?.vurl) legacyKeys.add(cs.vurl);
-    }
-
-    const unsupported = selected.entries.filter(entry => {
-      const canonical = entry?.descriptor?.canonical;
-      const baseUrl = entry?.descriptor?.url;
-      return !(canonical && legacyKeys.has(canonical))
-        && !(baseUrl && legacyKeys.has(baseUrl));
-    });
-    if (unsupported.length === 0) return;
-
-    const labels = unsupported
-      .map(entry => entry?.descriptor?.canonical || entry?.descriptor?.url)
-      .filter(Boolean)
-      .sort();
-    const plural = labels.length === 1 ? '' : 's';
-    throw new Issue(
-      'error',
-      'not-supported',
-      null,
-      'VALUESET_SUPPLEMENT_LEGACY_UNSUPPORTED',
-      `Legacy expand cannot apply requested supplement${plural}: ${labels.join(', ')}. Use the IR engine for supplement-aware expansion.`,
-      'not-supported',
-      422
-    );
-  }
-
-  async findCodeSystemWithSupplementRuntime(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, statedSupplements = null) {
-    if (!url) {
-      return null;
-    }
-
-    let resolvedVersion = version;
-    if (!noVParams) {
-      resolvedVersion = this.determineVersionBase(url, version, params);
-    }
-
-    const baseProvider = await this._findCodeSystemWithResolvedSupplements(
-      url, resolvedVersion, params, kinds, op, nullOk, checkVer, []
-    );
-    if (!baseProvider) {
-      return null;
-    }
-
-    if (!statedSupplements || statedSupplements.size === 0) {
-      return baseProvider;
-    }
-
-    const targetVersion = resolvedVersion
-      || (typeof baseProvider.version === 'function' ? baseProvider.version() : null)
-      || null;
-    const supplementSet = await this.resolveSupplementsForIRBaseScope(
-      { system: url, version: targetVersion },
-      dedupeSupplementRefs(
-        Array.from(statedSupplements || []).map((canonical, index) =>
-          makeSupplementRef(canonical, 'useSupplement', index))
-      )
-    );
-    this.assertResolvableSupplements(supplementSet, params?.HTTPLanguages, 422);
-    if (typeof baseProvider.attachIRSupplements === 'function') {
-      await baseProvider.attachIRSupplements(supplementSet);
-      return baseProvider;
-    }
-
-    await this.materializeSupplementSetOverlaySources(supplementSet);
-    const supplements = (supplementSet?.items || [])
-      .map(item => item?.overlaySource)
-      .filter(codeSystem => codeSystem instanceof CodeSystem);
-    return await this._findCodeSystemWithResolvedSupplements(
-      url, targetVersion, params, kinds, op, nullOk, checkVer, supplements
-    );
-  }
-
   /**
    * List available versions for a code system
    * @param {string} url - Code system URL
@@ -507,65 +215,6 @@ class TerminologyWorker {
     }
 
     return Array.from(versions).sort();
-  }
-
-  /**
-   * Resolve an unversioned code system reference to a concrete version
-   * constrained by ValueSet.compose.lockedDate semantics.
-   *
-   * Returns the latest known version whose parsed publication date is <= lockedDate.
-   * If no dated versions are available, returns null.
-   */
-  async resolveCodeSystemVersionAtDate(url, lockedDate) {
-    if (!url || !lockedDate) return null;
-    const targetUtc = parseISODatePrefix(lockedDate);
-    if (targetUtc == null) return null;
-
-    // Prefer explicit factory metadata when available.
-    // This is authoritative for sqlite-v0 factories that expose releaseDate().
-    const byVersion = new Map();
-    const factories = this.provider?.codeSystemFactories?.values
-      ? this.provider.codeSystemFactories.values()
-      : [];
-    for (const factory of factories) {
-      if (!factory || typeof factory.system !== 'function' || factory.system() !== url) continue;
-      const version = (typeof factory.version === 'function') ? factory.version() : null;
-      if (!version) continue;
-      const releaseDate = (typeof factory.releaseDate === 'function') ? factory.releaseDate() : null;
-      const releaseUtc = parseISODatePrefix(releaseDate);
-      if (releaseUtc == null) continue;
-      const existing = byVersion.get(version);
-      if (!existing || existing.utc < releaseUtc) {
-        byVersion.set(version, { version, utc: releaseUtc });
-      }
-    }
-    if (byVersion.size > 0) {
-      const datedFactories = [...byVersion.values()]
-        .sort((a, b) => (a.utc - b.utc) || String(a.version).localeCompare(String(b.version)));
-      let best = null;
-      for (const row of datedFactories) {
-        if (row.utc <= targetUtc) best = row.version;
-        else break;
-      }
-      if (best) return best;
-    }
-
-    const versions = await this.listVersions(url);
-    if (!Array.isArray(versions) || versions.length === 0) return null;
-
-    const dated = versions
-      .map(version => ({ version, utc: parseVersionDate(version) }))
-      .filter(x => x.utc != null)
-      .sort((a, b) => (a.utc - b.utc) || String(a.version).localeCompare(String(b.version)));
-
-    if (dated.length === 0) return null;
-
-    let best = null;
-    for (const row of dated) {
-      if (row.utc <= targetUtc) best = row.version;
-      else break;
-    }
-    return best;
   }
 
   async listDisplaysFromCodeSystem(displays, cs, c) {
@@ -888,19 +537,17 @@ class TerminologyWorker {
   // ========== Additional Resources Handling ==========
 
   /**
-   * Set up additional resources from inline resource parameters and cache
+   * Set up additional resources from tx-resource parameters and cache
    * @param {Object} params - Parameters resource
    */
   setupAdditionalResources(params) {
     if (!params || !params.parameter) return;
 
-    // Collect inline CodeSystem/ValueSet resources supplied on the request.
-    // `tx-resource` is the generic form, but some operations also use
-    // named resource parameters such as `codeSystem` and `valueSet`.
+    // Collect tx-resource parameters (resources provided inline)
     const txResources = [];
     for (const param of params.parameter) {
       this.deadCheck('setupAdditionalResources');
-      if (param.resource) {
+      if (param.name === 'tx-resource' && param.resource) {
         let res = this.wrapRawResource(param.resource);
         if (res) {
           txResources.push(res);

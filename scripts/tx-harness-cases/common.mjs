@@ -22,5 +22,9 @@ export function assert(condition, message) {
 }
 
 export const SYS = {
+  SCT: 'http://snomed.info/sct',
+  LOINC: 'http://loinc.org',
+  RXNORM: 'http://www.nlm.nih.gov/research/umls/rxnorm',
+  GENDER: 'http://hl7.org/fhir/administrative-gender',
   USPS: 'https://www.usps.com/',
 };

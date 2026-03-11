@@ -83,6 +83,7 @@ describe('CodeSystem $lookup with sqlite-v0 configured supplement sidecars', () 
       .send({
         resourceType: 'Parameters',
         parameter: [
+          { name: '_engine', valueCode: 'ir' },
           { name: 'system', valueUri: system },
           { name: 'code', valueCode: targetConcept.code },
           { name: 'useSupplement', valueString: d20.url },
@@ -109,6 +110,7 @@ describe('CodeSystem $lookup with sqlite-v0 configured supplement sidecars', () 
     const requestBody = (includeInline) => ({
       resourceType: 'Parameters',
       parameter: [
+        { name: '_engine', valueCode: 'ir' },
         { name: 'system', valueUri: system },
         { name: 'code', valueCode: targetConcept.code },
         { name: 'useSupplement', valueString: d20.url },

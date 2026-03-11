@@ -1,0 +1,669 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:40:43.932Z",
+  "rowIndex": 314,
+  "slug": "314-inline-ips-procedures-valueset-validate-survives-exclude-filters",
+  "name": "Inline IPS procedures ValueSet validate survives exclude filters",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/314-inline-ips-procedures-valueset-validate-survives-exclude-filters.json",
+    "detailJson": "314-inline-ips-procedures-valueset-validate-survives-exclude-filters.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 48,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 48,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "36969009",
+                      "display": "Placement of stent in coronary artery (procedure)"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips",
+                  "version": "2.0.0",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "descendent-of",
+                            "value": "71388002"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "787480003"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "14734007"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "5675",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:43 GMT",
+            "etag": "W/\"162b-VvNDL4I5oi2SMEzRyTMQfl18pfc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-1044"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://snomed.info/sct"
+              },
+              {
+                "name": "code",
+                "valueCode": "36969009"
+              },
+              {
+                "name": "version",
+                "valueString": "http://snomed.info/sct/900000000000207008/version/20250201"
+              },
+              {
+                "name": "display",
+                "valueString": "Placement of stents in coronary artery"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "36969009",
+                      "display": "Placement of stent in coronary artery (procedure)"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":45.04,\"sqlCount\":2,\"sqlMs\":33.96,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleValueSet\",\"children\":[{\"name\":\"validateIR:doValidationVS\",\"args\":{\"url\":\"http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips\"},\"children\":[{\"name\":\"validateIR:checkConceptSet\",\"args\":{\"role\":\"in\",\"system\":\"http://snomed.info/sct\",\"code\":\"36969009\",\"filterCount\":1},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.34,\"execMs\":33.22},\"t\":40.92}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0)) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT DISTINCT \\\"cl\\\".\\\"descendant_id\\\" AS \\\"concept_id\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND \\\"c\\\".\\\"code\\\" IN (@code_2))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\") WHERE (\\\"cl\\\".\\\"descendant_id\\\" != \\\"cl\\\".\\\"ancestor_id\\\")) \\\"r\\\" WHERE (\\\"r\\\".\\\"concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 1\",\"params\":{\"code_0\":\"36969009\",\"cs_id_1\":1,\"code_2\":\"71388002\",\"cs_id_3\":1},\"rows\":1,\"ms\":33.22,\"label\":\"executeIR\"}],\"ms\":36.55,\"result\":{\"candidates\":1,\"total\":null}}],\"ms\":36.6,\"result\":{\"candidates\":1}},{\"name\":\"note\",\"message\":\"total:omitted\",\"data\":{\"offset\":0,\"returned\":1,\"exactTotal\":false},\"t\":41}],\"ms\":36.63,\"result\":{\"paged\":1}}],\"ms\":37.98},{\"name\":\"validateIR:checkConceptSet\",\"args\":{\"role\":\"not in\",\"system\":\"http://snomed.info/sct\",\"code\":\"36969009\",\"filterCount\":1},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":1,\"systems\":1},\"children\":[{\"name\":\"system:http://snomed.info/sct\",\"args\":{\"sysOffset\":0,\"sysCount\":1},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://snomed.info/sct\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.19,\"execMs\":0.74},\"t\":44.81}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_1) AND \\\"c\\\".\\\"code\\\" IN (@code_0)) INTERSECT SELECT DISTINCT \\\"r\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT DISTINCT \\\"cl\\\".\\\"descendant_id\\\" AS \\\"concept_id\\\" FROM \\\"closure\\\" \\\"cl\\\" INNER JOIN (SELECT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND \\\"c\\\".\\\"code\\\" IN (@code_2))) \\\"seed\\\" ON (\\\"cl\\\".\\\"ancestor_id\\\" = \\\"seed\\\".\\\"concept_id\\\")) \\\"r\\\" WHERE (\\\"r\\\".\\\"concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 1\",\"params\":{\"code_0\":\"36969009\",\"cs_id_1\":1,\"code_2\":\"14734007\",\"cs_id_3\":1},\"rows\":0,\"ms\":0.74,\"label\":\"executeIR\"}],\"ms\":1.42,\"result\":{\"candidates\":0,\"total\":null}}],\"ms\":1.45,\"result\":{\"candidates\":0}},{\"name\":\"note\",\"message\":\"total:inferred-empty\",\"data\":{\"offset\":0,\"returned\":0,\"total\":0},\"t\":44.85}],\"ms\":1.47,\"result\":{\"paged\":0}}],\"ms\":2.44}],\"ms\":44.73}],\"ms\":45.02,\"result\":{\"_unclosed\":true}}]}"
+              },
+              {
+                "name": "irPlan",
+                "valueString": "systems: http://snomed.info/sct\ncanonical-ir-hash: edb9fceefa4a2ef6d035672fab54421771e5fbc2\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://snomed.info/sct concept descendent-of 71388002 [n]\n\nsystems: http://snomed.info/sct\ncanonical-ir-hash: 40206ea17969e0613f487160ab95a28a10148bf0\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 14734007 [n]"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 45.04,
+          "sqlCount": 2,
+          "sqlMs": 33.96,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleValueSet",
+              "children": [
+                {
+                  "name": "validateIR:doValidationVS",
+                  "args": {
+                    "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips"
+                  },
+                  "children": [
+                    {
+                      "name": "validateIR:checkConceptSet",
+                      "args": {
+                        "role": "in",
+                        "system": "http://snomed.info/sct",
+                        "code": "36969009",
+                        "filterCount": 1
+                      },
+                      "children": [
+                        {
+                          "name": "pagination",
+                          "args": {
+                            "total": null,
+                            "offset": 0,
+                            "count": 1,
+                            "systems": 1
+                          },
+                          "children": [
+                            {
+                              "name": "system:http://snomed.info/sct",
+                              "args": {
+                                "sysOffset": 0,
+                                "sysCount": 1
+                              },
+                              "children": [
+                                {
+                                  "name": "executeIR:compiler",
+                                  "args": {
+                                    "system": "http://snomed.info/sct"
+                                  },
+                                  "children": [
+                                    {
+                                      "name": "note",
+                                      "message": "executeIR:breakdown",
+                                      "data": {
+                                        "prepMs": 0.34,
+                                        "execMs": 33.22
+                                      },
+                                      "t": 40.92
+                                    }
+                                  ],
+                                  "sql": [
+                                    {
+                                      "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0)) INTERSECT SELECT DISTINCT \"r\".\"concept_id\" AS \"concept_id\" FROM (SELECT DISTINCT \"cl\".\"descendant_id\" AS \"concept_id\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND \"c\".\"code\" IN (@code_2))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\") WHERE (\"cl\".\"descendant_id\" != \"cl\".\"ancestor_id\")) \"r\" WHERE (\"r\".\"concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") ORDER BY \"c\".\"code\" ASC LIMIT 1",
+                                      "params": {
+                                        "code_0": "36969009",
+                                        "cs_id_1": 1,
+                                        "code_2": "71388002",
+                                        "cs_id_3": 1
+                                      },
+                                      "rows": 1,
+                                      "ms": 33.22,
+                                      "label": "executeIR"
+                                    }
+                                  ],
+                                  "ms": 36.55,
+                                  "result": {
+                                    "candidates": 1,
+                                    "total": null
+                                  }
+                                }
+                              ],
+                              "ms": 36.6,
+                              "result": {
+                                "candidates": 1
+                              }
+                            },
+                            {
+                              "name": "note",
+                              "message": "total:omitted",
+                              "data": {
+                                "offset": 0,
+                                "returned": 1,
+                                "exactTotal": false
+                              },
+                              "t": 41
+                            }
+                          ],
+                          "ms": 36.63,
+                          "result": {
+                            "paged": 1
+                          }
+                        }
+                      ],
+                      "ms": 37.98
+                    },
+                    {
+                      "name": "validateIR:checkConceptSet",
+                      "args": {
+                        "role": "not in",
+                        "system": "http://snomed.info/sct",
+                        "code": "36969009",
+                        "filterCount": 1
+                      },
+                      "children": [
+                        {
+                          "name": "pagination",
+                          "args": {
+                            "total": null,
+                            "offset": 0,
+                            "count": 1,
+                            "systems": 1
+                          },
+                          "children": [
+                            {
+                              "name": "system:http://snomed.info/sct",
+                              "args": {
+                                "sysOffset": 0,
+                                "sysCount": 1
+                              },
+                              "children": [
+                                {
+                                  "name": "executeIR:compiler",
+                                  "args": {
+                                    "system": "http://snomed.info/sct"
+                                  },
+                                  "children": [
+                                    {
+                                      "name": "note",
+                                      "message": "executeIR:breakdown",
+                                      "data": {
+                                        "prepMs": 0.19,
+                                        "execMs": 0.74
+                                      },
+                                      "t": 44.81
+                                    }
+                                  ],
+                                  "sql": [
+                                    {
+                                      "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_1) AND \"c\".\"code\" IN (@code_0)) INTERSECT SELECT DISTINCT \"r\".\"concept_id\" AS \"concept_id\" FROM (SELECT DISTINCT \"cl\".\"descendant_id\" AS \"concept_id\" FROM \"closure\" \"cl\" INNER JOIN (SELECT \"c\".\"concept_id\" AS \"concept_id\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND \"c\".\"code\" IN (@code_2))) \"seed\" ON (\"cl\".\"ancestor_id\" = \"seed\".\"concept_id\")) \"r\" WHERE (\"r\".\"concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") ORDER BY \"c\".\"code\" ASC LIMIT 1",
+                                      "params": {
+                                        "code_0": "36969009",
+                                        "cs_id_1": 1,
+                                        "code_2": "14734007",
+                                        "cs_id_3": 1
+                                      },
+                                      "rows": 0,
+                                      "ms": 0.74,
+                                      "label": "executeIR"
+                                    }
+                                  ],
+                                  "ms": 1.42,
+                                  "result": {
+                                    "candidates": 0,
+                                    "total": null
+                                  }
+                                }
+                              ],
+                              "ms": 1.45,
+                              "result": {
+                                "candidates": 0
+                              }
+                            },
+                            {
+                              "name": "note",
+                              "message": "total:inferred-empty",
+                              "data": {
+                                "offset": 0,
+                                "returned": 0,
+                                "total": 0
+                              },
+                              "t": 44.85
+                            }
+                          ],
+                          "ms": 1.47,
+                          "result": {
+                            "paged": 0
+                          }
+                        }
+                      ],
+                      "ms": 2.44
+                    }
+                  ],
+                  "ms": 44.73
+                }
+              ],
+              "ms": 45.02,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://snomed.info/sct\ncanonical-ir-hash: edb9fceefa4a2ef6d035672fab54421771e5fbc2\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://snomed.info/sct concept descendent-of 71388002 [n]\n\nsystems: http://snomed.info/sct\ncanonical-ir-hash: 40206ea17969e0613f487160ab95a28a10148bf0\nruntime-constraints:\n  pagination: offset=0 count=1000\noptimized-ir:\n  selector filter http://snomed.info/sct concept is-a 14734007 [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 241,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 241,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "36969009",
+                      "display": "Placement of stent in coronary artery (procedure)"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips",
+                  "version": "2.0.0",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "descendent-of",
+                            "value": "71388002"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "787480003"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "14734007"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "521",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:43 GMT",
+            "etag": "W/\"209-tfAgauDaMNvYfcqq5vh6VApIjY8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-1045"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://snomed.info/sct"
+              },
+              {
+                "name": "code",
+                "valueCode": "36969009"
+              },
+              {
+                "name": "version",
+                "valueString": "http://snomed.info/sct/900000000000207008/version/20250201"
+              },
+              {
+                "name": "display",
+                "valueString": "Placement of stents in coronary artery"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "36969009",
+                      "display": "Placement of stent in coronary artery (procedure)"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 5,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 5,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/ValueSet/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "36969009",
+                      "display": "Placement of stent in coronary artery (procedure)"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "url": "http://hl7.org/fhir/uv/ips/ValueSet/procedures-uv-ips",
+                  "version": "2.0.0",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "descendent-of",
+                            "value": "71388002"
+                          }
+                        ]
+                      },
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "787480003"
+                          }
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      {
+                        "system": "http://snomed.info/sct",
+                        "filter": [
+                          {
+                            "property": "concept",
+                            "op": "is-a",
+                            "value": "14734007"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "521",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:40:43 GMT",
+            "etag": "W/\"209-tfAgauDaMNvYfcqq5vh6VApIjY8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-285"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://snomed.info/sct"
+              },
+              {
+                "name": "code",
+                "valueCode": "36969009"
+              },
+              {
+                "name": "version",
+                "valueString": "http://snomed.info/sct/900000000000207008/version/20250201"
+              },
+              {
+                "name": "display",
+                "valueString": "Placement of stents in coronary artery"
+              },
+              {
+                "name": "codeableConcept",
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "36969009",
+                      "display": "Placement of stent in coronary artery (procedure)"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

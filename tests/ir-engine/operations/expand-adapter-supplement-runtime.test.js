@@ -138,7 +138,7 @@ describe('IR expand with adapter-backed inline supplements', () => {
       });
 
     expect(res.status).toBe(200);
-    expect(res.body.expansion?.total).toBe(1);
-    expect((res.body.expansion?.contains || []).map(item => item.code)).toEqual(['m']);
+    expect(res.body.expansion?.total).toBe(2);
+    expect(((res.body.expansion?.contains || []).map(item => item.code)).sort()).toEqual(['cm', 'm']);
   }, 60000);
 });

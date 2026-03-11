@@ -164,6 +164,22 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       provider.close();
     });
 
+    test('designations do not synthesize duplicate preferredForLanguage rows when a real designation matches display', async () => {
+      const provider = await factory.build(makeOpContext(), null);
+      const { context } = await provider.locate('73211009');
+      const displays = new Designations(langDefs);
+      await provider.designations(context, displays);
+
+      const duplicateDisplayRows = displays.designations.filter((designation) =>
+        designation.value === 'Diabetes mellitus'
+        && designation.use?.system === 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra'
+        && designation.use?.code === 'preferredForLanguage'
+      );
+
+      expect(duplicateDisplayRows).toHaveLength(0);
+      provider.close();
+    });
+
     test('properties', async () => {
       const provider = await factory.build(makeOpContext(), null);
       const { context } = await provider.locate('73211009');
@@ -172,6 +188,25 @@ describeIfDBs('SqliteV0FactoryProvider', () => {
       // SNOMED concept-valued properties are represented as valueCode.
       const conceptProps = props.filter(p => typeof p.valueCode === 'string' && p.valueCode.length > 0);
       expect(conceptProps.length).toBeGreaterThan(0);
+      provider.close();
+    });
+
+    test('extendLookup emits parent property parts as valueCode', async () => {
+      const provider = await factory.build(makeOpContext(), null);
+      const { context } = await provider.locate('73211009');
+      const params = [];
+      await provider.extendLookup(context, ['parent'], params);
+      const parentParts = params
+        .filter((param) => param.name === 'property')
+        .map((param) => param.part || [])
+        .filter((parts) => parts.some((part) => part.name === 'code' && part.valueCode === 'parent'));
+      expect(parentParts.length).toBeGreaterThan(0);
+      expect(parentParts.some((parts) =>
+        parts.some((part) => part.name === 'value' && typeof part.valueCode === 'string' && part.valueCode.length > 0)
+      )).toBe(true);
+      expect(parentParts.some((parts) =>
+        parts.some((part) => part.name === 'description' && typeof part.valueString === 'string' && part.valueString.length > 0)
+      )).toBe(true);
       provider.close();
     });
 

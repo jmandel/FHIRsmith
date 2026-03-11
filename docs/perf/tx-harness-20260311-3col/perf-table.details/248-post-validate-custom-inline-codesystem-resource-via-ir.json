@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:39:01.658Z",
+  "rowIndex": 248,
+  "slug": "248-post-validate-custom-inline-codesystem-resource-via-ir",
+  "name": "POST validate custom inline CodeSystem resource via IR",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/248-post-validate-custom-inline-codesystem-resource-via-ir.json",
+    "detailJson": "248-post-validate-custom-inline-codesystem-resource-via-ir.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://example.org/cs-inline-validate",
+                  "code": "A"
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-validate",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "627",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"273-LfqtjSH4ogzGohc0i8ebXZLakGE\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-846"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": true
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-inline-validate"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "version",
+                "valueString": "1.0.0"
+              },
+              {
+                "name": "display",
+                "valueString": "Alpha"
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":0.47,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystem\",\"children\":[{\"name\":\"validateIR:doValidationCS\",\"args\":{\"system\":\"http://example.org/cs-inline-validate\",\"version\":\"1.0.0\"},\"children\":[],\"ms\":0.2}],\"ms\":0.45,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.47,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystem",
+              "children": [
+                {
+                  "name": "validateIR:doValidationCS",
+                  "args": {
+                    "system": "http://example.org/cs-inline-validate",
+                    "version": "1.0.0"
+                  },
+                  "children": [],
+                  "ms": 0.2
+                }
+              ],
+              "ms": 0.45,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 8,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 8,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://example.org/cs-inline-validate",
+                  "code": "A"
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-validate",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1193",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"4a9-ryeAR8pd5PsHrs9cNYds3E1Tk0s\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-847"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-inline-validate"
+              },
+              {
+                "name": "x-caused-by-unknown-system",
+                "valueCanonical": "http://example.org/cs-inline-validate"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "message",
+                "valueString": "A definition for CodeSystem 'http://example.org/cs-inline-validate' could not be found, so the code cannot be validated; A definition for CodeSystem 'http://example.org/cs-inline-validate' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "not-found",
+                      "details": {
+                        "text": "A definition for CodeSystem 'http://example.org/cs-inline-validate' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-found"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "Coding.system"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "UNKNOWN_CODESYSTEM_VERSION_NONE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 4,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 4,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "coding",
+                "valueCoding": {
+                  "system": "http://example.org/cs-inline-validate",
+                  "code": "A"
+                }
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/cs-inline-validate",
+                  "version": "1.0.0",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "A",
+                      "display": "Alpha"
+                    },
+                    {
+                      "code": "B",
+                      "display": "Beta"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1193",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"4a9-ryeAR8pd5PsHrs9cNYds3E1Tk0s\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-239"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "result",
+                "valueBoolean": false
+              },
+              {
+                "name": "system",
+                "valueUri": "http://example.org/cs-inline-validate"
+              },
+              {
+                "name": "x-caused-by-unknown-system",
+                "valueCanonical": "http://example.org/cs-inline-validate"
+              },
+              {
+                "name": "code",
+                "valueCode": "A"
+              },
+              {
+                "name": "message",
+                "valueString": "A definition for CodeSystem 'http://example.org/cs-inline-validate' could not be found, so the code cannot be validated; A definition for CodeSystem 'http://example.org/cs-inline-validate' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known"
+              },
+              {
+                "name": "issues",
+                "resource": {
+                  "resourceType": "OperationOutcome",
+                  "issue": [
+                    {
+                      "severity": "error",
+                      "code": "not-found",
+                      "details": {
+                        "text": "A definition for CodeSystem 'http://example.org/cs-inline-validate' version '1.0.0' could not be found, so the code cannot be validated. No versions of this code system are known",
+                        "coding": [
+                          {
+                            "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                            "code": "not-found"
+                          }
+                        ]
+                      },
+                      "expression": [
+                        "Coding.system"
+                      ],
+                      "extension": [
+                        {
+                          "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                          "valueString": "UNKNOWN_CODESYSTEM_VERSION_NONE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

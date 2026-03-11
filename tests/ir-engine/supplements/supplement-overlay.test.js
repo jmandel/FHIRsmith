@@ -50,14 +50,20 @@ describe('supplement overlay', () => {
       expect.arrayContaining([
         { code: 'rank', value: 1, valueInteger: 1 },
         { code: 'tag', value: 'chem', valueString: 'chem' },
+        expect.objectContaining({
+          code: 'weight',
+          uri: 'http://hl7.org/fhir/concept-properties#itemWeight',
+          value: 1.5,
+          valueDecimal: 1.5,
+        }),
       ])
     );
     expect(candidates[0]._extensions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ url: 'http://hl7.org/fhir/StructureDefinition/itemWeight', valueDecimal: 1.5 }),
         expect.objectContaining({ url: 'http://example.org/ext', valueString: 'x' }),
       ])
     );
+    expect(candidates[0]._extensions).toHaveLength(1);
   });
 
   test('tracks declared property definitions even when no concept currently carries a value', () => {
@@ -77,5 +83,20 @@ describe('supplement overlay', () => {
 
     expect(overlayTouchesProperty(overlay, 'rank')).toBe(true);
     expect(overlay.byCode.get('A')?.properties || []).toEqual([]);
+  });
+
+  test('recognizes known expansion property aliases by URL and concept-properties URI', () => {
+    const supp = supplement('http://example.org/supp-item-weight', [{
+      code: 'A',
+      extension: [{ url: 'http://hl7.org/fhir/StructureDefinition/itemWeight', valueDecimal: 1.5 }],
+    }]);
+
+    const overlay = buildSupplementOverlay({
+      items: [{ overlaySource: supp }],
+    });
+
+    expect(overlayTouchesProperty(overlay, 'http://hl7.org/fhir/StructureDefinition/itemWeight')).toBe(true);
+    expect(overlayTouchesProperty(overlay, 'http://hl7.org/fhir/concept-properties#itemWeight')).toBe(true);
+    expect(overlayTouchesProperty(overlay, 'weight')).toBe(true);
   });
 });

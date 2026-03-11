@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "id": 319,
+  "slug": "319-loinc-text-filter-honors-activeonly-false-for-enumerated-inactive-concepts",
+  "name": "LOINC text filter honors activeOnly=false for enumerated inactive concepts",
+  "category": "Text Search",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "concept": [
+              {
+                "code": "11214-4"
+              },
+              {
+                "code": "12571-6"
+              },
+              {
+                "code": "13445-2"
+              },
+              {
+                "code": "14400-6"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "count": 20,
+      "activeOnly": false,
+      "filter": "Deprecated"
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "concept": [
+                      {
+                        "code": "11214-4"
+                      },
+                      {
+                        "code": "12571-6"
+                      },
+                      {
+                        "code": "13445-2"
+                      },
+                      {
+                        "code": "14400-6"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "count",
+            "valueInteger": 20
+          },
+          {
+            "name": "filter",
+            "valueString": "Deprecated"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "concept": [
+                      {
+                        "code": "11214-4"
+                      },
+                      {
+                        "code": "12571-6"
+                      },
+                      {
+                        "code": "13445-2"
+                      },
+                      {
+                        "code": "14400-6"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 20
+          },
+          {
+            "name": "filter",
+            "valueString": "Deprecated"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://loinc.org",
+                    "concept": [
+                      {
+                        "code": "11214-4"
+                      },
+                      {
+                        "code": "12571-6"
+                      },
+                      {
+                        "code": "13445-2"
+                      },
+                      {
+                        "code": "14400-6"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "count",
+            "valueInteger": 20
+          },
+          {
+            "name": "filter",
+            "valueString": "Deprecated"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          }
+        ]
+      }
+    }
+  }
+}

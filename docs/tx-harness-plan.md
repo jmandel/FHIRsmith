@@ -212,13 +212,11 @@ This is now the shared TX harness:
 - one case definition model
 - one matrix/detail output format
 - capture request, status, key output fields, and issue/message shape
-- perf remains focused on `$expand` rows for now
+- perf uses the same shared matrix surface across covered operations
 
-Current shared TX harness inventory:
-
-- `199` `$expand` cases
-- `25` `$lookup` cases
-- `47` `$validate-code` cases
+The shared TX harness is the live matrix for `$expand`, `$lookup`, and
+`$validate-code`. Treat the current case files and generated artifacts as
+the source of truth for row inventory instead of duplicating counts here.
 
 Legacy expectations in the shared harness should follow current
 `tx.fhir.org` behavior:

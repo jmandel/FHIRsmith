@@ -212,6 +212,7 @@ async function renderIRExpansionResult(execution, resolved, opts = {}) {
       usedValueSets: [...usedValueSets],
       usedSupplements: [...usedSupplements],
       providerMeta,
+      valueSetMeta: execution.valueSetMeta || [],
       unclosedMessages: execution.unclosedMessages,
       limitedExpansion: execution.limitedExpansion,
       tooCostly: execution.tooCostly,
@@ -303,14 +304,20 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
     timestamp: new Date().toISOString(),
     identifier: 'urn:uuid:' + crypto.randomUUID(),
   };
+  const pagingUsed = (params.offset != null && params.offset >= 0)
+    || (params.count != null && params.count >= 0);
+  const effectiveOffset = params.offset != null
+    ? Math.max(params.offset, 0)
+    : 0;
 
   if (expansion.total != null) exp.total = expansion.total;
-  if (expansion.offset != null) exp.offset = expansion.offset;
+  if (expansion.offset != null) exp.offset = Math.max(expansion.offset, 0);
+  else if (pagingUsed) exp.offset = effectiveOffset;
   if (expansion.contains && expansion.contains.length > 0) exp.contains = expansion.contains;
   if (expansion.property && expansion.property.length > 0) exp.property = expansion.property;
 
   exp.parameter = [];
-  if (params.offset != null && params.offset > 0) exp.parameter.push({ name: 'offset', valueInteger: params.offset });
+  if (pagingUsed) exp.parameter.push({ name: 'offset', valueInteger: effectiveOffset });
   if (params.count != null && params.count >= 0) exp.parameter.push({ name: 'count', valueInteger: params.count });
   if (params.activeOnly) exp.parameter.push({ name: 'activeOnly', valueBoolean: true });
   if (params.includeDesignations) exp.parameter.push({ name: 'includeDesignations', valueBoolean: true });
@@ -367,6 +374,32 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
     }
   }
 
+  if (expansion.valueSetMeta?.length > 0) {
+    const sourceVS = params.sourceVS || vsJson;
+    const sourceStatus = sourceVS.status || '';
+    const sourceStandardsStatus = sourceVS.extension?.find(
+      e => e.url === 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'
+    )?.valueCode || '';
+    const sourceExperimental = sourceVS.experimental || false;
+
+    for (const meta of expansion.valueSetMeta) {
+      if (meta.standardsStatus === 'deprecated') {
+        addParamIfAbsent(exp, 'warning-deprecated', meta.vurl);
+      } else if (meta.standardsStatus === 'withdrawn') {
+        addParamIfAbsent(exp, 'warning-withdrawn', meta.vurl);
+      } else if (meta.status === 'retired') {
+        addParamIfAbsent(exp, 'warning-retired', meta.vurl);
+      } else if (meta.experimental && !sourceExperimental) {
+        addParamIfAbsent(exp, 'warning-experimental', meta.vurl);
+      } else if (
+        (meta.status === 'draft' || meta.standardsStatus === 'draft')
+        && !(sourceStatus === 'draft' || sourceStandardsStatus === 'draft')
+      ) {
+        addParamIfAbsent(exp, 'warning-draft', meta.vurl);
+      }
+    }
+  }
+
   {
     const sourceVS = params.sourceVS || vsJson;
     const vsStatus = sourceVS.status || '';
@@ -387,10 +420,8 @@ function buildExpandedValueSet(vsJson, expansion, params = {}) {
   if (expansion.unclosedMessages?.length > 0) {
     if (!exp.extension) exp.extension = [];
     const unclosedUrl = 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed';
-    for (const msg of expansion.unclosedMessages) {
-      if (!exp.extension.some(e => e.url === unclosedUrl && e.valueString === msg)) {
-        exp.extension.push({ url: unclosedUrl, valueString: msg });
-      }
+    if (!exp.extension.some(e => e.url === unclosedUrl && e.valueBoolean === true)) {
+      exp.extension.push({ url: unclosedUrl, valueBoolean: true });
     }
   }
 

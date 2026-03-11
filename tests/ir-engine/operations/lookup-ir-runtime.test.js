@@ -211,4 +211,92 @@ describe('CodeSystem $lookup through supplement runtime', () => {
     const traceJson = JSON.parse(traceText);
     expect(JSON.stringify(traceJson)).toContain('lookupIR:doLookup');
   }, 60000);
+
+  test('supports type-level lookup against an inline CodeSystem resource', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$lookup')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        { name: 'code', valueCode: 'A' },
+        { name: 'property', valueCode: '*' },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-inline-lookup',
+            version: '1.0.0',
+            status: 'active',
+            content: 'complete',
+            property: [
+              { code: 'rank', type: 'integer' },
+              { code: 'kind', type: 'code' },
+            ],
+            concept: [
+              {
+                code: 'A',
+                display: 'Alpha',
+                property: [
+                  { code: 'rank', valueInteger: 7 },
+                  { code: 'kind', valueCode: 'primary' },
+                ],
+              },
+              { code: 'B', display: 'Beta' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    const parameters = res.body?.parameter || [];
+    expect(parameters.some((param) =>
+      param.name === 'display' && param.valueString === 'Alpha'
+    )).toBe(true);
+    expect(parameters.some((param) =>
+      param.name === 'version' && param.valueString === '1.0.0'
+    )).toBe(true);
+
+    const rankProps = propertyParts(parameters, 'rank');
+    expect(rankProps.some((parts) =>
+      parts.some((part) => part.name === 'value' && part.valueInteger === 7)
+    )).toBe(true);
+
+    const kindProps = propertyParts(parameters, 'kind');
+    expect(kindProps.some((parts) =>
+      parts.some((part) => part.name === 'value' && part.valueCode === 'primary')
+    )).toBe(true);
+  }, 60000);
+
+  test('rejects inline CodeSystem lookup when coding has no system', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$lookup')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        {
+          name: 'coding',
+          valueCoding: {
+            code: 'A',
+          },
+        },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-inline-lookup-coding',
+            version: '1.0.0',
+            status: 'active',
+            content: 'complete',
+            concept: [
+              { code: 'A', display: 'Alpha Coding' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(400);
+    expect(String(res.body?.issue?.[0]?.details?.text || '')).toContain('Coding parameter must include a system');
+  }, 60000);
 });

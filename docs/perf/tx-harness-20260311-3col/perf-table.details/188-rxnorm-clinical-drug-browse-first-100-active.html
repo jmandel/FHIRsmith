@@ -1,0 +1,2230 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Perf Detail: RxNorm clinical drug browse first 100 active</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #f7f8fa; color: #111; }
+  header { padding: 14px 18px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 2; }
+  h1 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  .links { margin-top: 6px; font-size: 0.9rem; }
+  .links a { margin-right: 10px; }
+  .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
+  .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  .engine-card h3 { margin: 0 0 4px 0; }
+  .meta-mini { margin: 0; color: #666; font-size: 0.85rem; }
+  .cell { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
+  details { margin: 0; border: 1px solid #e2e2e2; border-radius: 6px; padding: 6px 8px; background: #fafafa; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { margin: 8px 0 0; max-height: 42vh; overflow: auto; background: #fff; border: 1px solid #e8e8e8; padding: 8px; border-radius: 6px; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: 1fr !important; } }
+</style></head><body>
+<header>
+  <h1 id="perf-detail-title"></h1>
+  <div class="meta" id="perf-detail-meta"></div>
+  <div class="links" id="perf-detail-links"></div>
+</header>
+<main class="grid" id="perf-detail-grid"></main>
+<script type="application/json" id="perf-detail-data">{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:37:03.831Z",
+  "rowIndex": 188,
+  "slug": "188-rxnorm-clinical-drug-browse-first-100-active",
+  "name": "RxNorm clinical drug browse first 100 active",
+  "category": "Medication Workloads",
+  "hrefs": {
+    "input": "../perf-table.inputs/188-rxnorm-clinical-drug-browse-first-100-active.json",
+    "detailJson": "188-rxnorm-clinical-drug-browse-first-100-active.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 25,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 25,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "SCD"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "18448",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:03 GMT",
+            "etag": "W/\"4810-JLUAk24MxqQfORuDJ2l72eQ1dZQ\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-685"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:37:03.036Z",
+              "identifier": "urn:uuid:4709f534-c2d0-4928-9db6-1585b75eb6cb",
+              "total": 17595,
+              "offset": 0,
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000001",
+                  "display": "olmesartan medoxomil 40 MG / amLODIPine 5 MG / hydroCHLOROthiazide 25 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000009",
+                  "display": "miconazole nitrate 2 % / dimethicone 10 % / zinc oxide 10 % Topical Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000013",
+                  "display": "whole wheat allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000024",
+                  "display": "methenamine mandelate 100 MG/ML Oral Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000025",
+                  "display": "methenamine hippurate 1 GM Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000048",
+                  "display": "doxepin HCl 10 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000054",
+                  "display": "doxepin HCl 10 MG in 1 mL Concentrate for Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000058",
+                  "display": "doxepin HCl 100 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000064",
+                  "display": "doxepin HCl 150 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000070",
+                  "display": "doxepin HCl 25 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000076",
+                  "display": "doxepin HCl 50 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000085",
+                  "display": "alcaftadine 0.25 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000091",
+                  "display": "doxepin HCl 5 % Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000097",
+                  "display": "doxepin HCl 75 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000107",
+                  "display": "incobotulinumtoxinA 200 UNT Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000114",
+                  "display": "medroxyPROGESTERone acetate 10 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000126",
+                  "display": "medroxyPROGESTERone acetate 150 MG in 1 ML Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000131",
+                  "display": "medroxyPROGESTERone acetate 400 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000135",
+                  "display": "medroxyPROGESTERone acetate 2.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000141",
+                  "display": "medroxyPROGESTERone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000149",
+                  "display": "estradiol cypionate 10 MG/ML / medroxyprogesterone acetate 50 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000153",
+                  "display": "medroxyPROGESTERone acetate 150 MG in 1 ML Prefilled Syringe"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000156",
+                  "display": "medroxyPROGESTERone acetate 104 MG in 0.65 ML Prefilled Syringe"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000161",
+                  "display": "medroxyPROGESTERone acetate 20 MG / estradiol valerate 2 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000163",
+                  "display": "Alternaria alternata allergenic extract 20000 UNT/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000351",
+                  "display": "estrogens, conjugated 0.3 MG / medroxyPROGESTERone acetate 1.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000352",
+                  "display": "estrogens, conjugated 0.45 MG / medroxyPROGESTERone acetate 1.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000353",
+                  "display": "estrogens, conjugated 0.625 MG / estrogens, esterified 0.625 MG / medroxyPROGESTERone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000355",
+                  "display": "estrogens, conjugated 0.625 MG / medroxyPROGESTERone acetate 2.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000356",
+                  "display": "estrogens, conjugated 0.625 MG / medroxyPROGESTERone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000364",
+                  "display": "medroxyPROGESTERone acetate 100 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000374",
+                  "display": "medroxyprogesterone acetate 160 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000376",
+                  "display": "medroxyPROGESTERone acetate 200 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000378",
+                  "display": "medroxyPROGESTERone acetate 20 % Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000380",
+                  "display": "medroxyPROGESTERone acetate 250 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000384",
+                  "display": "medroxyPROGESTERone acetate 400 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000386",
+                  "display": "medroxyPROGESTERone acetate 500 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000405",
+                  "display": "norethindrone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000495",
+                  "display": "resveratrol 250 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000502",
+                  "display": "dextromethorphan HBr 30 MG / guaiFENesin 200 MG / phenylephrine HCl 7.5 MG in 5 mL Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000556",
+                  "display": "fluorometholone 0.1 % / sulfacetamide sodium 10 % Ophthalmic Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000636",
+                  "display": "dimethicone 1.25 % Topical Lotion"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000638",
+                  "display": "pilocarpine HCl 4 % Ophthalmic Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000647",
+                  "display": "pilocarpine HCl 1 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000664",
+                  "display": "pilocarpine HCl 10 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000668",
+                  "display": "pilocarpine HCl 0.25 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000673",
+                  "display": "sulfacetamide sodium 10 % Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000713",
+                  "display": "sulfacetamide sodium 10 % Topical Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000731",
+                  "display": "sulfacetamide sodium 10 % / sulfur 2 % Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000859",
+                  "display": "sulfacetamide sodium 10 % / sulfur 4 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000862",
+                  "display": "pilocarpine HCl 2 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000868",
+                  "display": "sulfacetamide sodium 2.5 % Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000874",
+                  "display": "sulfacetamide sodium 6 % Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000884",
+                  "display": "pilocarpine HCl 3 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000895",
+                  "display": "sulfacetamide sodium 10 % / sulfur 2 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000897",
+                  "display": "pilocarpine HCl 4 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000913",
+                  "display": "pilocarpine HCl 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000917",
+                  "display": "pilocarpine HCl 0.5 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000939",
+                  "display": "pilocarpine HCl 6 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000946",
+                  "display": "sulfacetamide sodium 10 % / sulfur 4 % Medicated Pad"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000978",
+                  "display": "oxymetazoline HCl 0.025 % Nasal Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000981",
+                  "display": "oxymetazoline HCl 0.025 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000987",
+                  "display": "oxymetazoline HCl 0.05 % Nasal Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000990",
+                  "display": "oxymetazoline HCl 0.05 % Nasal Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001004",
+                  "display": "pilocarpine HCl 7.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001014",
+                  "display": "pilocarpine HCl 8 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001378",
+                  "display": "oxymetazoline HCl 0.05 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001402",
+                  "display": "pilocarpine HCl 0.1 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001405",
+                  "display": "DOCEtaxel 20 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001409",
+                  "display": "calcium 250 MG / vitamin D2 125 UNT Oral Tablet, as calcium carbonate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001433",
+                  "display": "cabazitaxel 60 MG in 1.5 ML Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001437",
+                  "display": "caffeine 50 MG / magnesium salicylate 162.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001591",
+                  "display": "fibrinogen / thrombin (human) 3.7 inch x 1.9 inch Medicated Patch"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001679",
+                  "display": "calcium carbonate 400 MG / magnesium oxide 167 MG / vitamin D3 133 UNT Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001691",
+                  "display": "calcium 500 MG / vitamin D3 100 UNT / vitamin K1 40 MCG Chewable Tablet, as calcium carbonate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001714",
+                  "display": "sulfacetamide sodium 9 % / sulfur 4 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001751",
+                  "display": "calcium 250 MG / vitamin D3 100 UNT Oral Tablet, as calcium citrate malate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005706",
+                  "display": "calcium 250 MG / cholecalciferol 0.005 MG (200 UNT) Oral Tablet, as calcium citrate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005819",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Medicated Pad"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005834",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005853",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Topical Foam"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005856",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Topical Lotion"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005924",
+                  "display": "ulipristal acetate 30 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006047",
+                  "display": "vitamin B-12 3000 MCG in 1 ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006079",
+                  "display": "benzocaine 20 % / menthol 2 % Oral Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006096",
+                  "display": "allantoin 1 % / benzocaine 20 % / camphor 3 % / petrolatum 64.9 % Topical Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006107",
+                  "display": "sulfacetamide sodium 10 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006116",
+                  "display": "sulfacetamide sodium 10 % Medicated Pad"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006120",
+                  "display": "sulfacetamide sodium 10 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006196",
+                  "display": "hydrogen peroxide 0.5 % Topical Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006288",
+                  "display": "Aspergillus flavus allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006294",
+                  "display": "Aspergillus flavus allergenic extract 40,000 UNT/mL Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006300",
+                  "display": "Aspergillus niger var. niger allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006347",
+                  "display": "arabica coffee bean allergenic extract 100 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006349",
+                  "display": "pork allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006353",
+                  "display": "Russian thistle pollen extract 100 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006361",
+                  "display": "Canada goldenrod pollen extract 100 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006365",
+                  "display": "Canada goldenrod pollen extract 20,000 UNT/mL Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006367",
+                  "display": "Canada goldenrod pollen extract 40,000 UNT/mL Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006374",
+                  "display": "mango blossom pollen extract 50 MG/ML Injectable Solution"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 0
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\ncanonical-ir-hash: 72f8097b6769fa7f77defe6e9a69f4fd7bb4eff8\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=100\noptimized-ir:\n  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = SCD [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":22.77,\"sqlCount\":2,\"sqlMs\":21.33,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":true,\"text\":null,\"offset\":0,\"count\":100,\"exactTotal\":false,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":0,\"count\":100,\"systems\":1},\"children\":[{\"name\":\"system:http://www.nlm.nih.gov/research/umls/rxnorm\",\"args\":{\"sysOffset\":0,\"sysCount\":100},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.13,\"execMs\":0.62},\"t\":1.6}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM \\\"concept\\\" \\\"c\\\" WHERE ((\\\"c\\\".\\\"cs_id\\\" = @cs_id_3) AND (\\\"c\\\".\\\"active\\\" = 1) AND EXISTS (SELECT 1 AS \\\"found\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE ((\\\"r\\\".\\\"source_concept_id\\\" = \\\"c\\\".\\\"concept_id\\\") AND (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 100\",\"params\":{\"prop_id_0\":2,\"literal_cs_id_1\":1,\"prop_value_2\":\"SCD\",\"cs_id_3\":1},\"rows\":100,\"ms\":0.62,\"label\":\"executeIR\"}],\"ms\":1.06,\"result\":{\"candidates\":100,\"total\":null}}],\"ms\":1.09,\"result\":{\"candidates\":100}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE (\\\"c\\\".\\\"active\\\" = 1)\",\"params\":{\"prop_id_0\":2,\"literal_cs_id_1\":1,\"prop_value_2\":\"SCD\"},\"rows\":17595,\"ms\":20.71,\"label\":\"countForIR\"}],\"ms\":20.91,\"result\":{\"count\":17595}}],\"ms\":20.94,\"result\":{\"count\":17595}}],\"ms\":22.05,\"result\":{\"paged\":100}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":100,\"includeDesignations\":false},\"children\":[],\"ms\":0.06,\"result\":{\"count\":100}}],\"ms\":22.7,\"result\":{\"total\":17595,\"contains\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 22.77,
+          "sqlCount": 2,
+          "sqlMs": 21.33,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": true,
+                "text": null,
+                "offset": 0,
+                "count": 100,
+                "exactTotal": false,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 0,
+                    "count": 100,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://www.nlm.nih.gov/research/umls/rxnorm",
+                      "args": {
+                        "sysOffset": 0,
+                        "sysCount": 100
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.13,
+                                "execMs": 0.62
+                              },
+                              "t": 1.6
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM \"concept\" \"c\" WHERE ((\"c\".\"cs_id\" = @cs_id_3) AND (\"c\".\"active\" = 1) AND EXISTS (SELECT 1 AS \"found\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE ((\"r\".\"source_concept_id\" = \"c\".\"concept_id\") AND (\"r\".\"source_concept_id\" IS NOT NULL)))) ORDER BY \"c\".\"code\" ASC LIMIT 100",
+                              "params": {
+                                "prop_id_0": 2,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "SCD",
+                                "cs_id_3": 1
+                              },
+                              "rows": 100,
+                              "ms": 0.62,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 1.06,
+                          "result": {
+                            "candidates": 100,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 1.09,
+                      "result": {
+                        "candidates": 100
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://www.nlm.nih.gov/research/umls/rxnorm"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE (\"c\".\"active\" = 1)",
+                              "params": {
+                                "prop_id_0": 2,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "SCD"
+                              },
+                              "rows": 17595,
+                              "ms": 20.71,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 20.91,
+                          "result": {
+                            "count": 17595
+                          }
+                        }
+                      ],
+                      "ms": 20.94,
+                      "result": {
+                        "count": 17595
+                      }
+                    }
+                  ],
+                  "ms": 22.05,
+                  "result": {
+                    "paged": 100
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 100,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.06,
+                  "result": {
+                    "count": 100
+                  }
+                }
+              ],
+              "ms": 22.7,
+              "result": {
+                "total": 17595,
+                "contains": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://www.nlm.nih.gov/research/umls/rxnorm\ncanonical-ir-hash: 72f8097b6769fa7f77defe6e9a69f4fd7bb4eff8\nruntime-constraints:\n  active-only: true\n  pagination: offset=0 count=100\noptimized-ir:\n  selector filter http://www.nlm.nih.gov/research/umls/rxnorm TTY = SCD [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 462,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 462,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "SCD"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "15453",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:03 GMT",
+            "etag": "W/\"3c5d-I7siFOWfM8Jr8KlX+xy8Z1EiXtg\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-686"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:37:03.038Z",
+              "identifier": "urn:uuid:2dba2639-0936-41fc-b445-3eba5a320cbc",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02022026"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000001",
+                  "display": "olmesartan medoxomil 40 MG / amLODIPine 5 MG / hydroCHLOROthiazide 25 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000009",
+                  "display": "miconazole nitrate 2 % / dimethicone 10 % / zinc oxide 10 % Topical Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000013",
+                  "display": "whole wheat allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000024",
+                  "display": "methenamine mandelate 100 MG/ML Oral Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000025",
+                  "display": "methenamine hippurate 1 GM Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000048",
+                  "display": "doxepin HCl 10 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000054",
+                  "display": "doxepin HCl 10 MG in 1 mL Concentrate for Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000058",
+                  "display": "doxepin HCl 100 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000064",
+                  "display": "doxepin HCl 150 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000070",
+                  "display": "doxepin HCl 25 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000076",
+                  "display": "doxepin HCl 50 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000085",
+                  "display": "alcaftadine 0.25 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000091",
+                  "display": "doxepin HCl 5 % Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000097",
+                  "display": "doxepin HCl 75 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000107",
+                  "display": "incobotulinumtoxinA 200 UNT Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000114",
+                  "display": "medroxyPROGESTERone acetate 10 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000126",
+                  "display": "medroxyPROGESTERone acetate 150 MG in 1 ML Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000131",
+                  "display": "medroxyPROGESTERone acetate 400 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000135",
+                  "display": "medroxyPROGESTERone acetate 2.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000141",
+                  "display": "medroxyPROGESTERone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000149",
+                  "display": "estradiol cypionate 10 MG/ML / medroxyprogesterone acetate 50 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000153",
+                  "display": "medroxyPROGESTERone acetate 150 MG in 1 ML Prefilled Syringe"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000156",
+                  "display": "medroxyPROGESTERone acetate 104 MG in 0.65 ML Prefilled Syringe"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000161",
+                  "display": "medroxyPROGESTERone acetate 20 MG / estradiol valerate 2 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000163",
+                  "display": "Alternaria alternata allergenic extract 20000 UNT/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000351",
+                  "display": "estrogens, conjugated 0.3 MG / medroxyPROGESTERone acetate 1.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000352",
+                  "display": "estrogens, conjugated 0.45 MG / medroxyPROGESTERone acetate 1.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000353",
+                  "display": "estrogens, conjugated 0.625 MG / estrogens, esterified 0.625 MG / medroxyPROGESTERone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000355",
+                  "display": "estrogens, conjugated 0.625 MG / medroxyPROGESTERone acetate 2.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000356",
+                  "display": "estrogens, conjugated 0.625 MG / medroxyPROGESTERone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000364",
+                  "display": "medroxyPROGESTERone acetate 100 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000374",
+                  "display": "medroxyprogesterone acetate 160 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000376",
+                  "display": "medroxyPROGESTERone acetate 200 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000378",
+                  "display": "medroxyPROGESTERone acetate 20 % Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000380",
+                  "display": "medroxyPROGESTERone acetate 250 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000384",
+                  "display": "medroxyPROGESTERone acetate 400 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000386",
+                  "display": "medroxyPROGESTERone acetate 500 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000405",
+                  "display": "norethindrone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000495",
+                  "display": "resveratrol 250 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000502",
+                  "display": "dextromethorphan HBr 30 MG / guaiFENesin 200 MG / phenylephrine HCl 7.5 MG in 5 mL Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000556",
+                  "display": "fluorometholone 0.1 % / sulfacetamide sodium 10 % Ophthalmic Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000636",
+                  "display": "dimethicone 1.25 % Topical Lotion"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000638",
+                  "display": "pilocarpine HCl 4 % Ophthalmic Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000647",
+                  "display": "pilocarpine HCl 1 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000664",
+                  "display": "pilocarpine HCl 10 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000668",
+                  "display": "pilocarpine HCl 0.25 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000673",
+                  "display": "sulfacetamide sodium 10 % Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000713",
+                  "display": "sulfacetamide sodium 10 % Topical Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000731",
+                  "display": "sulfacetamide sodium 10 % / sulfur 2 % Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000859",
+                  "display": "sulfacetamide sodium 10 % / sulfur 4 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000862",
+                  "display": "pilocarpine HCl 2 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000868",
+                  "display": "sulfacetamide sodium 2.5 % Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000874",
+                  "display": "sulfacetamide sodium 6 % Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000884",
+                  "display": "pilocarpine HCl 3 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000895",
+                  "display": "sulfacetamide sodium 10 % / sulfur 2 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000897",
+                  "display": "pilocarpine HCl 4 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000913",
+                  "display": "pilocarpine HCl 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000917",
+                  "display": "pilocarpine HCl 0.5 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000939",
+                  "display": "pilocarpine HCl 6 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000946",
+                  "display": "sulfacetamide sodium 10 % / sulfur 4 % Medicated Pad"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000978",
+                  "display": "oxymetazoline HCl 0.025 % Nasal Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000981",
+                  "display": "oxymetazoline HCl 0.025 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000987",
+                  "display": "oxymetazoline HCl 0.05 % Nasal Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000990",
+                  "display": "oxymetazoline HCl 0.05 % Nasal Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001004",
+                  "display": "pilocarpine HCl 7.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001014",
+                  "display": "pilocarpine HCl 8 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001378",
+                  "display": "oxymetazoline HCl 0.05 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001402",
+                  "display": "pilocarpine HCl 0.1 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001405",
+                  "display": "DOCEtaxel 20 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001409",
+                  "display": "calcium 250 MG / vitamin D2 125 UNT Oral Tablet, as calcium carbonate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001433",
+                  "display": "cabazitaxel 60 MG in 1.5 ML Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001437",
+                  "display": "caffeine 50 MG / magnesium salicylate 162.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001591",
+                  "display": "fibrinogen / thrombin (human) 3.7 inch x 1.9 inch Medicated Patch"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001679",
+                  "display": "calcium carbonate 400 MG / magnesium oxide 167 MG / vitamin D3 133 UNT Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001691",
+                  "display": "calcium 500 MG / vitamin D3 100 UNT / vitamin K1 40 MCG Chewable Tablet, as calcium carbonate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001714",
+                  "display": "sulfacetamide sodium 9 % / sulfur 4 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001751",
+                  "display": "calcium 250 MG / vitamin D3 100 UNT Oral Tablet, as calcium citrate malate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005706",
+                  "display": "calcium 250 MG / cholecalciferol 0.005 MG (200 UNT) Oral Tablet, as calcium citrate"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005819",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Medicated Pad"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005834",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005853",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Topical Foam"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005856",
+                  "display": "sulfacetamide sodium 10 % / sulfur 5 % Topical Lotion"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1005924",
+                  "display": "ulipristal acetate 30 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006047",
+                  "display": "vitamin B-12 3000 MCG in 1 ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006079",
+                  "display": "benzocaine 20 % / menthol 2 % Oral Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006096",
+                  "display": "allantoin 1 % / benzocaine 20 % / camphor 3 % / petrolatum 64.9 % Topical Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006107",
+                  "display": "sulfacetamide sodium 10 % Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006116",
+                  "display": "sulfacetamide sodium 10 % Medicated Pad"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006120",
+                  "display": "sulfacetamide sodium 10 % Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006196",
+                  "display": "hydrogen peroxide 0.5 % Topical Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006288",
+                  "display": "Aspergillus flavus allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006294",
+                  "display": "Aspergillus flavus allergenic extract 40,000 UNT/mL Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006300",
+                  "display": "Aspergillus niger var. niger allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006347",
+                  "display": "arabica coffee bean allergenic extract 100 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006349",
+                  "display": "pork allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006353",
+                  "display": "Russian thistle pollen extract 100 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006361",
+                  "display": "Canada goldenrod pollen extract 100 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006365",
+                  "display": "Canada goldenrod pollen extract 20,000 UNT/mL Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006367",
+                  "display": "Canada goldenrod pollen extract 40,000 UNT/mL Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1006374",
+                  "display": "mango blossom pollen extract 50 MG/ML Injectable Solution"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":460.2,\"sqlCount\":1,\"sqlMs\":296.48,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":100,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[{\"name\":\"legacy:executeFilters\",\"args\":{\"system\":\"http://www.nlm.nih.gov/research/umls/rxnorm\",\"filterCount\":1,\"hasTextSearch\":false},\"children\":[{\"name\":\"note\",\"message\":\"legacy:codeSetIntersection\",\"data\":{\"filters\":1,\"after\":17595},\"t\":357.57}],\"sql\":[{\"sql\":\"SELECT c.concept_id, c.code, c.display, c.definition, c.active\\n        FROM concept c \\n        WHERE c.cs_id = @cs\\n        ORDER BY c.code\",\"params\":{\"cs\":1},\"rows\":227845,\"ms\":296.48,\"label\":\"legacy:executeFilters\"}],\"ms\":356.66,\"result\":{\"rows\":17595}}],\"ms\":460.17,\"result\":{\"ms\":460.16,\"returned\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 460.2,
+          "sqlCount": 1,
+          "sqlMs": 296.48,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 100,
+                "offset": -1,
+                "activeOnly": true,
+                "hasTextFilter": false
+              },
+              "children": [
+                {
+                  "name": "legacy:executeFilters",
+                  "args": {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "filterCount": 1,
+                    "hasTextSearch": false
+                  },
+                  "children": [
+                    {
+                      "name": "note",
+                      "message": "legacy:codeSetIntersection",
+                      "data": {
+                        "filters": 1,
+                        "after": 17595
+                      },
+                      "t": 357.57
+                    }
+                  ],
+                  "sql": [
+                    {
+                      "sql": "SELECT c.concept_id, c.code, c.display, c.definition, c.active\n        FROM concept c \n        WHERE c.cs_id = @cs\n        ORDER BY c.code",
+                      "params": {
+                        "cs": 1
+                      },
+                      "rows": 227845,
+                      "ms": 296.48,
+                      "label": "legacy:executeFilters"
+                    }
+                  ],
+                  "ms": 356.66,
+                  "result": {
+                    "rows": 17595
+                  }
+                }
+              ],
+              "ms": 460.17,
+              "result": {
+                "ms": 460.16,
+                "returned": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 331,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 331,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "filter": [
+                          {
+                            "property": "TTY",
+                            "op": "=",
+                            "value": "SCD"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 100
+              },
+              {
+                "name": "activeOnly",
+                "valueBoolean": true
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "15434",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:37:03 GMT",
+            "etag": "W/\"3c4a-79x7C6NMFxyMBH1Iq8KVChTAvVc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-204"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:37:03.501Z",
+              "identifier": "urn:uuid:f4b5c309-41ff-49fa-82d2-7675ab6f02e2",
+              "parameter": [
+                {
+                  "name": "displayLanguage",
+                  "valueCode": "*"
+                },
+                {
+                  "name": "activeOnly",
+                  "valueBoolean": true
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 100
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://www.nlm.nih.gov/research/umls/rxnorm|02032025"
+                }
+              ],
+              "contains": [
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000001",
+                  "display": "amlodipine 5 MG / hydrochlorothiazide 25 MG / olmesartan medoxomil 40 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000009",
+                  "display": "dimethicone 100 MG/ML / miconazole nitrate 20 MG/ML / zinc oxide 100 MG/ML Topical Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000013",
+                  "display": "whole wheat allergenic extract 50 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000015",
+                  "display": "western wheatgrass pollen extract 10000 UNT/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000024",
+                  "display": "methenamine mandelate 100 MG/ML Oral Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000025",
+                  "display": "methenamine hippurate 1000 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000026",
+                  "display": "methenamine mandelate 250 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000027",
+                  "display": "methenamine mandelate 300 MG / sodium phosphate 500 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000028",
+                  "display": "methenamine mandelate 350 MG / sodium phosphate 200 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000030",
+                  "display": "methenamine mandelate 500 MG / sodium phosphate, monobasic 250 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000048",
+                  "display": "doxepin 10 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000054",
+                  "display": "doxepin 10 MG/ML Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000058",
+                  "display": "doxepin 100 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000064",
+                  "display": "doxepin 150 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000070",
+                  "display": "doxepin 25 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000076",
+                  "display": "doxepin 50 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000085",
+                  "display": "alcaftadine 2.5 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000091",
+                  "display": "doxepin hydrochloride 50 MG/ML Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000097",
+                  "display": "doxepin 75 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000107",
+                  "display": "incobotulinumtoxinA 200 UNT Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000114",
+                  "display": "medroxyprogesterone acetate 10 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000126",
+                  "display": "1 ML medroxyprogesterone acetate 150 MG/ML Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000131",
+                  "display": "medroxyprogesterone acetate 400 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000135",
+                  "display": "medroxyprogesterone acetate 2.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000141",
+                  "display": "medroxyprogesterone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000149",
+                  "display": "estradiol cypionate 10 MG/ML / medroxyprogesterone acetate 50 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000153",
+                  "display": "1 ML medroxyprogesterone acetate 150 MG/ML Prefilled Syringe"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000156",
+                  "display": "0.65 ML medroxyprogesterone acetate 160 MG/ML Prefilled Syringe"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000161",
+                  "display": "estradiol valerate 2 MG / medroxyprogesterone acetate 20 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000163",
+                  "display": "Alternaria alternata allergenic extract 20000 UNT/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000351",
+                  "display": "estrogens, conjugated (USP) 0.3 MG / medroxyprogesterone acetate 1.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000352",
+                  "display": "estrogens, conjugated (USP) 0.45 MG / medroxyprogesterone acetate 1.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000353",
+                  "display": "estrogens, conjugated (USP) 0.625 MG / estrogens, esterified (USP) 0.625 MG / medroxyprogesterone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000354",
+                  "display": "estrogens, conjugated (USP) 0.625 MG / medroxyprogesterone acetate 10 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000355",
+                  "display": "estrogens, conjugated (USP) 0.625 MG / medroxyprogesterone acetate 2.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000356",
+                  "display": "estrogens, conjugated (USP) 0.625 MG / medroxyprogesterone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000364",
+                  "display": "medroxyprogesterone acetate 100 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000373",
+                  "display": "medroxyprogesterone acetate 100 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000374",
+                  "display": "medroxyprogesterone acetate 160 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000376",
+                  "display": "medroxyprogesterone acetate 200 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000378",
+                  "display": "medroxyprogesterone acetate 200 MG/ML Injectable Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000380",
+                  "display": "medroxyprogesterone acetate 250 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000384",
+                  "display": "medroxyprogesterone acetate 400 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000386",
+                  "display": "medroxyprogesterone acetate 500 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000405",
+                  "display": "norethindrone acetate 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000495",
+                  "display": "resveratrol 250 MG Oral Capsule"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000502",
+                  "display": "dextromethorphan hydrobromide 6 MG/ML / guaifenesin 40 MG/ML / phenylephrine hydrochloride 1.5 MG/ML Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000556",
+                  "display": "fluorometholone 1 MG/ML / sulfacetamide sodium 100 MG/ML Ophthalmic Suspension"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000584",
+                  "display": "malachite green 0.0001 MG/ML / metronidazole 0.005 MG/ML / microcrystalline cellulose 0.00763 MG/ML / trichlorfon 0.00025 MG/ML Topical Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000636",
+                  "display": "dimethicone 12.5 MG/ML Topical Lotion"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000638",
+                  "display": "pilocarpine hydrochloride 0.04 MG/MG Ophthalmic Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000647",
+                  "display": "pilocarpine hydrochloride 10 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000652",
+                  "display": "phenylephrine 1.25 MG/ML / sulfacetamide sodium 150 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000664",
+                  "display": "pilocarpine hydrochloride 100 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000668",
+                  "display": "pilocarpine hydrochloride 2.5 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000673",
+                  "display": "sulfacetamide sodium 0.1 MG/MG Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000678",
+                  "display": "sulfacetamide sodium 0.1 MG/MG Medicated Bar Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000713",
+                  "display": "sulfacetamide sodium 0.1 MG/MG Topical Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000731",
+                  "display": "sulfacetamide sodium 100 MG/ML / sulfur 20 MG/ML Topical Cream"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000859",
+                  "display": "sulfacetamide sodium 100 MG/ML / sulfur 40 MG/ML Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000862",
+                  "display": "pilocarpine hydrochloride 20 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000868",
+                  "display": "sulfacetamide sodium 0.025 MG/MG Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000874",
+                  "display": "sulfacetamide sodium 0.06 MG/MG Ophthalmic Ointment"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000884",
+                  "display": "pilocarpine hydrochloride 30 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000895",
+                  "display": "sulfacetamide sodium 100 MG/ML / sulfur 20 MG/ML Medicated Liquid Soap"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000897",
+                  "display": "pilocarpine hydrochloride 40 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000913",
+                  "display": "pilocarpine hydrochloride 5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000917",
+                  "display": "pilocarpine hydrochloride 5 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000933",
+                  "display": "pilocarpine hydrochloride 50 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000939",
+                  "display": "pilocarpine hydrochloride 60 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000946",
+                  "display": "sulfacetamide sodium 100 MG/ML / sulfur 40 MG/ML Medicated Pad"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000978",
+                  "display": "oxymetazoline hydrochloride 0.25 MG/ML Nasal Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000981",
+                  "display": "oxymetazoline hydrochloride 0.25 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000987",
+                  "display": "oxymetazoline hydrochloride 0.5 MG/ML Nasal Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1000990",
+                  "display": "oxymetazoline hydrochloride 0.5 MG/ML Nasal Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001004",
+                  "display": "pilocarpine hydrochloride 7.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001014",
+                  "display": "pilocarpine hydrochloride 80 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001079",
+                  "display": "epinephrine 10 MG/ML / pilocarpine hydrochloride 10 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001082",
+                  "display": "epinephrine 10 MG/ML / pilocarpine hydrochloride 20 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001085",
+                  "display": "epinephrine 10 MG/ML / pilocarpine hydrochloride 30 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001086",
+                  "display": "epinephrine 10 MG/ML / pilocarpine hydrochloride 40 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001089",
+                  "display": "epinephrine 10 MG/ML / pilocarpine hydrochloride 60 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001378",
+                  "display": "oxymetazoline hydrochloride 0.5 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001397",
+                  "display": "calcium carbonate 300 MG / ergocalciferol 62.5 UNT Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001402",
+                  "display": "pilocarpine hydrochloride 1 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001405",
+                  "display": "docetaxel 20 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001409",
+                  "display": "calcium carbonate 625 MG / ergocalciferol 125 UNT Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001411",
+                  "display": "pilocarpine hydrochloride 15 MG/ML Ophthalmic Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001426",
+                  "display": "castor oil 788 MG/ML / Peruvian balsam 87 MG/ML / trypsin 0.12 MG/ML Topical Spray"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001433",
+                  "display": "1.5 ML cabazitaxel 40 MG/ML Injection"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001437",
+                  "display": "caffeine 50 MG / magnesium salicylate 162.5 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001570",
+                  "display": "levothyroxine sodium 1 MG/ML Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001591",
+                  "display": "fibrinogen, human 337 MG / thrombin, human 123 UNT Medicated Patch"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001643",
+                  "display": "carbon dioxide 75 % / oxygen 25 % Gas for Inhalation"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001657",
+                  "display": "vitamin B12 0.01 MG/ML Oral Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001660",
+                  "display": "vitamin B12 0.12 MG/ML Injectable Solution"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001661",
+                  "display": "vitamin B12 5 MG/ML Nasal Gel"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001679",
+                  "display": "calcium carbonate 400 MG / cholecalciferol 133 UNT / magnesium oxide 167 MG Oral Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001691",
+                  "display": "calcium carbonate 1250 MG / cholecalciferol 100 UNT / vitamin K1 0.04 MG Chewable Tablet"
+                },
+                {
+                  "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                  "code": "1001692",
+                  "display": "calcium carbonate 500 MG / ergocalciferol 100 MG / vitamin K1 0.04 MG Chewable Tablet"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":328.03,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"note\",\"message\":\"engine-selection\",\"data\":{\"requested\":\"legacy\",\"selected\":\"legacy\",\"irAttempted\":false},\"t\":0.01},{\"name\":\"legacy-expand\",\"args\":{\"count\":100,\"offset\":-1,\"activeOnly\":true,\"hasTextFilter\":false},\"children\":[],\"ms\":328,\"result\":{\"ms\":327.99,\"returned\":100}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 328.03,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "note",
+              "message": "engine-selection",
+              "data": {
+                "requested": "legacy",
+                "selected": "legacy",
+                "irAttempted": false
+              },
+              "t": 0.01
+            },
+            {
+              "name": "legacy-expand",
+              "args": {
+                "count": 100,
+                "offset": -1,
+                "activeOnly": true,
+                "hasTextFilter": false
+              },
+              "children": [],
+              "ms": 328,
+              "result": {
+                "ms": 327.99,
+                "returned": 100
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('perf-detail-data').textContent);
+  const esc = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const stringify = (value) => {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+  const perfStr = (perf) => {
+    if (!perf || perf.supported === false) return 'n/a';
+    return perf.err ? '❌' : `${perf.ms}ms`;
+  };
+  const targets = data.targets || [];
+  const summaryPerf = targets.map((target) => `${target.label}=${perfStr(target.perf)}`).join(' | ');
+  document.title = `Perf Detail: ${data.name}`;
+  document.getElementById('perf-detail-title').textContent = `#${data.rowIndex} ${data.name}`;
+  document.getElementById('perf-detail-meta').textContent = `Category: ${data.category} · Median perf: ${summaryPerf}`;
+
+  const links = [];
+  for (const target of targets) {
+    links.push(`<a href="#${target.key}-query">${esc(target.label)} query</a>`);
+    links.push(`<a href="#${target.key}-plan">${esc(target.label)} plan</a>`);
+    links.push(`<a href="#${target.key}-trace">${esc(target.label)} trace</a>`);
+    links.push(`<a href="#${target.key}-http">${esc(target.label)} response</a>`);
+  }
+  if (data.hrefs?.input) {
+    links.push(`<a href="${esc(data.hrefs.input)}" target="_blank" rel="noopener">Input payload</a>`);
+  }
+  if (data.hrefs?.detailJson) {
+    links.push(`<a href="${esc(data.hrefs.detailJson)}" target="_blank" rel="noopener">Detail JSON</a>`);
+  }
+  document.getElementById('perf-detail-links').innerHTML = links.join(' ');
+
+  const grid = document.getElementById('perf-detail-grid');
+  grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+
+  const cardsHtml = targets.map((target) => {
+    const debug = target.debug || {};
+    const traceMs = debug?.trace?.totalMs;
+    const timing = target.supported === false ? 'not exercised for this case' : (debug?.ok ? `${debug.ms}ms capture wall` : 'capture failed');
+    const status = target.supported === false ? 'n/a' : (debug?.response ? `${debug.response.status} ${debug.response.statusText || ''}`.trim() : 'n/a');
+    return `<section class="engine-card">
+      <h3>${esc(target.label)}</h3>
+      <p class="meta-mini">capture: ${esc(timing)}${traceMs != null ? ` · trace: ${esc(String(traceMs))}ms` : ''} · response: ${esc(status)}</p>
+    </section>`;
+  }).join('');
+
+  const sectionRows = ['query', 'plan', 'trace', 'http'].map((section) => {
+    return targets.map((target) => {
+      const debug = target.debug || {};
+      let label = '';
+      let content = '';
+      if (section === 'query') {
+        label = 'Query / HTTP Request';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.request || {});
+      } else if (section === 'plan') {
+        label = 'IR Plan';
+        content = target.supported === false ? 'N/A for this case' : (debug?.irPlanText || 'N/A for this target');
+      } else if (section === 'trace') {
+        label = 'Structured Trace';
+        content = target.supported === false ? 'N/A for this case' : (debug?.traceAvailable ? stringify(debug.trace) : 'No structured trace payload returned.');
+      } else {
+        label = 'HTTP Response';
+        content = target.supported === false ? 'N/A for this case' : stringify(debug?.response || { error: debug?.error || 'No response captured' });
+      }
+      return `<section class="cell">
+        <details id="${target.key}-${section}" open>
+          <summary>${esc(label)}</summary>
+          <pre>${esc(content)}</pre>
+        </details>
+      </section>`;
+    }).join('');
+  }).join('');
+
+  grid.innerHTML = cardsHtml + sectionRows;
+})();
+</script>
+</body></html>

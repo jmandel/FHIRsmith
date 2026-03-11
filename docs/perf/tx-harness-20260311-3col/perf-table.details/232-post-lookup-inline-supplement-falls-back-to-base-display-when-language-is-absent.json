@@ -1,0 +1,535 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:38:56.322Z",
+  "rowIndex": 232,
+  "slug": "232-post-lookup-inline-supplement-falls-back-to-base-display-when-language-is-absent",
+  "name": "POST lookup inline supplement falls back to base display when language is absent",
+  "category": "Lookup",
+  "hrefs": {
+    "input": "../perf-table.inputs/232-post-lookup-inline-supplement-falls-back-to-base-display-when-language-is-absent.json",
+    "detailJson": "232-post-lookup-inline-supplement-falls-back-to-base-display-when-language-is-absent.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 8,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 8,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "fr"
+              },
+              {
+                "name": "property",
+                "valueCode": "designation"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "use": {
+                            "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                            "code": "preferredForLanguage"
+                          },
+                          "value": "Männlich"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "1067",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:38:56 GMT",
+            "etag": "W/\"42b-OMmPTFLcDMmi2GbNOFRQDDhlxhk\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-798"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "name",
+                "valueString": "AdministrativeGender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "display",
+                "valueString": "Male"
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Male"
+                  }
+                ]
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "language",
+                    "valueCode": "de"
+                  },
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Männlich"
+                  }
+                ]
+              },
+              {
+                "name": "trace",
+                "valueString": "{\"totalMs\":5.64,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"lookupIR:handle\",\"children\":[{\"name\":\"lookupIR:doLookup\",\"args\":{\"system\":\"http://hl7.org/fhir/administrative-gender\",\"code\":\"male\"},\"children\":[],\"ms\":0.15}],\"ms\":5.62,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 5.64,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "lookupIR:handle",
+              "children": [
+                {
+                  "name": "lookupIR:doLookup",
+                  "args": {
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "code": "male"
+                  },
+                  "children": [],
+                  "ms": 0.15
+                }
+              ],
+              "ms": 5.62,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "fr"
+              },
+              {
+                "name": "property",
+                "valueCode": "designation"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "use": {
+                            "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                            "code": "preferredForLanguage"
+                          },
+                          "value": "Männlich"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "723",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:38:56 GMT",
+            "etag": "W/\"2d3-7FusP5QozGFLhgBePdwwWiZ2heA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-799"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "name",
+                "valueString": "AdministrativeGender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "display",
+                "valueString": "Male"
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Male"
+                  }
+                ]
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "language",
+                    "valueCode": "de"
+                  },
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Männlich"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/CodeSystem/$lookup",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "displayLanguage",
+                "valueCode": "fr"
+              },
+              {
+                "name": "property",
+                "valueCode": "designation"
+              },
+              {
+                "name": "useSupplement",
+                "valueString": "http://example.org/fhir/CodeSystem/admin-gender-de"
+              },
+              {
+                "name": "tx-resource",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://example.org/fhir/CodeSystem/admin-gender-de",
+                  "version": "1.0.0",
+                  "status": "active",
+                  "content": "supplement",
+                  "supplements": "http://hl7.org/fhir/administrative-gender",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "designation": [
+                        {
+                          "language": "de",
+                          "use": {
+                            "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                            "code": "preferredForLanguage"
+                          },
+                          "value": "Männlich"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "723",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:38:56 GMT",
+            "etag": "W/\"2d3-7FusP5QozGFLhgBePdwwWiZ2heA\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-224"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "name",
+                "valueString": "AdministrativeGender"
+              },
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "system",
+                "valueUri": "http://hl7.org/fhir/administrative-gender"
+              },
+              {
+                "name": "version",
+                "valueString": "4.0.1"
+              },
+              {
+                "name": "display",
+                "valueString": "Male"
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Male"
+                  }
+                ]
+              },
+              {
+                "name": "designation",
+                "part": [
+                  {
+                    "name": "language",
+                    "valueCode": "de"
+                  },
+                  {
+                    "name": "use",
+                    "valueCoding": {
+                      "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                      "code": "preferredForLanguage"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "valueString": "Männlich"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

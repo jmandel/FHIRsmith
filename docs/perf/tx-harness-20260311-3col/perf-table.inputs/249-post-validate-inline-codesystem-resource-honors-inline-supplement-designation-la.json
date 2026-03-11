@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "id": 249,
+  "slug": "249-post-validate-inline-codesystem-resource-honors-inline-supplement-designation-la",
+  "name": "POST validate inline CodeSystem resource honors inline supplement designation language choice via IR",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "POST",
+      "path": "/r4/CodeSystem/$validate-code",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-validate-supp-base"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-validate-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-base",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-validate-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-validate-supp-base"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-validate-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-base",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-validate-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-validate-supp-base"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-validate-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-base",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-validate-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/CodeSystem/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "code",
+            "valueCode": "A"
+          },
+          {
+            "name": "system",
+            "valueUri": "http://example.org/cs-inline-validate-supp-base"
+          },
+          {
+            "name": "displayLanguage",
+            "valueCode": "de"
+          },
+          {
+            "name": "useSupplement",
+            "valueString": "http://example.org/cs-inline-validate-supp-de"
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-base",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha Base"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta Base"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-supp-de",
+              "version": "1.0.0",
+              "status": "active",
+              "content": "supplement",
+              "supplements": "http://example.org/cs-inline-validate-supp-base",
+              "concept": [
+                {
+                  "code": "A",
+                  "designation": [
+                    {
+                      "language": "de",
+                      "use": {
+                        "system": "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra",
+                        "code": "preferredForLanguage"
+                      },
+                      "value": "Alpha Deutsch"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

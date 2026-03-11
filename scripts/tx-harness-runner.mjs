@@ -141,12 +141,14 @@ const PERF_OUT_BASE = basename(PERF_OUT_PATH, extname(PERF_OUT_PATH));
 const PERF_DETAILS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.details`);
 const PERF_INPUTS_DIR = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.inputs`);
 const PERF_CATALOG_PATH = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.catalog.json`);
+const PERF_FAILURES_PATH = join(dirname(PERF_OUT_PATH), `${PERF_OUT_BASE}.failures.json`);
 const PERF_ARTIFACT_SCHEMA_VERSION = 1;
 const MATRIX_OUT_PATH = resolve(MATRIX_OUT);
 const MATRIX_OUT_BASE = basename(MATRIX_OUT_PATH, extname(MATRIX_OUT_PATH));
 const MATRIX_DETAILS_DIR = join(dirname(MATRIX_OUT_PATH), `${MATRIX_OUT_BASE}.details`);
 const MATRIX_INPUTS_DIR = join(dirname(MATRIX_OUT_PATH), `${MATRIX_OUT_BASE}.inputs`);
 const MATRIX_CATALOG_PATH = join(dirname(MATRIX_OUT_PATH), `${MATRIX_OUT_BASE}.catalog.json`);
+const MATRIX_FAILURES_PATH = join(dirname(MATRIX_OUT_PATH), `${MATRIX_OUT_BASE}.failures.json`);
 const TRACE_EXTENSION_URLS = new Set([
   'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace',
   'http://fhirsmith.org/StructureDefinition/expand-trace', // backwards compatibility
@@ -888,6 +890,10 @@ function buildDebugSample(outcome, error = null) {
   };
 }
 
+function summarizeFailure(error) {
+  return String(error?.message || error || 'Unknown failure').trim() || 'Unknown failure';
+}
+
 async function expand(vsJson, opts = {}, engine = DEFAULT_ENGINE, forceTrace = null, baseUrl = BASE, timeoutMs = PERF_HTTP_TIMEOUT_MS) {
   lastPerfTarget = { kind: 'expand', vsJson, opts };
   const shouldForceTrace = forceTrace ?? (WANT_TRACE || (STRICT_IR_NO_FALLBACK && engine === 'ir'));
@@ -1053,6 +1059,7 @@ function normalizeTestDef(def) {
       name: def,
       category: currentCategory || 'Uncategorized',
       perfOnly: false,
+      review: null,
     };
   }
   const rawName = String(def?.rawName || def?.name || '').trim();
@@ -1063,7 +1070,33 @@ function normalizeTestDef(def) {
     name: name || rawName,
     category: String(def?.category || currentCategory || 'Uncategorized').trim(),
     perfOnly: !!def?.perfOnly,
+    review: normalizeReviewMeta(def?.review),
   };
+}
+
+function normalizeReviewMeta(review) {
+  if (!review) return null;
+  if (typeof review === 'string') {
+    const note = review.trim();
+    return note ? { status: 'reviewed', reviewedAt: null, note } : null;
+  }
+  if (typeof review !== 'object') return null;
+  const status = String(review.status || 'reviewed').trim() || 'reviewed';
+  const reviewedAt = review.reviewedAt ? String(review.reviewedAt).trim() : null;
+  const note = review.note ? String(review.note).trim() : null;
+  if (!reviewedAt && !note && status === 'reviewed') {
+    return { status, reviewedAt: null, note: null };
+  }
+  return { status, reviewedAt, note };
+}
+
+function formatReviewLabel(review) {
+  if (!review) return null;
+  const bits = [];
+  bits.push(review.status || 'reviewed');
+  if (review.reviewedAt) bits.push(review.reviewedAt);
+  if (review.note) bits.push(review.note);
+  return bits.join(': ');
 }
 
 async function test(def, fn) {
@@ -1123,7 +1156,13 @@ async function test(def, fn) {
         rawName: meta.rawName,
         name: meta.name,
         category: meta.category,
+        review: meta.review || null,
+        reviewLabel: formatReviewLabel(meta.review),
         kind: lastPerfTarget.kind,
+        ok: true,
+        status: 'passed',
+        failureSummary: null,
+        failedColumn: null,
         irMs: ir.ms,
         upstreamMs: upstream.ms,
         thirdMs: third?.ms ?? null,
@@ -1152,6 +1191,7 @@ async function test(def, fn) {
     console.log(`  \x1b[31m✗\x1b[0m ${meta.name}`);
     console.log(`    ${e.message}`);
     failed++;
+    const failureSummary = summarizeFailure(e);
     if (!PERF_MODE) {
       const artifact = lastCaseArtifact || {};
       const rowIndex = meta.id ?? (matrixRows.length + 1);
@@ -1166,8 +1206,13 @@ async function test(def, fn) {
         rawName: meta.rawName,
         name: meta.name,
         category: meta.category,
+        review: meta.review || null,
+        reviewLabel: formatReviewLabel(meta.review),
         kind: artifact.kind || lastPerfTarget?.kind || defKind || 'unknown',
         ok: false,
+        status: 'failed',
+        failureSummary,
+        failedColumn: targetKeyForArtifact(lastPerfTarget, artifact),
         primaryMs: detail?.primaryMs ?? null,
         primarySummary: detail?.primarySummary || 'n/a',
         secondaryMs: detail?.secondaryMs ?? null,
@@ -1177,6 +1222,46 @@ async function test(def, fn) {
         detailHref: detail?.href || null,
         detailJsonHref: detail?.detailJsonHref || null,
         inputHref: detail?.inputHref || null,
+      });
+    } else {
+      const artifact = lastCaseArtifact || {};
+      const rowIndex = meta.id ?? (perfRows.length + 1);
+      let detail = null;
+      let detailError = null;
+      try {
+        detail = await writeMatrixArtifacts(rowIndex, meta, lastPerfTarget, artifact, e, {
+          outBase: PERF_OUT_BASE,
+          detailsDir: PERF_DETAILS_DIR,
+          inputsDir: PERF_INPUTS_DIR,
+        });
+      } catch (err) {
+        detailError = err.message || String(err);
+      }
+      perfRows.push({
+        id: rowIndex,
+        rawName: meta.rawName,
+        name: meta.name,
+        category: meta.category,
+        review: meta.review || null,
+        reviewLabel: formatReviewLabel(meta.review),
+        kind: artifact.kind || lastPerfTarget?.kind || defKind || 'unknown',
+        ok: false,
+        status: 'failed',
+        failureSummary,
+        failedColumn: targetKeyForArtifact(lastPerfTarget, artifact),
+        irMs: null,
+        upstreamMs: null,
+        thirdMs: null,
+        irErr: true,
+        upstreamErr: false,
+        thirdErr: PERF_THIRD_ENABLED ? false : null,
+        irSupported: true,
+        upstreamSupported: true,
+        thirdSupported: PERF_THIRD_ENABLED ? true : null,
+        detailHref: detail?.href || null,
+        detailJsonHref: detail?.detailJsonHref || null,
+        inputHref: detail?.inputHref || null,
+        detailError,
       });
     }
   } finally {
@@ -1197,8 +1282,13 @@ async function test(def, fn) {
           rawName: meta.rawName,
           name: meta.name,
           category: meta.category,
+          review: meta.review || null,
+          reviewLabel: formatReviewLabel(meta.review),
           kind: artifact.kind || lastPerfTarget?.kind || defKind || 'unknown',
           ok: true,
+          status: 'passed',
+          failureSummary: null,
+          failedColumn: null,
           primaryMs: detail?.primaryMs ?? null,
           primarySummary: detail?.primarySummary || 'n/a',
           secondaryMs: detail?.secondaryMs ?? null,
@@ -1651,6 +1741,16 @@ async function run() {
   console.log(`\n${'='.repeat(50)}`);
 
   console.log(`  \x1b[32m${passed} passed\x1b[0m, \x1b[31m${failed} failed\x1b[0m, ${skipped} skipped`);
+  const failedCases = PERF_MODE
+    ? perfRows.filter((row) => row.status === 'failed')
+    : matrixRows.filter((row) => row.status === 'failed');
+  if (failedCases.length > 0) {
+    console.log('  failed rows:');
+    for (const row of failedCases) {
+      const suffix = row.failedColumn ? ` [${row.failedColumn}]` : '';
+      console.log(`    #${row.id} ${row.kind} ${row.name}${suffix}: ${row.failureSummary || 'failed'}`);
+    }
+  }
   if (SEMANTIC_PARITY && semanticParityWaivedTests.size > 0) {
     console.log(`  semantic parity waived for ${semanticParityWaivedTests.size} known legacy-drain cases`);
   }
@@ -1673,6 +1773,7 @@ async function run() {
         third: PERF_THIRD_LABEL,
       },
       catalogHref: `${PERF_OUT_BASE}.catalog.json`,
+      failuresHref: `${PERF_OUT_BASE}.failures.json`,
       detailsDirLabel: `${PERF_OUT_BASE}.details/`,
       inputsDirLabel: `${PERF_OUT_BASE}.inputs/`,
       rows: perfRows.map(r => ({
@@ -1681,6 +1782,12 @@ async function run() {
         name: r.name,
         rawName: r.rawName,
         kind: r.kind,
+        review: r.review || null,
+        reviewLabel: r.reviewLabel || null,
+        ok: r.ok !== false,
+        status: r.status,
+        failureSummary: r.failureSummary || null,
+        failedColumn: r.failedColumn || null,
         irMs: r.irMs,
         upstreamMs: r.upstreamMs,
         thirdMs: r.thirdMs,
@@ -1696,12 +1803,34 @@ async function run() {
         detailError: r.detailError || null,
       })),
     };
+    const failures = perfRows
+      .filter((row) => row.status === 'failed')
+      .map((row) => ({
+        id: row.id,
+        category: row.category,
+        kind: row.kind,
+        name: row.name,
+        rawName: row.rawName,
+        review: row.review || null,
+        reviewLabel: row.reviewLabel || null,
+        failedColumn: row.failedColumn || null,
+        failureSummary: row.failureSummary || null,
+        detailHref: row.detailHref || null,
+        detailJsonHref: row.detailJsonHref || null,
+        inputHref: row.inputHref || null,
+      }));
     writeFileSync(PERF_CATALOG_PATH, JSON.stringify(catalog, null, 2));
+    writeFileSync(PERF_FAILURES_PATH, JSON.stringify({
+      generatedAt: generatedAt.toISOString(),
+      count: failures.length,
+      rows: failures,
+    }, null, 2));
     writeFileSync(PERF_OUT_PATH, buildPerfHtml(catalog));
     console.log(`\nPerf table written to ${PERF_OUT_PATH} (${perfRows.length} rows)`);
     console.log(`Perf detail pages written to ${PERF_DETAILS_DIR}`);
     console.log(`Perf input payloads written to ${PERF_INPUTS_DIR}`);
     console.log(`Perf catalog written to ${PERF_CATALOG_PATH}`);
+    console.log(`Perf failures written to ${PERF_FAILURES_PATH}`);
   }
 
   if (!PERF_MODE && matrixRows.length > 0) {
@@ -1717,13 +1846,19 @@ async function run() {
         secondary: PERF_SECONDARY_LABEL,
         third: PERF_THIRD_LABEL,
       },
+      failuresHref: `${MATRIX_OUT_BASE}.failures.json`,
       rows: matrixRows.map((row) => ({
         id: row.id,
         rawName: row.rawName,
         name: row.name,
         category: row.category,
         kind: row.kind,
+        review: row.review || null,
+        reviewLabel: row.reviewLabel || null,
         ok: row.ok,
+        status: row.status,
+        failureSummary: row.failureSummary || null,
+        failedColumn: row.failedColumn || null,
         primaryMs: row.primaryMs ?? null,
         primarySummary: row.primarySummary || 'n/a',
         secondaryMs: row.secondaryMs ?? null,
@@ -1735,12 +1870,34 @@ async function run() {
         inputHref: row.inputHref || null,
       })),
     };
+    const failures = matrixRows
+      .filter((row) => row.status === 'failed')
+      .map((row) => ({
+        id: row.id,
+        category: row.category,
+        kind: row.kind,
+        name: row.name,
+        rawName: row.rawName,
+        review: row.review || null,
+        reviewLabel: row.reviewLabel || null,
+        failedColumn: row.failedColumn || null,
+        failureSummary: row.failureSummary || null,
+        detailHref: row.detailHref || null,
+        detailJsonHref: row.detailJsonHref || null,
+        inputHref: row.inputHref || null,
+      }));
     writeFileSync(MATRIX_CATALOG_PATH, JSON.stringify(catalog, null, 2));
+    writeFileSync(MATRIX_FAILURES_PATH, JSON.stringify({
+      generatedAt: generatedAt.toISOString(),
+      count: failures.length,
+      rows: failures,
+    }, null, 2));
     writeFileSync(MATRIX_OUT_PATH, buildMatrixHtml(catalog));
     console.log(`Matrix written to ${MATRIX_OUT_PATH} (${matrixRows.length} rows)`);
     console.log(`Matrix detail pages written to ${MATRIX_DETAILS_DIR}`);
     console.log(`Matrix input payloads written to ${MATRIX_INPUTS_DIR}`);
     console.log(`Matrix catalog written to ${MATRIX_CATALOG_PATH}`);
+    console.log(`Matrix failures written to ${MATRIX_FAILURES_PATH}`);
   }
 
   process.exit(failed > 0 ? 1 : 0);
@@ -1756,6 +1913,8 @@ function buildMatrixDetailHtml(detailDoc) {
   .meta { color: #555; font-size: 0.9rem; }
   .links { margin-top: 6px; font-size: 0.9rem; }
   .links a { margin-right: 10px; }
+  .failure { margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: #fff3e0; color: #7a3f00; border: 1px solid #f0c36d; font-size: 0.92rem; }
+  .review { margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: #eef6ff; color: #154c79; border: 1px solid #b7d4f0; font-size: 0.92rem; }
   .grid { display: grid; gap: 10px; padding: 10px; align-items: stretch; }
   .engine-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-width: 0; }
   .engine-card h3 { margin: 0 0 4px 0; }
@@ -1791,7 +1950,15 @@ function buildMatrixDetailHtml(detailDoc) {
   const targets = data.targets || [];
   document.title = \`Execution details: \${data.name}\`;
   document.getElementById('tx-detail-title').textContent = \`#\${data.rowIndex} \${data.name}\`;
-  document.getElementById('tx-detail-meta').textContent = \`Category: \${data.category} · Kind: \${data.kind} · Result: \${targets.map((target) => \`\${target.label}=\${target.summary || 'n/a'}\`).join(' | ')}\`;
+  const metaBits = [
+    \`Category: \${data.category}\`,
+    \`Kind: \${data.kind}\`,
+    \`Status: \${data.status || 'unknown'}\`,
+    \`Result: \${targets.map((target) => \`\${target.label}=\${target.summary || 'n/a'}\`).join(' | ')}\`,
+  ];
+  if (data.reviewLabel) metaBits.push(\`Review: \${data.reviewLabel}\`);
+  if (data.failedColumn) metaBits.push(\`Failed column: \${data.failedColumn}\`);
+  document.getElementById('tx-detail-meta').textContent = metaBits.join(' · ');
 
   const links = [];
   for (const target of targets) {
@@ -1810,6 +1977,12 @@ function buildMatrixDetailHtml(detailDoc) {
 
   const grid = document.getElementById('tx-detail-grid');
   grid.style.gridTemplateColumns = targets.length === 3 ? '1fr 1fr 1fr' : (targets.length === 2 ? '1fr 1fr' : '1fr');
+  const failureHtml = data.failureSummary
+    ? \`<section class="failure"><strong>Failure:</strong> \${esc(data.failureSummary)}</section>\`
+    : '';
+  const reviewHtml = data.reviewLabel
+    ? \`<section class="review"><strong>Review:</strong> \${esc(data.reviewLabel)}</section>\`
+    : '';
 
   const cardsHtml = targets.map((target) => {
     const debug = target.debug || {};
@@ -1850,7 +2023,7 @@ function buildMatrixDetailHtml(detailDoc) {
     }).join('');
   }).join('');
 
-  grid.innerHTML = cardsHtml + sectionRows;
+  grid.innerHTML = reviewHtml + failureHtml + cardsHtml + sectionRows;
 })();
 </script>
 </body></html>`;
@@ -1870,13 +2043,15 @@ th { background: #f5f5f5; }
 .ok { background: #e8f5e9; }
 .err { background: #fff3e0; }
 .muted { color: #777; }
+.fail-note { display: block; margin-top: 4px; color: #7a3f00; font-size: 0.85rem; }
+.review-note { display: block; margin-top: 4px; color: #154c79; font-size: 0.85rem; }
 </style></head><body>
 <h1>TX Matrix</h1>
-<p class="meta">Generated ${escHtml(catalogDoc.generatedAtDisplay)}</p>
+<p class="meta">Generated ${escHtml(catalogDoc.generatedAtDisplay)}${catalogDoc.failuresHref ? ` · <a href="${escHtml(catalogDoc.failuresHref)}" target="_blank" rel="noopener">Failures JSON</a>` : ''}</p>
 <table>
 <thead><tr><th>Category</th><th>Operation</th><th>Case</th><th>${escHtml(catalogDoc.labels?.primary || 'Primary')} time</th><th>${escHtml(catalogDoc.labels?.primary || 'Primary')} result</th><th>${escHtml(catalogDoc.labels?.secondary || 'Secondary')} time</th><th>${escHtml(catalogDoc.labels?.secondary || 'Secondary')} result</th>${hasThird ? `<th>${escHtml(catalogDoc.labels?.third || 'Third')} time</th><th>${escHtml(catalogDoc.labels?.third || 'Third')} result</th>` : ''}<th>Details</th><th>Inputs</th></tr></thead>
 <tbody>
-${(catalogDoc.rows || []).map((row) => `<tr class="${row.ok ? 'ok' : 'err'}"><td>${escHtml(row.category)}</td><td>${escHtml(row.kind)}</td><td>${escHtml(row.name)}</td><td>${escHtml(row.primaryMs != null ? `${row.primaryMs}ms` : 'n/a')}</td><td>${escHtml(row.primarySummary || 'n/a')}</td><td>${escHtml(row.secondaryMs != null ? `${row.secondaryMs}ms` : 'n/a')}</td><td>${escHtml(row.secondarySummary || 'n/a')}</td>${hasThird ? `<td>${escHtml(row.thirdMs != null ? `${row.thirdMs}ms` : 'n/a')}</td><td>${escHtml(row.thirdSummary || 'n/a')}</td>` : ''}<td>${row.detailHref ? `<a href="${escHtml(row.detailHref)}" target="_blank" rel="noopener">Execution details</a>` : '<span class="muted">n/a</span>'}</td><td>${row.inputHref ? `<a href="${escHtml(row.inputHref)}" target="_blank" rel="noopener">Input JSON</a>` : '<span class="muted">n/a</span>'}</td></tr>`).join('')}
+${(catalogDoc.rows || []).map((row) => `<tr class="${row.ok ? 'ok' : 'err'}"><td>${escHtml(row.category)}</td><td>${escHtml(row.kind)}</td><td>${escHtml(row.name)}${row.reviewLabel ? `<span class="review-note">Review: ${escHtml(row.reviewLabel)}</span>` : ''}${row.failureSummary ? `<span class="fail-note">${escHtml(row.failureSummary)}${row.failedColumn ? ` (${escHtml(row.failedColumn)})` : ''}</span>` : ''}</td><td>${escHtml(row.primaryMs != null ? `${row.primaryMs}ms` : 'n/a')}</td><td>${escHtml(row.primarySummary || 'n/a')}</td><td>${escHtml(row.secondaryMs != null ? `${row.secondaryMs}ms` : 'n/a')}</td><td>${escHtml(row.secondarySummary || 'n/a')}</td>${hasThird ? `<td>${escHtml(row.thirdMs != null ? `${row.thirdMs}ms` : 'n/a')}</td><td>${escHtml(row.thirdSummary || 'n/a')}</td>` : ''}<td>${row.detailHref ? `<a href="${escHtml(row.detailHref)}" target="_blank" rel="noopener">Execution details</a>` : '<span class="muted">n/a</span>'}</td><td>${row.inputHref ? `<a href="${escHtml(row.inputHref)}" target="_blank" rel="noopener">Input JSON</a>` : '<span class="muted">n/a</span>'}</td></tr>`).join('')}
 </tbody></table>
 </body></html>`;
 }
@@ -1933,6 +2108,11 @@ function buildSampleFromArtifact(artifact, assertionError = null) {
 function artifactMatchesTarget(artifact, spec) {
   if (!artifact || !spec) return false;
   return (artifact.engine || null) === spec.engine && (artifact.baseUrl || BASE) === spec.baseUrl;
+}
+
+function targetKeyForArtifact(target, artifact) {
+  const spec = matrixTargetSpecs(target || {}).find((entry) => artifactMatchesTarget(artifact, entry));
+  return spec?.key || null;
 }
 
 function summarizeSample(kind, sample) {
@@ -2018,16 +2198,19 @@ async function captureMatrixTargetDebug(target, spec, currentArtifact, currentAs
   };
 }
 
-async function writeMatrixArtifacts(rowIndex, meta, target, artifact, assertionError) {
-  mkdirSync(MATRIX_DETAILS_DIR, { recursive: true });
-  mkdirSync(MATRIX_INPUTS_DIR, { recursive: true });
+async function writeMatrixArtifacts(rowIndex, meta, target, artifact, assertionError, output = null) {
+  const outBase = output?.outBase || MATRIX_OUT_BASE;
+  const detailsDir = output?.detailsDir || MATRIX_DETAILS_DIR;
+  const inputsDir = output?.inputsDir || MATRIX_INPUTS_DIR;
+  mkdirSync(detailsDir, { recursive: true });
+  mkdirSync(inputsDir, { recursive: true });
   const slug = `${String(rowIndex).padStart(3, '0')}-${slugify(meta.name)}`;
   const detailFilename = `${slug}.html`;
   const detailJsonFilename = `${slug}.json`;
   const inputFilename = `${slug}.json`;
-  const detailRel = `${MATRIX_OUT_BASE}.details/${detailFilename}`;
-  const detailJsonRel = `${MATRIX_OUT_BASE}.details/${detailJsonFilename}`;
-  const inputRel = `${MATRIX_OUT_BASE}.inputs/${inputFilename}`;
+  const detailRel = `${outBase}.details/${detailFilename}`;
+  const detailJsonRel = `${outBase}.details/${detailJsonFilename}`;
+  const inputRel = `${outBase}.inputs/${inputFilename}`;
   const source = target?.requestFamily === 'tx-op'
     ? {
         shape: 'request',
@@ -2051,6 +2234,8 @@ async function writeMatrixArtifacts(rowIndex, meta, target, artifact, assertionE
     slug,
     name: meta.name,
     category: meta.category,
+    review: meta.review || null,
+    reviewLabel: formatReviewLabel(meta.review),
     source,
     requests: Object.fromEntries(targets.map((target) => [target.key, target.debug?.request || null])),
   };
@@ -2062,16 +2247,21 @@ async function writeMatrixArtifacts(rowIndex, meta, target, artifact, assertionE
     category: meta.category,
     name: meta.name,
     rawName: meta.rawName,
+    review: meta.review || null,
+    reviewLabel: formatReviewLabel(meta.review),
     kind: artifact?.kind || target?.kind || 'unknown',
+    status: assertionError ? 'failed' : 'passed',
+    failureSummary: assertionError ? summarizeFailure(assertionError) : null,
+    failedColumn: assertionError ? targetKeyForArtifact(target, artifact) : null,
     hrefs: {
-      input: `../${MATRIX_OUT_BASE}.inputs/${inputFilename}`,
+      input: `../${outBase}.inputs/${inputFilename}`,
       detailJson: detailJsonFilename,
     },
     targets,
   };
-  const detailAbs = join(MATRIX_DETAILS_DIR, detailFilename);
-  const detailJsonAbs = join(MATRIX_DETAILS_DIR, detailJsonFilename);
-  const inputAbs = join(MATRIX_INPUTS_DIR, inputFilename);
+  const detailAbs = join(detailsDir, detailFilename);
+  const detailJsonAbs = join(detailsDir, detailJsonFilename);
+  const inputAbs = join(inputsDir, inputFilename);
   writeFileSync(inputAbs, JSON.stringify(payloadDoc, null, 2));
   writeFileSync(detailJsonAbs, JSON.stringify(detailDoc, null, 2));
   writeFileSync(detailAbs, buildMatrixDetailHtml(detailDoc));
@@ -2106,6 +2296,11 @@ function buildPerfHtml(catalogDoc) {
   .ir-only { background: #e3f2fd; }
   .err { color: #c62828; }
   .muted { color: #777; }
+  .fail-note { display: block; margin-top: 4px; color: #7a3f00; font-size: 0.85rem; }
+  .review-note { display: block; margin-top: 4px; color: #154c79; font-size: 0.85rem; }
+  .review-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e3f2fd; color: #0d47a1; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  .review-badge.deferred { background: #fff3e0; color: #8d4e00; }
+  .review-empty { color: #9aa0a6; font-size: 0.8rem; }
 </style></head><body>
 <h1>Performance Comparison Matrix</h1>
 <p class="meta" id="perf-table-meta"></p>
@@ -2122,10 +2317,19 @@ function buildPerfHtml(catalogDoc) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
   const hasThird = !!data.hasThird;
+  const reviewedCount = (data.rows || []).filter((row) => !!row.reviewLabel).length;
   const renderPerf = (ms, err, supported = true) => {
     if (!supported) return '<span class="muted">n/a</span>';
     if (err) return '<span class="err">❌</span>';
     return \`\${esc(String(ms))}ms\`;
+  };
+  const renderReview = (row) => {
+    if (!row.reviewLabel) return '<span class="review-empty">Unreviewed</span>';
+    const status = String(row.review && row.review.status ? row.review.status : 'reviewed').trim().toLowerCase();
+    const label = status === 'deferred' ? 'Deferred' : 'Reviewed';
+    const badgeClass = status === 'deferred' ? 'review-badge deferred' : 'review-badge';
+    const date = row.review && row.review.reviewedAt ? row.review.reviewedAt : label;
+    return \`<span class="\${badgeClass}" title="\${esc(row.reviewLabel)}">\${esc(label)} \${esc(date)}</span>\`;
   };
   const ratioForRow = (row) => {
     if (!row.irSupported && row.upstreamSupported) return { text: 'Legacy only', cls: 'leg-win' };
@@ -2147,13 +2351,13 @@ function buildPerfHtml(catalogDoc) {
 
   const labels = data.labels || {};
   document.getElementById('perf-table-meta').innerHTML =
-    \`Generated \${esc(data.generatedAtDisplay)} &middot; median of \${esc(String(data.perfRuns))} runs &middot; _nocache=true &middot; details in \${esc(data.detailsDirLabel)} &middot; inputs in \${esc(data.inputsDirLabel)}\`;
+    \`Generated \${esc(data.generatedAtDisplay)} &middot; median of \${esc(String(data.perfRuns))} runs &middot; reviewed \${esc(String(reviewedCount))}/\${esc(String((data.rows || []).length))} &middot; _nocache=true &middot; details in \${esc(data.detailsDirLabel)} &middot; inputs in \${esc(data.inputsDirLabel)}\`;
   document.getElementById('perf-table-links').innerHTML = data.catalogHref
-    ? \`<a href="\${esc(data.catalogHref)}" target="_blank" rel="noopener">Catalog JSON</a>\`
+    ? \`<a href="\${esc(data.catalogHref)}" target="_blank" rel="noopener">Catalog JSON</a>\${data.failuresHref ? \` <a href="\${esc(data.failuresHref)}" target="_blank" rel="noopener">Failures JSON</a>\` : ''}\`
     : '';
 
   document.getElementById('perf-table-head').innerHTML =
-    \`<th>Category</th><th>Test</th><th>\${esc(labels.primary || '')}</th><th>\${esc(labels.secondary || '')}</th>\${hasThird ? \`<th>\${esc(labels.third || '')}</th>\` : ''}<th>Winner (\${esc(labels.primary || '')} vs \${esc(labels.secondary || '')})</th><th>Details</th><th>Inputs</th>\`;
+    \`<th>Category</th><th>Test</th><th>\${esc(labels.primary || '')}</th><th>\${esc(labels.secondary || '')}</th>\${hasThird ? \`<th>\${esc(labels.third || '')}</th>\` : ''}<th>Winner (\${esc(labels.primary || '')} vs \${esc(labels.secondary || '')})</th><th>Review</th><th>Details</th><th>Inputs</th>\`;
 
   document.getElementById('perf-table-body').innerHTML = (data.rows || []).map((row) => {
     const ratio = ratioForRow(row);
@@ -2166,7 +2370,8 @@ function buildPerfHtml(catalogDoc) {
     const thirdCell = hasThird
       ? \`<td class="num">\${renderPerf(row.thirdMs, row.thirdError, row.thirdSupported !== false)}</td>\`
       : '';
-    return \`<tr class="\${ratio.cls}"><td>\${esc(row.category)}</td><td>\${esc(row.name)}</td><td class="num">\${renderPerf(row.irMs, row.irError, row.irSupported !== false)}</td><td class="num">\${renderPerf(row.upstreamMs, row.upstreamError, row.upstreamSupported !== false)}</td>\${thirdCell}<td>\${esc(ratio.text)}</td><td>\${detailCell}</td><td>\${inputCell}</td></tr>\`;
+    const nameCell = \`\${esc(row.name)}\${row.reviewLabel ? \`<span class="review-note">Review: \${esc(row.reviewLabel)}</span>\` : ''}\${row.failureSummary ? \`<span class="fail-note">\${esc(row.failureSummary)}\${row.failedColumn ? \` (\${esc(row.failedColumn)})\` : ''}</span>\` : ''}\`;
+    return \`<tr class="\${ratio.cls}"><td>\${esc(row.category)}</td><td>\${nameCell}</td><td class="num">\${renderPerf(row.irMs, row.irError, row.irSupported !== false)}</td><td class="num">\${renderPerf(row.upstreamMs, row.upstreamError, row.upstreamSupported !== false)}</td>\${thirdCell}<td>\${esc(ratio.text)}</td><td>\${renderReview(row)}</td><td>\${detailCell}</td><td>\${inputCell}</td></tr>\`;
   }).join('');
 })();
 </script>

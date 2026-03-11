@@ -1,0 +1,384 @@
+{
+  "schemaVersion": 1,
+  "id": 85,
+  "slug": "085-total-includes-direct-and-imported-include-contributions",
+  "name": "Total includes direct and imported include contributions",
+  "category": "Composition Semantics",
+  "source": {
+    "shape": "request",
+    "kind": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "compose": {
+        "include": [
+          {
+            "system": "http://example.org/cs/total-1773268568503",
+            "concept": [
+              {
+                "code": "red"
+              },
+              {
+                "code": "blue"
+              }
+            ]
+          },
+          {
+            "valueSet": [
+              "http://example.org/vs/total-imp-1773268568503"
+            ]
+          }
+        ]
+      }
+    },
+    "options": {
+      "txResources": [
+        {
+          "resourceType": "CodeSystem",
+          "url": "http://example.org/cs/total-1773268568503",
+          "status": "active",
+          "content": "complete",
+          "concept": [
+            {
+              "code": "red",
+              "display": "Red"
+            },
+            {
+              "code": "blue",
+              "display": "Blue"
+            },
+            {
+              "code": "green",
+              "display": "Green"
+            },
+            {
+              "code": "yellow",
+              "display": "Yellow"
+            }
+          ]
+        },
+        {
+          "resourceType": "ValueSet",
+          "url": "http://example.org/vs/total-imp-1773268568503",
+          "status": "active",
+          "compose": {
+            "include": [
+              {
+                "system": "http://example.org/cs/total-1773268568503",
+                "concept": [
+                  {
+                    "code": "green"
+                  },
+                  {
+                    "code": "yellow"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/total-1773268568503",
+                    "concept": [
+                      {
+                        "code": "red"
+                      },
+                      {
+                        "code": "blue"
+                      }
+                    ]
+                  },
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/total-imp-1773268568503"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/total-1773268568503",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/total-imp-1773268568503",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/total-1773268568503",
+                    "concept": [
+                      {
+                        "code": "green"
+                      },
+                      {
+                        "code": "yellow"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/total-1773268568503",
+                    "concept": [
+                      {
+                        "code": "red"
+                      },
+                      {
+                        "code": "blue"
+                      }
+                    ]
+                  },
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/total-imp-1773268568503"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/total-1773268568503",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/total-imp-1773268568503",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/total-1773268568503",
+                    "concept": [
+                      {
+                        "code": "green"
+                      },
+                      {
+                        "code": "yellow"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/ValueSet/$expand",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "valueSet",
+            "resource": {
+              "resourceType": "ValueSet",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/total-1773268568503",
+                    "concept": [
+                      {
+                        "code": "red"
+                      },
+                      {
+                        "code": "blue"
+                      }
+                    ]
+                  },
+                  {
+                    "valueSet": [
+                      "http://example.org/vs/total-imp-1773268568503"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueString": "true"
+          },
+          {
+            "name": "_nocache",
+            "valueString": "true"
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs/total-1773268568503",
+              "status": "active",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "red",
+                  "display": "Red"
+                },
+                {
+                  "code": "blue",
+                  "display": "Blue"
+                },
+                {
+                  "code": "green",
+                  "display": "Green"
+                },
+                {
+                  "code": "yellow",
+                  "display": "Yellow"
+                }
+              ]
+            }
+          },
+          {
+            "name": "tx-resource",
+            "resource": {
+              "resourceType": "ValueSet",
+              "url": "http://example.org/vs/total-imp-1773268568503",
+              "status": "active",
+              "compose": {
+                "include": [
+                  {
+                    "system": "http://example.org/cs/total-1773268568503",
+                    "concept": [
+                      {
+                        "code": "green"
+                      },
+                      {
+                        "code": "yellow"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

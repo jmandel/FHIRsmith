@@ -21,6 +21,7 @@ const {Parameters} = require("../library/parameters");
 const {Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText} = require("../library/designations");
 const ValueSet = require("../library/valueset");
 const {ValueSetExpander} = require("./expand");
+const {FhirCodeSystemProvider} = require("../cs/cs-cs");
 const {CodeSystem} = require("../library/codesystem");
 
 const DEV_IGNORE_VALUESET = false; // todo: what's going on with this (ported from pascal)
@@ -1343,7 +1344,7 @@ class ValueSetChecker {
       result.addParamStr('message', toText(mt, '; '));
     }
     if (mode === 'codeableConcept') {
-      result.addParam('codeableConcept', 'valueCodeableConcept', vcc.coding?.length ? vcc : code);
+      result.addParam('codeableConcept', 'valueCodeableConcept', code);
     }
     if (op.hasIssues()) {
       result.addParamResource('issues', op.jsonObj);
@@ -1829,18 +1830,6 @@ class ValidateWorker extends TerminologyWorker {
     return 'validate-code';
   }
 
-  async findCodeSystem(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, statedSupplements = null) {
-    const supplements = statedSupplements ?? this.requiredSupplements;
-    if (supplements && supplements.size > 0) {
-      return await super.findCodeSystemWithSupplementRuntime(
-        url, version, params, kinds, op, nullOk, checkVer, noVParams, supplements
-      );
-    }
-    return await super.findCodeSystem(
-      url, version, params, kinds, op, nullOk, checkVer, noVParams, supplements
-    );
-  }
-
   // ========== Entry Points ==========
 
   /**
@@ -1960,10 +1949,7 @@ class ValidateWorker extends TerminologyWorker {
         return res.status(422).json(this.operationOutcome('error', 'not-found',
           `CodeSystem/${id} not found`));
       }
-      const csp = await this.createCodeSystemProviderWithSupplementRuntime(
-        codeSystem,
-        this.requiredSupplements
-      );
+      const csp = new FhirCodeSystemProvider(this.opContext, new CodeSystem(codeSystem), []);
 
       // Extract coded value
       let mode = { mode : null }
@@ -2099,10 +2085,7 @@ class ValidateWorker extends TerminologyWorker {
     // Check for codeSystem resource parameter
     const csResource = this.getResourceParam(params, 'codeSystem');
     if (csResource) {
-      return await this.createCodeSystemProviderWithSupplementRuntime(
-        csResource,
-        this.requiredSupplements
-      );
+      return new FhirCodeSystemProvider(this.opContext, new CodeSystem(csResource), []); // todo: supplements
     }
     let path = coded == null ? null : mode.issuePath+".system";
     let fromCoded = false;
@@ -2128,17 +2111,15 @@ class ValidateWorker extends TerminologyWorker {
     }
     version = this.determineVersionBase(url, version, txParams);
 
+    let supplements = this.loadSupplements(url, version, this.requiredSupplements);
+
     // First check additional resources
     const fromAdditional = this.findInAdditionalResources(url, version, 'CodeSystem', false);
     if (fromAdditional) {
-      return await this.createCodeSystemProviderWithSupplementRuntime(
-        fromAdditional,
-        this.requiredSupplements
-      );
+      return this.provider.createCodeSystemProvider(this.opContext, fromAdditional, supplements);
     } else {
-      let csp = await this.findCodeSystem(
-        url, version, txParams, ['complete', 'fragment'], null, true, false, true, this.requiredSupplements
-      );
+
+      let csp = await this.provider.getCodeSystemProvider(this.opContext, url, version, supplements);
       if (csp) {
         return csp;
       } else {

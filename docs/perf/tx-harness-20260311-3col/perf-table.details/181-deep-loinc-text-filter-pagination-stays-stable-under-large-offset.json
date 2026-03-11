@@ -1,0 +1,770 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:36:51.992Z",
+  "rowIndex": 181,
+  "slug": "181-deep-loinc-text-filter-pagination-stays-stable-under-large-offset",
+  "name": "Deep LOINC text filter pagination stays stable under large offset",
+  "category": "Stress & Scale",
+  "hrefs": {
+    "input": "../perf-table.inputs/181-deep-loinc-text-filter-pagination-stays-stable-under-large-offset.json",
+    "detailJson": "181-deep-loinc-text-filter-pagination-stays-stable-under-large-offset.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": true,
+      "perf": {
+        "ms": 614,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 614,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 15134
+              },
+              {
+                "name": "filter",
+                "valueString": "blood"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "13042",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:36:49 GMT",
+            "etag": "W/\"32f2-JlcuL8y6S35QkB12JtvMG8KW9SY\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-657"
+          },
+          "body": {
+            "resourceType": "ValueSet",
+            "expansion": {
+              "timestamp": "2026-03-11T22:36:50.570Z",
+              "identifier": "urn:uuid:1c44cfba-ce9c-483a-9a01-3c1ed95c7958",
+              "total": 30319,
+              "offset": 15134,
+              "contains": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "47100-3",
+                  "display": "Copper [Moles/volume] in Blood"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47102-9",
+                  "display": "Copper [Moles/volume] in Red Blood Cells"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47106-0",
+                  "display": "ePHEDrine [Presence] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47109-4",
+                  "display": "Gentamicin [Moles/volume] in Serum or Plasma"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4711-8",
+                  "display": "HLA-A74(19) [Presence] in Donor"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4712-6",
+                  "display": "HLA-A74(19) [Presence]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4713-4",
+                  "display": "HLA-A10 [Presence] in Donor"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47130-0",
+                  "display": "Thallium [Moles/volume] in Red Blood Cells"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47135-9",
+                  "display": "Ascorbate [Moles/volume] in Serum or Plasma --post dose"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47136-7",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --1 hour post 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47137-5",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --2 hours post 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47138-3",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --2 hours post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47139-1",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --2nd specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4714-2",
+                  "display": "HLA-A10 [Presence]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47141-7",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --3 hours post 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47142-5",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --3rd specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47144-1",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --4 hours post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47146-6",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --4th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47147-4",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --5th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47149-0",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --6th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4715-9",
+                  "display": "HLA-A11 [Presence] in Donor"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47151-6",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --7th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47153-2",
+                  "display": "EPINEPHrine [Moles/volume] in Plasma --pre 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47155-7",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --10 minutes post standing"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47156-5",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --1 hour post 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47157-3",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --1 hour post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47158-1",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --2 hours post 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47159-9",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --2 hours post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4716-7",
+                  "display": "HLA-A11 [Presence]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47160-7",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --2nd specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47162-3",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --3 hours post 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47163-1",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --3 hours post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47164-9",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --3rd specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47166-4",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --4 hours post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47167-2",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --4th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47169-8",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --5th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4717-5",
+                  "display": "HLA-A1 [Presence] in Donor"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47171-4",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --6th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47173-0",
+                  "display": "Catecholamines [Moles/volume] in Plasma --7th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47175-5",
+                  "display": "Norepinephrine [Moles/volume] in Plasma --pre 300 ug cloNIDine PO"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47176-3",
+                  "display": "Parathyrin.intact [Moles/volume] in Serum or Plasma --10 minutes post excision"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47177-1",
+                  "display": "Parathyrin.intact [Moles/volume] in Serum or Plasma --5 minutes post excision"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47178-9",
+                  "display": "Parathyrin.intact [Moles/volume] in Serum or Plasma --baseline"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47179-7",
+                  "display": "Parathyrin [Moles/volume] in Serum or Plasma --10 minutes post excision"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "4718-3",
+                  "display": "HLA-A1 [Presence]"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47180-5",
+                  "display": "Parathyrin [Moles/volume] in Serum or Plasma --baseline"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47181-3",
+                  "display": "Progesterone [Moles/volume] in Serum or Plasma --1.5 hours post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47182-1",
+                  "display": "Progesterone [Moles/volume] in Serum or Plasma --10th specimen post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47183-9",
+                  "display": "Progesterone [Moles/volume] in Serum or Plasma --15 minutes post XXX challenge"
+                },
+                {
+                  "system": "http://loinc.org",
+                  "code": "47184-7",
+                  "display": "Progesterone [Moles/volume] in Serum or Plasma --1 hour post XXX challenge"
+                }
+              ],
+              "parameter": [
+                {
+                  "name": "offset",
+                  "valueInteger": 15134
+                },
+                {
+                  "name": "count",
+                  "valueInteger": 50
+                },
+                {
+                  "name": "filter",
+                  "valueString": "blood"
+                },
+                {
+                  "name": "used-codesystem",
+                  "valueUri": "http://loinc.org|2.81"
+                }
+              ],
+              "extension": [
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/ir-plan",
+                  "valueString": "systems: http://loinc.org\ncanonical-ir-hash: a3866e13389cd87df6e2c6226f8376c9baa6788e\nruntime-constraints:\n  text-filter: \"blood\"\n  pagination: offset=15134 count=50\noptimized-ir:\n  selector filter http://loinc.org STATUS = ACTIVE [n]"
+                },
+                {
+                  "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                  "valueString": "{\"totalMs\":611.13,\"sqlCount\":2,\"sqlMs\":608.73,\"counters\":{},\"spans\":[{\"name\":\"orchestrate\",\"args\":{\"systems\":1,\"activeOnly\":false,\"text\":\"blood\",\"offset\":15134,\"count\":50,\"exactTotal\":true,\"omitLazyTotal\":false},\"children\":[{\"name\":\"pagination\",\"args\":{\"total\":null,\"offset\":15134,\"count\":50,\"systems\":1},\"children\":[{\"name\":\"system:http://loinc.org\",\"args\":{\"sysOffset\":15134,\"sysCount\":50},\"children\":[{\"name\":\"executeIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"note\",\"message\":\"executeIR:breakdown\",\"data\":{\"prepMs\":0.47,\"execMs\":329.33},\"t\":331.14}],\"sql\":[{\"sql\":\"SELECT \\\"c\\\".\\\"active\\\" AS \\\"active\\\", \\\"c\\\".\\\"code\\\" AS \\\"code\\\", \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\", \\\"c\\\".\\\"definition\\\" AS \\\"definition\\\", \\\"c\\\".\\\"display\\\" AS \\\"display\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_4) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_3)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_5) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_3)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_6) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_3))) ORDER BY \\\"c\\\".\\\"code\\\" ASC LIMIT 50 OFFSET 15134\",\"params\":{\"prop_id_0\":37,\"literal_cs_id_1\":1,\"prop_value_2\":\"ACTIVE\",\"search_match_3\":\"blood*\",\"display_cs_id_4\":1,\"designation_cs_id_5\":1,\"literal_cs_id_6\":1},\"rows\":50,\"ms\":329.33,\"label\":\"executeIR\"}],\"ms\":330.26,\"result\":{\"candidates\":50,\"total\":null}}],\"ms\":330.31,\"result\":{\"candidates\":50}},{\"name\":\"countForIR:lazy\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[{\"name\":\"countForIR:compiler\",\"args\":{\"system\":\"http://loinc.org\"},\"children\":[],\"sql\":[{\"sql\":\"SELECT COUNT(*) AS \\\"cnt\\\" FROM (SELECT DISTINCT \\\"r\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM (SELECT * FROM \\\"concept_literal\\\" \\\"cl\\\" INNER JOIN \\\"concept\\\" \\\"src\\\" ON (\\\"src\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"cl\\\".\\\"property_id\\\" = @prop_id_0) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"src\\\".\\\"cs_id\\\" = @literal_cs_id_1) AND (\\\"cl\\\".\\\"value_text\\\" COLLATE NOCASE IN (@prop_value_2) OR ((\\\"cl\\\".\\\"value_text\\\" IS NULL) AND \\\"cl\\\".\\\"value_raw\\\" COLLATE NOCASE IN (@prop_value_2))))) \\\"r\\\" WHERE (\\\"r\\\".\\\"source_concept_id\\\" IS NOT NULL)) \\\"m\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"m\\\".\\\"concept_id\\\") WHERE \\\"c\\\".\\\"concept_id\\\" IN (SELECT DISTINCT \\\"c\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_display\\\" \\\"f\\\" INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"f\\\".\\\"rowid\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @display_cs_id_4) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_3)) UNION SELECT DISTINCT \\\"d\\\".\\\"concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_designation\\\" \\\"f\\\" INNER JOIN \\\"designation\\\" \\\"d\\\" ON (\\\"d\\\".\\\"designation_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"d\\\".\\\"concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @designation_cs_id_5) AND (\\\"d\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_3)) UNION SELECT DISTINCT \\\"cl\\\".\\\"source_concept_id\\\" AS \\\"concept_id\\\" FROM \\\"search_fts_literal\\\" \\\"f\\\" INNER JOIN \\\"concept_literal\\\" \\\"cl\\\" ON (\\\"cl\\\".\\\"literal_id\\\" = \\\"f\\\".\\\"rowid\\\") INNER JOIN \\\"concept\\\" \\\"c\\\" ON (\\\"c\\\".\\\"concept_id\\\" = \\\"cl\\\".\\\"source_concept_id\\\") WHERE ((\\\"c\\\".\\\"cs_id\\\" = @literal_cs_id_6) AND (\\\"cl\\\".\\\"active\\\" = 1) AND (\\\"f\\\".\\\"term\\\" MATCH @search_match_3)))\",\"params\":{\"prop_id_0\":37,\"literal_cs_id_1\":1,\"prop_value_2\":\"ACTIVE\",\"search_match_3\":\"blood*\",\"display_cs_id_4\":1,\"designation_cs_id_5\":1,\"literal_cs_id_6\":1},\"rows\":30319,\"ms\":279.4,\"label\":\"countForIR\"}],\"ms\":279.78,\"result\":{\"count\":30319}}],\"ms\":279.81,\"result\":{\"count\":30319}}],\"ms\":610.15,\"result\":{\"paged\":50}},{\"name\":\"bulkDesignations\",\"args\":{\"count\":50,\"includeDesignations\":false},\"children\":[],\"ms\":0.04,\"result\":{\"count\":50}}],\"ms\":611.05,\"result\":{\"total\":30319,\"contains\":50}}]}"
+                }
+              ]
+            }
+          }
+        },
+        "trace": {
+          "totalMs": 611.13,
+          "sqlCount": 2,
+          "sqlMs": 608.73,
+          "counters": {},
+          "spans": [
+            {
+              "name": "orchestrate",
+              "args": {
+                "systems": 1,
+                "activeOnly": false,
+                "text": "blood",
+                "offset": 15134,
+                "count": 50,
+                "exactTotal": true,
+                "omitLazyTotal": false
+              },
+              "children": [
+                {
+                  "name": "pagination",
+                  "args": {
+                    "total": null,
+                    "offset": 15134,
+                    "count": 50,
+                    "systems": 1
+                  },
+                  "children": [
+                    {
+                      "name": "system:http://loinc.org",
+                      "args": {
+                        "sysOffset": 15134,
+                        "sysCount": 50
+                      },
+                      "children": [
+                        {
+                          "name": "executeIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [
+                            {
+                              "name": "note",
+                              "message": "executeIR:breakdown",
+                              "data": {
+                                "prepMs": 0.47,
+                                "execMs": 329.33
+                              },
+                              "t": 331.14
+                            }
+                          ],
+                          "sql": [
+                            {
+                              "sql": "SELECT \"c\".\"active\" AS \"active\", \"c\".\"code\" AS \"code\", \"c\".\"concept_id\" AS \"concept_id\", \"c\".\"definition\" AS \"definition\", \"c\".\"display\" AS \"display\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_4) AND (\"f\".\"term\" MATCH @search_match_3)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_5) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_3)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_6) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_3))) ORDER BY \"c\".\"code\" ASC LIMIT 50 OFFSET 15134",
+                              "params": {
+                                "prop_id_0": 37,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "ACTIVE",
+                                "search_match_3": "blood*",
+                                "display_cs_id_4": 1,
+                                "designation_cs_id_5": 1,
+                                "literal_cs_id_6": 1
+                              },
+                              "rows": 50,
+                              "ms": 329.33,
+                              "label": "executeIR"
+                            }
+                          ],
+                          "ms": 330.26,
+                          "result": {
+                            "candidates": 50,
+                            "total": null
+                          }
+                        }
+                      ],
+                      "ms": 330.31,
+                      "result": {
+                        "candidates": 50
+                      }
+                    },
+                    {
+                      "name": "countForIR:lazy",
+                      "args": {
+                        "system": "http://loinc.org"
+                      },
+                      "children": [
+                        {
+                          "name": "countForIR:compiler",
+                          "args": {
+                            "system": "http://loinc.org"
+                          },
+                          "children": [],
+                          "sql": [
+                            {
+                              "sql": "SELECT COUNT(*) AS \"cnt\" FROM (SELECT DISTINCT \"r\".\"source_concept_id\" AS \"concept_id\" FROM (SELECT * FROM \"concept_literal\" \"cl\" INNER JOIN \"concept\" \"src\" ON (\"src\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"cl\".\"property_id\" = @prop_id_0) AND (\"cl\".\"active\" = 1) AND (\"src\".\"cs_id\" = @literal_cs_id_1) AND (\"cl\".\"value_text\" COLLATE NOCASE IN (@prop_value_2) OR ((\"cl\".\"value_text\" IS NULL) AND \"cl\".\"value_raw\" COLLATE NOCASE IN (@prop_value_2))))) \"r\" WHERE (\"r\".\"source_concept_id\" IS NOT NULL)) \"m\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"m\".\"concept_id\") WHERE \"c\".\"concept_id\" IN (SELECT DISTINCT \"c\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_display\" \"f\" INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"f\".\"rowid\") WHERE ((\"c\".\"cs_id\" = @display_cs_id_4) AND (\"f\".\"term\" MATCH @search_match_3)) UNION SELECT DISTINCT \"d\".\"concept_id\" AS \"concept_id\" FROM \"search_fts_designation\" \"f\" INNER JOIN \"designation\" \"d\" ON (\"d\".\"designation_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"d\".\"concept_id\") WHERE ((\"c\".\"cs_id\" = @designation_cs_id_5) AND (\"d\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_3)) UNION SELECT DISTINCT \"cl\".\"source_concept_id\" AS \"concept_id\" FROM \"search_fts_literal\" \"f\" INNER JOIN \"concept_literal\" \"cl\" ON (\"cl\".\"literal_id\" = \"f\".\"rowid\") INNER JOIN \"concept\" \"c\" ON (\"c\".\"concept_id\" = \"cl\".\"source_concept_id\") WHERE ((\"c\".\"cs_id\" = @literal_cs_id_6) AND (\"cl\".\"active\" = 1) AND (\"f\".\"term\" MATCH @search_match_3)))",
+                              "params": {
+                                "prop_id_0": 37,
+                                "literal_cs_id_1": 1,
+                                "prop_value_2": "ACTIVE",
+                                "search_match_3": "blood*",
+                                "display_cs_id_4": 1,
+                                "designation_cs_id_5": 1,
+                                "literal_cs_id_6": 1
+                              },
+                              "rows": 30319,
+                              "ms": 279.4,
+                              "label": "countForIR"
+                            }
+                          ],
+                          "ms": 279.78,
+                          "result": {
+                            "count": 30319
+                          }
+                        }
+                      ],
+                      "ms": 279.81,
+                      "result": {
+                        "count": 30319
+                      }
+                    }
+                  ],
+                  "ms": 610.15,
+                  "result": {
+                    "paged": 50
+                  }
+                },
+                {
+                  "name": "bulkDesignations",
+                  "args": {
+                    "count": 50,
+                    "includeDesignations": false
+                  },
+                  "children": [],
+                  "ms": 0.04,
+                  "result": {
+                    "count": 50
+                  }
+                }
+              ],
+              "ms": 611.05,
+              "result": {
+                "total": 30319,
+                "contains": 50
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": "systems: http://loinc.org\ncanonical-ir-hash: a3866e13389cd87df6e2c6226f8376c9baa6788e\nruntime-constraints:\n  text-filter: \"blood\"\n  pagination: offset=15134 count=50\noptimized-ir:\n  selector filter http://loinc.org STATUS = ACTIVE [n]"
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 1417,
+        "error": "The value set '??' expansion has too many codes to display (>1000)",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 15134
+              },
+              {
+                "name": "filter",
+                "valueString": "blood"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "424",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:36:51 GMT",
+            "etag": "W/\"1a8-M2e+gUEN9DiKvnRfLP3HKlQXHmc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-658"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "too-costly",
+                "details": {
+                  "text": "The value set '??' expansion has too many codes to display (>1000)"
+                },
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                    "valueString": "VALUESET_TOO_COSTLY"
+                  }
+                ],
+                "diagnostics": "0ms tx-op\n0ms start working\n0ms compose #1\n1ms compose #2\n1ms prepare filters\n1277ms iterate filters"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": null,
+        "err": true,
+        "supported": true
+      },
+      "debug": {
+        "ok": false,
+        "ms": 3,
+        "error": "Text Search is not supported",
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/ValueSet/$expand",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "valueSet",
+                "resource": {
+                  "resourceType": "ValueSet",
+                  "compose": {
+                    "include": [
+                      {
+                        "system": "http://loinc.org",
+                        "filter": [
+                          {
+                            "property": "STATUS",
+                            "op": "=",
+                            "value": "ACTIVE"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "count",
+                "valueInteger": 50
+              },
+              {
+                "name": "offset",
+                "valueInteger": 15134
+              },
+              {
+                "name": "filter",
+                "valueString": "blood"
+              },
+              {
+                "name": "_trace",
+                "valueString": "true"
+              },
+              {
+                "name": "_nocache",
+                "valueString": "true"
+              },
+              {
+                "name": "_exactTotal",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "180",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:36:51 GMT",
+            "etag": "W/\"b4-W9LoFDu/2im5NcYwmq6h9/E7PSc\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-197"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "exception",
+                "details": {
+                  "text": "Text Search is not supported"
+                },
+                "diagnostics": "Text Search is not supported"
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

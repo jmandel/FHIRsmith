@@ -102,7 +102,7 @@ describe('IR $expand with registered supplements', () => {
     }
   });
 
-  test('fails fast when unversioned requested supplement is ambiguous across registered versions', async () => {
+  test('chooses newest registered supplement version for unversioned request canonical', async () => {
     const seed = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     const baseUrl = `http://example.org/supp-amb-base-${seed}`;
     const suppUrl = `http://example.org/supp-amb-${seed}`;
@@ -161,8 +161,13 @@ describe('IR $expand with registered supplements', () => {
           ],
         });
 
-      expect(res.status).toBe(422);
-      expect(res.body.issue[0].details.text).toContain(`Ambiguous supplement '${suppUrl}'`);
+      expect(res.status).toBe(200);
+      const apple = (res.body.expansion.contains || []).find(c => c.code === 'apple');
+      expect(apple).toBeDefined();
+      const usedSupplements = (res.body.expansion.parameter || [])
+        .filter(p => p.name === 'used-supplement')
+        .map(p => p.valueUri);
+      expect(usedSupplements).toContain(`${suppUrl}|2.0`);
     } finally {
       unregisterSupplement(supp1);
       unregisterSupplement(supp2);
@@ -254,7 +259,7 @@ describe('IR $expand with registered supplements', () => {
     }
   });
 
-  test('projects registered supplement extensions through generic overlay merge', async () => {
+  test('projects registered supplement itemWeight through the expansion property pipeline', async () => {
     const seed = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     const baseUrl = `http://example.org/supp-ext-base-${seed}`;
     const suppUrl = `http://example.org/supp-ext-${seed}`;
@@ -313,9 +318,22 @@ describe('IR $expand with registered supplements', () => {
       expect(res.status).toBe(200);
       const apple = (res.body.expansion.contains || []).find(c => c.code === 'apple');
       expect(apple).toBeDefined();
+      expect((res.body.expansion.property || [])).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'weight',
+            uri: 'http://hl7.org/fhir/concept-properties#itemWeight',
+          }),
+        ])
+      );
+      expect(apple.property).toEqual(
+        expect.arrayContaining([
+          { code: 'weight', valueDecimal: 3.5 },
+        ])
+      );
       expect((apple.extension || []).some(
-        e => e.url === 'http://hl7.org/fhir/StructureDefinition/itemWeight' && e.valueDecimal === 3.5
-      )).toBe(true);
+        e => e.url === 'http://hl7.org/fhir/StructureDefinition/itemWeight'
+      )).toBe(false);
     } finally {
       unregisterSupplement(supplement);
     }

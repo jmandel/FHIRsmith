@@ -365,6 +365,16 @@ class CodeSystemProvider {
   async parent(code) { return null; }
 
   /**
+   
+   * @param {string | CodeSystemProviderContext} code
+   * @returns {string[]} direct parents, if any
+   */
+  async parents(code) {
+    const parentCode = await this.parent(code);
+    return parentCode ? [parentCode] : [];
+  }
+
+  /**
    * This is calleed if the designation is not marked with a usual use code indicating that it is considered as a display
    * @param designation
    * @returns {boolean}

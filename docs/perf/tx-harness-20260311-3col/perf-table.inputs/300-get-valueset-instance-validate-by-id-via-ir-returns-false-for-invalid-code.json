@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": 300,
+  "slug": "300-get-valueset-instance-validate-by-id-via-ir-returns-false-for-invalid-code",
+  "name": "GET ValueSet instance validate by id via IR returns false for invalid code",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "GET",
+      "path": "/r4/ValueSet/administrative-gender/$validate-code",
+      "query": {
+        "system": "http://hl7.org/fhir/administrative-gender",
+        "code": "not-a-gender"
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "GET",
+      "url": "http://localhost:34715/r4/ValueSet/administrative-gender/$validate-code?system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=not-a-gender&_engine=ir&_trace=true",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "secondary": {
+      "method": "GET",
+      "url": "http://localhost:34715/r4/ValueSet/administrative-gender/$validate-code?system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=not-a-gender&_engine=legacy&_trace=true",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    },
+    "third": {
+      "method": "GET",
+      "url": "http://localhost:33043/r4/ValueSet/administrative-gender/$validate-code?system=http%3A%2F%2Fhl7.org%2Ffhir%2Fadministrative-gender&code=not-a-gender&_engine=legacy&_trace=true",
+      "headers": {
+        "Accept": "application/fhir+json"
+      },
+      "body": null
+    }
+  }
+}

@@ -1,8 +1,10 @@
 'use strict';
 
 const { Extensions } = require('../library/extensions');
-const { getValuePrimitive } = require('../../library/utilities');
+const { getValuePrimitive, isAbsoluteUrl } = require('../../library/utilities');
 const { TxParameters } = require('../params');
+const ValueSet = require('../library/valueset');
+const { CodeSystem } = require('../library/codesystem');
 const {
   ValidateWorker,
   ValueSetChecker,
@@ -12,8 +14,15 @@ const { executeIRExpansionPage, resolveIRExecutionScopes } = require('../engine/
 const { mapIR } = require('../engine/ir-traversal');
 const { optimize } = require('../engine/rewrite');
 const { trace } = require('../engine/expand-trace');
-const { Issue } = require('../library/operation-outcome');
+const { Issue, OperationOutcome } = require('../library/operation-outcome');
 const { withResponseTrace } = require('./ir-worker-trace');
+const {
+  bindIRScopeForOperation,
+  createCodeSystemProviderWithSupplementRuntime,
+  findCodeSystemWithSupplementRuntime,
+  resolveCodeSystemVersionAtDate,
+  setupIRAdditionalResources,
+} = require('./ir-runtime-support');
 
 function addCodeConstraint(node, code) {
   return mapIR(node, (current) => {
@@ -25,6 +34,10 @@ function addCodeConstraint(node, code) {
 
 function valueSetLabel(vs) {
   return vs?.vurl || vs?.url || vs?.jsonObj?.url || '';
+}
+
+function isExplicitIRRuntimeIssue(error) {
+  return error instanceof Issue && typeof error.msgId === 'string' && error.msgId.startsWith('VALUESET_SUPPLEMENT_');
 }
 
 class IRValueSetChecker extends ValueSetChecker {
@@ -92,6 +105,14 @@ class IRValueSetChecker extends ValueSetChecker {
       messages,
     });
   }
+
+  async checkCodeableConcept(issuePath, code, mode) {
+    const result = await super.checkCodeableConcept(issuePath, code, mode);
+    if (mode === 'codeableConcept' && result.get('result') !== true) {
+      result.addParam('codeableConcept', 'valueCodeableConcept', code);
+    }
+    return result;
+  }
 }
 
 class ValidateIRWorker extends ValidateWorker {
@@ -127,9 +148,91 @@ class ValidateIRWorker extends ValidateWorker {
   }
 
   async handleCodeSystem(req, res) {
-    return await this.withTrace(req, res, 'validateIR:handleCodeSystem', async () => (
-      await super.handleCodeSystem(req, res)
-    ));
+    return await this.withTrace(req, res, 'validateIR:handleCodeSystem', async () => {
+      try {
+        const params = this.buildParameters(req);
+        this.addHttpParams(req, params);
+        this.log.debug('CodeSystem $validate-code with params:', params);
+
+        const result = await this.handleCodeSystemInner(params, req);
+        return res.status(200).json(result);
+      } catch (error) {
+        this.log.error(error);
+        this.debugLog(error);
+        if (error instanceof Issue) {
+          if (error.isHandleAsOO()) {
+            const op = new OperationOutcome();
+            op.addIssue(error);
+            return res.status(error.statusCode || 500).json(op.jsonObj);
+          }
+        } else {
+          return res.status(error.statusCode || 500).json(this.operationOutcome(
+            'error', error.issueCode || 'exception', error.message
+          ));
+        }
+      }
+    });
+  }
+
+  async handleCodeSystemInner(params, req) {
+    let coded;
+    let mode;
+
+    setupIRAdditionalResources(this, params);
+
+    const txp = new TxParameters(this.languages, this.i18n, true);
+    txp.readParams(params);
+    for (const item of txp.supplements) this.requiredSupplements.add(item);
+
+    try {
+      mode = { mode: null };
+      coded = this.extractCodedValue(params, true, mode);
+      if (!coded) {
+        throw new Issue(
+          'error',
+          'invalid',
+          null,
+          null,
+          'Unable to find code to validate (looked for coding | codeableConcept | code in parameters)',
+          null,
+          400
+        ).handleAsOO(400);
+      }
+
+      const codeSystem = await this.resolveCodeSystem(params, txp, coded?.coding?.[0] ?? null, mode);
+      if (!codeSystem) {
+        if (!coded?.coding?.[0]?.system) {
+          const msg = this.i18n.translate('Coding_has_no_system__cannot_validate', txp.HTTPLanguages, []);
+          throw new Issue('warning', 'invalid', mode.issuePath, 'Coding_has_no_system__cannot_validate', msg, 'invalid-data');
+        }
+        throw new Issue('error', 'invalid', null, null, 'No CodeSystem specified - provide url parameter or codeSystem resource', null, 400);
+      }
+      if (codeSystem.contentMode() === 'supplement') {
+        throw new Issue(
+          'error',
+          'invalid',
+          this.systemPath(mode),
+          'CODESYSTEM_CS_NO_SUPPLEMENT',
+          this.opContext.i18n.translate('CODESYSTEM_CS_NO_SUPPLEMENT', txp.HTTPLanguages, [codeSystem.vurl()]),
+          'invalid-data',
+          400
+        );
+      }
+
+      const result = await this.doValidationCS(coded, codeSystem, txp, mode, coded);
+      if (req) req.logInfo = this.usedSources.join('|') + txp.logInfo();
+      return result;
+      } catch (error) {
+        this.log.error(error);
+        this.debugLog(error);
+        if (error instanceof Issue && !error.isHandleAsOO()) {
+          if (isExplicitIRRuntimeIssue(error)) {
+            throw error.handleAsOO(error.statusCode || 422);
+          }
+          return await this.handlePrepareError(error, coded, mode?.mode, txp);
+        }
+        throw error;
+    }
   }
 
   async handleCodeSystemInstance(req, res) {
@@ -139,7 +242,7 @@ class ValidateIRWorker extends ValidateWorker {
         const params = this.buildParameters(req);
         this.log.debug(`CodeSystem/${id}/$validate-code with params:`, params);
 
-        this.setupAdditionalResources(params);
+        setupIRAdditionalResources(this, params);
 
         const txp = new TxParameters(this.languages, this.i18n, true);
         txp.readParams(params);
@@ -149,7 +252,8 @@ class ValidateIRWorker extends ValidateWorker {
         if (!codeSystem) {
           return res.status(422).json(this.operationOutcome('error', 'not-found', `CodeSystem/${id} not found`));
         }
-        const csp = await this.createCodeSystemProviderWithSupplementRuntime(
+        const csp = await createCodeSystemProviderWithSupplementRuntime(
+          this,
           codeSystem,
           this.requiredSupplements
         );
@@ -176,12 +280,17 @@ class ValidateIRWorker extends ValidateWorker {
           ));
         }
 
-        const result = await this.doValidationCS(coded, csp, txp, mode);
+        const result = await this.doValidationCS(coded, csp, txp, mode, coded);
         req.logInfo = this.usedSources.join('|') + txp.logInfo();
         return res.json(result);
       } catch (error) {
         this.log.error(error);
         this.debugLog(error);
+        if (error instanceof Issue && error.isHandleAsOO()) {
+          const op = new OperationOutcome();
+          op.addIssue(error);
+          return res.status(error.statusCode || 500).json(op.jsonObj);
+        }
         return res.status(error.statusCode || 500).json(this.operationOutcome(
           'error', error.issueCode || 'exception', error.message
         ));
@@ -201,16 +310,134 @@ class ValidateIRWorker extends ValidateWorker {
     ));
   }
 
-  async doValidationCS(coded, codeSystem, params, mode) {
+  async doValidationCS(coded, codeSystem, params, mode, originalCoded = coded) {
     const span = trace.begin('validateIR:doValidationCS', {
       system: typeof codeSystem?.system === 'function' ? codeSystem.system() : null,
       version: typeof codeSystem?.version === 'function' ? codeSystem.version() : null,
     });
     try {
-      return await super.doValidationCS(coded, codeSystem, params, mode);
+      const result = await super.doValidationCS(coded, codeSystem, params, mode);
+      if (mode?.mode === 'codeableConcept' && result?.parameter) {
+        const resultParam = result.parameter.find((param) => param?.name === 'result');
+        const success = resultParam?.valueBoolean === true;
+        if (!success) {
+          const existing = result.parameter.find((param) => param?.name === 'codeableConcept');
+          if (existing) {
+            existing.valueCodeableConcept = originalCoded;
+          } else {
+            result.parameter.push({ name: 'codeableConcept', valueCodeableConcept: originalCoded });
+          }
+        }
+      }
+      return result;
     } finally {
       span.end();
     }
+  }
+
+  async findCodeSystem(url, version = '', params, kinds = ['complete'], op, nullOk = false, checkVer = false, noVParams = false, statedSupplements = null) {
+    const supplements = statedSupplements ?? this.requiredSupplements;
+    if (supplements && supplements.size > 0) {
+      return await findCodeSystemWithSupplementRuntime(
+        this,
+        url,
+        version,
+        params,
+        kinds,
+        op,
+        nullOk,
+        checkVer,
+        noVParams,
+        supplements
+      );
+    }
+    return await super.findCodeSystem(
+      url, version, params, kinds, op, nullOk, checkVer, noVParams, supplements
+    );
+  }
+
+  async resolveCodeSystem(params, txParams, coded, mode) {
+    const csResource = this.getResourceParam(params, 'codeSystem');
+    if (csResource) {
+      return await createCodeSystemProviderWithSupplementRuntime(
+        this,
+        csResource,
+        this.requiredSupplements
+      );
+    }
+    const path = coded == null ? null : mode.issuePath + ".system";
+    let fromCoded = false;
+    let url = this.getStringParam(params, 'url');
+    if (!url && coded.system) {
+      fromCoded = true;
+      url = coded.system;
+    }
+    if (!url) return null;
+
+    let issue = null;
+    if (!isAbsoluteUrl(url)) {
+      const m = this.i18n.translate('Terminology_TX_System_Relative', txParams.HTTPLanguages, [url]);
+      issue = new Issue('error', 'invalid', path, 'Terminology_TX_System_Relative', m, 'invalid-data');
+    }
+
+    let version = this.getStringParam(params, 'version');
+    if (!version && fromCoded) {
+      version = coded.version;
+    }
+    version = this.determineVersionBase(url, version, txParams);
+
+    const fromAdditional = this.findInAdditionalResources(url, version, 'CodeSystem', false);
+    if (fromAdditional) {
+      return await createCodeSystemProviderWithSupplementRuntime(
+        this,
+        fromAdditional,
+        this.requiredSupplements
+      );
+    }
+
+    const csp = await this.findCodeSystem(
+      url, version, txParams, ['complete', 'fragment'], null, true, false, true, this.requiredSupplements
+    );
+    if (csp) {
+      return csp;
+    }
+
+    const vs = await this.findValueSet(url, version);
+    if (vs) {
+      const msg = this.i18n.translate('Terminology_TX_System_ValueSet2', txParams.HTTPLanguages, [url]);
+      throw new Issue('error', 'invalid', path, 'Terminology_TX_System_ValueSet2', msg, 'invalid-data');
+    } else if (version) {
+      const vl = await this.listVersions(url);
+      if (vl.length == 0) {
+        throw new Issue("error", "not-found", this.systemPath(mode), 'UNKNOWN_CODESYSTEM_VERSION_NONE', this.opContext.i18n.translate('UNKNOWN_CODESYSTEM_VERSION_NONE', this.opContext.HTTPLanguages, [url, version]), 'not-found', 422).setUnknownSystem(url).addIssue(issue);
+      } else {
+        throw new Issue("error", "not-found", this.systemPath(mode), 'UNKNOWN_CODESYSTEM_VERSION', this.opContext.i18n.translate('UNKNOWN_CODESYSTEM_VERSION', this.opContext.HTTPLanguages, [url, version, this.presentVersionList(vl)], 422), 'not-found').setUnknownSystem(url + "|" + version).addIssue(issue);
+      }
+    } else {
+      throw new Issue("error", "not-found", this.systemPath(mode), 'UNKNOWN_CODESYSTEM', this.opContext.i18n.translate('UNKNOWN_CODESYSTEM', this.opContext.HTTPLanguages, [url]), 'not-found', 422).setUnknownSystem(url).addIssue(issue);
+    }
+  }
+
+  async resolveValueSet(params, txParams) {
+    const vsResource = this.getResourceParam(params, 'valueSet');
+    if (vsResource) {
+      this.seeSourceVS(vsResource);
+      return new ValueSet(vsResource);
+    }
+
+    const canonical = this.getStringParam(params, 'url');
+    if (canonical) {
+      const { system: url, version: urlVersion } = this.parseCanonical(canonical);
+      const version = this.determineVersionBase(url, this.getStringParam(params, 'valueSetVersion') || urlVersion, txParams);
+      const vs = await this.findValueSet(url, version);
+      this.seeSourceVS(vs, canonical);
+      if (vs == null) {
+        throw new Issue('error', 'not-found', null, 'Unable_to_resolve_value_Set_', this.i18n.translate('Unable_to_resolve_value_Set_', params.HTTPLanguages, [url + (version ? "|" + version : "")]), 'not-found', 422);
+      }
+      return vs;
+    }
+
+    return null;
   }
 
   async doValidationVS(coded, valueSet, params, mode, issuePath) {
@@ -287,7 +514,7 @@ class ValidateIRWorker extends ValidateWorker {
         },
         resolveVersionAtDate: async (system, lockedDate) => {
           if (typeof this.resolveCodeSystemVersionAtDate !== 'function') return null;
-          return await this.resolveCodeSystemVersionAtDate(system, lockedDate, this.params);
+          return await resolveCodeSystemVersionAtDate(this, system, lockedDate);
         },
         warnings: [],
         debugPlan: true,
@@ -303,7 +530,8 @@ class ValidateIRWorker extends ValidateWorker {
       const warnings = [];
       const scopeResult = await resolveIRExecutionScopes(plan.systems, constrainedIR, {
         findProvider: async (system, version) => (
-          await this.bindIRScopeForOperation(
+          await bindIRScopeForOperation(
+            this,
             system,
             version,
             this.params,

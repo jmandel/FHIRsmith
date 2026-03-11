@@ -1,6 +1,7 @@
 'use strict';
 
 const IR = require('../engine/ir');
+const { SearchFilterText } = require('../library/designations');
 const {
   createGenericIRExecutor,
   executionResult,
@@ -14,14 +15,15 @@ const {
   overlayTouchesProperty,
   valueFromProperty,
 } = require('./overlay');
+const { requestedExpansionPropertyMatches } = require('../library/expansion-properties');
 
-function wrapIRProviderWithSupplements(provider, supplementSet) {
+function wrapIRProviderWithSupplements(provider, supplementSet, opts = {}) {
   if (!provider || !supplementSet?.items?.length) return provider;
 
   const overlay = buildSupplementOverlay(supplementSet);
-  const baseIRProvider = typeof provider.executeIR === 'function'
+  const baseIRProvider = opts.baseIRProvider || (typeof provider.executeIR === 'function'
     ? provider
-    : wrapWithLegacyIR(provider);
+    : wrapWithLegacyIR(provider, opts));
 
   const execution = {
     provider,
@@ -205,11 +207,21 @@ async function getMergedProperties(provider, overlay, candidate, propertyCache) 
 function normalizeBaseProperty(prop) {
   if (!prop || typeof prop !== 'object' || !prop.code) return null;
   if (Object.prototype.hasOwnProperty.call(prop, 'value')) {
-    return { code: prop.code, value: prop.value };
+    return {
+      code: prop.code,
+      value: prop.value,
+      ...(prop.uri ? { uri: prop.uri } : {}),
+      ...(prop.definition ? { definition: prop.definition } : {}),
+    };
   }
   const value = valueFromProperty(prop);
   if (value == null) return null;
-  return { code: prop.code, value };
+  return {
+    code: prop.code,
+    value,
+    ...(prop.uri ? { uri: prop.uri } : {}),
+    ...(prop.definition ? { definition: prop.definition } : {}),
+  };
 }
 
 function matchesPropertyClause(properties, clause) {
@@ -217,7 +229,7 @@ function matchesPropertyClause(properties, clause) {
   const op = String(clause?.op || '');
   const wanted = clause?.value != null ? String(clause.value) : null;
   const values = (properties || [])
-    .filter(prop => String(prop.code || '') === propCode)
+    .filter(prop => requestedExpansionPropertyMatches(prop, [propCode]))
     .flatMap(prop => valueTokens(prop.value));
 
   switch (op) {
@@ -267,21 +279,21 @@ function splitValueList(value) {
 
 function applySupplementTextFilterCandidates(candidates, overlay, text) {
   if (!text) return candidates;
-  const lower = String(text).toLowerCase();
+  const filter = new SearchFilterText(String(text));
   const base = hasHierarchyCandidates(candidates)
     ? flattenHierarchyCandidates(candidates)
     : candidates;
-  return base.filter(candidate => candidateMatchesText(candidate, overlay, lower));
+  return base.filter(candidate => candidateMatchesText(candidate, overlay, filter));
 }
 
-function candidateMatchesText(candidate, overlay, lower) {
-  if (!lower) return true;
-  if ((candidate.display || '').toLowerCase().includes(lower)) return true;
-  if ((candidate.code || '').toLowerCase().includes(lower)) return true;
+function candidateMatchesText(candidate, overlay, filter) {
+  if (!filter || filter.isNull) return true;
+  if (filter.passes(String(candidate.display || ''))) return true;
+  if (filter.passes(String(candidate.code || ''))) return true;
   const extra = overlay?.byCode?.get(candidate.code);
   if (!extra) return false;
   return (extra.designations || []).some(designation =>
-    String(designation?.value || '').toLowerCase().includes(lower)
+    filter.passes(String(designation?.value || ''))
   );
 }
 

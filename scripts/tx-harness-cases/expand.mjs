@@ -1,4 +1,109 @@
-export async function registerExpandCases({ test, helpers, setCategory }) {
+const HIGH_CONFIDENCE_EXPAND_NO_DIFF_IDS = new Set([
+  2, 4, 5, 13, 14, 17, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29, 30, 31, 33, 34,
+  37, 38, 39, 40, 41, 42, 46, 47, 48, 50, 51, 52, 53, 54, 55, 56, 57, 59, 61,
+  62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82,
+  85, 86, 89, 91, 92, 93, 94, 96, 97, 98, 100, 101, 102, 103, 104, 105, 106,
+  107, 108, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123,
+  124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 135, 136, 138, 139, 140,
+  141, 145, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159,
+  160, 161, 162, 163, 164, 165, 166, 170, 171, 186, 188, 189, 190,
+]);
+
+const HIGH_CONFIDENCE_EXPAND_IR_PREFERRED_IDS = new Set([
+  3, 6, 12, 32, 43, 99, 110, 144, 146, 167, 168, 169, 174, 175, 176, 177,
+  179, 181, 185, 187, 191, 193, 194, 195, 196, 198, 199, 201,
+]);
+
+const REVIEWED_EXPAND_BY_ID = new Map([
+    [1, 'Reviewed after adjudication: primary returns the correct full 124-code SNOMED is-a expansion; the local legacy worker truncates the first page to 90 codes.'],
+    [7, 'Reviewed after adjudication: primary returns the correct 108-code diabetes-minus-Type2 set; local legacy loses codes due to an exclude+activeOnly interaction bug.'],
+    [8, 'Reviewed after adjudication: primary returns the correct diabetes-minus-Type1/Type2 set; local legacy drops codes due to exclude-set assembly bugs.'],
+    [9, 'Reviewed after adjudication: primary correctly expands exclude-by-concept ValueSets; upstream/tx.fhir.org crash on this valid request shape.'],
+    [10, 'Reviewed after adjudication: local engines correctly apply the SNOMED text filter; tx.fhir.org/upstream ignore filter for this request shape and return the unfiltered diabetes expansion.'],
+    [11, 'Reviewed after adjudication: local engines correctly apply the SNOMED text filter; tx.fhir.org/upstream ignore filter for this request shape and return the unfiltered diabetes expansion.'],
+    [15, 'Reviewed after IR response fix: paged expansions now clamp omitted offset to 0 instead of emitting the internal -1 sentinel; remaining differences are ordering and optional total metadata.'],
+    [24, {
+      status: 'deferred',
+      reviewedAt: '2026-03-11',
+      note: 'Deferred after adjudication: local leniency for SNOMED concept=in with an implicit refset URL is accepted for now, but should be revisited against future policy/spec decisions.',
+    }],
+    [35, 'Reviewed after IR adapter ordering fix: whole-system paging now preserves provider iteration order for inline/native CodeSystems.'],
+    [36, 'Reviewed after adjudication: local engines correctly treat the SNOMED text filter as restricting the returned expansion; tx.fhir.org/upstream report the unfiltered total for this request shape.'],
+    [16, 'Reviewed after sqlite-v0 LOINC importer fix: STATUS=ACTIVE filtering now includes active LP part codes.'],
+    [18, 'Reviewed after IR SNOMED designation fix: bulk designation decoration now preserves stored non-empty rows regardless of active flag.'],
+    [45, 'Reviewed after adjudication: local engines correctly apply the SNOMED text filter; tx.fhir.org/upstream ignore filter for this request shape and return the unfiltered diabetes expansion.'],
+    [49, 'Reviewed after IR SNOMED designation fix: includeDesignations now preserves the missing stored synonym rows.'],
+    [68, 'Reviewed after IR SNOMED designation fix and sqlite-v0 designation dedupe cleanup.'],
+    [69, 'Reviewed after adjudication: IR correctly supports regex filtering on the LOINC STATUS property, which is allowed by the common FHIR filter semantics.'],
+    [84, 'Reviewed after adjudication: IR correctly handles compose include/exclude entries that are valueSet-only references; legacy crashes on this valid request shape.'],
+    [87, 'Reviewed after adjudication: IR correctly computes imported include/exclude set differences; legacy and tx.fhir.org crash on the same valid request.'],
+    [88, 'Reviewed after adjudication: IR correctly paginates a mixed imported+peer include/exclude expansion; legacy crashes instead of returning the requested page.'],
+    [90, 'Reviewed after adjudication: IR correctly serves the SNOMED filter=diabetes expansion; upstream/tx.fhir.org crash with a cursor bug and legacy omits total.'],
+    [95, 'Reviewed after IR expansion metadata fix: paged expansions now emit expansion.offset=0 and echo the offset parameter.'],
+    [109, 'Reviewed after adjudication: IR correctly supports the common FHIR code regex filter for SNOMED in sqlite-v0.'],
+    [134, 'Reviewed after IR supplement-property fix: itemWeight now flows through the expansion property pipeline and R4 backport shape.'],
+    [137, 'Reviewed after IR UCUM special-enumeration fix: enumeration is served with valueset-unclosed and warning-draft metadata, and unclosed expansions omit total by project policy.'],
+    [142, 'Reviewed after policy decision: efficient paginated expansion of large SNOMED pre-coordinated concept sets is acceptable, and IR should not inherit legacy too-costly behavior when it can serve the page cheaply.'],
+    [143, 'Reviewed after IR unclosed-total fix: if any branch is unclosed, the aggregate expansion omits total.'],
+    [44, 'Reviewed after policy decision: when IR can cheaply serve a deep final page of a large expansion, it should return the real page instead of inheriting legacy too-costly behavior.'],
+    [173, 'Reviewed after adjudication: code+regex is a standard common FHIR filter, so IR is correctly supporting the request; third rejects a valid filter and secondary mishandles count=0 on a large result.'],
+    [172, 'Reviewed after IR SNOMED designation fix: bulk decoration no longer collapses matching designation rows per concept.'],
+    [178, 'Reviewed after adjudication: IR correctly honors count=0 for imported-diff count-only expansion; legacy crashes in filter validation on this valid request shape.'],
+    [180, 'Reviewed after adjudication: IR correctly applies runtime text filtering to imported ValueSet diffs; legacy crashes with a value/null bug.'],
+    [182, 'Reviewed after adjudication: sqlite-v0 and legacy cs-loinc return the same full STATUS=ACTIVE code set for LOINC; the observed difference is only first-page ordering, because sqlite-v0 pages by code while cs-loinc pages by legacy CodeKey order with parts imported first.'],
+    [184, 'Reviewed after policy decision: IR may leniently accept implicit SNOMED refset URLs in concept=in filters even though the strict form is a bare concept id.'],
+    [183, 'Reviewed after adjudication: local engines correctly apply the SNOMED text filter; tx.fhir.org/upstream ignore the filter and return unfiltered descendants.'],
+    [197, 'Reviewed after IR text-filter alignment: adapter-backed supplement designation filtering now matches the legacy server OR-style token semantics for multi-word filters.'],
+    [200, 'Reviewed after policy decision: once a requested supplement resolves successfully, IR may ignore it if it is irrelevant to the actual expansion instead of erroring.'],
+    [192, 'Reviewed after adjudication: local engines correctly apply the SNOMED text filter before pagination; tx.fhir.org/upstream ignore the filter and page the unfiltered set.'],
+    [315, 'Reviewed after policy decision: generic common filters such as property in should work for LOINC in IR even if upstream does not support them.'],
+    [316, 'Reviewed after adjudication: IR and local legacy correctly implement property exists=false; upstream/tx.fhir.org appear to invert the predicate and return rows that do have the property.'],
+    [317, 'Reviewed after adjudication: IR correctly supports the standard designation filter semantics, including counting concept.display as a designation.'],
+    [318, 'Reviewed after policy decision: designation regex filters should work where IR can support them, even though upstream currently rejects them as unsupported.'],
+]);
+
+function withReviewedExpandCase(def) {
+  if (def.review) {
+    return def;
+  }
+  const reviewedMeta = REVIEWED_EXPAND_BY_ID.get(def.id);
+  if (reviewedMeta) {
+    const review = typeof reviewedMeta === 'string'
+      ? {
+          status: 'reviewed',
+          reviewedAt: '2026-03-11',
+          note: reviewedMeta,
+        }
+      : reviewedMeta;
+    return {
+      ...def,
+      review,
+    };
+  }
+  if (HIGH_CONFIDENCE_EXPAND_IR_PREFERRED_IDS.has(def.id)) {
+    return {
+      ...def,
+      review: {
+        status: 'reviewed',
+        reviewedAt: '2026-03-11',
+        note: 'High-confidence batch review: IR behavior preferred in the latest expand adjudication.',
+      },
+    };
+  }
+  if (!HIGH_CONFIDENCE_EXPAND_NO_DIFF_IDS.has(def.id)) {
+    return def;
+  }
+  return {
+    ...def,
+    review: {
+      status: 'reviewed',
+      reviewedAt: '2026-03-11',
+      note: 'Batch review: no meaningful semantic difference; remaining divergence was ordering, metadata noise, or other non-semantic variation.',
+    },
+  };
+}
+
+export async function registerExpandCases({ test, helpers, setCategory, log = console.log }) {
   const {
     expand,
     vs,
@@ -25,10 +130,10 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   } = helpers;
 
   async function expandTest(def, fn) {
-    await test({ ...def, kind: 'expand' }, fn);
+    await test({ ...withReviewedExpandCase(def), kind: 'expand' }, fn);
   }
 
-  console.log('\n=== SNOMED is-a ==='); setCategory('SNOMED is-a');
+  log('\n=== SNOMED is-a ==='); setCategory('SNOMED is-a');
 
   await expandTest({ id: 1, rawName: 'is-a Diabetes: 124 codes, includes self+children', name: 'is-a Diabetes: 124 codes, includes self+children', category: 'Subsumption' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
@@ -63,7 +168,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(ms < 500, `expected <500ms, got ${ms.toFixed(0)}ms`);
   });
 
-  console.log('\n=== Pagination ==='); setCategory('Pagination');
+  log('\n=== Pagination ==='); setCategory('Pagination');
 
   await expandTest({ id: 5, rawName: 'Diabetes pages are disjoint and reconstruct full set', name: 'Diabetes pages are disjoint and reconstruct full set', category: 'Pagination' }, async () => {
     const allCodes = new Set();
@@ -86,7 +191,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     eq(codes(result).length, 20, 'page size');
   });
 
-  console.log('\n=== Excludes ==='); setCategory('Excludes');
+  log('\n=== Excludes ==='); setCategory('Excludes');
 
   await expandTest({ id: 7, rawName: 'Diabetes minus Type2 subtree: 108 codes', name: 'Diabetes minus Type2 subtree: 108 codes', category: 'Exclusions' }, async () => {
     const { result } = await expand(
@@ -122,7 +227,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(findCode(result, '73211009'), 'self remains');
   });
 
-  console.log('\n=== Text search ==='); setCategory('Text search');
+  log('\n=== Text search ==='); setCategory('Text search');
 
   await expandTest({ id: 10, rawName: 'is-a Diabetes + text gestational: 8 codes', name: 'is-a Diabetes + text gestational: 8 codes', category: 'Text Search' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, filter: [{ property: 'concept', op: 'is-a', value: '73211009' }] }),
@@ -146,13 +251,34 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(codes(result).length <= 20, 'respects count');
   });
 
+  await expandTest({ id: 319, rawName: 'LOINC text filter honors activeOnly=false for enumerated inactive concepts', name: 'LOINC text filter honors activeOnly=false for enumerated inactive concepts', category: 'Text Search' }, async () => {
+    const { result } = await expand(vs({
+      system: SYS.LOINC,
+      concept: [
+        { code: '11214-4' },
+        { code: '12571-6' },
+        { code: '13445-2' },
+        { code: '14400-6' },
+      ],
+    }), {
+      count: 20,
+      activeOnly: false,
+      filter: 'Deprecated',
+    });
+    eq(result.expansion.total, 4, 'total');
+    assert(findCode(result, '11214-4'), 'includes inactive code 11214-4');
+    assert(findCode(result, '12571-6'), 'includes inactive code 12571-6');
+    assert(findCode(result, '13445-2'), 'includes inactive code 13445-2');
+    assert(findCode(result, '14400-6'), 'includes inactive code 14400-6');
+  });
+
   await expandTest({ id: 13, rawName: 'RxNorm text aspirin + TTY=IN: finds aspirin 1191', name: 'RxNorm text aspirin + TTY=IN: finds aspirin 1191', category: 'Text Search' }, async () => {
     const { result } = await expand(vs({ system: SYS.RXNORM, filter: [{ property: 'TTY', op: '=', value: 'IN' }] }),
       { count: 20, filter: 'aspirin' });
     assert(findCode(result, '1191'), 'aspirin 1191 present');
   });
 
-  console.log('\n=== Property filters ==='); setCategory('Property filters');
+  log('\n=== Property filters ==='); setCategory('Property filters');
 
   await expandTest({ id: 14, rawName: 'RxNorm TTY=IN first 50', name: 'RxNorm TTY=IN first 50', category: 'Property Filters' }, async () => {
     const { result } = await expand(vs({ system: SYS.RXNORM, filter: [{ property: 'TTY', op: '=', value: 'IN' }] }),
@@ -167,6 +293,9 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
       { count: 50 });
     assert(result.expansion.total > 60000, `total ${result.expansion.total}`);
     eq(codes(result).length, 50, 'page size');
+    assert(result.expansion.offset === 0, `expected expansion.offset=0, got ${result.expansion.offset}`);
+    const offsetP = findParams(result, 'offset')[0];
+    assert(offsetP?.valueInteger === 0, `expected offset param=0, got ${offsetP?.valueInteger}`);
   });
 
   await expandTest({ id: 16, rawName: 'LOINC STATUS=ACTIVE first 20: ~96K total', name: 'LOINC STATUS=ACTIVE first 20: ~96K total', category: 'Property Filters' }, async () => {
@@ -176,7 +305,75 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     eq(codes(result).length, 20, 'page size');
   });
 
-  console.log('\n=== Concept enumeration ==='); setCategory('Concept enum');
+  await expandTest({ id: 315, rawName: 'common-filter: sqlite-v0 property in matches ACTIVE and DEPRECATED LOINC status', name: 'SQLite v0 property in matches ACTIVE and DEPRECATED LOINC status', category: 'Property Filters' }, async () => {
+    const { result } = await expand(vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'STATUS', op: 'in', value: 'ACTIVE,DEPRECATED' }],
+    }), { count: 5000 });
+    assert(result.expansion.total > 100000, `expected large ACTIVE/DEPRECATED total, got ${result.expansion.total}`);
+    assert(findCode(result, '1-8'), 'ACTIVE exemplar 1-8 should be present');
+    assert(findCode(result, '1009-0'), 'DEPRECATED exemplar 1009-0 should be present');
+  });
+
+  await expandTest({ id: 316, rawName: 'common-filter: sqlite-v0 property exists partitions LOINC METHOD_TYP', name: 'SQLite v0 property exists partitions LOINC METHOD_TYP', category: 'Property Filters' }, async () => {
+    const { result: existsTrue } = await expand(vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'METHOD_TYP', op: 'exists', value: 'true' }],
+    }), { count: 50 });
+    assert(existsTrue.expansion.total > 50000, `expected many METHOD_TYP rows, got ${existsTrue.expansion.total}`);
+    assert(findCode(existsTrue, '10-9'), 'METHOD_TYP=true should include 10-9');
+    assert(!findCode(existsTrue, '1-8'), 'METHOD_TYP=true should exclude 1-8');
+
+    const { result: existsFalse } = await expand(vs({
+      system: SYS.LOINC,
+      filter: [{ property: 'METHOD_TYP', op: 'exists', value: 'false' }],
+    }), { count: 50 });
+    assert(existsFalse.expansion.total > 100000, `expected many METHOD_TYP-missing rows, got ${existsFalse.expansion.total}`);
+    assert(findCode(existsFalse, '1-8'), 'METHOD_TYP=false should include 1-8');
+    assert(!findCode(existsFalse, '10-9'), 'METHOD_TYP=false should exclude 10-9');
+  });
+
+  await expandTest({ id: 317, rawName: 'common-filter: designation equals counts display as designation via IR adapter', name: 'designation = counts display as a designation via IR adapter', category: 'Property Filters' }, async () => {
+    const cs = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/cs/common-designation-equals',
+      status: 'active',
+      content: 'complete',
+      concept: [
+        { code: 'alpha', display: 'Alpha Base' },
+        { code: 'beta', display: 'Beta Base', designation: [{ language: 'de', value: 'Beta Deutsch' }] },
+      ],
+    };
+    const { result } = await expand(vs({
+      system: cs.url,
+      filter: [{ property: 'designation', op: '=', value: 'Alpha Base' }],
+    }), { txResources: [cs] });
+    eq(result.expansion.total, 1, 'total');
+    assert(findCode(result, 'alpha'), 'display-backed designation match should include alpha');
+    assert(!findCode(result, 'beta'), 'designation exact match should exclude beta');
+  });
+
+  await expandTest({ id: 318, rawName: 'common-filter: designation regex matches explicit designations via IR adapter', name: 'designation regex matches explicit designations via IR adapter', category: 'Property Filters' }, async () => {
+    const cs = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/cs/common-designation-regex',
+      status: 'active',
+      content: 'complete',
+      concept: [
+        { code: 'alpha', display: 'Alpha Base' },
+        { code: 'beta', display: 'Beta Base', designation: [{ language: 'de', value: 'Beta Deutsch' }] },
+      ],
+    };
+    const { result } = await expand(vs({
+      system: cs.url,
+      filter: [{ property: 'designation', op: 'regex', value: '.*Deutsch' }],
+    }), { txResources: [cs] });
+    eq(result.expansion.total, 1, 'total');
+    assert(findCode(result, 'beta'), 'designation regex should match explicit designation on beta');
+    assert(!findCode(result, 'alpha'), 'designation regex should exclude alpha');
+  });
+
+  log('\n=== Concept enumeration ==='); setCategory('Concept enum');
 
   await expandTest({ id: 17, rawName: 'SNOMED 3 codes: correct displays', name: 'SNOMED 3 codes: correct displays', category: 'Concept Enumerations' }, async () => {
     const { result } = await expand(vs({ system: SYS.SCT, concept: [{ code: '73211009' }, { code: '44054006' }, { code: '46635009' }] }));
@@ -190,9 +387,11 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
       { includeDesignations: true });
     const entry = findCode(result, '73211009');
     assert(entry?.designation?.length > 0, 'has designations');
+    assert(entry.designation.some(d => d.value === 'Diabetes mellitus, NOS'),
+      'includes inactive-but-stored SNOMED synonym "Diabetes mellitus, NOS"');
   });
 
-  console.log('\n=== Whole-system (cs-cs / legacy adapter) ==='); setCategory('Whole-system');
+  log('\n=== Whole-system (cs-cs / legacy adapter) ==='); setCategory('Whole-system');
 
   await expandTest({ id: 19, rawName: 'gender whole-system: 4 codes', name: 'gender whole-system: 4 codes', category: 'Single-System Composition' }, async () => {
     const { result } = await expand(vs({ system: SYS.GENDER }));
@@ -275,7 +474,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     eq(systems.size, 2, 'matches from both systems');
   });
 
-  console.log('\n=== Multi-system ==='); setCategory('Multi-system');
+  log('\n=== Multi-system ==='); setCategory('Multi-system');
 
   await expandTest({ id: 28, rawName: 'SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems', name: 'SNOMED+LOINC+RxNorm enum: 3 codes, 3 systems', category: 'Multi-System Composition' }, async () => {
     const { result } = await expand(vs([
@@ -349,7 +548,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── meta: expansion parameters ──────────────────────────────────────────
-  console.log('\n=== Meta ==='); setCategory('Meta');
+  log('\n=== Meta ==='); setCategory('Meta');
 
   await expandTest({ id: 33, rawName: 'meta: multi-system emits used-codesystem for each system', name: 'usedCodeSystem emitted once per system in multi-system expansion', category: 'Expansion Metadata' }, async () => {
     const { result } = await expand(vs([
@@ -377,6 +576,10 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     const countP = findParams(result, 'count')[0];
     assert(offsetP?.valueInteger === 1, `expected offset=1, got ${offsetP?.valueInteger}`);
     assert(countP?.valueInteger === 2, `expected count=2, got ${countP?.valueInteger}`);
+    assert(
+      JSON.stringify(codes(result).map((concept) => concept.code)) === JSON.stringify(['female', 'other']),
+      `paged codes preserve provider iteration order: expected female,other, got ${codes(result).map((concept) => concept.code).join(',')}`
+    );
   });
 
   await expandTest({ id: 36, rawName: 'meta: text filter is echoed in expansion parameters', name: 'text filter is echoed in expansion parameters', category: 'Expansion Metadata' }, async () => {
@@ -422,7 +625,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── vs-import ────────────────────────────────────────────────────────
-  console.log('\n=== ValueSet imports ==='); setCategory('VS import');
+  log('\n=== ValueSet imports ==='); setCategory('VS import');
 
   await expandTest({ id: 38, rawName: 'vs-import: pure import of administrative-gender', name: 'Pure ValueSet import of administrative-gender', category: 'ValueSet Imports' }, async () => {
     const { result } = await expand(vs({ valueSet: ['http://hl7.org/fhir/ValueSet/administrative-gender'] }));
@@ -447,7 +650,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── pagination-safety ──────────────────────────────────────────────
-  console.log('\n=== Pagination safety ==='); setCategory('Pagination safety');
+  log('\n=== Pagination safety ==='); setCategory('Pagination safety');
 
   await expandTest({ id: 40, rawName: 'pagination-safety: mixed v0+cs-cs reconstruct full set', name: 'Mixed SQLite v0 + single-system peer reconstructs full set', category: 'Pagination Safety' }, async () => {
     const query = vs([
@@ -514,7 +717,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── combined ─────────────────────────────────────────────────────────
-  console.log('\n=== Combined ==='); setCategory('Combined');
+  log('\n=== Combined ==='); setCategory('Combined');
 
   await expandTest({ id: 45, rawName: 'combined: SNOMED is-a + text filter', name: 'SNOMED is-a combined with text filter', category: 'Composition Semantics' }, async () => {
     const { result } = await expand(vs({
@@ -563,7 +766,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── lang / designations ───────────────────────────────────────────
-  console.log('\n=== Designations ==='); setCategory('Designations');
+  log('\n=== Designations ==='); setCategory('Designations');
 
   await expandTest({ id: 49, rawName: 'lang: SNOMED includeDesignations returns entries', name: 'SNOMED includeDesignations returns designation entries', category: 'Designations & Language' }, async () => {
     const { result } = await expand(vs({
@@ -572,6 +775,8 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     const entry = findCode(result, '73211009');
     assert(entry?.designation?.length > 0, 'has designations');
     assert(entry.designation.every(d => d.value?.length > 0), 'all have value');
+    assert(entry.designation.some(d => d.value === 'Diabetes mellitus, NOS'),
+      'includes inactive-but-stored SNOMED synonym "Diabetes mellitus, NOS"');
   });
 
   await expandTest({ id: 50, rawName: 'lang: SNOMED is-a filter includeDesignations', name: 'SNOMED is-a filter with includeDesignations', category: 'Designations & Language' }, async () => {
@@ -592,7 +797,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── Expansion metadata & canonical status warnings ───────────────────
-  console.log('\n── Expansion metadata & canonical status warnings ──');
+  log('\n── Expansion metadata & canonical status warnings ──');
 
   // Helper: build a complete inline CodeSystem
   function inlineCS(url, overrides = {}) {
@@ -727,8 +932,12 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     const { result } = await expand(vsForCS(cs.url), { txResources: cs });
     assert(codes(result).length === 3, `expected 3 codes, got ${codes(result).length}`);
     const unclosed = expansionExtensions(result, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
-    assert(unclosed.length > 0,
-      `expected valueset-unclosed extension, got extensions: ${JSON.stringify(result.expansion?.extension)}`);
+    eq(unclosed.length, 1,
+      `expected exactly one valueset-unclosed extension, got ${JSON.stringify(result.expansion?.extension)}`);
+    eq(unclosed[0].valueBoolean, true,
+      `expected valueset-unclosed valueBoolean=true, got ${JSON.stringify(unclosed[0])}`);
+    assert(unclosed[0].valueString == null,
+      `valueset-unclosed must not use valueString, got ${JSON.stringify(unclosed[0])}`);
   });
 
   await expandTest({ id: 61, rawName: 'meta: SNOMED expansion emits used-codesystem with version', name: 'SNOMED expansion emits usedCodeSystem with version', category: 'Expansion Metadata' }, async () => {
@@ -855,6 +1064,8 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     }), { includeDesignations: true });
     const dm = findCode(result, '73211009');
     assert(dm, 'missing 73211009');
+    assert(dm.designation?.some(d => d.value === 'Diabetes mellitus, NOS'),
+      'missing SNOMED synonym "Diabetes mellitus, NOS"');
     for (const d of dm.designation || []) {
       const redundant = d.value === dm.display
         && (!d.use || d.use?.code === 'display')
@@ -879,7 +1090,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── Phase 2: baseline fixtures + filter/txResources tests ───────────
-  console.log('\n=== Phase 2: baselines / txResources / filters ==='); setCategory('Phase 2');
+  log('\n=== Phase 2: baselines / txResources / filters ==='); setCategory('Phase 2');
 
   await expandTest({ id: 70, rawName: 'baseline: currency full expansion (preloaded map)', name: 'Currency full expansion baseline (preloaded map)', category: 'Baseline Fixtures' }, async () => {
     const { result } = await expand(vs({ system: SYS.CURRENCY }), { count: 500 });
@@ -1260,6 +1471,9 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     const { result } = await expand(vs({system:SYS.CURRENCY}), {count:10, offset:0});
     assert(codes(result).length === 10, `expected 10 codes, got ${codes(result).length}`);
     assert(result.expansion.total >= 150, `expected total>=150, got ${result.expansion.total}`);
+    assert(result.expansion.offset === 0, `expected expansion.offset=0, got ${result.expansion.offset}`);
+    const offsetP = findParams(result, 'offset')[0];
+    assert(offsetP?.valueInteger === 0, `expected offset param=0, got ${offsetP?.valueInteger}`);
   });
 
   await expandTest({ id: 96, rawName: 'pagination-bug: preloaded map total matches full expansion when paged', name: 'Preloaded-map pagination total matches full expansion', category: 'Pagination Safety' }, async () => {
@@ -1459,6 +1673,11 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     const c = codes(result);
     assert(findCode(result,'male'), 'gender peer code should be present');
     assert(c.length > 100, `expected many UCUM common units + peer, got ${c.length}`);
+    assert(result.expansion.total == null, `unclosed expansion should omit total, got ${result.expansion.total}`);
+    const unclosed = expansionExtensions(result, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+    eq(unclosed.length, 1, `expected exactly one valueset-unclosed extension, got ${JSON.stringify(unclosed)}`);
+    eq(unclosed[0].valueBoolean, true, `expected valueset-unclosed valueBoolean=true, got ${JSON.stringify(unclosed[0])}`);
+    assert(unclosed[0].valueString == null, `valueset-unclosed must not use valueString, got ${JSON.stringify(unclosed[0])}`);
   });
 
   // ── Phase 4: fixture expansion (US states, area codes, MIME, language) ──
@@ -1664,7 +1883,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(usedSupp.length === 0, 'used-supplement should not be emitted');
   });
 
-  await expandTest({ id: 200, rawName: 'supplement: extra requested inline supplement may be irrelevant without error', name: 'Extra requested inline supplement may be irrelevant without error', category: 'Supplements', engines: ['ir'] }, async () => {
+  await expandTest({ id: 200, rawName: 'supplement: extra requested inline supplement may be irrelevant without error', name: 'Extra requested inline supplement may be irrelevant without error', category: 'Supplements' }, async () => {
     const [cs, relSupp] = suppFixture(
       'http://example.org/cs-s2b', 'http://example.org/supp-s2b-rel',
       [{code:'X', display:'Xray'}],
@@ -1804,7 +2023,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(jaDes, 'version-pinned supplement designation should appear');
   });
 
-  await expandTest({ id: 201, rawName: 'supplement: extra requested configured sqlite supplement may be irrelevant without error', name: 'Extra requested configured sqlite supplement may be irrelevant without error', category: 'Supplements', engines: ['ir'] }, async () => {
+  await expandTest({ id: 201, rawName: 'supplement: extra requested configured sqlite supplement may be irrelevant without error', name: 'Extra requested configured sqlite supplement may be irrelevant without error', category: 'Supplements' }, async () => {
     const { result } = await expand(
       vs({ system: 'http://example.org/op-harness-base', concept: [{ code: 'C0001' }] }),
       {
@@ -1846,11 +2065,21 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
         ]}
     );
     const w = findCode(result, 'W');
-    // itemWeight should appear as extension on the contains entry
-    const ext = (w?.extension || []).find(
-      e => e.url === 'http://hl7.org/fhir/StructureDefinition/itemWeight');
-    assert(ext, 'itemWeight extension should be projected');
-    assert(ext.valueDecimal === 3.5, `expected 3.5, got ${ext?.valueDecimal}`);
+    const propExt = (w?.extension || []).find(
+      e => e.url === 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property'
+        && (e.extension || []).some(part => part.url === 'code' && part.valueCode === 'weight')
+    );
+    assert(propExt, 'itemWeight should be projected as contains.property backport');
+    const valuePart = (propExt.extension || []).find((part) => part.url === 'value');
+    assert(valuePart?.valueDecimal === 3.5, `expected 3.5, got ${valuePart?.valueDecimal}`);
+    assert(!(w?.extension || []).some(
+      e => e.url === 'http://hl7.org/fhir/StructureDefinition/itemWeight'
+    ), 'raw itemWeight extension should not be emitted');
+    const expansionPropExt = (result?.expansion?.extension || []).find(
+      e => e.url === 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property'
+        && (e.extension || []).some(part => part.url === 'code' && part.valueCode === 'weight')
+    );
+    assert(expansionPropExt, 'itemWeight property definition should be declared on the expansion');
   });
 
   // ── Phase 5: v0 supplement paths ──
@@ -1964,9 +2193,10 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
         params: [{ name: 'useSupplement', valueString: supp.url }],
       }
     );
-    eq(result.expansion.total, 1, 'total');
-    eq(codes(result).length, 1, 'filtered code count');
-    eq(codes(result)[0]?.code, 'm', 'filtered code');
+    eq(result.expansion.total, 2, 'total');
+    eq(codes(result).length, 2, 'filtered code count');
+    assert(findCode(result, 'm'), 'includes metre');
+    assert(findCode(result, 'cm'), 'includes centimetre via OR token match');
   });
 
   if (HARNESS_SQLITE_SUPP_URL_ROOT) {
@@ -2007,7 +2237,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
       const { result } = await expand(
         vs({ system: SYS.LOINC }),
         {
-          filter: 'D20 critical success',
+          filter: 'critical',
           count: 5,
           params: [
             { name: 'useSupplement', valueString: harnessSuppUrl('d20') },
@@ -2028,12 +2258,13 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     const { result } = await expand(vs({system:SYS.UCUM}), {count:5});
     const c = codes(result);
     assert(c.length === 5, `expected 5, got ${c.length}`);
-    assert(result.expansion.total > 100, `expected many UCUM codes, got ${result.expansion.total}`);
-    // Must have valueset-unclosed extension
-    const ext = (result.expansion.extension || []).find(
-      e => e.url === 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
-    assert(ext, 'valueset-unclosed extension should be present');
-    assert(ext.valueString?.includes('grammar'), `unclosed message should mention grammar, got: ${ext.valueString}`);
+    assert(result.expansion.total == null, `unclosed expansion should omit total, got ${result.expansion.total}`);
+    const unclosed = expansionExtensions(result, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+    eq(unclosed.length, 1, `expected exactly one valueset-unclosed extension, got ${JSON.stringify(unclosed)}`);
+    eq(unclosed[0].valueBoolean, true, `expected valueset-unclosed valueBoolean=true, got ${JSON.stringify(unclosed[0])}`);
+    assert(unclosed[0].valueString == null, `valueset-unclosed must not use valueString, got ${JSON.stringify(unclosed[0])}`);
+    assert(hasExpansionParam(result, 'warning-draft'),
+      `expected warning-draft parameter, got params: ${JSON.stringify(result.expansion?.parameter)}`);
   });
 
   await expandTest({ id: 138, rawName: 'notClosed: MIME whole-system not enumerable', name: 'MIME whole-system expansion is not enumerable', category: 'Unclosed Expansion' }, async () => {
@@ -2102,11 +2333,11 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(systems.has(SYS.SCT), 'first page should have SNOMED codes');
     assert(!systems.has(SYS.UCUM), 'first page should not yet have UCUM codes');
     // But unclosed must still be reported
-    const unclosed = (result.expansion.extension || []).find(
-      e => e.url === 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
-    assert(unclosed, 'valueset-unclosed extension must be present even on SNOMED-only page');
-    assert(unclosed.valueString?.includes('grammar'),
-      `unclosed message should mention grammar, got: ${unclosed?.valueString}`);
+    const unclosed = expansionExtensions(result, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed');
+    eq(unclosed.length, 1, `expected exactly one valueset-unclosed extension, got ${JSON.stringify(unclosed)}`);
+    eq(unclosed[0].valueBoolean, true, `expected valueset-unclosed valueBoolean=true, got ${JSON.stringify(unclosed[0])}`);
+    assert(unclosed[0].valueString == null, `valueset-unclosed must not use valueString, got ${JSON.stringify(unclosed[0])}`);
+    assert(result.expansion.total == null, `unclosed multi-system expansion should omit total, got ${result.expansion.total}`);
   });
 
   await expandTest({ id: 144, rawName: 'stress: deep SNOMED is-a pagination stable across adjacent pages', name: 'Deep SNOMED is-a pagination stable across adjacent pages', category: 'Stress & Scale' }, async () => {
@@ -2495,7 +2726,7 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
   });
 
   // ── imported scale / runtime-shape coverage ───────────────────────────
-  console.log('\n=== Imported Scale & Runtime Shape ==='); setCategory('Imported scale');
+  log('\n=== Imported Scale & Runtime Shape ==='); setCategory('Imported scale');
 
   await expandTest({ id: 167, rawName: 'stress: imported same-system intersection matches direct diabetes subset', name: 'Imported SNOMED intersection scales like direct diabetes subset', category: 'Stress & Scale' }, async () => {
     const importedClinical = inlineVS('http://example.org/vs/imported-sct-clinical-finding', {
@@ -2688,6 +2919,12 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
       assert(desigs.length >= 1, `expected FSN designation for ${entry.code}`);
       assert(desigs.every(d => d.use?.code === '900000000000003001'),
         `designation filter should keep only FSNs for ${entry.code}`);
+    }
+    for (const code of ['10001005', '100191000119105', '100211000119106']) {
+      const entry = findCode(result, code);
+      assert(entry, `expected ${code} on first page`);
+      assert((entry.designation || []).length >= 2,
+        `expected multiple matching FSN designations for ${code}`);
     }
     assertBulkDesignationTrace(result, traceJson, 'SNOMED designation benchmark');
     setPerfTarget(targetVS, targetOpts);
@@ -3238,4 +3475,19 @@ export async function registerExpandCases({ test, helpers, setCategory }) {
     assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'later-page RxNorm browse should skip lazy count');
     setPerfTarget(clinicalDrugs, targetOpts);
   });
+}
+
+export async function collectExpandCaseDefs() {
+  const cases = [];
+  await registerExpandCases({
+    test: async (meta) => {
+      cases.push(meta);
+    },
+    helpers: {
+      HARNESS_SQLITE_SUPP_URL_ROOT: '__collect__',
+    },
+    setCategory: () => {},
+    log: () => {},
+  });
+  return cases;
 }

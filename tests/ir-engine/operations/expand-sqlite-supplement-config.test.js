@@ -122,7 +122,7 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
   test('IR text filter reaches server-loaded sqlite supplement designation rows from library config', async () => {
     const expectedCodes = baseConcepts
       .map(item => item.code)
-      .filter(code => conceptHasDesignation(d8, code, 'critical success'))
+      .filter(code => conceptHasDesignation(d8, code, 'critical'))
       .sort();
 
     const res = await request(fixture.app)
@@ -134,7 +134,7 @@ describe('ValueSet $expand with sqlite-v0 configured supplement sidecars', () =>
         parameter: [
           { name: '_engine', valueCode: 'ir' },
           { name: 'useSupplement', valueString: d8.url },
-          { name: 'filter', valueString: 'critical success' },
+          { name: 'filter', valueString: 'critical' },
           {
             name: 'valueSet',
             resource: {

@@ -8,6 +8,7 @@
 //
 
 const { TerminologyWorker } = require('./worker');
+const { FhirCodeSystemProvider } = require('../cs/cs-cs');
 const { Designations} = require("../library/designations");
 const {TxParameters} = require("../params");
 const {Parameters} = require("../library/parameters");
@@ -120,18 +121,14 @@ class LookupWorker extends TerminologyWorker {
         }
 
         // Allow complete or fragment content modes, nullOk = true to handle not-found ourselves
-        csProvider = await this.findCodeSystemWithSupplementRuntime(
-          coding.system, coding.version || '', txp, ['complete', 'fragment'], null, true, false, false, txp.supplements
-        );
+        csProvider = await this.findCodeSystem(coding.system, coding.version || '', txp, ['complete', 'fragment'], true);
         this.seeSourceProvider(csProvider, coding.system);
         code = coding.code;
 
       } else if (params.has('system') && params.has('code')) {
         // system + code parameters
-        csProvider = await this.findCodeSystemWithSupplementRuntime(
-          params.get('system'), params.get('version') || '', txp, ['complete', 'fragment'],
-          null, true, false, false, txp.supplements
-        );
+        csProvider = await this.findCodeSystem(params.get('system'), params.get('version') || '', txp, ['complete', 'fragment'],
+          null, true, false, false, txp.supplements);
         this.seeSourceProvider(csProvider, params.get('system'));
         code = params.get('code');
 
@@ -147,6 +144,14 @@ class LookupWorker extends TerminologyWorker {
           ? `CodeSystem not found: ${systemUrl} version ${versionStr}`
           : `CodeSystem not found: ${systemUrl}`;
         return res.status(422).json(this.operationOutcome('error', 'not-found', msg));
+      }
+
+      // check supplements
+      const used = new Set();
+      this.checkSupplements(csProvider, null, txp.supplements, used);
+      const unused = new Set([...txp.supplements].filter(s => !used.has(s)));
+      if (unused.size > 0) {
+        throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', txp.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(400);
       }
 
       // Perform the lookup
@@ -207,10 +212,11 @@ class LookupWorker extends TerminologyWorker {
           'Must provide code parameter or coding parameter with code'));
       }
 
-      const csProvider = await this.createCodeSystemProviderWithSupplementRuntime(
-        codeSystem,
-        txp.supplements
-      );
+      // Load any supplements
+      const supplements = this.loadSupplements(codeSystem.url, codeSystem.version, txp.supplements);
+
+      // Create a FhirCodeSystemProvider for this CodeSystem
+      const csProvider = new FhirCodeSystemProvider(this.opContext, codeSystem, supplements);
 
       // Perform the lookup
       const result = await this.doLookup(csProvider, code, txp);

@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "id": 250,
+  "slug": "250-post-validate-inline-codesystem-resource-rejects-codeableconcept-without-system",
+  "name": "POST validate inline CodeSystem resource rejects codeableConcept without system",
+  "category": "Validate",
+  "source": {
+    "shape": "request",
+    "kind": "validate",
+    "request": {
+      "method": "POST",
+      "path": "/r4/CodeSystem/$validate-code",
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                }
+              ]
+            }
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-cc",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "engines": [
+      "ir",
+      "legacy"
+    ]
+  },
+  "requests": {
+    "primary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                }
+              ]
+            }
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-cc",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "ir"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "secondary": {
+      "method": "POST",
+      "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                }
+              ]
+            }
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-cc",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    },
+    "third": {
+      "method": "POST",
+      "url": "http://localhost:33043/r4/CodeSystem/$validate-code",
+      "headers": {
+        "Accept": "application/fhir+json",
+        "Content-Type": "application/fhir+json"
+      },
+      "body": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "codeableConcept",
+            "valueCodeableConcept": {
+              "coding": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                }
+              ]
+            }
+          },
+          {
+            "name": "codeSystem",
+            "resource": {
+              "resourceType": "CodeSystem",
+              "url": "http://example.org/cs-inline-validate-cc",
+              "version": "1.0.0",
+              "content": "complete",
+              "concept": [
+                {
+                  "code": "A",
+                  "display": "Alpha"
+                },
+                {
+                  "code": "B",
+                  "display": "Beta"
+                }
+              ]
+            }
+          },
+          {
+            "name": "_engine",
+            "valueString": "legacy"
+          },
+          {
+            "name": "_trace",
+            "valueBoolean": true
+          }
+        ]
+      }
+    }
+  }
+}

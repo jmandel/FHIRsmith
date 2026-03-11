@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-11T22:39:01.597Z",
+  "rowIndex": 245,
+  "slug": "245-post-validate-inline-official-codesystem-resource-rejects-bare-code-without-syst",
+  "name": "POST validate inline official CodeSystem resource rejects bare code without system",
+  "category": "Validate",
+  "hrefs": {
+    "input": "../perf-table.inputs/245-post-validate-inline-official-codesystem-resource-rejects-bare-code-without-syst.json",
+    "detailJson": "245-post-validate-inline-official-codesystem-resource-rejects-bare-code-without-syst.json"
+  },
+  "targets": [
+    {
+      "key": "primary",
+      "label": "IR Branch + IR Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://hl7.org/fhir/administrative-gender",
+                  "version": "4.0.1",
+                  "name": "AdministrativeGender",
+                  "title": "AdministrativeGender",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "display": "Male",
+                      "definition": "Male."
+                    },
+                    {
+                      "code": "female",
+                      "display": "Female",
+                      "definition": "Female."
+                    },
+                    {
+                      "code": "other",
+                      "display": "Other",
+                      "definition": "Other."
+                    },
+                    {
+                      "code": "unknown",
+                      "display": "Unknown",
+                      "definition": "Unknown."
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "ir"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "494",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"1ee-qZsugjPgyRt3s5sZNGBi5g6urd8\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-837"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters)"
+                }
+              }
+            ],
+            "extension": [
+              {
+                "url": "https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace",
+                "valueString": "{\"totalMs\":0.48,\"sqlCount\":0,\"sqlMs\":0,\"counters\":{},\"spans\":[{\"name\":\"validateIR:handleCodeSystem\",\"children\":[],\"ms\":0.46,\"result\":{\"_unclosed\":true}}]}"
+              }
+            ]
+          }
+        },
+        "trace": {
+          "totalMs": 0.48,
+          "sqlCount": 0,
+          "sqlMs": 0,
+          "counters": {},
+          "spans": [
+            {
+              "name": "validateIR:handleCodeSystem",
+              "children": [],
+              "ms": 0.46,
+              "result": {
+                "_unclosed": true
+              }
+            }
+          ]
+        },
+        "traceAvailable": true,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "secondary",
+      "label": "IR Branch + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 2,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 2,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:34715/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://hl7.org/fhir/administrative-gender",
+                  "version": "4.0.1",
+                  "name": "AdministrativeGender",
+                  "title": "AdministrativeGender",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "display": "Male",
+                      "definition": "Male."
+                    },
+                    {
+                      "code": "female",
+                      "display": "Female",
+                      "definition": "Female."
+                    },
+                    {
+                      "code": "other",
+                      "display": "Other",
+                      "definition": "Other."
+                    },
+                    {
+                      "code": "unknown",
+                      "display": "Unknown",
+                      "definition": "Unknown."
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "195",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"c3-VQUSuSf3pvKUJdxc60DjBtgFi3U\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-838"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters)"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    },
+    {
+      "key": "third",
+      "label": "Upstream Providers + Legacy Worker",
+      "hasPlan": false,
+      "perf": {
+        "ms": 3,
+        "err": false,
+        "supported": true
+      },
+      "debug": {
+        "ok": true,
+        "ms": 3,
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:33043/r4/CodeSystem/$validate-code",
+          "headers": {
+            "Accept": "application/fhir+json",
+            "Content-Type": "application/fhir+json"
+          },
+          "body": {
+            "resourceType": "Parameters",
+            "parameter": [
+              {
+                "name": "code",
+                "valueCode": "male"
+              },
+              {
+                "name": "codeSystem",
+                "resource": {
+                  "resourceType": "CodeSystem",
+                  "url": "http://hl7.org/fhir/administrative-gender",
+                  "version": "4.0.1",
+                  "name": "AdministrativeGender",
+                  "title": "AdministrativeGender",
+                  "status": "active",
+                  "content": "complete",
+                  "concept": [
+                    {
+                      "code": "male",
+                      "display": "Male",
+                      "definition": "Male."
+                    },
+                    {
+                      "code": "female",
+                      "display": "Female",
+                      "definition": "Female."
+                    },
+                    {
+                      "code": "other",
+                      "display": "Other",
+                      "definition": "Other."
+                    },
+                    {
+                      "code": "unknown",
+                      "display": "Unknown",
+                      "definition": "Unknown."
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "_engine",
+                "valueString": "legacy"
+              },
+              {
+                "name": "_trace",
+                "valueBoolean": true
+              }
+            ]
+          }
+        },
+        "response": {
+          "ok": false,
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "access-control-allow-headers": "Origin, X-Requested-With, Content-Type, Accept",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-allow-origin": "*",
+            "connection": "keep-alive",
+            "content-length": "195",
+            "content-type": "application/fhir+json; charset=utf-8",
+            "date": "Wed, 11 Mar 2026 22:39:01 GMT",
+            "etag": "W/\"c3-VQUSuSf3pvKUJdxc60DjBtgFi3U\"",
+            "keep-alive": "timeout=5",
+            "x-powered-by": "Express",
+            "x-request-id": "tx-236"
+          },
+          "body": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+              {
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                  "text": "Unable to find code to validate (looked for coding | codeableConcept | code in parameters)"
+                }
+              }
+            ]
+          }
+        },
+        "trace": null,
+        "traceAvailable": false,
+        "irPlanText": null
+      },
+      "supported": true
+    }
+  ]
+}

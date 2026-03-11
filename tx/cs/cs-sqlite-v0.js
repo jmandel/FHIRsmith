@@ -62,7 +62,13 @@ function dedupSources(sources, valueKind) {
 }
 
 function toFtsMatchText(text) {
-  return `"${String(text || '').replace(/"/g, '""')}"`;
+  const tokens = String(text || '').match(/[0-9A-Za-z]+/g) || [];
+  if (tokens.length === 0) {
+    return `"${String(text || '').replace(/"/g, '""')}"`;
+  }
+  return tokens
+    .map(token => `${token.toLowerCase()}*`)
+    .join(' OR ');
 }
 
 function typedLiteralProperty(code, row, propDef) {
@@ -673,6 +679,20 @@ class SqliteV0Provider extends BaseCSServices {
     return row ? row.code : null;
   }
 
+  async parents(context) {
+    if (!this.#closureOk) return [];
+    const ctx = await this.#ctx(context);
+    const hierProp = this.#getHierarchyPropertyId();
+    if (hierProp == null) return [];
+    const rows = this.#prep('parents',
+      `SELECT c2.code FROM concept_link cl
+       JOIN concept c2 ON c2.concept_id = cl.target_concept_id
+       WHERE cl.source_concept_id = @cid AND cl.property_id = @pid AND cl.active = 1
+       ORDER BY c2.code`)
+      .all({ cid: ctx.concept_id, pid: hierProp });
+    return rows.map((row) => row.code);
+  }
+
   #conceptIdBatchParams(prefix, ids) {
     const params = {};
     const placeholders = ids.map((id, index) => {
@@ -770,18 +790,23 @@ class SqliteV0Provider extends BaseCSServices {
 
   async designations(context, displays) {
     const ctx = await this.#ctx(context);
+    const defaultLang = this.#runtime.languages?.default || 'en';
 
-    // Add primary display as a display designation
-    if (ctx.display) {
-      const defaultLang = this.#runtime.languages?.default || 'en';
-      displays.addDesignation(true, 'active', defaultLang, null, ctx.display);
-    }
-
-    // Get designations from DB
+    // Get designations from DB first so we can avoid synthesizing a duplicate
+    // preferredForLanguage designation when the same text already exists.
     const rows = this.#prep('designations',
       `SELECT language_code, use_code, term, active, preferred
        FROM designation WHERE concept_id = @cid`)
       .all({ cid: ctx.concept_id });
+
+    const nativeSupplementRows = this.#nativeSupplementBindings.length > 0
+      ? this.#nativeSupplementDesignationRowsForConceptIds([ctx.concept_id])
+      : [];
+
+    // Add primary display as a display designation
+    if (ctx.display && !this.#hasEquivalentDisplayDesignation(ctx.code, ctx.display, defaultLang, rows, nativeSupplementRows)) {
+      displays.addDesignation(true, 'active', defaultLang, null, ctx.display);
+    }
 
     const useMapping = this.#runtime.designations?.useMapping || {};
 
@@ -796,14 +821,41 @@ class SqliteV0Provider extends BaseCSServices {
     // Supplement designations
     this._listSupplementDesignations(ctx.code, displays);
 
-    if (this.#nativeSupplementBindings.length > 0) {
-      for (const row of this.#nativeSupplementDesignationRowsForConceptIds([ctx.concept_id])) {
-        const use = row.use_system
-          ? { system: row.use_system, code: row.use_code || null }
-          : (row.use_code ? { system: this.system(), code: row.use_code } : null);
-        displays.addDesignation(false, row.active ? 'active' : 'inactive', row.language_code, use, row.term);
+    for (const row of nativeSupplementRows) {
+      const use = row.use_system
+        ? { system: row.use_system, code: row.use_code || null }
+        : (row.use_code ? { system: this.system(), code: row.use_code } : null);
+      displays.addDesignation(false, row.active ? 'active' : 'inactive', row.language_code, use, row.term);
+    }
+  }
+
+  #hasEquivalentDisplayDesignation(code, display, defaultLang, rows, nativeSupplementRows) {
+    const normalizedDisplay = String(display || '').trim();
+    if (!normalizedDisplay) return false;
+
+    const matchesDisplay = (language, term) => {
+      if (String(term || '').trim() !== normalizedDisplay) return false;
+      return !language || language === defaultLang;
+    };
+
+    if ((rows || []).some((row) => matchesDisplay(row.language_code, row.term))) {
+      return true;
+    }
+    if ((nativeSupplementRows || []).some((row) => matchesDisplay(row.language_code, row.term))) {
+      return true;
+    }
+    if (this.supplements) {
+      for (const supplement of this.supplements) {
+        const concept = supplement.getConceptByCode(code);
+        if (!concept?.designation) continue;
+        for (const designation of concept.designation) {
+          if (matchesDisplay(designation.language, designation.value)) {
+            return true;
+          }
+        }
       }
     }
+    return false;
   }
 
   // ── properties ──────────────────────────────────────────────────
@@ -899,49 +951,85 @@ class SqliteV0Provider extends BaseCSServices {
   }
 
   async extendLookup(ctxt, props, params) {
-    if (!this._hasProp(props, 'property', true)) {
+    if (!this._hasProp(props, 'property', true)
+      && !this._hasProp(props, 'parent', true)
+      && !this._hasProp(props, 'child', true)) {
       return;
     }
-    const properties = await this.properties(ctxt);
-    for (const property of properties || []) {
-      const parts = [{ name: 'code', valueCode: property.code }];
+    if (this._hasProp(props, 'property', true)) {
+      const properties = await this.properties(ctxt);
+      for (const property of properties || []) {
+        const parts = [{ name: 'code', valueCode: property.code }];
 
-      if (property.valueCoding) {
-        parts.push({ name: 'value', valueCoding: property.valueCoding });
-      } else if (property.valueCode != null) {
-        parts.push({ name: 'value', valueCode: property.valueCode });
-      } else if (property.valueString != null) {
-        parts.push({ name: 'value', valueString: property.valueString });
-      } else if (property.valueInteger != null) {
-        parts.push({ name: 'value', valueInteger: property.valueInteger });
-      } else if (property.valueDecimal != null) {
-        parts.push({ name: 'value', valueDecimal: property.valueDecimal });
-      } else if (property.valueBoolean != null) {
-        parts.push({ name: 'value', valueBoolean: property.valueBoolean });
-      } else if (property.valueDateTime) {
-        parts.push({ name: 'value', valueDateTime: property.valueDateTime });
-      } else if (property.valueDate) {
-        parts.push({ name: 'value', valueDate: property.valueDate });
-      } else if (property.valueUri) {
-        parts.push({ name: 'value', valueUri: property.valueUri });
-      } else if (property.valueCanonical) {
-        parts.push({ name: 'value', valueCanonical: property.valueCanonical });
-      } else if (property.value && typeof property.value === 'object' && property.value.code) {
-        parts.push({
-          name: 'value',
-          valueCoding: {
-            system: property.value.system || this.system(),
-            code: property.value.code,
-            ...(property.value.display ? { display: property.value.display } : {}),
-          },
-        });
-      } else if (property.value != null) {
-        parts.push({ name: 'value', valueString: String(property.value) });
-      } else {
-        continue;
+        if (property.valueCoding) {
+          parts.push({ name: 'value', valueCoding: property.valueCoding });
+        } else if (property.valueCode != null) {
+          parts.push({ name: 'value', valueCode: property.valueCode });
+        } else if (property.valueString != null) {
+          parts.push({ name: 'value', valueString: property.valueString });
+        } else if (property.valueInteger != null) {
+          parts.push({ name: 'value', valueInteger: property.valueInteger });
+        } else if (property.valueDecimal != null) {
+          parts.push({ name: 'value', valueDecimal: property.valueDecimal });
+        } else if (property.valueBoolean != null) {
+          parts.push({ name: 'value', valueBoolean: property.valueBoolean });
+        } else if (property.valueDateTime) {
+          parts.push({ name: 'value', valueDateTime: property.valueDateTime });
+        } else if (property.valueDate) {
+          parts.push({ name: 'value', valueDate: property.valueDate });
+        } else if (property.valueUri) {
+          parts.push({ name: 'value', valueUri: property.valueUri });
+        } else if (property.valueCanonical) {
+          parts.push({ name: 'value', valueCanonical: property.valueCanonical });
+        } else if (property.value && typeof property.value === 'object' && property.value.code) {
+          parts.push({
+            name: 'value',
+            valueCoding: {
+              system: property.value.system || this.system(),
+              code: property.value.code,
+              ...(property.value.display ? { display: property.value.display } : {}),
+            },
+          });
+        } else if (property.value != null) {
+          parts.push({ name: 'value', valueString: String(property.value) });
+        } else {
+          continue;
+        }
+
+        params.push({ name: 'property', part: parts });
       }
+    }
 
-      params.push({ name: 'property', part: parts });
+    if (this._hasProp(props, 'parent', true)) {
+      const parentCodes = await this.parents(ctxt);
+      for (const parentCode of parentCodes) {
+        params.push({
+          name: 'property',
+          part: [
+            { name: 'code', valueCode: 'parent' },
+            { name: 'value', valueCode: parentCode },
+            { name: 'description', valueString: await this.display(parentCode) },
+          ],
+        });
+      }
+    }
+
+    if (this._hasProp(props, 'child', true)) {
+      const iter = await this.iterator(ctxt);
+      while (iter) {
+        const child = await this.nextContext(iter);
+        if (!child) break;
+        const childCode = await this.code(child);
+        if (!childCode) continue;
+        params.push({
+          name: 'property',
+          part: [
+            { name: 'code', valueCode: 'child' },
+            { name: 'value', valueCode: childCode },
+            { name: 'description', valueString: await this.display(child) },
+          ],
+        });
+      }
     }
   }
 

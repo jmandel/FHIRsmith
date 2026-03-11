@@ -137,7 +137,7 @@ class SearchWorker extends TerminologyWorker {
     const searchParams = {};
     for (const [key, value] of Object.entries(params)) {
       if (!key.startsWith('_') && value && SearchWorker.ALLOWED_PARAMS.includes(key)) {
-        searchParams[key] = value.toLowerCase();
+        searchParams[key] = key == 'url' ? value : value.toLowerCase();
       }
     }
 
@@ -179,7 +179,7 @@ class SearchWorker extends TerminologyWorker {
             }
           } else if (param === 'url') { // exact match
             const propValue = json.url;
-            if (propValue != searchValue) {
+            if (propValue !== searchValue) {
               isMatch = false;
               break;
             }

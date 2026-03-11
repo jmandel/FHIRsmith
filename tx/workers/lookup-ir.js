@@ -1,8 +1,16 @@
 'use strict';
 
 const LookupWorker = require('./lookup');
+const { Parameters } = require('../library/parameters');
+const { TxParameters } = require('../params');
+const { Issue, OperationOutcome } = require('../library/operation-outcome');
 const { trace } = require('../engine/expand-trace');
 const { withResponseTrace } = require('./ir-worker-trace');
+const {
+  createCodeSystemProviderWithSupplementRuntime,
+  findCodeSystemWithSupplementRuntime,
+  setupIRAdditionalResources,
+} = require('./ir-runtime-support');
 
 function shouldIncludeAllProperties(props = []) {
   return !Array.isArray(props) || props.length === 0
@@ -116,6 +124,196 @@ class LookupIRWorker extends LookupWorker {
     return await this.withTrace(req, res, 'lookupIR:handleInstance', async () => (
       await super.handleInstance(req, res)
     ));
+  }
+
+  async handleTypeLevelLookup(req, res) {
+    try {
+      this.deadCheck('lookup-type-level:ir');
+
+      if (req.body && req.body.resourceType === 'Parameters') {
+        setupIRAdditionalResources(this, req.body);
+      }
+
+      const params = new Parameters(this.buildParameters(req));
+      const txp = new TxParameters(this.opContext.i18n.languageDefinitions, this.opContext.i18n);
+      txp.readParams(params.jsonObj);
+
+      let csProvider;
+      let code;
+      const inlineCodeSystem = this.getResourceParam(params.jsonObj, 'codeSystem');
+
+      if (inlineCodeSystem) {
+        csProvider = await createCodeSystemProviderWithSupplementRuntime(
+          this,
+          inlineCodeSystem,
+          txp.supplements
+        );
+        if (params.has('coding')) {
+          const coding = params.get('coding');
+          if (!coding.system) {
+            return res.status(400).json(this.operationOutcome('error', 'invalid',
+              'Coding parameter must include a system'));
+          }
+          if (!coding.code) {
+            return res.status(400).json(this.operationOutcome('error', 'invalid',
+              'Coding parameter must include a code'));
+          }
+          code = coding.code;
+        } else if (params.has('code')) {
+          code = params.get('code');
+        } else {
+          return res.status(400).json(this.operationOutcome('error', 'invalid',
+            'Must provide code parameter or coding parameter with code'));
+        }
+      } else if (params.has('coding')) {
+        const coding = params.get('coding');
+        if (!coding.system) {
+          return res.status(400).json(this.operationOutcome('error', 'invalid',
+            'Coding parameter must include a system'));
+        }
+        if (!coding.code) {
+          return res.status(400).json(this.operationOutcome('error', 'invalid',
+            'Coding parameter must include a code'));
+        }
+        csProvider = await findCodeSystemWithSupplementRuntime(
+          this,
+          coding.system,
+          coding.version || '',
+          txp,
+          ['complete', 'fragment'],
+          null,
+          true,
+          false,
+          false,
+          txp.supplements
+        );
+        this.seeSourceProvider(csProvider, coding.system);
+        code = coding.code;
+      } else if (params.has('system') && params.has('code')) {
+        csProvider = await findCodeSystemWithSupplementRuntime(
+          this,
+          params.get('system'),
+          params.get('version') || '',
+          txp,
+          ['complete', 'fragment'],
+          null,
+          true,
+          false,
+          false,
+          txp.supplements
+        );
+        this.seeSourceProvider(csProvider, params.get('system'));
+        code = params.get('code');
+      } else {
+        return res.status(400).json(this.operationOutcome('error', 'invalid',
+          'Must provide either coding parameter, or system and code parameters'));
+      }
+
+      if (!csProvider) {
+        const coding = params.has('coding') ? params.get('coding') : null;
+        const systemUrl = params.has('system') ? params.get('system') : coding?.system;
+        const versionStr = params.has('version') ? params.get('version') : (coding?.version || '');
+        if (!versionStr) {
+          throw new Issue(
+            'error',
+            'not-found',
+            null,
+            'UNKNOWN_CODESYSTEM_EXP',
+            this.i18n.translate('UNKNOWN_CODESYSTEM_EXP', txp.FHTTPLanguages, [systemUrl]),
+            'not-found',
+            422
+          );
+        }
+        const versions = await this.listVersions(systemUrl);
+        if (versions.length === 0) {
+          throw new Issue(
+            'error',
+            'not-found',
+            null,
+            'UNKNOWN_CODESYSTEM_VERSION_EXP_NONE',
+            this.i18n.translate('UNKNOWN_CODESYSTEM_VERSION_EXP_NONE', txp.FHTTPLanguages, [systemUrl, versionStr]),
+            'not-found',
+            422
+          );
+        }
+        throw new Issue(
+          'error',
+          'not-found',
+          null,
+          'UNKNOWN_CODESYSTEM_VERSION_EXP',
+          this.i18n.translate('UNKNOWN_CODESYSTEM_VERSION_EXP', txp.FHTTPLanguages, [systemUrl, versionStr, this.presentVersionList(versions)]),
+          'not-found',
+          422
+        );
+      }
+
+      const result = await this.doLookup(csProvider, code, txp);
+      return res.status(200).json(result);
+    } catch (error) {
+      this.log.error(error);
+      this.debugLog(error);
+      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
+      if (error instanceof Issue) {
+        const oo = new OperationOutcome();
+        oo.addIssue(error);
+        return res.status(error.statusCode || 500).json(oo.jsonObj);
+      }
+      return res.status(error.statusCode || 500).json(this.operationOutcome(
+        'error', error.issueCode || 'exception', error.message));
+    }
+  }
+
+  async handleInstanceLevelLookup(req, res) {
+    try {
+      this.deadCheck('lookup-instance-level:ir');
+
+      const { id } = req.params;
+      let codeSystem = this.provider.getCodeSystemById(this.opContext, id);
+      this.seeSourceProvider(codeSystem, id);
+
+      if (!codeSystem) {
+        return res.status(404).json(this.operationOutcome('error', 'not-found',
+          `CodeSystem/${id} not found`));
+      }
+
+      if (req.body && req.body.resourceType === 'Parameters') {
+        setupIRAdditionalResources(this, req.body);
+      }
+
+      const params = new Parameters(this.buildParameters(req));
+      const txp = new TxParameters(this.opContext.i18n.languageDefinitions, this.opContext.i18n);
+      txp.readParams(params.jsonObj);
+
+      let code;
+      if (params.has('coding')) {
+        code = params.get('coding').code;
+      } else if (params.has('code')) {
+        code = params.get('code');
+      } else {
+        return res.status(400).json(this.operationOutcome('error', 'invalid',
+          'Must provide code parameter or coding parameter with code'));
+      }
+
+      const csProvider = await createCodeSystemProviderWithSupplementRuntime(
+        this,
+        codeSystem,
+        txp.supplements
+      );
+
+      const result = await this.doLookup(csProvider, code, txp);
+      return res.status(200).json(result);
+    } catch (error) {
+      this.log.error(error);
+      this.debugLog(error);
+      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
+      if (error instanceof Issue) {
+        const oo = new OperationOutcome();
+        oo.addIssue(error);
+        return res.status(error.statusCode || 500).json(oo.jsonObj);
+      }
+      return res.status(error.statusCode || 500).json(this.operationOutcome(
+        'error', error.issueCode || 'exception', error.message));
+    }
   }
 
   async doLookup(csProvider, code, params) {

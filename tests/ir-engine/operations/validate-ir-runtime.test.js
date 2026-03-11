@@ -253,6 +253,44 @@ describe('ValueSet $validate-code through ValidateIRWorker', () => {
       const irPlanText = paramValueString(res.body, 'irPlan');
       expect(irPlanText).toContain('optimized-ir');
     }, 60000);
+
+    test('preserves the original codeableConcept on mixed-validity failure while normalizing top-level display', async () => {
+      const original = {
+        coding: [
+          { system: 'http://hl7.org/fhir/administrative-gender', code: 'bad' },
+          { system: 'http://hl7.org/fhir/administrative-gender', code: 'male' },
+        ],
+      };
+
+      const res = await request(fixture.app)
+        .post('/tx/r5/ValueSet/$validate-code')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send(params([
+          { name: '_engine', valueCode: 'ir' },
+          { name: 'codeableConcept', valueCodeableConcept: original },
+          {
+            name: 'valueSet',
+            resource: {
+              resourceType: 'ValueSet',
+              status: 'active',
+              compose: {
+                include: [
+                  {
+                    system: 'http://hl7.org/fhir/administrative-gender',
+                  },
+                ],
+              },
+            },
+          },
+        ]));
+
+      expect(res.status).toBe(200);
+      expect(resultValue(res.body)).toBe(false);
+      expect(displayValue(res.body)).toBe('Male');
+      const returnedCC = (res.body.parameter || []).find((param) => param.name === 'codeableConcept')?.valueCodeableConcept;
+      expect(returnedCC).toEqual(original);
+    }, 60000);
   });
 
   describe('configured sqlite supplement sidecars on sqlite-v0 providers', () => {
@@ -404,6 +442,8 @@ describe('ValueSet $validate-code through ValidateIRWorker', () => {
     }, 60000);
   });
 
+});
+
 describe('CodeSystem instance $validate-code through ValidateIRWorker', () => {
   let fixture;
 
@@ -461,6 +501,301 @@ describe('CodeSystem instance $validate-code through ValidateIRWorker', () => {
     expect(res.status).toBe(200);
     expect(resultValue(res.body)).toBe(true);
     expect((res.body.parameter || []).find((param) => param.name === 'display')?.valueString).toBe('Female');
+  }, 60000);
+});
+
+describe('Type-level CodeSystem $validate-code through ValidateIRWorker', () => {
+  let fixture;
+
+  beforeAll(async () => {
+    fixture = await createManagedTxFixture({
+      prefix: 'validate-ir-cs-type-',
+      setup: async ({ dir }) => {
+        const configPath = path.join(dir, 'library.yaml');
+        fs.writeFileSync(configPath, yaml.stringify({
+          base: { url: 'https://storage.googleapis.com/tx-fhir-org' },
+          sources: [],
+        }), 'utf8');
+        return { configPath };
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await destroyManagedTxFixture(fixture);
+  });
+
+  test('validates against an inline CodeSystem resource even when the server knows another version', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        {
+          name: 'coding',
+          valueCoding: {
+            system: 'http://hl7.org/fhir/administrative-gender',
+            code: 'female',
+          },
+        },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://hl7.org/fhir/administrative-gender',
+            version: '5.0.0',
+            status: 'active',
+            content: 'complete',
+            concept: [
+              { code: 'male', display: 'Male' },
+              { code: 'female', display: 'Female' },
+              { code: 'unknown', display: 'Unknown' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(true);
+    expect(displayValue(res.body)).toBe('Female');
+  }, 60000);
+
+  test('validates against an inline custom CodeSystem resource supplied in the request', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        {
+          name: 'coding',
+          valueCoding: {
+            system: 'http://example.org/cs-inline-validate',
+            code: 'A',
+          },
+        },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-inline-validate',
+            version: '1.0.0',
+            content: 'complete',
+            concept: [
+              { code: 'A', display: 'Alpha' },
+              { code: 'B', display: 'Beta' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(true);
+    expect(displayValue(res.body)).toBe('Alpha');
+  }, 60000);
+
+  test('accepts codeableConcept with system against an inline CodeSystem resource', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        {
+          name: 'codeableConcept',
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://example.org/cs-inline-validate-cc',
+                code: 'A',
+                display: 'Alpha',
+              },
+            ],
+          },
+        },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-inline-validate-cc',
+            version: '1.0.0',
+            content: 'complete',
+            concept: [
+              { code: 'A', display: 'Alpha' },
+              { code: 'B', display: 'Beta' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(true);
+    expect(displayValue(res.body)).toBe('Alpha');
+  }, 60000);
+
+  test('rejects codeableConcept without system against an inline CodeSystem resource', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        {
+          name: 'codeableConcept',
+          valueCodeableConcept: {
+            coding: [
+              { code: 'A', display: 'Alpha' },
+            ],
+          },
+        },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-inline-validate-cc',
+            version: '1.0.0',
+            content: 'complete',
+            concept: [
+              { code: 'A', display: 'Alpha' },
+              { code: 'B', display: 'Beta' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(false);
+    expect(String(paramValueString(res.body, 'message') || '')).toContain('Coding has no system');
+  }, 60000);
+
+  test('accepts code-only validation against an inline CodeSystem resource with inline supplement-selected display', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        { name: 'code', valueCode: 'A' },
+        { name: 'displayLanguage', valueCode: 'de' },
+        { name: 'useSupplement', valueString: 'http://example.org/cs-inline-validate-supp-de' },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-inline-validate-supp-base',
+            version: '1.0.0',
+            status: 'active',
+            content: 'complete',
+            concept: [
+              { code: 'A', display: 'Alpha Base' },
+              { code: 'B', display: 'Beta Base' },
+            ],
+          },
+        },
+        {
+          name: 'tx-resource',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-inline-validate-supp-de',
+            version: '1.0.0',
+            status: 'active',
+            content: 'supplement',
+            supplements: 'http://example.org/cs-inline-validate-supp-base',
+            concept: [
+              {
+                code: 'A',
+                designation: [
+                  {
+                    language: 'de',
+                    use: {
+                      system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra',
+                      code: 'preferredForLanguage',
+                    },
+                    value: 'Alpha Deutsch',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(true);
+    expect(displayValue(res.body)).toBe('Alpha Deutsch');
+  }, 60000);
+
+  test('rejects an abstract inline CodeSystem concept when abstract=false', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        {
+          name: 'coding',
+          valueCoding: {
+            system: 'http://example.org/cs-abstract',
+            code: 'A',
+          },
+        },
+        { name: 'abstract', valueBoolean: false },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-abstract',
+            version: '1.0.0',
+            status: 'active',
+            content: 'complete',
+            concept: [
+              { code: 'A', display: 'Alpha', property: [{ code: 'abstract', valueBoolean: true }] },
+              { code: 'B', display: 'Beta' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(false);
+    expect(String(paramValueString(res.body, 'message') || '').toLowerCase()).toContain('abstract');
+  }, 60000);
+
+  test('accepts an abstract inline CodeSystem concept when abstract=true', async () => {
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        {
+          name: 'coding',
+          valueCoding: {
+            system: 'http://example.org/cs-abstract',
+            code: 'A',
+          },
+        },
+        { name: 'abstract', valueBoolean: true },
+        {
+          name: 'codeSystem',
+          resource: {
+            resourceType: 'CodeSystem',
+            url: 'http://example.org/cs-abstract',
+            version: '1.0.0',
+            status: 'active',
+            content: 'complete',
+            concept: [
+              { code: 'A', display: 'Alpha', property: [{ code: 'abstract', valueBoolean: true }] },
+              { code: 'B', display: 'Beta' },
+            ],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(true);
+    expect(displayValue(res.body)).toBe('Alpha');
   }, 60000);
 });
 
@@ -718,6 +1053,65 @@ describe('supplement runtime failures remain explicit in ValidateIRWorker', () =
     expect(res.body.resourceType).toBe('OperationOutcome');
     expect(res.body.issue?.[0]?.details?.text || '').toContain('Ambiguous supplement');
   }, 60000);
-});
 
+  test('returns 422 for ambiguous inline supplement selection on CodeSystem validate', async () => {
+    const supplementBase = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/fhir/CodeSystem/admin-gender-de',
+      status: 'active',
+      content: 'supplement',
+      supplements: 'http://hl7.org/fhir/administrative-gender',
+    };
+
+    const res = await request(fixture.app)
+      .post('/tx/r5/CodeSystem/$validate-code')
+      .set('Accept', 'application/json')
+      .set('Content-Type', 'application/json')
+      .send(params([
+        { name: '_engine', valueCode: 'ir' },
+        { name: 'url', valueUri: 'http://hl7.org/fhir/administrative-gender' },
+        { name: 'code', valueCode: 'male' },
+        { name: 'useSupplement', valueString: supplementBase.url },
+        {
+          name: 'tx-resource',
+          resource: {
+            ...supplementBase,
+            version: '1.0.0',
+            concept: [{
+              code: 'male',
+              designation: [{
+                language: 'de',
+                use: {
+                  system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra',
+                  code: 'preferredForLanguage',
+                },
+                value: 'Männlich',
+              }],
+            }],
+          },
+        },
+        {
+          name: 'tx-resource',
+          resource: {
+            ...supplementBase,
+            version: '2.0.0',
+            concept: [{
+              code: 'male',
+              designation: [{
+                language: 'de',
+                use: {
+                  system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra',
+                  code: 'preferredForLanguage',
+                },
+                value: 'Männlich V2',
+              }],
+            }],
+          },
+        },
+      ]));
+
+    expect(res.status).toBe(422);
+    expect(res.body.resourceType).toBe('OperationOutcome');
+    expect(JSON.stringify(res.body)).toContain('VALUESET_SUPPLEMENT_AMBIGUOUS');
+  }, 60000);
 });
