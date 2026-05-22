@@ -708,6 +708,18 @@ class FhirCodeSystemProvider extends BaseCSServices {
   }
 
   /**
+   * @param {string|FhirCodeSystemProviderContext} context - Code or context
+   * @returns {Promise<string[]>} Direct parents, if any
+   */
+  async parents(context) {
+    const ctxt = await this.#ensureContext(context);
+    if (!ctxt) {
+      return [];
+    }
+    return [...this.codeSystem.getParents(ctxt.code)];
+  }
+
+  /**
    * @param {string|FhirCodeSystemProviderContext} a - First code or context
    * @param {string|FhirCodeSystemProviderContext} b - Second code or context
    * @returns {Promise<boolean>} True if they're the same
@@ -935,8 +947,8 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     // Add parent if requested and exists
     if (this._hasProp(props, 'parent', true)) {
-      const parentCode = await this.parent(ctxt);
-      if (parentCode) {
+      const parentCodes = await this.parents(ctxt);
+      for (const parentCode of parentCodes) {
         let parts = [];
         parts.push({ name: 'code', valueCode: 'parent' });
         parts.push({ name: 'value', valueCode: parentCode });

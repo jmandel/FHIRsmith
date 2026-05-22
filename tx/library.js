@@ -21,6 +21,8 @@ const {UniiServicesFactory} = require("./cs/cs-unii");
 const {SnomedServicesFactory} = require("./cs/cs-snomed");
 const {CPTServicesFactory} = require("./cs/cs-cpt");
 const {OMOPServicesFactory} = require("./cs/cs-omop");
+const {SqliteV0FactoryProvider} = require("./cs/cs-sqlite-v0");
+require("./cs/cs-sqlite-v0-specializations");
 const {PackageValueSetProvider} = require("./vs/vs-package");
 const {PackageConceptMapProvider} = require("./cm/cm-package");
 const {IETFLanguageCodeFactory} = require("./cs/cs-lang");
@@ -36,6 +38,29 @@ const { OCLValueSetProvider } = require('./ocl/vs-ocl');
 const { OCLConceptMapProvider } = require('./ocl/cm-ocl');
 const {UriServicesFactory} = require("./cs/cs-uri");
 const {debugLog} = require("./operation-context");
+
+function resolveEnvTemplates(value, context = 'config') {
+  if (typeof value === 'string') {
+    return value.replace(/\$\{([A-Z0-9_]+)\}/g, (match, name) => {
+      const resolved = process.env[name];
+      if (resolved == null || resolved === '') {
+        throw new Error(`Missing environment variable '${name}' required by library config at ${context}`);
+      }
+      return resolved;
+    });
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, i) => resolveEnvTemplates(item, `${context}[${i}]`));
+  }
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, item] of Object.entries(value)) {
+      out[key] = resolveEnvTemplates(item, `${context}.${key}`);
+    }
+    return out;
+  }
+  return value;
+}
 
 /**
  * This class holds all the loaded content ready for processing
@@ -161,7 +186,7 @@ class Library {
     // Read and parse YAML configuration
     const yamlPath = this.configFile ? this.configFile :  path.join(__dirname, '..', 'tx', 'tx.fhir.org.yml');
     const yamlContent = await fs.readFile(yamlPath, 'utf8');
-    const config = yaml.parse(yamlContent);
+    const config = resolveEnvTemplates(yaml.parse(yamlContent));
     this.baseUrl = config.base.url;
     this.oclConfig = config.ocl && typeof config.ocl === 'object' ? config.ocl : {};
     this.ignored = new Set(Array.isArray(config.ignored) ? config.ignored : []);
@@ -221,14 +246,27 @@ class Library {
   }
 
   async processSource(source, packageManager, mode) {
-    // Parse the source string
-    const colonIndex = source.indexOf(':');
-    if (colonIndex === -1) {
-      throw new Error(`Invalid source format: ${source}`);
+    let sourceSpec = source;
+    let sourceOptions = {};
+    if (source && typeof source === 'object' && !Array.isArray(source)) {
+      sourceOptions = source.options || {};
+      if (typeof source.source === 'string') {
+        sourceSpec = source.source;
+      } else if (typeof source.type === 'string') {
+        sourceSpec = `${source.type}:${source.details || source.path || ''}`;
+      } else {
+        throw new Error(`Invalid source object: ${JSON.stringify(source)}`);
+      }
     }
 
-    let type = source.substring(0, colonIndex);
-    const details = source.substring(colonIndex + 1);
+    // Parse the source string
+    const colonIndex = String(sourceSpec).indexOf(':');
+    if (colonIndex === -1) {
+      throw new Error(`Invalid source format: ${sourceSpec}`);
+    }
+
+    let type = String(sourceSpec).substring(0, colonIndex);
+    const details = String(sourceSpec).substring(colonIndex + 1);
 
     // Handle special markers (like ! for default)
     let isDefault = false;
@@ -293,6 +331,10 @@ class Library {
 
       case 'ocl':
         await this.loadOcl(details, isDefault, mode);
+        break;
+
+      case 'sqlite-v0':
+        await this.loadSqliteV0(details, isDefault, mode, sourceOptions);
         break;
 
       default:
@@ -575,6 +617,17 @@ class Library {
     const omop = new OMOPServicesFactory(this.i18n, omopFN);
     await omop.load();
     this.registerProvider(omopFN, omop, isDefault);
+  }
+
+  async loadSqliteV0(details, isDefault, mode, options = {}) {
+    const dbPath = path.isAbsolute(details)
+      ? details
+      : await this.getOrDownloadFile(details);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+    const factory = await SqliteV0FactoryProvider.createFromMetadata(this.i18n, dbPath, options);
+    this.registerProvider(dbPath, factory, isDefault);
   }
 
   /**

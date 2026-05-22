@@ -81,6 +81,11 @@ class CodeSystemProvider {
    */
   version() { throw new Error("Must override"); }
 
+  /**
+   * @returns {string|null} normalized release date for this version, if known
+   */
+  releaseDate() { return null; }
+
   vurl() {
     if (this.version()) {
       return this.system()+ "|"+ this.version();
@@ -361,6 +366,16 @@ class CodeSystemProvider {
    * @returns {string} parent, if there is one
    */
   async parent(code) { return null; }
+
+  /**
+   *
+   * @param {string | CodeSystemProviderContext} code
+   * @returns {string[]} direct parents, if any
+   */
+  async parents(code) {
+    const parentCode = await this.parent(code);
+    return parentCode ? [parentCode] : [];
+  }
 
   /**
    * This is calleed if the designation is not marked with a usual use code indicating that it is considered as a display
@@ -874,6 +889,17 @@ class CodeSystemFactoryProvider {
   async listSupplements(supplements, url, version, statedSupplements) {
     // do nothing
   }
+
+  /**
+   * Native sqlite supplement sources that can be bound without materializing a
+   * CodeSystem resource.
+   *
+   * @returns {Array}
+   */
+  async registerSqliteSupplements() {
+    return [];
+  }
+
   /**
    * see comments for registerSupplements()
    *
