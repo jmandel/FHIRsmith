@@ -105,7 +105,7 @@ describe('SqliteV0FactoryProvider', () => {
     const provider = await factory.build(makeOpContext(), null);
     try {
       expect(await provider.totalCount()).toBe(3);
-      expect(provider.hasExecuteIR()).toBe(false);
+      expect(provider.hasExecuteIR()).toBe(true);
 
       const loc = await provider.locate('B');
       expect(loc.context).toBeTruthy();
