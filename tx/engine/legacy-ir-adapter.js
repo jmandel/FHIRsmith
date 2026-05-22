@@ -198,7 +198,11 @@ async function executeSelector(provider, sel, opts, runtime = {}) {
     } else {
       const prep = await provider.getPrepContext(true);
       for (const clause of providerClauses) {
-        await provider.filter(prep, clause.property, clause.op, clause.value);
+        if (provider.filter.length >= 5) {
+          await provider.filter(prep, true, clause.property, clause.op, clause.value);
+        } else {
+          await provider.filter(prep, clause.property, clause.op, clause.value);
+        }
       }
       const sets = await provider.executeFilters(prep);
       if (!sets || sets.length === 0) return [];

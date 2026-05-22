@@ -54,6 +54,12 @@ function maybeIssueFromIRError(error) {
       `The filter ${genericFilterMatch[1]} was not understood by the IR engine`,
       null, 422);
   }
+  const issueFilterMatch = /^The filter "(.+)" is not understood or supported$/.exec(message);
+  if (issueFilterMatch) {
+    return new Issue('error', 'not-supported', null, null,
+      `The filter ${issueFilterMatch[1]} was not understood by the IR engine`,
+      null, 422);
+  }
   return null;
 }
 
@@ -280,9 +286,9 @@ async function maybeExpandValueSetViaIR(opts = {}) {
       throw new Issue('error', 'too-costly', null, null, e.message, null, 422)
         .withDiagnostics(diagnostics?.());
     }
-    if (e instanceof Issue) throw e;
     const normalizedIRError = maybeIssueFromIRError(e);
     if (strictIR && normalizedIRError) throw normalizedIRError;
+    if (e instanceof Issue) throw e;
     if (strictIR) throw e;
     log?.(`IR engine failed, falling back to legacy: ${e.message}`);
     return {

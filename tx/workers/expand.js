@@ -20,12 +20,20 @@ const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
 const {debugLog} = require("../operation-context");
 
+// Trace infrastructure is only needed when _trace is requested.
+let _expandTrace;
+function getExpandTrace() {
+  if (!_expandTrace) _expandTrace = require('../engine/expand-trace');
+  return _expandTrace;
+}
+
 // Expansion limits (from Pascal constants)
 const EXTERNAL_DEFAULT_LIMIT = 1000;
 const EXTERNAL_TEST_DEFAULT_LIMIT = 3000;
 const INTERNAL_DEFAULT_LIMIT = 10000;
 const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
+const TRACE_EXTENSION_URL = 'https://github.com/HealthIntersections/FHIRsmith/StructureDefinition/expand-trace';
 
 /**
  * Total status for expansion
@@ -300,7 +308,7 @@ class ValueSetExpander {
     }
   }
 
-  includeCode(cs, parent, system, version, code, isAbstract, isInactive, deprecated, status, displays, definition, itemWeight, expansion, imports, csExtList, vsExtList, csProps, expProps, excludeInactive, srcURL) {
+  includeCode(cs, parent, system, version, code, isAbstract, isInactive, deprecated, status, displays, definition, itemWeight, expansion, imports, csExtList, vsExtList, csProps, expProps, excludeInactive, srcURL, explicitDisplay = null) {
     let result = null;
     this.worker.deadCheck('processCode');
 
@@ -422,9 +430,14 @@ class ValueSetExpander {
         }
 
         // display and designations
-        const pref = displays.preferredDesignation(this.params.workingLanguages(), this.reportedSupplements);
-        if (pref && pref.value) {
-          n.display = pref.value;
+        let pref = null;
+        if (explicitDisplay != null) {
+          n.display = explicitDisplay;
+        } else {
+          pref = displays.preferredDesignation(this.params.workingLanguages(), this.reportedSupplements);
+          if (pref && pref.value) {
+            n.display = pref.value;
+          }
         }
 
         if (this.params.includeDesignations) {
@@ -576,6 +589,7 @@ class ValueSetExpander {
     let count = 0;
     this.worker.deadCheck('importValueSetItem');
     const s = this.keyC(c);
+    let nextParent = p;
     if (this.passesImports(imports, c.system, c.code, offset) && !this.map.has(s) && !this.isExcluded(c.system, c.version, c.code)) {
       count++;
       this.fullList.push(c);
@@ -586,10 +600,13 @@ class ValueSetExpander {
         this.rootList.push(c);
       }
       this.map.set(s, c);
+      nextParent = c;
+    } else if (this.map.has(s)) {
+      this.canBeHierarchy = false;
     }
     for (const cc of c.contains || []) {
       this.worker.deadCheck('importValueSetItem');
-      count += await this.importValueSetItem(c, cc, imports, offset);
+      count += await this.importValueSetItem(nextParent, cc, imports, offset);
     }
     return count;
   }
@@ -800,7 +817,7 @@ class ValueSetExpander {
                 } else {
                   await this.listDisplaysFromProvider(cds, cs, c);
                   added = await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.isDeprecated(c), await cs.getStatus(c),
-                      cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+                      cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url, await cs.display(c));
                 }
                 if (added) {
                   this.addToTotal();
@@ -834,7 +851,7 @@ class ValueSetExpander {
                     ov = await cs.itemWeight(cctxt.context);
                   }
                   added = await this.includeCode(cs, null, cs.system(), cs.version(), cc.code, await cs.isAbstract(cctxt.context), await cs.isInactive(cctxt.context), await cs.isDeprecated(cctxt.context), await cs.getStatus(cctxt.context), cds,
-                      await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await cs.properties(cctxt.context), null, excludeInactive, vsSrc.url);
+                      await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await cs.properties(cctxt.context), null, excludeInactive, vsSrc.url, cc.display || await cs.display(cctxt.context));
                 }
                 if (added) {
                   this.addToTotal();
@@ -904,7 +921,7 @@ class ValueSetExpander {
                   }
                   added = await this.includeCode(cs, parent, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
                       await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
-                      expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+                      expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url, await cs.display(c));
                 }
                 if (added) {
                   this.addToTotal();
@@ -974,7 +991,7 @@ class ValueSetExpander {
         const ivs = new ImportedValueSet(await this.expandValueSet(s, '', vs, filter, notClosed));
         this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
         if (!vs.isContained) {
-          this.addParamUri(expansion, 'used-valueset', this.worker.makeVurl(ivs.valueSet));
+          this.addParamUri(expansion, 'used-valueset', s);
         }
         valueSets.push(ivs);
       }
@@ -1107,7 +1124,7 @@ class ValueSetExpander {
       } else {
         await this.listDisplaysFromProvider(cds, cs, context);
         t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
-            await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl);
+            await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl, await cs.display(context));
       }
       if (t != null) {
         result++;
@@ -1346,7 +1363,7 @@ class ValueSetExpander {
           if (this.totalStatus === 'uninitialised') {
             this.totalStatus = 'off';
           } else if (e.toocostly) {
-            Extensions.addBoolean(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly', 'value', true);
+            Extensions.addBoolean(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly', true);
             if (table != null) {
               div_.p().style('color: Maroon').tx(e.message);
             }
@@ -2048,7 +2065,9 @@ class ExpandWorker extends TerminologyWorker {
     const expansionCache = this.opContext.expansionCache;
     // Compute cache key (only if caching is available and not debugging)
     let cacheKey = null;
-    if (expansionCache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
+    const wantTrace = !!params._trace;
+    const skipCache = !!params._nocache || wantTrace;
+    if (!skipCache && expansionCache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
       cacheKey = expansionCache.computeKey(valueSet, params, this.additionalResources);
 
       // Check for cached expansion
@@ -2061,11 +2080,52 @@ class ExpandWorker extends TerminologyWorker {
 
     // Perform the actual expansion
     const startTime = performance.now();
-    const result = await this.performExpansion(valueSet, params, logExtraOutput);
+    let result;
+    if (wantTrace) {
+      const { ExpandTrace, traceStore, formatTraceSummary } = getExpandTrace();
+      const traceObj = new ExpandTrace();
+      traceObj.note('engine-selection', {
+        requested: params._engine || null,
+        selected: 'legacy',
+        irAttempted: false,
+      });
+      const span = traceObj.begin('legacy-expand', {
+        count: params.count,
+        offset: params.offset,
+        activeOnly: !!params.activeOnly,
+        hasTextFilter: !!params.filter,
+      });
+      let error = null;
+      try {
+        result = await traceStore.run(traceObj, async () => await this.performExpansion(valueSet, params, logExtraOutput));
+      } catch (e) {
+        error = e;
+        throw e;
+      } finally {
+        const duration = performance.now() - startTime;
+        span.end({
+          ms: Math.round(duration * 100) / 100,
+          total: result?.expansion?.total,
+          returned: result?.expansion?.contains?.length || 0,
+          error: error ? (error.message || String(error)) : undefined,
+        });
+        if (result?.expansion) {
+          const traceJson = traceObj.toJSON();
+          result.expansion.extension = result.expansion.extension || [];
+          result.expansion.extension.push({
+            url: TRACE_EXTENSION_URL,
+            valueString: JSON.stringify(traceJson),
+          });
+          this.opContext?.log?.(`[legacy trace] ${formatTraceSummary(traceJson)}`);
+        }
+      }
+    } else {
+      result = await this.performExpansion(valueSet, params, logExtraOutput);
+    }
     const durationMs = performance.now() - startTime;
 
     // Cache if it took long enough (and not debugging)
-    if (cacheKey && expansionCache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
+    if (!skipCache && cacheKey && expansionCache && (CACHE_WHEN_DEBUGGING || !this.opContext.debugging)) {
       const wasCached = expansionCache.set(cacheKey, result, durationMs);
       if (wasCached) {
         this.log.debug(`Cached expansion (took ${Math.round(durationMs)}ms)`);

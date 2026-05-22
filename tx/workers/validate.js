@@ -335,11 +335,6 @@ class ValueSetChecker {
         }
       }
     }
-
-    const unused = new Set([...this.worker.requiredSupplements].filter(s => !this.worker.usedSupplements.has(s)));
-    if (unused.size > 0) {
-     throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.worker.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', this.params.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(422);
-    }
   }
 
   async prepareConceptSet(desc, cc, vs) {
@@ -672,11 +667,6 @@ class ValueSetChecker {
         }
       }
 
-      const unused = new Set([...this.worker.requiredSupplements].filter(s => !this.worker.usedSupplements.has(s)));
-      if (unused.size > 0) {
-        throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.worker.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', this.params.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(422);
-      }
-
       if (Extensions.checkNoModifiers(this.valueSet.jsonObj.compose, 'ValueSetChecker.prepare', 'ValueSet.compose', this.valueSet.vurl)) {
         result = false;
         let determinedVersion = undefined;
@@ -787,7 +777,7 @@ class ValueSetChecker {
               this.worker.checkSupplements(cs, cc, this.worker.requiredSupplements, this.worker.usedSupplements);
               contentMode.value = cs.contentMode();
               let msg = '';
-              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc);
+              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc, messages);
               if (msg) {
                 messages.push(msg);
               }
@@ -1724,7 +1714,9 @@ class ValueSetChecker {
         }
       } else if (loc != null) {
         this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs)+ ": "+loc, this.indentCount);
-        messages.push(loc);
+        if (role !== 'not in') {
+          messages.push(loc);
+        }
       } else {
         this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs), this.indentCount);
       }
@@ -2262,9 +2254,10 @@ class ValidateWorker extends TerminologyWorker {
     }
 
     // Check for url parameter
-    const url = this.getStringParam(params, 'url');
-    if (url) {
-      const version = this.determineVersionBase(url, this.getStringParam(params, 'valueSetVersion'), txParams);
+    const canonical = this.getStringParam(params, 'url');
+    if (canonical) {
+      const { system: url, version: urlVersion } = this.parseCanonical(canonical);
+      const version = this.determineVersionBase(url, this.getStringParam(params, 'valueSetVersion') || urlVersion, txParams);
 
       // First check additional resources
       const fromAdditional = this.findInAdditionalResources(url, version, 'ValueSet', false);
@@ -2272,8 +2265,8 @@ class ValidateWorker extends TerminologyWorker {
         return fromAdditional;
       }
 
-      let vs = await this.provider.findValueSet(this.opContext, url, version);
-      this.seeSourceVS(vs, url);
+      let vs = await this.findValueSet(url, version);
+      this.seeSourceVS(vs, canonical);
       if (vs == null) {
         throw new Issue('error', 'not-found', null, 'Unable_to_resolve_value_Set_', this.i18n.translate('Unable_to_resolve_value_Set_', params.HTTPLanguages, [url+(version ? "|"+version : "")]), 'not-found', 422);
       } else {

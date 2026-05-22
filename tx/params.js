@@ -256,6 +256,23 @@ class TxParameters {
         case "exclude-system": {
           throw new Issue('error', 'not-supported', null, null, "The parameter 'exclude-system' is not supported by this system", null, 400);
         }
+        case '_engine': {
+          this._engine = getValuePrimitive(p);
+          break;
+        }
+        case '_nocache': {
+          this._nocache = strToBool(getValuePrimitive(p), true);
+          break;
+        }
+        case '_trace': {
+          this._trace = strToBool(getValuePrimitive(p), true);
+          break;
+        }
+        case '_exactTotal':
+        case '_exact-total': {
+          this.exactTotal = strToBool(getValuePrimitive(p), true);
+          break;
+        }
       }
     }
 
@@ -567,6 +584,15 @@ e
     for (let t of this.FValueSetVersionRules || []) {
       s = s + t.asString() + '|';
     }
+    if (this.filter) {
+      s = s + 'filter:' + this.filter + '|';
+    }
+    if (this._engine) {
+      s = s + 'engine:' + this._engine + '|';
+    }
+    if (this.exactTotal != null) {
+      s = s + 'exact-total:' + (this.exactTotal ? '1' : '0') + '|';
+    }
 
     return s;
   }
@@ -601,6 +627,10 @@ e
     this.FDefaultToLatestVersion = other.FDefaultToLatestVersion;
     this.FDisplayWarning = other.FDisplayWarning;
     this.FDiagnostics = other.FDiagnostics;
+    this._engine = other._engine;
+    this._nocache = other._nocache;
+    this._trace = other._trace;
+    this.exactTotal = other.exactTotal;
     this.hasActiveOnly = other.hasActiveOnly;
     this.hasExcludeNested = other.hasExcludeNested;
     this.hasGenerateNarrative = other.hasGenerateNarrative;
