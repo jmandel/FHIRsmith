@@ -5,6 +5,17 @@ module.exports = {
     '<rootDir>/tests/**/*.test.js',
     '<rootDir>/tests/**/*.spec.js'
   ],
+  testPathIgnorePatterns: [
+    '<rootDir>/tmp/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/tmp/',
+    '<rootDir>/data/terminology-cache/'
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/tmp/',
+    '<rootDir>/data/terminology-cache/'
+  ],
   collectCoverageFrom: [
     '*.js',
     '**/*.js',
