@@ -1293,4 +1293,24 @@ export const TX_LOOKUP_CASES = [
       ), 'expected typed integer d20-roll property');
     },
   }
+,
+{
+    category: 'Lookup',
+    kind: 'lookup',
+    name: 'GET lookup RxNorm aspirin ingredient returns display and version',
+    request: {
+      method: 'GET',
+      path: '/r4/CodeSystem/$lookup',
+      query: {
+        system: SYS.RXNORM,
+        code: '1191',
+      },
+    },
+    assertLocal: (res) => {
+      assert(res.status === 200, `expected 200, got ${res.status}`);
+      const display = getParam(res.body, 'display')?.valueString || '';
+      assert(display.toLowerCase().includes('aspirin'), `expected aspirin display, got ${display}`);
+      assert(getParam(res.body, 'version')?.valueString, 'expected RxNorm version');
+    },
+  }
 ].map(withLookupId).map(withHighConfidenceLookupReview).map(clearReviewForIrOnly);

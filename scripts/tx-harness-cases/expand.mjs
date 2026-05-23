@@ -191,6 +191,19 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
     eq(codes(result).length, 20, 'page size');
   });
 
+  await expandTest({ id: 320, rawName: 'perf: LOINC STATUS=ACTIVE high offset without exact total', name: 'LOINC STATUS=ACTIVE high offset without exact total', category: 'Pagination', perfOnly: true }, async () => {
+    const loincActive = vs({ system: SYS.LOINC, filter: [{ property: 'STATUS', op: '=', value: 'ACTIVE' }] });
+    const targetOpts = { count: 20, offset: 1000 };
+    const { result, traceJson } = await expand(loincActive, targetOpts, 'ir', true);
+
+    assert(result.expansion.total == null, `best-effort page should omit total, got ${result.expansion.total}`);
+    eq(codes(result).length, 20, 'page size');
+    assertCompilerMaterializationTrace(traceJson, 'LOINC STATUS=ACTIVE high-offset no-total benchmark');
+    assert(!traceHasSpan(traceJson, 'countForIR'), 'no-total benchmark should not do eager count');
+    assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'no-total benchmark should not do lazy count');
+    setPerfTarget(loincActive, targetOpts);
+  });
+
   log('\n=== Excludes ==='); setCategory('Excludes');
 
   await expandTest({ id: 7, rawName: 'Diabetes minus Type2 subtree: 108 codes', name: 'Diabetes minus Type2 subtree: 108 codes', category: 'Exclusions' }, async () => {
@@ -303,6 +316,32 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
       { count: 20 });
     assert(result.expansion.total > 90000, `total ${result.expansion.total}`);
     eq(codes(result).length, 20, 'page size');
+  });
+
+  await expandTest({ id: 321, rawName: 'perf: LOINC CLASSTYPE=1 later page without exact total', name: 'LOINC CLASSTYPE=1 later page without exact total', category: 'Property Filters', perfOnly: true }, async () => {
+    const loincClassType = vs({ system: SYS.LOINC, filter: [{ property: 'CLASSTYPE', op: '=', value: '1' }] });
+    const targetOpts = { count: 50, offset: 1000 };
+    const { result, traceJson } = await expand(loincClassType, targetOpts, 'ir', true);
+
+    assert(result.expansion.total == null, `best-effort page should omit total, got ${result.expansion.total}`);
+    eq(codes(result).length, 50, 'page size');
+    assertCompilerMaterializationTrace(traceJson, 'LOINC CLASSTYPE later-page no-total benchmark');
+    assert(!traceHasSpan(traceJson, 'countForIR'), 'no-total benchmark should not do eager count');
+    assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'no-total benchmark should not do lazy count');
+    setPerfTarget(loincClassType, targetOpts);
+  });
+
+  await expandTest({ id: 322, rawName: 'perf: LOINC text creatinine later page without exact total', name: 'LOINC text creatinine later page without exact total', category: 'Text Search', perfOnly: true }, async () => {
+    const loincAll = vs({ system: SYS.LOINC });
+    const targetOpts = { count: 20, offset: 1000, filter: 'creatinine' };
+    const { result, traceJson } = await expand(loincAll, targetOpts, 'ir', true);
+
+    assert(result.expansion.total == null, `best-effort page should omit total, got ${result.expansion.total}`);
+    assert(codes(result).length <= 20, 'respects count');
+    assertCompilerMaterializationTrace(traceJson, 'LOINC creatinine later-page no-total benchmark');
+    assert(!traceHasSpan(traceJson, 'countForIR'), 'no-total benchmark should not do eager count');
+    assert(!traceHasSpan(traceJson, 'countForIR:lazy'), 'no-total benchmark should not do lazy count');
+    setPerfTarget(loincAll, targetOpts);
   });
 
   await expandTest({ id: 315, rawName: 'common-filter: sqlite-v0 property in matches ACTIVE and DEPRECATED LOINC status', name: 'SQLite v0 property in matches ACTIVE and DEPRECATED LOINC status', category: 'Property Filters' }, async () => {
@@ -2499,17 +2538,17 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
   // ── 9.1: whole-system hierarchy (default, excludeNested not set) ──
 
   await expandTest({ id: 152, rawName: 'hierarchy: condition-clinical whole-system has nested structure', name: 'Condition-clinical whole-system preserves nested structure', category: 'Hierarchy' }, async () => {
-    // condition-clinical: active→[recurrence,relapse], inactive→[remission,resolved], unknown
+    // Current upstream resolution selects the R4 core CodeSystem:
+    // active→[recurrence,relapse], inactive→[remission,resolved].
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
     );
-    eq(result.expansion.total, 7, 'total');
+    eq(result.expansion.total, 6, 'total');
     assert(hasNesting(result), 'should have nested .contains');
     // Top-level should be roots only
     const roots = topLevel(result).map(c => c.code);
     assert(roots.includes('active'), 'active is root');
     assert(roots.includes('inactive'), 'inactive is root');
-    assert(roots.includes('unknown'), 'unknown is root');
     assert(!roots.includes('recurrence'), 'recurrence should be nested, not root');
     assert(!roots.includes('remission'), 'remission should be nested, not root');
     // Check parent-child relationships
@@ -2556,10 +2595,10 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
     const { result } = await expand(
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
     );
-    // total should be 7 (all codes), not 3 (root count)
-    eq(result.expansion.total, 7, 'total includes nested codes');
-    // Recursive walk should also find 7
-    eq(codes(result).length, 7, 'recursive walk finds all 7');
+    // total should be 6 (all codes), not 2 (root count)
+    eq(result.expansion.total, 6, 'total includes nested codes');
+    // Recursive walk should also find 6
+    eq(codes(result).length, 6, 'recursive walk finds all 6');
   });
 
   // ── 9.2: excludeNested=true → flat output ──
@@ -2569,10 +2608,10 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
       vs({ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical' }),
       { excludeNested: true },
     );
-    eq(result.expansion.total, 7, 'total');
+    eq(result.expansion.total, 6, 'total');
     assert(!hasNesting(result), 'should NOT have nested .contains');
-    // All 7 codes at top level
-    eq(topLevel(result).length, 7, 'all codes at top level');
+    // All 6 codes at top level
+    eq(topLevel(result).length, 6, 'all codes at top level');
     const allCodes = topLevel(result).map(c => c.code);
     assert(allCodes.includes('recurrence'), 'recurrence at top level');
     assert(allCodes.includes('remission'), 'remission at top level');
@@ -2596,7 +2635,7 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
       { offset: 1, count: 3 },
     );
     assert(!hasNesting(result), 'paginated result should be flat');
-    eq(result.expansion.total, 7, 'total still 7');
+    eq(result.expansion.total, 6, 'total still 6');
   });
 
   await expandTest({ id: 159, rawName: 'hierarchy: count < total forces flat', name: 'count < total flattens hierarchical expansion', category: 'Hierarchy' }, async () => {
@@ -2605,7 +2644,7 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
       { count: 3 },
     );
     assert(!hasNesting(result), 'partial page should be flat');
-    eq(result.expansion.total, 7, 'total still 7');
+    eq(result.expansion.total, 6, 'total still 6');
   });
 
   await expandTest({ id: 160, rawName: 'hierarchy: count >= total allows nesting', name: 'count >= total preserves hierarchical nesting', category: 'Hierarchy' }, async () => {
@@ -2614,7 +2653,7 @@ export async function registerExpandCases({ test, helpers, setCategory, log = co
       { count: 100 },
     );
     assert(hasNesting(result), 'count >= total should allow nesting');
-    eq(result.expansion.total, 7, 'total');
+    eq(result.expansion.total, 6, 'total');
   });
 
   // ── 9.4: non-hierarchical CS is unaffected ──

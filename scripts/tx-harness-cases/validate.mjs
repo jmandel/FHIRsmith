@@ -2775,4 +2775,58 @@ export const TX_VALIDATE_CASES = [
       assert(!getParam(res.body, 'message'), 'unexpected top-level message on success');
     },
   }
+,
+{
+    category: 'Validate',
+    kind: 'validate',
+    name: 'GET CodeSystem validate RxNorm aspirin ingredient',
+    request: {
+      method: 'GET',
+      path: '/r4/CodeSystem/$validate-code',
+      query: {
+        url: SYS.RXNORM,
+        code: '1191',
+      },
+    },
+    assertLocal: (res) => {
+      assert(res.status === 200, `expected 200, got ${res.status}`);
+      assert(getParam(res.body, 'result')?.valueBoolean === true, 'expected result=true');
+      const display = getParam(res.body, 'display')?.valueString || '';
+      assert(display.toLowerCase().includes('aspirin'), `expected aspirin display, got ${display}`);
+      assert(getParam(res.body, 'version')?.valueString, 'expected RxNorm version');
+    },
+  },
+{
+    category: 'Validate',
+    kind: 'validate',
+    name: 'POST ValueSet validate RxNorm TTY=IN accepts aspirin',
+    request: {
+      method: 'POST',
+      path: '/r4/ValueSet/$validate-code',
+      body: params([
+        { name: 'system', valueUri: SYS.RXNORM },
+        { name: 'code', valueCode: '1191' },
+        {
+          name: 'valueSet',
+          resource: {
+            resourceType: 'ValueSet',
+            url: 'http://example.org/fhir/ValueSet/rxnorm-ingredients',
+            status: 'active',
+            compose: {
+              include: [{
+                system: SYS.RXNORM,
+                filter: [{ property: 'TTY', op: '=', value: 'IN' }],
+              }],
+            },
+          },
+        },
+      ]),
+    },
+    assertLocal: (res) => {
+      assert(res.status === 200, `expected 200, got ${res.status}`);
+      assert(getParam(res.body, 'result')?.valueBoolean === true, 'expected result=true');
+      const display = getParam(res.body, 'display')?.valueString || '';
+      assert(display.toLowerCase().includes('aspirin'), `expected aspirin display, got ${display}`);
+    },
+  }
 ].map(withValidateId).map(withHighConfidenceValidateReview).map(clearReviewForIrOnly);
