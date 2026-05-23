@@ -207,8 +207,12 @@ Focused unit suites:
 npm run test:engine
 npm run test:ir
 npm run test:cs
-npm run test:tx
+npm run test:tx:ir-pr
 ```
+
+`npm run test:tx` remains the broad upstream TX test command. It can load a
+large terminology library and is not the default PR-readiness gate for this
+branch.
 
 Shared TX harness:
 
@@ -231,6 +235,10 @@ npm run test:perf:terminology:full
 The full matrix starts local managed servers and compares sqlite-v0 IR,
 sqlite-v0 legacy compatibility, and upstream-provider legacy behavior where the
 case supports all three columns.
+
+Managed harness servers reject libraries with more than two SNOMED sources by
+default. Use focused libraries for this branch; loading many SNOMED versions in
+one process consumes too much memory and does not add useful IR signal.
 
 ## Rollout Guidance
 

@@ -155,6 +155,11 @@ The trace should show that fallback explicitly, and it should still avoid
 These values are local-machine measurements, not contractual limits. Use them
 as regression sentinels and trend indicators.
 
+The terminology perf matrix is intentionally scoped to focused libraries. The
+managed harness rejects more than two SNOMED sources per server by default;
+do not use broad local caches that load every available SNOMED version for
+PR-readiness runs.
+
 ## Reading Traces
 
 When `_trace=true`, useful trace markers include:

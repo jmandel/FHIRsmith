@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createWriteStream, existsSync, lstatSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createWriteStream, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { execFile as execFileCb, spawn } from 'node:child_process';
 import net from 'node:net';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -49,6 +49,38 @@ function ensureSymlink(linkPath, targetPath) {
 function collect(value, previous) {
   previous.push(value);
   return previous;
+}
+
+function sourceSpecFromEntry(entry) {
+  if (typeof entry === 'string') return entry;
+  if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+    if (typeof entry.source === 'string') return entry.source;
+    if (typeof entry.type === 'string') return `${entry.type}:${entry.details || entry.path || ''}`;
+  }
+  return null;
+}
+
+function isSnomedSourceSpec(sourceSpec) {
+  const spec = String(sourceSpec || '').toLowerCase();
+  if (/^snomed!?:/.test(spec)) return true;
+  if (!/^sqlite-v0!?:/.test(spec)) return false;
+  return /(^|[/\\])sct[_-].*\.(?:v0\.)?db(?:$|[|?#])/.test(spec)
+    || /(^|[/\\])snomed.*\.(?:v0\.)?db(?:$|[|?#])/.test(spec);
+}
+
+function assertSnomedSourceLimit(libraryPath, label, maxSources) {
+  if (!Number.isInteger(maxSources) || maxSources < 0) return;
+  const config = yaml.parse(readFileSync(libraryPath, 'utf8')) || {};
+  const sources = Array.isArray(config.sources) ? config.sources : [];
+  const snomedSources = sources
+    .map(sourceSpecFromEntry)
+    .filter(isSnomedSourceSpec);
+  if (snomedSources.length > maxSources) {
+    throw new Error(
+      `${label} loads ${snomedSources.length} SNOMED sources; max is ${maxSources}. `
+      + 'Use a focused library for harness/perf runs.'
+    );
+  }
 }
 
 function sleep(ms) {
@@ -333,6 +365,7 @@ async function main() {
     .option('--out-dir <path>', 'exact output dir')
     .option('--perf-out <path>', 'perf HTML output path')
     .option('--perf-runs <n>', 'PERF_RUNS value', (value) => parseInt(value, 10), 1)
+    .option('--max-snomed-sources <n>', 'maximum SNOMED sources allowed per managed harness server; negative disables the guard', (value) => parseInt(value, 10), 2)
     .option('--filter <text>', 'name filter', collect, [])
     .option('--kind <kind>', 'operation kind filter', collect, [])
     .option('--category <name>', 'category filter', collect, [])
@@ -408,6 +441,12 @@ async function main() {
       dice: options.syntheticSuppDice,
     });
     librarySource = syntheticInfo.librarySource;
+  }
+  if (managedPrimary) {
+    assertSnomedSourceLimit(librarySource, 'Primary harness library', options.maxSnomedSources);
+  }
+  if (managedThird) {
+    assertSnomedSourceLimit(thirdLibrary, 'Third harness library', options.maxSnomedSources);
   }
 
   const primaryDataDir = resolve(outDir, 'data');
