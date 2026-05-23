@@ -133,4 +133,37 @@ describe('sqlite-v0 terminal strategy selection', () => {
       },
     })).toBe('concept-driven-count');
   });
+
+  test('chooses early-stop materialize for offset pages only with budget support', () => {
+    const node = materializeNode(Types.fromRows({
+      scope: scope(),
+      key: 'source_concept_id',
+      rows: Types.rowFilter({
+        input: Types.rowScan({ table: 'concept_literal', scope: scope() }),
+        predicate: { kind: 'literalPropertyMatch', property: 'STATUS', values: ['ACTIVE'] },
+      }),
+    }), {
+      offset: 1000,
+      count: 20,
+      orderBy: [{ key: 'code', direction: 'asc' }],
+    });
+    const propertyDefs = new Map([
+      ['STATUS', { property_id: 37, value_kind: 'literal' }],
+    ]);
+
+    expect(__testing.chooseTerminalLoweringStrategy(node, {
+      scope: scope(),
+      propertyDefs,
+      runtime: { planner: { enableEarlyStopBudgetFunction: true } },
+    })).toBe('early-stop-materialize');
+    expect(__testing.chooseTerminalLoweringStrategy(node, {
+      scope: scope(),
+      propertyDefs,
+    })).toBe('generic-materialize');
+    expect(__testing.chooseTerminalLoweringStrategy(node, {
+      scope: scope(),
+      propertyDefs,
+      runtime: { planner: { disableEarlyStopMaterialize: true } },
+    })).toBe('generic-materialize');
+  });
 });

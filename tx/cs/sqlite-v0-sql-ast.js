@@ -50,7 +50,7 @@ const {
 function lowerPhysicalPlanToSqlAst(plan, opts = {}) {
   const ctx = createContext(opts, plan);
   const ast = lowerPhysical(plan, ctx, resolveScope(plan?.scope || opts.scope || null));
-  return { ast, params: ctx.params };
+  return { ast, params: ctx.params, strategy: ctx.lastTerminalStrategy || null };
 }
 
 function createContext(opts, plan) {
@@ -195,9 +195,14 @@ function lowerMaterialize(node, ctx, fallbackScope) {
   const scope = scopeFor(node, fallbackScope, ctx);
   const selected = selectMaterializeLowering(node, ctx, scope);
   if (selected.strategy === 'materialize-with-total') {
+    ctx.lastTerminalStrategy = selected.strategy;
     return lowerMaterializeWithTotal(node, ctx, scope);
   }
-  if (selected.lowered) return selected.lowered;
+  if (selected.lowered) {
+    ctx.lastTerminalStrategy = selected.strategy;
+    return selected.lowered;
+  }
+  ctx.lastTerminalStrategy = 'generic-materialize';
   return lowerGenericMaterialize(node, ctx, scope);
 }
 
@@ -515,7 +520,7 @@ function lowerEarlyStopMaterialize(node, ctx, scope) {
   const selection = node.selection || {};
   const orderBy = Array.isArray(node.orderBy) ? node.orderBy : [];
   if (!Number.isInteger(node.count) || node.count <= 0 || node.count > 100) return null;
-  if (Number.isInteger(node.offset) && node.offset > 0) return null;
+  if (Number.isInteger(node.offset) && node.offset > 0 && !ctx.runtime?.planner?.enableEarlyStopBudgetFunction) return null;
   if (orderBy.length !== 1) return null;
   if (String(orderBy[0]?.key || '') !== 'code') return null;
   if (String(orderBy[0]?.direction || 'asc').toLowerCase() !== 'asc') return null;
@@ -528,6 +533,9 @@ function lowerEarlyStopMaterialize(node, ctx, scope) {
   if (Number.isInteger(scope?.csId)) {
     where.push(binary('=', column('cs_id', 'c'), ctx.add('cs_id', scope.csId)));
   }
+  if (ctx.runtime?.planner?.enableEarlyStopBudgetFunction) {
+    where.push(call('sqlite_v0_budget', [column('concept_id', 'c')]));
+  }
   where.push(lowerTerminalSelectionWhere(node.selection, ctx, scope, 'c', { members: node.members }));
   where.push(membershipWhere);
 
@@ -537,13 +545,18 @@ function lowerEarlyStopMaterialize(node, ctx, scope) {
     where: and(where),
     orderBy: orderBy.map(o => order(column(o.key, 'c'), o.direction)),
     limit: literal(node.count),
+    offset: node.offset ? literal(node.offset) : null,
   });
 }
 
 function lowerCount(node, ctx, fallbackScope) {
   const scope = scopeFor(node, fallbackScope, ctx);
   const selected = selectCountLowering(node, ctx, scope);
-  if (selected.lowered) return selected.lowered;
+  if (selected.lowered) {
+    ctx.lastTerminalStrategy = selected.strategy;
+    return selected.lowered;
+  }
+  ctx.lastTerminalStrategy = 'generic-count';
   return lowerGenericCount(node, ctx, scope);
 }
 
@@ -719,7 +732,27 @@ function lowerReachabilityCodeRegexCountFastPath(node, ctx, scope) {
 }
 
 function lowerProbe(node, ctx, fallbackScope) {
+  ctx.lastTerminalStrategy = 'probe';
   const scope = scopeFor(node, fallbackScope, ctx);
+  const membershipWhere = lowerEarlyStopMembershipPredicate(
+    node.members,
+    ctx,
+    scopeFor(node.members, scope, ctx),
+    'c'
+  );
+  if (membershipWhere) {
+    return select({
+      columns: [aliasExpr(literal(1), 'found')],
+      from: table('concept', 'c'),
+      where: and([
+        Number.isInteger(scope?.csId) ? binary('=', column('cs_id', 'c'), ctx.add('probe_cs_id', scope.csId)) : null,
+        binary('=', column('code', 'c'), ctx.add('check_code', String(node.code || ''))),
+        membershipWhere,
+      ]),
+      limit: literal(1),
+    });
+  }
+
   const members = lowerSet(node.members, ctx, scopeFor(node.members, scope, ctx));
   return select({
     columns: [aliasExpr(literal(1), 'found')],

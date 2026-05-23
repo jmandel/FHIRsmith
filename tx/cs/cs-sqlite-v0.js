@@ -22,7 +22,7 @@ const { DesignationUse } = require('../library/designations');
 const { VersionUtilities } = require('../../library/version-utilities');
 const { supportsFilterClause } = require('./sqlite-v0-clause-lowering');
 const { bindNativeSupplements, mergeSupplementPropertyDefinitions } = require('./sqlite-v0-supplements');
-const { clearSqliteProgressLimit, openSqliteV0Database } = require('./sqlite-v0-runtime');
+const { clearSqliteProgressLimit, openSqliteV0Database, withSqliteV0Budget } = require('./sqlite-v0-runtime');
 
 let trace;
 try {
@@ -480,21 +480,110 @@ class SqliteV0Provider extends BaseCSServices {
     return { rows, prepMs, execMs };
   }
 
+  #earlyStopBudgetDecision(compiled, opts = {}) {
+    if (compiled?.strategy !== 'early-stop-materialize') {
+      return { eligible: false, reason: 'not-early-stop' };
+    }
+    const cfg = this.#options?.earlyStopBudget || this.#runtime?.planner?.earlyStopBudget || {};
+    if (cfg.enabled === false) {
+      return { eligible: true, useBudget: false, reason: 'disabled' };
+    }
+
+    const count = Number.isInteger(opts.count) ? opts.count : null;
+    const offset = Number.isInteger(opts.offset) && opts.offset > 0 ? opts.offset : 0;
+    if (!Number.isInteger(count) || count <= 0) {
+      return { eligible: true, useBudget: false, fallback: true, reason: 'missing-page-window' };
+    }
+
+    const min = Number.isInteger(cfg.min) && cfg.min > 0 ? cfg.min : 512;
+    const max = Number.isInteger(cfg.max) && cfg.max > 0 ? cfg.max : 4096;
+    const multiplier = Number.isFinite(cfg.multiplier) && cfg.multiplier > 0 ? cfg.multiplier : 2;
+    const needed = offset + count;
+    const budget = Math.min(max, Math.max(min, Math.ceil(needed * multiplier)));
+    if (budget < needed) {
+      return { eligible: true, useBudget: false, fallback: true, reason: 'window-exceeds-budget-cap', needed, budget, max };
+    }
+    return { eligible: true, useBudget: true, reason: 'budgeted', needed, budget, offset, count };
+  }
+
+  #executeBudgetedEarlyStop(compiled, budget, label) {
+    const tPrep = performance.now();
+    const stmt = this.#db.prepare(compiled.sql.text);
+    const prepMs = performance.now() - tPrep;
+    const tExec = performance.now();
+    const result = withSqliteV0Budget(this.#db, budget, () => stmt.all(compiled.sql.params));
+    const execMs = performance.now() - tExec;
+    if (result.budgetExceeded) {
+      trace.note(`${label}:earlyStopBudget`, {
+        budget,
+        seen: result.seen,
+        completed: false,
+        fallback: true,
+      });
+      return { budgetExceeded: true, prepMs, execMs, seen: result.seen };
+    }
+    const rows = result.result;
+    trace.sql(compiled.sql.text, compiled.sql.params, rows.length, execMs, label);
+    trace.note(`${label}:earlyStopBudget`, {
+      budget,
+      seen: result.seen,
+      completed: true,
+      fallback: false,
+    });
+    return { rows, prepMs, execMs, budgetExceeded: false, seen: result.seen };
+  }
+
+  #executeExpandSqlWithFallback(compiler, subtree, opts, cfg, compiled) {
+    const decision = this.#earlyStopBudgetDecision(compiled, opts);
+    if (!decision.eligible) {
+      return { ...this.#executeCompiledSql(compiled, 'executeIR'), compiled, usedFallback: false };
+    }
+
+    if (decision.useBudget) {
+      const budgeted = this.#executeBudgetedEarlyStop(compiled, decision.budget, 'executeIR');
+      if (!budgeted.budgetExceeded) {
+        return { ...budgeted, compiled, usedFallback: false };
+      }
+    } else {
+      trace.note('executeIR:earlyStopBudget', {
+        completed: false,
+        fallback: !!decision.fallback,
+        reason: decision.reason,
+        needed: decision.needed,
+        budget: decision.budget,
+      });
+      if (!decision.fallback) {
+        return { ...this.#executeCompiledSql(compiled, 'executeIR'), compiled, usedFallback: false };
+      }
+    }
+
+    const fallback = compiler.compileExpand(subtree, {
+      ...opts,
+      includeDebugArtifacts: !!cfg?.tracePlans,
+      disableEarlyStopMaterialize: true,
+    });
+    this.#traceCompiledArtifacts('executeIR:fallback', fallback, cfg);
+    return { ...this.#executeCompiledSql(fallback, 'executeIR:fallback'), compiled: fallback, usedFallback: true };
+  }
+
   #executeIRNew(subtree, opts = {}, cfg = null) {
     if (!subtree || subtree.kind === 'empty') return { candidates: [], total: 0 };
     if (opts.count === 0) return { candidates: [] };
     const compiler = this.#compilerFor();
     const span = trace.begin('executeIR:compiler', { system: this.#meta.baseUri });
+    const budgetCfg = this.#options?.earlyStopBudget || this.#runtime?.planner?.earlyStopBudget || {};
     const compiled = compiler.compileExpand(subtree, {
       ...opts,
       includeDebugArtifacts: !!cfg?.tracePlans,
+      enableEarlyStopBudgetFunction: budgetCfg.enabled !== false,
     });
     this.#traceCompiledArtifacts('executeIR', compiled, cfg);
-    const { rows, prepMs, execMs } = this.#executeCompiledSql(compiled, 'executeIR');
+    const { rows, prepMs, execMs, compiled: executedCompiled, usedFallback } =
+      this.#executeExpandSqlWithFallback(compiler, subtree, opts, cfg, compiled);
     trace.note('executeIR:breakdown', { prepMs: +prepMs.toFixed(2), execMs: +execMs.toFixed(2) });
     const total = rows.length > 0
       ? normalizeInlineTotal(rows[0]?.total)
-      : ((compiled.terminal?.includeTotal && (!Number.isInteger(opts.offset) || opts.offset <= 0)) ? 0 : null);
+      : ((executedCompiled.terminal?.includeTotal && (!Number.isInteger(opts.offset) || opts.offset <= 0)) ? 0 : null);
     const candidates = rows
       .filter(r => r.code != null)
       .map(r => ({
@@ -504,8 +593,8 @@ class SqliteV0Provider extends BaseCSServices {
         active: !!r.active,
         conceptId: r.concept_id,
       }));
-    span.end({ candidates: candidates.length, total });
-    return { candidates, total, compiled };
+    span.end({ candidates: candidates.length, total, usedFallback });
+    return { candidates, total, compiled: executedCompiled };
   }
 
   #countIRNew(subtree, opts = {}, cfg = null) {
@@ -539,7 +628,10 @@ class SqliteV0Provider extends BaseCSServices {
     const probeKey = Object.keys(compiled.sql.params).find(k => k.startsWith('check_code_')) || 'check_code_0';
     return {
       has(code) {
-        const result = stmt.get({ ...compiled.sql.params, [probeKey]: code });
+        const params = { ...compiled.sql.params, [probeKey]: code };
+        const t0 = performance.now();
+        const result = stmt.get(params);
+        trace.sql(compiled.sql.text, params, result ? 1 : 0, performance.now() - t0, 'membershipForIR');
         return !!result;
       }
     };
@@ -1026,7 +1118,10 @@ class SqliteV0Provider extends BaseCSServices {
     return ctx;
   }
 
-  async filter(filterContext, prop, op, value) {
+  async filter(filterContext, forIterationOrProp, propOrOp, opOrValue, maybeValue) {
+    const prop = arguments.length >= 5 ? propOrOp : forIterationOrProp;
+    const op = arguments.length >= 5 ? opOrValue : propOrOp;
+    const value = arguments.length >= 5 ? maybeValue : opOrValue;
     filterContext._v0.filters.push({ property: prop, op, value });
   }
 

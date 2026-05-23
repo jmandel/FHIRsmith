@@ -312,6 +312,35 @@ describe('sqlite-v0 compiler facade', () => {
     }));
   });
 
+  test('compileExpand can budget and disable early-stop materialization', () => {
+    const scopedCompiler = makeCompiler({
+      scope: { csId: 1, system: 'urn:sys:A', version: null },
+    });
+    const subtree = IR.selector({
+      system: 'urn:sys:A',
+      shape: 'filter',
+      filterClauses: [{ property: 'CLASS', op: '=', value: 'chemistry' }],
+    });
+
+    const budgeted = scopedCompiler.compileExpand(subtree, {
+      offset: 1000,
+      count: 20,
+      enableEarlyStopBudgetFunction: true,
+    });
+    const fallback = scopedCompiler.compileExpand(subtree, {
+      offset: 1000,
+      count: 20,
+      disableEarlyStopMaterialize: true,
+    });
+
+    expect(budgeted.strategy).toBe('early-stop-materialize');
+    expect(budgeted.sql.text).toContain('SQLITE_V0_BUDGET');
+    expect(budgeted.sql.text).toContain('OFFSET 1000');
+    expect(fallback.strategy).toBe('generic-materialize');
+    expect(fallback.sql.text).not.toContain('SQLITE_V0_BUDGET');
+    expect(fallback.sql.text).toContain('OFFSET 1000');
+  });
+
   test('compileExpand lowers concept-valued property equality', () => {
     const scopedCompiler = makeCompiler({
       includeDebugArtifacts: true,

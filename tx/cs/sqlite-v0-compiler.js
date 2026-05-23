@@ -48,10 +48,11 @@ class SqliteV0Compiler {
       includeTotal,
       scope: base.scope || this.scope,
     });
-    const physical = includeDebugArtifacts ? physicalizeTerminalPlan(terminal, { runtime: this.runtime }) : null;
-    const { ast: sqlAst, params } = lowerPhysicalPlanToSqlAst(terminal, {
+    const loweringRuntime = this.#loweringRuntime(opts);
+    const physical = includeDebugArtifacts ? physicalizeTerminalPlan(terminal, { runtime: loweringRuntime }) : null;
+    const { ast: sqlAst, params, strategy } = lowerPhysicalPlanToSqlAst(terminal, {
       propertyDefs: this.propertyDefs,
-      runtime: this.runtime,
+      runtime: loweringRuntime,
       scope: base.scope || this.scope,
       supplementBindings: this.supplementBindings,
     });
@@ -64,6 +65,7 @@ class SqliteV0Compiler {
       physical,
       sqlAst,
       sql,
+      strategy,
       traceInfo: {
         scope: base.scope || this.scope,
         baseCacheKey: baseCompiled.cacheKey,
@@ -85,10 +87,11 @@ class SqliteV0Compiler {
       text: opts.text,
       scope: base.scope || this.scope,
     });
-    const physical = includeDebugArtifacts ? physicalizeTerminalPlan(terminal, { runtime: this.runtime }) : null;
-    const { ast: sqlAst, params } = lowerPhysicalPlanToSqlAst(terminal, {
+    const loweringRuntime = this.#loweringRuntime(opts);
+    const physical = includeDebugArtifacts ? physicalizeTerminalPlan(terminal, { runtime: loweringRuntime }) : null;
+    const { ast: sqlAst, params, strategy } = lowerPhysicalPlanToSqlAst(terminal, {
       propertyDefs: this.propertyDefs,
-      runtime: this.runtime,
+      runtime: loweringRuntime,
       scope: base.scope || this.scope,
       supplementBindings: this.supplementBindings,
     });
@@ -101,6 +104,7 @@ class SqliteV0Compiler {
       physical,
       sqlAst,
       sql,
+      strategy,
       traceInfo: {
         scope: base.scope || this.scope,
         baseCacheKey: baseCompiled.cacheKey,
@@ -118,10 +122,11 @@ class SqliteV0Compiler {
     const terminal = buildProbePlan(base, code, {
       scope: base.scope || this.scope,
     });
-    const physical = includeDebugArtifacts ? physicalizeTerminalPlan(terminal, { runtime: this.runtime }) : null;
-    const { ast: sqlAst, params } = lowerPhysicalPlanToSqlAst(terminal, {
+    const loweringRuntime = this.#loweringRuntime(opts);
+    const physical = includeDebugArtifacts ? physicalizeTerminalPlan(terminal, { runtime: loweringRuntime }) : null;
+    const { ast: sqlAst, params, strategy } = lowerPhysicalPlanToSqlAst(terminal, {
       propertyDefs: this.propertyDefs,
-      runtime: this.runtime,
+      runtime: loweringRuntime,
       scope: base.scope || this.scope,
       supplementBindings: this.supplementBindings,
     });
@@ -134,6 +139,7 @@ class SqliteV0Compiler {
       physical,
       sqlAst,
       sql,
+      strategy,
       traceInfo: {
         scope: base.scope || this.scope,
         baseCacheKey: baseCompiled.cacheKey,
@@ -221,6 +227,17 @@ class SqliteV0Compiler {
   #includeExpandTotal(base, opts = {}) {
     if (opts.includeTotal != null) return !!opts.includeTotal;
     return false;
+  }
+
+  #loweringRuntime(opts = {}) {
+    return {
+      ...this.runtime,
+      planner: {
+        ...(this.runtime?.planner || {}),
+        ...(opts.disableEarlyStopMaterialize != null ? { disableEarlyStopMaterialize: !!opts.disableEarlyStopMaterialize } : {}),
+        ...(opts.enableEarlyStopBudgetFunction != null ? { enableEarlyStopBudgetFunction: !!opts.enableEarlyStopBudgetFunction } : {}),
+      },
+    };
   }
 }
 

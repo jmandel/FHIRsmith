@@ -2,6 +2,8 @@
 
 const BetterSqlite3 = require('better-sqlite3');
 
+const SQLITE_V0_BUDGET_EXCEEDED = 'sqlite-v0 early-stop budget exceeded';
+
 function registerRegexpFunction(db) {
   const regexCache = new Map();
   db.function('regexp', (pattern, value) => {
@@ -19,6 +21,61 @@ function registerRegexpFunction(db) {
     re.lastIndex = 0;
     return re.test(String(value)) ? 1 : 0;
   });
+}
+
+function registerBudgetFunction(db) {
+  const state = {
+    limit: null,
+    seen: 0,
+    exceeded: false,
+  };
+  db._fhirsmithBudget = state;
+  db.function('sqlite_v0_budget', (_value) => {
+    if (!Number.isInteger(state.limit) || state.limit <= 0) {
+      return 1;
+    }
+    state.seen++;
+    if (state.seen > state.limit) {
+      state.exceeded = true;
+      throw new Error(SQLITE_V0_BUDGET_EXCEEDED);
+    }
+    return 1;
+  });
+  return state;
+}
+
+function withSqliteV0Budget(db, limit, fn) {
+  const state = db?._fhirsmithBudget || null;
+  if (!state || !Number.isInteger(limit) || limit <= 0) {
+    return { budgetSupported: false, result: fn() };
+  }
+
+  state.limit = limit;
+  state.seen = 0;
+  state.exceeded = false;
+  try {
+    const result = fn();
+    return {
+      budgetSupported: true,
+      budgetExceeded: false,
+      seen: state.seen,
+      result,
+    };
+  } catch (error) {
+    if (state.exceeded || String(error?.message || '').includes(SQLITE_V0_BUDGET_EXCEEDED)) {
+      return {
+        budgetSupported: true,
+        budgetExceeded: true,
+        seen: state.seen,
+        error,
+      };
+    }
+    throw error;
+  } finally {
+    state.limit = null;
+    state.seen = 0;
+    state.exceeded = false;
+  }
 }
 
 function parsePositiveInteger(value) {
@@ -73,15 +130,19 @@ function openSqliteV0Database(dbPath, opts = {}) {
   db.pragma('temp_store = MEMORY');
   db.pragma('mmap_size = 268435456');
   registerRegexpFunction(db);
+  registerBudgetFunction(db);
   db._fhirsmithProgressLimit = configureSqliteProgressLimit(db, opts);
   return db;
 }
 
 module.exports = {
+  SQLITE_V0_BUDGET_EXCEEDED,
   clearSqliteProgressLimit,
   configureSqliteProgressLimit,
   openSqliteV0Database,
   parsePositiveInteger,
+  registerBudgetFunction,
   registerRegexpFunction,
   sqliteProgressOptions,
+  withSqliteV0Budget,
 };

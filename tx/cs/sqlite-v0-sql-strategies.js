@@ -26,7 +26,9 @@ function chooseMaterializeStrategy(node, ctx) {
   if (!text && extractSingleSeedClosureReachabilityDiff(node.members)) {
     return 'reachability-diff-materialize';
   }
-  if (supportsEarlyStopMaterialize(node.members) && isEarlyStopMaterializeNode(node)) {
+  if (!ctx?.runtime?.planner?.disableEarlyStopMaterialize
+      && supportsEarlyStopMaterialize(node.members)
+      && isEarlyStopMaterializeNode(node, ctx)) {
     return 'early-stop-materialize';
   }
   if (!text && extractSingleSeedClosureReachability(node.members)) {
@@ -74,10 +76,10 @@ function chooseTerminalLoweringStrategy(node, ctx) {
   }
 }
 
-function isEarlyStopMaterializeNode(node) {
+function isEarlyStopMaterializeNode(node, ctx = {}) {
   const orderBy = Array.isArray(node?.orderBy) ? node.orderBy : [];
   if (!Number.isInteger(node?.count) || node.count <= 0 || node.count > 100) return false;
-  if (Number.isInteger(node?.offset) && node.offset > 0) return false;
+  if (Number.isInteger(node?.offset) && node.offset > 0 && !ctx?.runtime?.planner?.enableEarlyStopBudgetFunction) return false;
   if (orderBy.length !== 1) return false;
   if (String(orderBy[0]?.key || '') !== 'code') return false;
   if (String(orderBy[0]?.direction || 'asc').toLowerCase() !== 'asc') return false;

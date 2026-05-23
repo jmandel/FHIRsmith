@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const BetterSqlite3 = require('better-sqlite3');
+const IR = require('../../tx/engine/ir');
 const { SqliteV0FactoryProvider } = require('../../tx/cs/cs-sqlite-v0');
 const { OperationContext } = require('../../tx/operation-context');
 const { TestUtilities } = require('../test-utilities');
@@ -177,6 +178,28 @@ describe('SqliteV0FactoryProvider', () => {
       expect(await provider.filterSize(property, propertySet)).toBe(1);
       const filtered = await provider.filterConcept(property, propertySet);
       expect(filtered.code).toBe('B');
+    } finally {
+      provider.close();
+    }
+  });
+
+  test('budgeted early-stop IR execution falls back to generic materialization', async () => {
+    const factory = new SqliteV0FactoryProvider(i18n, fixture.dbPath, {
+      earlyStopBudget: { min: 1, max: 1, multiplier: 1 },
+    });
+    await factory.load();
+    const provider = await factory.build(makeOpContext(), null);
+    try {
+      const result = provider.executeIR(IR.selector({
+        system: 'http://example.org/tiny',
+        shape: 'filter',
+        filterClauses: [{ property: 'status', op: '=', value: 'trial' }],
+      }), {
+        count: 1,
+        offset: 0,
+      });
+
+      expect(result.candidates.map(c => c.code)).toEqual(['B']);
     } finally {
       provider.close();
     }
