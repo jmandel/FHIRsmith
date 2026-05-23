@@ -475,7 +475,20 @@ e
     if (sl.length === 2) {
       this.versionRules.push(new VersionRule(sl[0], sl[1], vs, mode));
     } else {
-      throw new Error('Unable to understand ' + mode + ' system version "' + url + '"');
+      const name = mode === 'default'
+        ? (vs ? 'default-valueset-version' : 'system-version')
+        : (mode === 'override'
+          ? (vs ? 'force-valueset-version' : 'force-system-version')
+          : (vs ? 'check-valueset-version' : 'check-system-version'));
+      throw new Issue(
+        'error',
+        'invalid',
+        null,
+        'INVALID_VERSION_RULE',
+        `Unable to understand ${name} parameter "${url}"`,
+        'invalid-data',
+        422
+      ).handleAsOO(422);
     }
   }
 

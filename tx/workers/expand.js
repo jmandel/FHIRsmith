@@ -1061,7 +1061,7 @@ class ValueSetExpander {
         this.worker.opContext.log('prep filters');
         const prep = await cs.getPrepContext(true);
         if (!filter.isNull) {
-          await cs.searchFilter(filter, prep, true);
+          await cs.searchFilter(prep, filter, true);
         }
 
         if (cs.specialEnumeration()) {

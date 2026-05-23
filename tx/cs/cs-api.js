@@ -296,7 +296,7 @@ class CodeSystemProvider {
         }
       }
       // Check concept designations for display uses
-      for (const concept in concepts) {
+      for (const concept of concepts) {
         if (concept.designation) {
           for (const designation of concept.designation) {
             if (CodeSystem.isUseADisplay(designation.use) && this.opContext.langs.hasMatch(designation.language)) {

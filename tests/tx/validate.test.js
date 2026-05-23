@@ -12,6 +12,7 @@ const {Languages} = require("../../library/languages");
 const {OperationContext} = require("../../tx/operation-context");
 const {TestUtilities} = require("../test-utilities");
 const {TxParameters} = require("../../tx/params");
+const { Issue } = require("../../tx/library/operation-outcome");
 
 // Mock dependencies
 const mockLog = {
@@ -180,6 +181,31 @@ describe('ValidateWorker', () => {
       
       const codingParam = params.parameter.find(p => p.name === 'coding');
       expect(codingParam.valueCoding).toEqual({ system: 'http://example.org', code: 'test' });
+    });
+  });
+
+  describe('TxParameters', () => {
+    test('rejects malformed version rules as structured OperationOutcome issues', () => {
+      const txp = new TxParameters(opContext.i18n.languageDefinitions, opContext.i18n);
+      const params = {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'system-version', valueUri: 'urn:iso:std:iso:3166' }
+        ]
+      };
+
+      expect(() => txp.readParams(params)).toThrow(Issue);
+
+      try {
+        txp.readParams(params);
+      } catch (error) {
+        expect(error).toBeInstanceOf(Issue);
+        expect(error.statusCode).toBe(422);
+        expect(error.isHandleAsOO()).toBe(true);
+        expect(error.msgId).toBe('INVALID_VERSION_RULE');
+        expect(error.message).toContain('system-version');
+        expect(error.message).toContain('urn:iso:std:iso:3166');
+      }
     });
   });
 

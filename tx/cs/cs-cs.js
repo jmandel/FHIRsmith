@@ -126,7 +126,10 @@ class FhirCodeSystemProvider extends BaseCSServices {
    * @returns {string} URI and version identifier for the code system
    */
   name() {
-    return this.codeSystem.jsonObj.name || '';
+    return this.codeSystem.jsonObj.name
+      || this.codeSystem.jsonObj.title
+      || this.codeSystem.jsonObj.url
+      || '';
   }
 
   /**
