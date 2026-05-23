@@ -62,7 +62,12 @@ function formatValue(value, indent = '') {
   if (typeof value !== 'object') return `${indent}${JSON.stringify(value)}`;
   if (Array.isArray(value)) {
     if (value.length === 0) return `${indent}[]`;
-    return value.map(item => `${indent}- ${formatNested(item, indent)}`).join('\n');
+    return value.map(item => {
+      if (item == null || typeof item !== 'object') {
+        return `${indent}- ${JSON.stringify(item)}`;
+      }
+      return `${indent}-\n${formatValue(item, `${indent}  `)}`;
+    }).join('\n');
   }
   const keys = Object.keys(value);
   if (keys.length === 0) return `${indent}{}`;
@@ -73,12 +78,6 @@ function formatValue(value, indent = '') {
     }
     return `${indent}${key}:\n${formatValue(next, `${indent}  `)}`;
   }).join('\n');
-}
-
-function formatNested(value, indent) {
-  if (value == null || typeof value !== 'object') return JSON.stringify(value);
-  const rendered = formatValue(value, `${indent}  `);
-  return `\n${rendered}`;
 }
 
 module.exports = {

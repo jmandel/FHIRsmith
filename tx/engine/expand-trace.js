@@ -213,7 +213,7 @@ function formatTraceSummary(traceJson, opts = {}) {
   lines.push(`trace total=${formatMs(traceJson.totalMs)} spans=${spans.length} sql=${traceJson.sqlCount || 0} (${formatMs(traceJson.sqlMs || 0)})`);
 
   if (spans.length > 0) {
-    lines.push(`slow spans (top ${Math.min(maxSpans, spans.length)}):`); 
+    lines.push(`slow spans (top ${Math.min(maxSpans, spans.length)}):`);
     const top = [...spans]
       .sort((a, b) => (b.span.ms || 0) - (a.span.ms || 0))
       .slice(0, maxSpans);
@@ -227,7 +227,7 @@ function formatTraceSummary(traceJson, opts = {}) {
       .sort((a, b) => (b.ms || 0) - (a.ms || 0))
       .slice(0, maxSql);
     if (sqlRows.length > 0) {
-      lines.push(`slow SQL (top ${sqlRows.length}):`); 
+      lines.push(`slow SQL (top ${sqlRows.length}):`);
       for (const q of sqlRows) {
         const rowsTxt = typeof q.rows === 'number' ? ` rows=${q.rows}` : '';
         lines.push(`  - [${q.span}] ${formatMs(q.ms || 0)}${rowsTxt} ${trunc(q.sql || '', 180)}`);
@@ -241,7 +241,7 @@ function formatTraceSummary(traceJson, opts = {}) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 12);
   if (counterRows.length > 0) {
-    lines.push(`counters (top ${counterRows.length}):`); 
+    lines.push(`counters (top ${counterRows.length}):`);
     for (const [k, v] of counterRows) {
       lines.push(`  - ${k}: ${v}`);
     }
