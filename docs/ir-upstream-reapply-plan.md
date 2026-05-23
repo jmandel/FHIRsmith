@@ -6,7 +6,8 @@
 - Original IR branch point: `dbb01fe`.
 - Original IR work: `origin/ir-engine`, 105 commits past the branch point.
 - Upstream drift: 323 commits past the branch point.
-- Active worktree stack root: `/home/jmandel/work/fhirsmith-again/FHIRsmith-sqlite-v0-schema-importers`.
+- The work was reapplied in local stacked worktrees; no fixed local path is
+  required to reproduce the branch.
 - Runtime: upstream now requires Node `>=24`; this machine uses `nvm` and Node `25.9.0` for importer and test runs.
 
 ## Core Decisions

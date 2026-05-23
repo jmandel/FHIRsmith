@@ -15,6 +15,12 @@ When a request arrives at an endpoint, the module:
 2. Passes the Provider to the appropriate worker to handle the operation
 3. Returns the FHIR-compliant response
 
+The optional IR engine and sqlite-v0 provider are documented in:
+
+- [Terminology IR Architecture](../docs/ir-architecture.md)
+- [IR Server Integration](../docs/ir-server-integration.md)
+- [IR Performance And Verification](../docs/ir-performance.md)
+
 ## Configuration
 
 Add the `tx` section to your `config.json`:
@@ -256,6 +262,25 @@ Common edition identifiers:
 
 The file is built by importing SNOMED CT (see [documentation](importers/readme.md))
 
+#### `sqlite-v0` - Normalized SQLite Terminology Database
+
+Loads a normalized sqlite-v0 terminology database. sqlite-v0 databases are used
+by the IR-native provider and can also serve legacy-compatible CodeSystem
+operations.
+
+```yaml
+- sqlite-v0!:sct_intl_20250201.v0.db
+- sqlite-v0!:loinc_281_full.v0.db
+- sqlite-v0:rxnorm_02022026.v0.db
+```
+
+The file is built with the sqlite-v0 importers:
+
+```bash
+node tx/importers/tx-import.js snomed-sqlite-v0 --help
+node tx/importers/tx-import.js loinc-sqlite-v0 --help
+node tx/importers/tx-import.js rxnorm-sqlite-v0 --help
+```
 
 #### `cpt` - CPT (Current Procedural Terminology)
 

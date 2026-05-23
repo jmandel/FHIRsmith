@@ -29,6 +29,36 @@ phase can be reviewed independently.
 | Trace/debug output | Ported. `_trace` attaches structured trace payloads and optional IR plan text without changing normal responses. | `tx/engine/expand-trace.js`; `tx/workers/ir-worker-trace.js`; harness cases. |
 | Shared TX harness | Ported into this follow-on branch. The harness covers `$expand`, `$validate-code`, and `$lookup`, can run local IR/legacy matrices, and can optionally collect perf artifacts. | `scripts/tx-harness.mjs`; `scripts/tx-harness-runner.mjs`; `scripts/tx-harness-cases/*`; `docs/tx-harness-plan.md`. |
 
+## Current IR Documentation
+
+The PR-facing documentation is split by audience:
+
+- [Terminology IR Architecture](ir-architecture.md): method, mental model,
+  algebra, sqlite-v0 native execution, supplements, and correctness guardrails.
+- [IR Server Integration](ir-server-integration.md): routing, request
+  parameters, trace output, sqlite-v0 source configuration, worker integration,
+  and rollout guidance.
+- [IR Performance And Verification](ir-performance.md): exact-total behavior,
+  budgeted early-stop materialization, progress limiting, perf harness commands,
+  and optimization policy.
+
+## Shared File Audit
+
+Several non-new files are intentionally touched because IR and sqlite-v0 need
+small shared contracts, or because the harness exposed existing behavior that
+had to be made deterministic.
+
+| File | Reason |
+| --- | --- |
+| `tx/cs/cs-api.js` | Adds provider hooks for release dates, multiple direct parents, and native sqlite supplement sources. These are shared contracts used by locked-date resolution, hierarchy lookup, and sidecar supplement binding. Also fixes designation iteration over concept objects. |
+| `tx/cs/cs-cs.js` | Uses title/url as name fallback for inline CodeSystems and returns all direct parents in lookup output. This keeps inline/package-backed providers aligned with sqlite-v0 hierarchy behavior. |
+| `tx/cs/cs-currency.js` | Accepts FHIR filter operator `=` in addition to legacy `equals` for ISO 4217 decimal filters. This is a small compatibility fix exposed by compose-filter parity cases. |
+| `tx/workers/expand.js` | Adds optional trace output, bypasses cache for trace/nocache requests, preserves explicit displays, reports imported value-set canonicals consistently, fixes searchFilter argument ordering, and tightens imported-exclude hierarchy handling. |
+| `tx/workers/validate.js` | Defers supplement resolution to the shared resolver, supports `url|version` canonical ValueSet parameters, passes exclude-check messages through correctly, and suppresses misleading exclude diagnostics. |
+| `tx/params.js` | Reads `_engine`, `_trace`, `_nocache`, and `_exactTotal` request controls, includes them in cache keys, copies them between parameter instances, and returns structured OperationOutcome errors for malformed version rules. |
+| `tx/library/expansion-properties.js` | Centralizes expansion-property aliasing and known extension-to-property normalization so legacy and IR rendering use the same property request semantics. |
+| `tx/supplements/resolver.js` | Implements the shared supplement selection policy, including deterministic newest-version choice for unversioned supplement requests when version metadata makes that safe. |
+
 ## Intentionally Not Ported
 
 | Old IR branch item | Reason |
