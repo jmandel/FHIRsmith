@@ -189,20 +189,6 @@ class ValidateIRWorker extends ValidateWorker {
       mode = { mode: null };
       coded = this.extractCodedValue(params, true, mode);
       if (!coded) {
-        const inlineCodeSystem = this.getResourceParam(params, 'codeSystem');
-        const code = this.getStringParam(params, 'code');
-        if (inlineCodeSystem && code) {
-          mode.mode = 'code';
-          mode.issuePath = '';
-          const coding = { code };
-          if (inlineCodeSystem.url) coding.system = inlineCodeSystem.url;
-          if (inlineCodeSystem.version) coding.version = inlineCodeSystem.version;
-          const display = this.getStringParam(params, 'display');
-          if (display) coding.display = display;
-          coded = { coding: [coding] };
-        }
-      }
-      if (!coded) {
         throw new Issue(
           'error',
           'invalid',
@@ -237,16 +223,16 @@ class ValidateIRWorker extends ValidateWorker {
       const result = await this.doValidationCS(coded, codeSystem, txp, mode, coded);
       if (req) req.logInfo = this.usedSources.join('|') + txp.logInfo();
       return result;
-      } catch (error) {
-        this.log.error(error);
-        debugLog(error);
-        if (error instanceof Issue && !error.isHandleAsOO()) {
-          if (isExplicitIRRuntimeIssue(error)) {
-            throw error.handleAsOO(error.statusCode || 422);
-          }
-          return await this.handlePrepareError(error, coded, mode?.mode, txp);
+    } catch (error) {
+      this.log.error(error);
+      debugLog(error);
+      if (error instanceof Issue && !error.isHandleAsOO()) {
+        if (isExplicitIRRuntimeIssue(error)) {
+          throw error.handleAsOO(error.statusCode || 422);
         }
-        throw error;
+        return await this.handlePrepareError(error, coded, mode?.mode, txp);
+      }
+      throw error;
     }
   }
 
@@ -541,9 +527,11 @@ class ValidateIRWorker extends ValidateWorker {
       }
       this.recordIRPlanText(plan.planText);
 
-      const constrainedIR = optimize(addCodeConstraint(plan.optimizedIR, code));
       const warnings = [];
-      const scopeResult = await resolveIRExecutionScopes(plan.systems, constrainedIR, {
+      const resolveSpan = trace.begin('validateIR:resolveScopesForMembership', {
+        systems: plan.systems?.size || 0,
+      });
+      const scopeResult = await resolveIRExecutionScopes(plan.systems, plan.optimizedIR, {
         findProvider: async (system, version) => (
           await bindIRScopeForOperation(
             this,
@@ -566,25 +554,79 @@ class ValidateIRWorker extends ValidateWorker {
         warnings,
         countFromIR,
       });
+      resolveSpan.end({ scopes: scopeResult?.resolved?.length || 0 });
 
       if (!scopeResult) {
         throw new Issue('error', 'not-supported', path, 'FILTER_NOT_UNDERSTOOD',
           this.i18n.translate('FILTER_NOT_UNDERSTOOD', this.params.HTTPLanguages, [cset.filter[0].property, cset.filter[0].op, cset.filter[0].value, valueSetLabel(vs), cs.system()]), 'vs-invalid').handleAsOO(400);
       }
 
-      const page = await executeIRExpansionPage(scopeResult.resolved, {
-        text: null,
-        effectiveActiveOnly: !!this.params.activeOnly,
-        offset: 0,
-        count: 1,
-        allowIncompleteExpansion: false,
-        exactTotal: false,
-        shouldOmitLazyTotal: true,
-        limit: 0,
-        vsJson: miniVs,
+      let matched = false;
+      let probed = false;
+      const membershipSpan = trace.begin('validateIR:membershipProbe', {
+        code,
+        scopes: scopeResult.resolved.length,
       });
+      for (const resolved of scopeResult.resolved) {
+        if (typeof resolved.irProvider?.membershipForIR !== 'function') {
+          continue;
+        }
+        probed = true;
+        const membership = await resolved.irProvider.membershipForIR(resolved.subtree);
+        if (membership?.has?.(code)) {
+          matched = true;
+          break;
+        }
+      }
+      membershipSpan.end({ matched, probed });
 
-      if (!page.candidates || page.candidates.length === 0) {
+      if (!probed) {
+        const fallbackSpan = trace.begin('validateIR:membershipExpandFallback', { code });
+        const constrainedIR = optimize(addCodeConstraint(plan.optimizedIR, code));
+        const fallbackScopeResult = await resolveIRExecutionScopes(plan.systems, constrainedIR, {
+          findProvider: async (system, version) => (
+            await bindIRScopeForOperation(
+              this,
+              system,
+              version,
+              this.params,
+              ['complete', 'fragment'],
+              op,
+              true,
+              true,
+              false,
+              this.requiredSupplements
+            )
+          ),
+          text: null,
+          effectiveActiveOnly: !!this.params.activeOnly,
+          count: 1,
+          totalOnly: false,
+          allowIncompleteExpansion: false,
+          warnings,
+          countFromIR,
+        });
+        if (!fallbackScopeResult) {
+          fallbackSpan.end({ matched: false, scopes: 0 });
+          throw new Issue('error', 'not-supported', path, 'FILTER_NOT_UNDERSTOOD',
+            this.i18n.translate('FILTER_NOT_UNDERSTOOD', this.params.HTTPLanguages, [cset.filter[0].property, cset.filter[0].op, cset.filter[0].value, valueSetLabel(vs), cs.system()]), 'vs-invalid').handleAsOO(400);
+        }
+        const page = await executeIRExpansionPage(fallbackScopeResult.resolved, {
+          text: null,
+          effectiveActiveOnly: !!this.params.activeOnly,
+          offset: 0,
+          count: 1,
+          allowIncompleteExpansion: false,
+          exactTotal: false,
+          shouldOmitLazyTotal: true,
+          limit: 0,
+          vsJson: miniVs,
+        });
+        matched = !!(page.candidates && page.candidates.length > 0);
+        fallbackSpan.end({ matched, scopes: fallbackScopeResult.resolved.length });
+      }
+
+      if (!matched) {
         this.opContext.addNote(vs, 'Filter ' + checker.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.renderer.displayCoded(cs), checker.indentCount);
         return false;
       }

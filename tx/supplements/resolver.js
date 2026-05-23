@@ -48,7 +48,7 @@ function chooseCandidate(target, ref, candidates) {
   const scoped = candidates.filter(c => (Number(c.precedence) || 0) === minPrecedence);
   if (scoped.length === 1) return scoped[0];
 
-  if (!ref?.version && scoped.every(candidate => candidate?.descriptor?.sourceKind !== 'inline')) {
+  if (!ref?.version) {
     const ranked = [...scoped].sort((left, right) => {
       const versionCmp = compareCandidateVersions(right, left);
       if (versionCmp !== 0) return versionCmp;

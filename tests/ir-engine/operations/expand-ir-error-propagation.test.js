@@ -42,8 +42,8 @@ function ambiguousSupplements() {
   };
 
   return [
-    { ...common, version: '1.0.0' },
-    { ...common, version: '2.0.0' },
+    { ...common, version: '2025-01-01' },
+    { ...common, version: '20250101' },
   ];
 }
 

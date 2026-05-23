@@ -135,6 +135,9 @@ async function renderIRExpansionResult(execution, resolved, opts = {}) {
     total,
     deferredTotal,
   } = execution;
+  const hasUnclosedExpansion = Array.isArray(execution.unclosedMessages)
+    && execution.unclosedMessages.length > 0;
+  const renderedTotal = hasUnclosedExpansion ? undefined : total;
 
   const composeOverrides = collectComposeOverrides(resolved);
 
@@ -189,7 +192,7 @@ async function renderIRExpansionResult(execution, resolved, opts = {}) {
   });
 
   const canNest = !excludeNested && offset === 0
-    && (count < 0 || count >= (total ?? deferredTotal ?? contains.length));
+    && (count < 0 || count >= (renderedTotal ?? deferredTotal ?? contains.length));
   if (canNest && paged.some(c => c._parentCode)) {
     nestContains(contains, paged);
   }
@@ -204,7 +207,7 @@ async function renderIRExpansionResult(execution, resolved, opts = {}) {
 
   return {
     expansion: {
-      total,
+      total: renderedTotal,
       offset: offset > 0 ? offset : undefined,
       contains,
       property: expansionPropertyDefs.size > 0 ? [...expansionPropertyDefs.values()] : undefined,

@@ -183,6 +183,54 @@ describe('SupplementRegistry and SupplementResolver', () => {
     expect(result.items[0].descriptor.canonical).toBe('http://example.org/supp-ambiguous|2.0');
   });
 
+  test('chooses newest matching inline supplement version for unversioned request', async () => {
+    const s1 = makeSupplement({
+      url: 'http://example.org/supp-inline-versioned',
+      version: '1.0',
+      targetSystem: 'http://example.org/base',
+    });
+    const s2 = makeSupplement({
+      url: 'http://example.org/supp-inline-versioned',
+      version: '2.0',
+      targetSystem: 'http://example.org/base',
+    });
+    const registry = createSupplementRegistry();
+    addInlineCodeSystems(registry, [s1, s2]);
+
+    const result = await resolveSupplementsForBaseScope({
+      target: { system: 'http://example.org/base', version: null },
+      refs: [makeSupplementRef(s1.url, 'useSupplement', 0)],
+      registry,
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].descriptor.canonical).toBe('http://example.org/supp-inline-versioned|2.0');
+  });
+
+  test('honors version-pinned inline supplement canonical when a newer version exists', async () => {
+    const s1 = makeSupplement({
+      url: 'http://example.org/supp-inline-pinned',
+      version: '1.0',
+      targetSystem: 'http://example.org/base',
+    });
+    const s2 = makeSupplement({
+      url: 'http://example.org/supp-inline-pinned',
+      version: '2.0',
+      targetSystem: 'http://example.org/base',
+    });
+    const registry = createSupplementRegistry();
+    addInlineCodeSystems(registry, [s1, s2]);
+
+    const result = await resolveSupplementsForBaseScope({
+      target: { system: 'http://example.org/base', version: null },
+      refs: [makeSupplementRef(`${s1.url}|1.0`, 'useSupplement', 0)],
+      registry,
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].descriptor.canonical).toBe('http://example.org/supp-inline-pinned|1.0');
+  });
+
   test('materializes factory-registered supplements through fillOutSupplement', async () => {
     const placeholder = makeSupplement({
       url: 'http://example.org/supp-factory',

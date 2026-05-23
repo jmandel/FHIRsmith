@@ -669,13 +669,14 @@ describe('Type-level CodeSystem $validate-code through ValidateIRWorker', () => 
     expect(String(paramValueString(res.body, 'message') || '')).toContain('Coding has no system');
   }, 60000);
 
-  test('accepts code-only validation against an inline CodeSystem resource with inline supplement-selected display', async () => {
+  test('accepts explicit-system validation against an inline CodeSystem resource with inline supplement-selected display', async () => {
     const res = await request(fixture.app)
       .post('/tx/r5/CodeSystem/$validate-code')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
       .send(params([
         { name: '_engine', valueCode: 'ir' },
+        { name: 'system', valueUri: 'http://example.org/cs-inline-validate-supp-base' },
         { name: 'code', valueCode: 'A' },
         { name: 'displayLanguage', valueCode: 'de' },
         { name: 'useSupplement', valueString: 'http://example.org/cs-inline-validate-supp-de' },
@@ -967,7 +968,7 @@ describe('CodeSystem $validate-code through ValidateIRWorker with configured sql
   }, 60000);
 });
 
-describe('supplement runtime failures remain explicit in ValidateIRWorker', () => {
+describe('supplement runtime version resolution in ValidateIRWorker', () => {
   let fixture;
 
   beforeAll(async () => {
@@ -988,7 +989,7 @@ describe('supplement runtime failures remain explicit in ValidateIRWorker', () =
     await destroyManagedTxFixture(fixture);
   });
 
-  test('returns 422 for ambiguous inline supplement selection', async () => {
+  test('chooses newest inline supplement selection for unversioned ValueSet validate request', async () => {
     const supplementBase = {
       resourceType: 'CodeSystem',
       url: 'http://example.org/fhir/CodeSystem/admin-gender-rolls',
@@ -1049,12 +1050,11 @@ describe('supplement runtime failures remain explicit in ValidateIRWorker', () =
         },
       ]));
 
-    expect(res.status).toBe(422);
-    expect(res.body.resourceType).toBe('OperationOutcome');
-    expect(res.body.issue?.[0]?.details?.text || '').toContain('Ambiguous supplement');
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(false);
   }, 60000);
 
-  test('returns 422 for ambiguous inline supplement selection on CodeSystem validate', async () => {
+  test('chooses newest inline supplement selection for unversioned CodeSystem validate request', async () => {
     const supplementBase = {
       resourceType: 'CodeSystem',
       url: 'http://example.org/fhir/CodeSystem/admin-gender-de',
@@ -1071,6 +1071,7 @@ describe('supplement runtime failures remain explicit in ValidateIRWorker', () =
         { name: '_engine', valueCode: 'ir' },
         { name: 'url', valueUri: 'http://hl7.org/fhir/administrative-gender' },
         { name: 'code', valueCode: 'male' },
+        { name: 'displayLanguage', valueCode: 'de' },
         { name: 'useSupplement', valueString: supplementBase.url },
         {
           name: 'tx-resource',
@@ -1110,8 +1111,8 @@ describe('supplement runtime failures remain explicit in ValidateIRWorker', () =
         },
       ]));
 
-    expect(res.status).toBe(422);
-    expect(res.body.resourceType).toBe('OperationOutcome');
-    expect(JSON.stringify(res.body)).toContain('VALUESET_SUPPLEMENT_AMBIGUOUS');
+    expect(res.status).toBe(200);
+    expect(resultValue(res.body)).toBe(true);
+    expect(displayValue(res.body)).toBe('Männlich V2');
   }, 60000);
 });

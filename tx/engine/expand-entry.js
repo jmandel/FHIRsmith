@@ -190,7 +190,7 @@ async function maybeExpandValueSetViaIR(opts = {}) {
         excludeNested: !!params.excludeNested,
         properties: params.properties || [],
         designations: params.designations || [],
-        exactTotal: params.exactTotal !== false,
+        exactTotal: params.exactTotal === true,
         allowIncompleteExpansion: !!params.incompleteOK || !!params.limitedExpansion,
         limit: (params.offset < 0 && params.count < 0)
           ? (params.limit > 0 ? Math.min(params.limit, externalDefaultLimit) : externalDefaultLimit)

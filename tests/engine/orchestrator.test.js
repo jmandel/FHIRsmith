@@ -250,7 +250,7 @@ describe('expandViaIR sideband metadata propagation', () => {
     });
 
     expect(result).toBeTruthy();
-    expect(result.expansion.total).toBe(1);
+    expect(result.expansion.total).toBeUndefined();
     expect(result.expansion.unclosedMessages).toContain('grammar shell from count');
   });
 });
