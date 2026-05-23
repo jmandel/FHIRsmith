@@ -1,2 +1,3 @@
-﻿module.exports = require('./patches.cjs');
+// @ts-check
 
+module.exports = require('./patches.cjs');

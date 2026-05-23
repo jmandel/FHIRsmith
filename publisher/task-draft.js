@@ -1,10 +1,26 @@
+// @ts-check
+
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const axios = require('axios');
+const axios = /** @type {any} */ (require('axios'));
 const { spawnJava } = require('./spawn-java');
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 class DraftTaskProcessor {
+  /**
+   * @param {any} config
+   * @param {any} logger
+   * @param {(taskId: any, level: string, message: string) => Promise<any>} logTaskMessage
+   * @param {(taskId: any, status: string, data?: any) => Promise<any>} updateTaskStatus
+   */
   constructor(config, logger, logTaskMessage, updateTaskStatus) {
     this.config = config;
     this.logger = logger;
@@ -12,6 +28,9 @@ class DraftTaskProcessor {
     this.updateTaskStatus = updateTaskStatus;
   }
 
+  /**
+   * @param {any} task
+   */
   async processDraftBuild(task) {
     this.logger.info('Processing draft build for task #' + task.id + ' (' + task.npm_package_id + '#' + task.version + ')');
 
@@ -32,13 +51,16 @@ class DraftTaskProcessor {
     } catch (error) {
       this.logger.error('Draft build failed for task #' + task.id + ':', error);
       await this.updateTaskStatus(task.id, 'failed', {
-        failure_reason: error.message
+        failure_reason: errorMessage(error)
       });
-      await this.logTaskMessage(task.id, 'error', 'Draft build failed: ' + error.message);
+      await this.logTaskMessage(task.id, 'error', 'Draft build failed: ' + errorMessage(error));
       throw error; // Re-throw so the main processor knows it failed
     }
   }
 
+  /**
+   * @param {any} task
+   */
   async runDraftBuild(task) {
     const taskDir = path.join(this.config.workspaceRoot, 'task-' + task.id);
     const draftDir = path.join(taskDir, 'draft');
@@ -70,6 +92,9 @@ class DraftTaskProcessor {
     this.logger.info('Draft build completed for ' + task.npm_package_id + '#' + task.version);
   }
 
+  /**
+   * @param {string} taskDir
+   */
   async createTaskDirectory(taskDir) {
     await this.logTaskMessage(null, 'info', 'Creating/cleaning task directory: ' + taskDir);
 
@@ -84,10 +109,10 @@ class DraftTaskProcessor {
         fs.rmSync(taskDir, { recursive: true, force: true });
       } else {
         // Fallback for older Node versions
-        const rimraf = require('rimraf');
-        await new Promise((resolve, reject) => {
+        const rimraf = /** @type {any} */ (require('rimraf'));
+        await new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
           if (typeof rimraf === 'function') {
-            rimraf(taskDir, (err) => {
+            rimraf(taskDir, (/** @type {Error | null} */ err) => {
               if (err) reject(err);
               else resolve();
             });
@@ -104,6 +129,11 @@ class DraftTaskProcessor {
     fs.mkdirSync(taskDir, { recursive: true });
   }
 
+  /**
+   * @param {string} taskDir
+   * @param {any} taskId
+   * @returns {Promise<string>}
+   */
   async downloadPublisher(taskDir, taskId) {
     const publisherJar = path.join(taskDir, 'publisher.jar');
 
@@ -120,7 +150,7 @@ class DraftTaskProcessor {
         timeout: 30000 // 30 second timeout
       });
 
-      const downloadUrl = releaseResponse.data.assets.find(asset =>
+      const downloadUrl = releaseResponse.data.assets.find((/** @type {any} */ asset) =>
         asset.name === 'publisher.jar'
       )?.browser_download_url;
 
@@ -145,7 +175,7 @@ class DraftTaskProcessor {
       const totalBytes = parseInt(response.headers['content-length'] || '0');
       let lastProgressPercent = -1;
 
-      response.data.on('data', (chunk) => {
+      response.data.on('data', (/** @type {Buffer} */ chunk) => {
         downloadedBytes += chunk.length;
         if (totalBytes > 0) {
           const progress = Math.round((downloadedBytes / totalBytes) * 100);
@@ -159,7 +189,7 @@ class DraftTaskProcessor {
 
       response.data.pipe(writer);
 
-      await new Promise((resolve, reject) => {
+      await new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
         writer.on('finish', resolve);
         writer.on('error', reject);
       });
@@ -168,20 +198,25 @@ class DraftTaskProcessor {
       return publisherJar;
 
     } catch (error) {
-      if (error.code === 'ECONNABORTED') {
+      const axiosError = /** @type {{code?: string}} */ (error);
+      if (axiosError.code === 'ECONNABORTED') {
         throw new Error('Publisher download timed out - please try again');
       }
-      throw new Error('Failed to download publisher: ' + error.message);
+      throw new Error('Failed to download publisher: ' + errorMessage(error));
     }
   }
 
+  /**
+   * @param {any} task
+   * @param {string} draftDir
+   */
   async cloneRepository(task, draftDir) {
     const gitUrl = 'https://github.com/' + task.github_org + '/' + task.github_repo + '.git';
 
     await this.logTaskMessage(task.id, 'info', 'Cloning repository: ' + gitUrl + ' (branch: ' + task.git_branch + ')');
 
-    return new Promise((resolve, reject) => {
-      const git = spawn('git', [
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
+      const git = /** @type {any} */ (spawn('git', [
         'clone',
         '--branch', task.git_branch,
         '--single-branch',
@@ -190,21 +225,21 @@ class DraftTaskProcessor {
         draftDir
       ], {
         stdio: ['pipe', 'pipe', 'pipe']
-      });
+      }));
 
       // eslint-disable-next-line no-unused-vars
       let stdout = '';
       let stderr = '';
 
-      git.stdout.on('data', (data) => {
+      git.stdout.on('data', (/** @type {Buffer} */ data) => {
         stdout += data.toString();
       });
 
-      git.stderr.on('data', (data) => {
+      git.stderr.on('data', (/** @type {Buffer} */ data) => {
         stderr += data.toString();
       });
 
-      git.on('close', async (code) => {
+      git.on('close', async (/** @type {number} */ code) => {
         if (code === 0) {
           await this.logTaskMessage(task.id, 'info', 'Repository cloned successfully');
 
@@ -227,7 +262,7 @@ class DraftTaskProcessor {
         }
       });
 
-      git.on('error', async (error) => {
+      git.on('error', async (/** @type {Error} */ error) => {
         await this.logTaskMessage(task.id, 'error', 'Git clone error: ' + error.message);
         reject(error);
       });
@@ -245,31 +280,34 @@ class DraftTaskProcessor {
     });
   }
 
+  /**
+   * @param {any} taskId
+   */
   async installFshSushi(taskId) {
     await this.logTaskMessage(taskId, 'info', 'Installing FSH Sushi globally...');
 
-    return new Promise((resolve, reject) => {
-      const npm = spawn('npm', [
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
+      const npm = /** @type {any} */ (spawn('npm', [
         'install',
         '-g',
         'fsh-sushi'
       ], {
         stdio: ['pipe', 'pipe', 'pipe']
-      });
+      }));
 
       // eslint-disable-next-line no-unused-vars
       let stdout = '';
       let stderr = '';
 
-      npm.stdout.on('data', (data) => {
+      npm.stdout.on('data', (/** @type {Buffer} */ data) => {
         stdout += data.toString();
       });
 
-      npm.stderr.on('data', (data) => {
+      npm.stderr.on('data', (/** @type {Buffer} */ data) => {
         stderr += data.toString();
       });
 
-      npm.on('close', async (code) => {
+      npm.on('close', async (/** @type {number} */ code) => {
         if (code === 0) {
           await this.logTaskMessage(taskId, 'info', 'FSH Sushi installed successfully');
 
@@ -277,7 +315,7 @@ class DraftTaskProcessor {
           try {
             await this.checkSushiVersion(taskId);
           } catch (versionError) {
-            this.logTaskMessage(taskId, 'warn', 'FSH Sushi installed but version check failed: ' + versionError.message);
+            this.logTaskMessage(taskId, 'warn', 'FSH Sushi installed but version check failed: ' + errorMessage(versionError));
           }
 
           resolve();
@@ -288,7 +326,7 @@ class DraftTaskProcessor {
         }
       });
 
-      npm.on('error', async (error) => {
+      npm.on('error', async (/** @type {Error} */ error) => {
         await this.logTaskMessage(taskId, 'error', 'NPM install error: ' + error.message);
         reject(error);
       });
@@ -312,25 +350,29 @@ class DraftTaskProcessor {
     });
   }
 
+  /**
+   * @param {any} taskId
+   * @returns {Promise<string>}
+   */
   async checkSushiVersion(taskId) {
-    return new Promise((resolve, reject) => {
-      const sushi = spawn('sushi', ['--version'], {
+    return new Promise((/** @type {(value: string) => void} */ resolve, reject) => {
+      const sushi = /** @type {any} */ (spawn('sushi', ['--version'], {
         stdio: ['pipe', 'pipe', 'pipe']
-      });
+      }));
 
       let stdout = '';
       // eslint-disable-next-line no-unused-vars
       let stderr = '';
 
-      sushi.stdout.on('data', (data) => {
+      sushi.stdout.on('data', (/** @type {Buffer} */ data) => {
         stdout += data.toString();
       });
 
-      sushi.stderr.on('data', (data) => {
+      sushi.stderr.on('data', (/** @type {Buffer} */ data) => {
         stderr += data.toString();
       });
 
-      sushi.on('close', async (code) => {
+      sushi.on('close', async (/** @type {number} */ code) => {
         if (code === 0) {
           const version = stdout.trim();
           await this.logTaskMessage(taskId, 'info', 'FSH Sushi version: ' + version);
@@ -340,7 +382,7 @@ class DraftTaskProcessor {
         }
       });
 
-      sushi.on('error', (error) => {
+      sushi.on('error', (/** @type {Error} */ error) => {
         reject(error);
       });
 
@@ -352,6 +394,12 @@ class DraftTaskProcessor {
     });
   }
 
+  /**
+   * @param {string} publisherJar
+   * @param {string} draftDir
+   * @param {string} logFile
+   * @param {any} taskId
+   */
   async runIGPublisher(publisherJar, draftDir, logFile, taskId) {
     await this.logTaskMessage(taskId, 'info', 'Running FHIR IG Publisher...');
 
@@ -363,8 +411,8 @@ class DraftTaskProcessor {
       await this.logTaskMessage(taskId, 'info', 'No sushi-config.yaml found');
     }
 
-    return new Promise((resolve, reject) => {
-      const java = spawnJava([
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
+      const java = /** @type {any} */ (spawnJava([
         '-jar',
         '-Xmx20000m',
         publisherJar,
@@ -373,7 +421,7 @@ class DraftTaskProcessor {
       ], {
         cwd: draftDir,
         stdio: ['pipe', 'pipe', 'pipe']
-      });
+      }));
 
       // Create log file stream
       const logStream = fs.createWriteStream(logFile);
@@ -390,7 +438,7 @@ class DraftTaskProcessor {
       let hasOutput = false;
       let lastProgressUpdate = Date.now();
 
-      java.stdout.on('data', (data) => {
+      java.stdout.on('data', (/** @type {Buffer} */ data) => {
         hasOutput = true;
         logStream.write(data);
 
@@ -402,12 +450,12 @@ class DraftTaskProcessor {
         }
       });
 
-      java.stderr.on('data', (data) => {
+      java.stderr.on('data', (/** @type {Buffer} */ data) => {
         hasOutput = true;
         logStream.write(data);
       });
 
-      java.on('close', async (code) => {
+      java.on('close', async (/** @type {number} */ code) => {
         const endTime = new Date().toISOString();
         logStream.write('\n=====================================\n');
         logStream.write('Finished: ' + endTime + '\n');
@@ -431,7 +479,7 @@ class DraftTaskProcessor {
         }
       });
 
-      java.on('error', async (error) => {
+      java.on('error', async (/** @type {Error} */ error) => {
         logStream.write('\nERROR: ' + error.message + '\n');
         logStream.end();
         await this.logTaskMessage(taskId, 'error', 'IG Publisher error: ' + error.message);

@@ -1,6 +1,12 @@
+// @ts-check
+
 const { LanguagePartType, Languages, Language, LanguageDefinitions} = require('../../library/languages');
 const {validateParameter, validateOptionalParameter, validateArrayParameter} = require("../../library/utilities");
 const natural = require('natural');
+
+/** @typedef {{system?: string, version?: string, code?: string, display?: string}} CodingLike */
+/** @typedef {{passes: boolean, rating: number}} PassRating */
+
 /**
  * Display checking modes for concept designations
  */
@@ -21,6 +27,16 @@ const allowedDesignationExtensions = [
  * Text search filter with stemming support
  */
 class SearchFilterText {
+  /** @type {string | null} */
+  filter;
+  /** @type {string[]} */
+  stems;
+  /** @type {any} */
+  stemmer;
+
+  /**
+   * @param {string | null | undefined} filter
+   */
   constructor(filter) {
     validateOptionalParameter(filter, 'filter', String);
 
@@ -34,6 +50,7 @@ class SearchFilterText {
 
   /**
    * Check if filter is empty
+   * @returns {boolean}
    */
   get isNull() {
     return this.stems.length === 0;
@@ -41,12 +58,15 @@ class SearchFilterText {
 
   /**
    * Check if a value passes the filter
+   * @param {string} value
+   * @param {boolean} [returnRating]
+   * @returns {boolean | PassRating}
    */
   passes(value, returnRating = false) {
     validateParameter(value, 'value', String);
     validateOptionalParameter(returnRating, 'returnRating', Boolean);
 
-    if (this.null) {
+    if (this.isNull) {
       return returnRating ? {passes: true, rating: 0} : true;
     }
 
@@ -80,6 +100,8 @@ class SearchFilterText {
 
   /**
    * Check if designations pass the filter
+   * @param {Designations | null | undefined} cds
+   * @returns {boolean}
    */
   passesDesignations(cds) {
     validateOptionalParameter(cds, 'cds', Designations);
@@ -100,6 +122,8 @@ class SearchFilterText {
 
   /**
    * Calculate match score against stems
+   * @param {string[] | null | undefined} stems
+   * @returns {number}
    */
   matches(stems) {
     validateOptionalParameter(stems, 'stems', Array);
@@ -133,7 +157,13 @@ class SearchFilterText {
 
   // Private methods
 
+  /**
+   * @returns {void}
+   */
   _process() {
+    if (!this.filter) {
+      return;
+    }
     let i = 0;
 
     while (i < this.filter.length) {
@@ -152,10 +182,18 @@ class SearchFilterText {
     this.stems.sort();
   }
 
+  /**
+   * @param {string} char
+   * @returns {boolean}
+   */
   _isAlphaNumeric(char) {
     return /[0-9a-zA-Z]/.test(char);
   }
 
+  /**
+   * @param {string} stem
+   * @returns {boolean}
+   */
   _find(stem) {
     // Binary search
     let left = 0;
@@ -184,6 +222,7 @@ class SearchFilterText {
 const LangMatchType = {
     LITERAL: 'literal',
     FULL: 'full',
+    LANG_EXACT: 'langExact',
     LANG_REGION: 'langRegion',
     LANG: 'lang'
   };
@@ -234,11 +273,20 @@ const DesignationUse = {
  * Individual concept designation with language, use, and value
  */
 class Designation {
+  /** @type {string | null} */
   status;
+  /** @type {Language | null} */
   language;
+  /** @type {CodingLike | null} */
   use; // Coding {system, version, code, display} - well be DesignationUse.DISPLAY if is display
+  /** @type {string | null} */
   value; // string
+  /** @type {any[]} */
   extensions = []; // extensions on the designation
+  /** @type {any} */
+  source = null;
+  /** @type {any} */
+  supplement = null;
 
   constructor() {
     this.status = null;
@@ -250,6 +298,7 @@ class Designation {
 
   /**
    * Get the display text for this designation
+   * @returns {string}
    */
   get display() {
     return this.value ? this.value || '' : '';
@@ -257,6 +306,7 @@ class Designation {
 
   /**
    * Get a string representation of this designation
+   * @returns {string}
    */
   present() {
     let result = this.value ? `"${this.value || ''}"` : '""';
@@ -277,6 +327,8 @@ class Designation {
 
   /**
    * Render a coding object as text
+   * @param {CodingLike | null | undefined} coding
+   * @returns {string}
    */
   _renderCoding(coding) {
     if (!coding) return '--';
@@ -285,17 +337,27 @@ class Designation {
     return coding.system || '--';
   }
 
+  /**
+   * @returns {boolean}
+   */
   isPreferred() {
-    return this.use && this.use.system == DesignationUse.PREFERRED.system &&
-      this.use.code == DesignationUse.PREFERRED.code;
+    return !!(this.use && this.use.system == DesignationUse.PREFERRED.system &&
+      this.use.code == DesignationUse.PREFERRED.code);
   }
 
+  /**
+   * @returns {boolean}
+   */
   isActive() {
-    let inactive = ["withdrawn", "inactive"].includes(this.status);
+    let inactive = ["withdrawn", "inactive"].includes(this.status || '');
     return !inactive;
   }
 
+  /**
+   * @returns {any}
+   */
   asObject() {
+    /** @type {any} */
     let obj = {}
     if (this.language) {
       obj.language = this.language.code;
@@ -322,6 +384,18 @@ class Designation {
  * Collection of concept designations with language matching and preference logic
  */
 class Designations {
+  /** @type {LanguageDefinitions} */
+  languageDefinitions;
+  /** @type {Language | null} */
+  baseLang;
+  /** @type {Designation[]} */
+  designations;
+  /** @type {any} */
+  source;
+
+  /**
+   * @param {LanguageDefinitions} languageDefinitions
+   */
   constructor(languageDefinitions) {
     validateParameter(languageDefinitions, "languageDefinitions", LanguageDefinitions);
     this.languageDefinitions = languageDefinitions;
@@ -332,6 +406,7 @@ class Designations {
 
   /**
    * Clear all designations and reset base language
+   * @returns {void}
    */
   clear() {
     this.baseLang = null;
@@ -341,6 +416,13 @@ class Designations {
 
   /**
    * Add a designation with string parameters
+   * @param {boolean} isDisplay
+   * @param {string} status
+   * @param {string | null | undefined} lang
+   * @param {CodingLike | null | undefined} use
+   * @param {string} display
+   * @param {any[]} [extensions]
+   * @returns {Designation}
    */
   addDesignation(isDisplay, status, lang, use, display, extensions = []) {
     validateParameter(status, "status", String);
@@ -372,6 +454,12 @@ class Designations {
 
   /**
    * Add designations from an array of displays
+   * @param {string} status
+   * @param {boolean} isDisplay
+   * @param {string} lang
+   * @param {CodingLike | null | undefined} use
+   * @param {string[] | null | undefined} displays
+   * @returns {void}
    */
   addDesignationsFromArray(status, isDisplay, lang, use, displays) {
     validateParameter(status, "status", String);
@@ -388,6 +476,8 @@ class Designations {
 
   /**
    * Add designation from FHIR CodeSystem concept designation
+   * @param {any} concept
+   * @returns {void}
    */
   addDesignationFromConcept(concept) {
     validateOptionalParameter(concept, 'concept', Object);
@@ -404,6 +494,10 @@ class Designations {
     // }
   }
 
+  /**
+   * @param {string | null | undefined} value
+   * @returns {boolean}
+   */
   hasAnyDisplay(value) {
     for (let designation of this.designations) {
       if (designation.value === value) {
@@ -415,9 +509,15 @@ class Designations {
 
   /**
    * Check if a display value exists with specified matching criteria
+   * @param {Languages | null | undefined} langList
+   * @param {Language | null | undefined} defLang
+   * @param {string} value
+   * @param {boolean} active
+   * @param {string} mode
+   * @returns {{found: boolean, difference: string}}
    */
   hasDisplay(langList, defLang, value, active, mode) {
-    validateOptionalParameter(langList, 'langList', Languages, true); // Allow null
+    validateOptionalParameter(langList, 'langList', Languages); // Allow null
     validateOptionalParameter(defLang, 'defLang', Language);
     validateParameter(value, 'value', String);
     validateParameter(active, 'active', Boolean);
@@ -427,7 +527,7 @@ class Designations {
 
     for (const cd of this.designations) {
       if (this._langsMatch(langList, cd.language, LangMatchType.LANG, defLang) &&
-          (!active || cd.isActive()) && cd.value && this._stringMatches(value, cd.value, mode, cd.language)) {
+          (!active || cd.isActive()) && cd.value && this._stringMatches(value, cd.value, mode)) {
         result.found = true;
         return result;
       }
@@ -438,7 +538,7 @@ class Designations {
         if (this._langsMatch(langList, cd.language, LangMatchType.LANG, defLang) &&
           (!active || cd.isActive()) &&
           cd.value &&
-          this._stringMatches(value, cd.value, DisplayCheckingStyle.CASE_INSENSITIVE, cd.language)) {
+          this._stringMatches(value, cd.value, DisplayCheckingStyle.CASE_INSENSITIVE)) {
           result.difference = DisplayDifference.Case;
           return result;
         }
@@ -450,7 +550,7 @@ class Designations {
         if (this._langsMatch(langList, cd.language, LangMatchType.LANG, defLang) &&
           (!active || cd.isActive()) &&
           cd.value &&
-          this._stringMatches(value, cd.value, DisplayCheckingStyle.NORMALISED, cd.language)) {
+          this._stringMatches(value, cd.value, DisplayCheckingStyle.NORMALISED)) {
           result.difference = DisplayDifference.Normalized;
           return result;
         }
@@ -462,9 +562,13 @@ class Designations {
 
   /**
    * Count displays matching language criteria
+   * @param {Languages | null | undefined} langList
+   * @param {Language | null | undefined} defLang
+   * @param {boolean} displayOnly
+   * @returns {number}
    */
   displayCount(langList, defLang, displayOnly) {
-    validateOptionalParameter(langList, 'langList', Languages, true); // Allow null
+    validateOptionalParameter(langList, 'langList', Languages); // Allow null
     validateOptionalParameter(defLang, 'defLang', Language);
     validateParameter(displayOnly, 'displayOnly', Boolean);
 
@@ -506,12 +610,17 @@ class Designations {
 
   /**
    * Present all matching designations as a formatted string
+   * @param {Languages | null | undefined} langList
+   * @param {Language | null | undefined} defLang
+   * @param {boolean} displayOnly
+   * @returns {string}
    */
   present(langList, defLang, displayOnly) {
-    validateOptionalParameter(langList, 'langList', Languages, true); // Allow null
+    validateOptionalParameter(langList, 'langList', Languages); // Allow null
     validateOptionalParameter(defLang, 'defLang', Language);
     validateParameter(displayOnly, 'displayOnly', Boolean);
 
+    /** @type {string[]} */
     const results = [];
     let count = 0;
 
@@ -548,10 +657,14 @@ class Designations {
 
   /**
    * Check if designation should be included for given language criteria
+   * @param {Designation} cd
+   * @param {Languages | null | undefined} langList
+   * @param {Language | null | undefined} defLang
+   * @returns {boolean}
    */
   include(cd, langList, defLang) {
     validateParameter(cd, 'cd', Designation);
-    validateParameter(langList, 'langList', Languages, true); // Allow null
+    validateOptionalParameter(langList, 'langList', Languages); // Allow null
     validateOptionalParameter(defLang, 'defLang', Language);
 
     return this._langsMatch(langList, cd.language, LangMatchType.LANG, defLang);
@@ -559,6 +672,9 @@ class Designations {
 
   /**
    * Find the preferred designation for given language preferences
+   * @param {Languages | null} [langList]
+   * @param {Set<any> | null} [supplements]
+   * @returns {Designation | null}
    */
   preferredDesignation(langList = null, supplements = null) {
     if (this.designations.length === 0) {
@@ -699,21 +815,27 @@ class Designations {
 */
   /**
    * Get preferred display text
+   * @param {Languages | null | undefined} langList
+   * @param {Language | null | undefined} [defLang]
+   * @returns {string}
    */
-  preferredDisplay(langList, defLang) {
-    const cd = this.preferredDesignation(langList, defLang);
+  preferredDisplay(langList, defLang = null) {
+    void defLang;
+    const cd = this.preferredDesignation(langList || null, null);
     return cd ? cd.display : '';
   }
 
   /**
    * Get summary of all designations
+   * @returns {string}
    */
   summary() {
-    return this.designations.map(cd => cd.present()).join(', ');
+    return this.designations.map((cd) => cd.present()).join(', ');
   }
 
   /**
    * Present this designations object
+   * @returns {string}
    */
   presentSelf() {
     let result = this.baseLang ? `Lang: ${this.baseLang.code}` : 'Lang: ??';
@@ -725,6 +847,7 @@ class Designations {
 
   /**
    * Get language code for base language
+   * @returns {string}
    */
   get langCode() {
     return this.baseLang ? this.baseLang.code : 'en';
@@ -741,6 +864,8 @@ class Designations {
 
   /**
    * Check if designation is a display designation
+   * @param {Designation} cd
+   * @returns {boolean}
    */
   isDisplay(cd) {
     if (!cd.use) {
@@ -752,11 +877,13 @@ class Designations {
         cd.use.code === DesignationUse.PREFERRED.code)) {
       return true;
     }
-    return this.source && this.source.isDisplay(cd);
+    return !!(this.source && this.source.isDisplay(cd));
   }
 
   /**
    * Check if designation is a display designation
+   * @param {Designation} cd
+   * @returns {boolean}
    */
   _isPreferred(cd) {
     return !cd.use ||
@@ -771,6 +898,8 @@ class Designations {
 
   /**
    * Get depth for match type
+   * @param {string} matchType
+   * @returns {number}
    */
   _depthForMatchType(matchType) {
     switch (matchType) {
@@ -790,6 +919,10 @@ class Designations {
 
   /**
    * Check if a single language entry matches a stated language
+   * @param {Language} langEntry
+   * @param {Language | null | undefined} statedLang
+   * @param {string} matchType
+   * @returns {boolean}
    */
   _langMatches(langEntry, statedLang, matchType) {
     const actualLang = statedLang || this.baseLang;
@@ -808,6 +941,7 @@ class Designations {
       }
 
       // Parse the language entry if needed
+      /** @type {Language | null} */
       let parsedLang = langEntry;
       if (typeof langEntry.code === 'string') {
         parsedLang = this.languageDefinitions.parse(langEntry.code);
@@ -823,6 +957,11 @@ class Designations {
 
   /**
    * Check if language list matches stated language
+   * @param {Languages | null | undefined} langList
+   * @param {Language | null | undefined} statedLang
+   * @param {string} matchType
+   * @param {Language | null | undefined} defLang
+   * @returns {boolean}
    */
   _langsMatch(langList, statedLang, matchType, defLang) {
     if (defLang && statedLang && statedLang.matches(defLang)) {
@@ -844,6 +983,10 @@ class Designations {
 
   /**
    * Check if strings match according to specified mode
+   * @param {string} source
+   * @param {string} possible
+   * @param {string} mode
+   * @returns {boolean}
    */
   _stringMatches(source, possible, mode) {
     // We ignore lang parameter for now, like the Pascal version
@@ -862,6 +1005,8 @@ class Designations {
 
   /**
    * Normalize whitespace in a string
+   * @param {string} str
+   * @returns {string}
    */
   _normalizeWhitespace(str) {
     return str.replace(/\s+/g, ' ').trim();
@@ -869,6 +1014,8 @@ class Designations {
 
   /**
    * Join array with commas and final "or"
+   * @param {string[]} items
+   * @returns {string}
    */
   _joinWithOr(items) {
     if (items.length === 0) return '';
@@ -882,8 +1029,8 @@ class Designations {
   /**
    * Get allowed displays as a list (for error messages)
    * @param {Array<string>} output - Array to populate
-   * @param {Languages} languages - Languages to consider
-   * @param {Language} defaultLang - Default language fallback
+   * @param {Languages | null} languages - Languages to consider
+   * @param {Language | null} defaultLang - Default language fallback
    */
   allowedDisplays(output, languages = null, defaultLang = null) {
     const seen = new Set();
@@ -917,7 +1064,7 @@ class Designations {
   status(display) {
     for (const d of this.designations) {
       if (d.value === display) {
-        return d.status;
+        return d.status || '';
       }
     }
     return '';
@@ -925,7 +1072,7 @@ class Designations {
 
   /**
    * Check if this collection has any displays for the given languages
-   * @param {Languages} languages - Languages to check
+   * @param {Languages | null | undefined} languages - Languages to check
    * @returns {boolean}
    */
   hasAnyDisplays(languages) {
@@ -934,7 +1081,7 @@ class Designations {
 
   /**
    * Get all designations as an array (for iteration)
-   * @returns {ConceptDesignation[]}
+   * @returns {Designation[]}
    */
   all() {
     return [...this.designations];
@@ -942,6 +1089,7 @@ class Designations {
 
   /**
    * Iterator support
+   * @returns {IterableIterator<Designation>}
    */
   [Symbol.iterator]() {
     return this.designations[Symbol.iterator]();

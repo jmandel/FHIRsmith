@@ -1,5 +1,11 @@
+// @ts-check
+
 const {CanonicalResource} = require("./canonical-resource");
 const {capabilityStatementFromR5, capabilityStatementToR5} = require("../xversion/xv-capabiliityStatement");
+
+/**
+ * @typedef {import('../../types/fhirsmith').FhirResource} FhirResource
+ */
 
 /**
  * Represents a FHIR CapabilityStatement resource with version conversion support
@@ -9,13 +15,13 @@ class CapabilityStatement extends CanonicalResource {
 
   /**
    * Creates a new CapabilityStatement instance
-   * @param {Object} jsonObj - The JSON object containing CapabilityStatement data
+   * @param {FhirResource} jsonObj - The JSON object containing CapabilityStatement data
    * @param {string} [fhirVersion='R5'] - FHIR version ('R3', 'R4', or 'R5')
    */
   constructor(jsonObj, fhirVersion = 'R5') {
     super(jsonObj, fhirVersion);
     // Convert to R5 format internally (modifies input for performance)
-    this.jsonObj = capabilityStatementToR5(jsonObj, fhirVersion);
+    this.jsonObj = /** @type {FhirResource} */ (capabilityStatementToR5(jsonObj, fhirVersion));
     this.validate();
     this.id = this.jsonObj.id;
   }
@@ -36,17 +42,17 @@ class CapabilityStatement extends CanonicalResource {
    * @returns {string} JSON string
    */
   toJSONString(version = 'R5') {
-    const outputObj = this._convertFromR5(this.jsonObj, version);
+    const outputObj = capabilityStatementFromR5(this.jsonObj, version);
     return JSON.stringify(outputObj);
   }
 
   /**
    * Returns JSON object in target version format
    * @param {string} [version='R5'] - Target FHIR version ('R3', 'R4', or 'R5')
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   toJSON(version = 'R5') {
-    return capabilityStatementFromR5(this.jsonObj, version);
+    return /** @type {FhirResource} */ (capabilityStatementFromR5(this.jsonObj, version));
   }
 
   /**
@@ -91,7 +97,7 @@ class CapabilityStatement extends CanonicalResource {
 
   /**
    * Gets the software information
-   * @returns {Object|undefined} Software information object
+   * @returns {Record<string, any>|undefined} Software information object
    */
   getSoftware() {
     return this.jsonObj.software;
@@ -99,7 +105,7 @@ class CapabilityStatement extends CanonicalResource {
 
   /**
    * Gets the implementation information
-   * @returns {Object|undefined} Implementation information object
+   * @returns {Record<string, any>|undefined} Implementation information object
    */
   getImplementation() {
     return this.jsonObj.implementation;
@@ -107,7 +113,7 @@ class CapabilityStatement extends CanonicalResource {
 
   /**
    * Gets the rest capabilities
-   * @returns {Object[]} Array of rest capability objects
+   * @returns {Record<string, any>[]} Array of rest capability objects
    */
   getRest() {
     return this.jsonObj.rest || [];
@@ -131,7 +137,7 @@ class CapabilityStatement extends CanonicalResource {
 
   /**
    * Gets basic info about this capability statement
-   * @returns {Object} Basic information object
+   * @returns {Record<string, any>} Basic information object
    */
   getInfo() {
     return {

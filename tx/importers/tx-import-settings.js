@@ -1,6 +1,10 @@
+// @ts-check
+
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+
+/** @typedef {Record<string, any>} ConfigRecord */
 
 /**
  * Manages persistent configuration for terminology import tools
@@ -11,7 +15,9 @@ class ConfigManager {
     this.configDir = path.join(os.homedir(), '.tx-import');
     this.configFile = path.join(this.configDir, 'config.json');
     this.historyFile = path.join(this.configDir, 'history.json');
+    /** @type {ConfigRecord} */
     this.config = {};
+    /** @type {Record<string, ConfigRecord>} */
     this.history = {};
 
     this.ensureConfigDir();
@@ -31,7 +37,7 @@ class ConfigManager {
         this.config = JSON.parse(fs.readFileSync(this.configFile, 'utf8'));
       }
     } catch (error) {
-      console.warn(`Warning: Could not load config: ${error.message}`);
+      console.warn(`Warning: Could not load config: ${error instanceof Error ? error.message : String(error)}`);
       this.config = {};
     }
   }
@@ -42,7 +48,7 @@ class ConfigManager {
         this.history = JSON.parse(fs.readFileSync(this.historyFile, 'utf8'));
       }
     } catch (error) {
-      console.warn(`Warning: Could not load history: ${error.message}`);
+      console.warn(`Warning: Could not load history: ${error instanceof Error ? error.message : String(error)}`);
       this.history = {};
     }
   }
@@ -51,7 +57,7 @@ class ConfigManager {
     try {
       fs.writeFileSync(this.configFile, JSON.stringify(this.config, null, 2));
     } catch (error) {
-      console.warn(`Warning: Could not save config: ${error.message}`);
+      console.warn(`Warning: Could not save config: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -59,7 +65,7 @@ class ConfigManager {
     try {
       fs.writeFileSync(this.historyFile, JSON.stringify(this.history, null, 2));
     } catch (error) {
-      console.warn(`Warning: Could not save history: ${error.message}`);
+      console.warn(`Warning: Could not save history: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -76,7 +82,7 @@ class ConfigManager {
   /**
    * Get all previous values for a terminology
    * @param {string} terminology
-   * @returns {object} Object with all previous values
+   * @returns {ConfigRecord} Object with all previous values
    */
   getPreviousConfig(terminology) {
     return this.history[terminology] || {};
@@ -85,7 +91,7 @@ class ConfigManager {
   /**
    * Remember a successful configuration
    * @param {string} terminology
-   * @param {object} config
+   * @param {ConfigRecord} config
    */
   rememberConfig(terminology, config) {
     if (!this.history[terminology]) {
@@ -195,10 +201,11 @@ class ConfigManager {
   /**
    * Generate intelligent defaults based on previous usage
    * @param {string} terminology
-   * @returns {object} Suggested defaults
+   * @returns {ConfigRecord} Suggested defaults
    */
   generateDefaults(terminology) {
     const previous = this.getPreviousConfig(terminology);
+    /** @type {ConfigRecord} */
     const defaults = {};
 
     // Default source - use most recent
@@ -208,14 +215,14 @@ class ConfigManager {
 
     // Default destination - increment version or use pattern
     if (previous.dest) {
-      defaults.dest = this.suggestNextDestination(previous.dest, terminology);
+      defaults.dest = this.suggestNextDestination(previous.dest);
     } else {
       defaults.dest = `./data/${terminology}.db`;
     }
 
     // Default version - increment or use date pattern
     if (previous.version) {
-      defaults.version = this.suggestNextVersion(previous.version, terminology);
+      defaults.version = this.suggestNextVersion(previous.version);
     } else {
       const date = new Date().toISOString().split('T')[0];
       defaults.version = `${terminology.toUpperCase()}-${date}`;
@@ -229,6 +236,10 @@ class ConfigManager {
     return defaults;
   }
 
+  /**
+   * @param {string} previousDest
+   * @returns {string}
+   */
   suggestNextDestination(previousDest) {
     // If previous dest was versioned, suggest incrementing
     const versionMatch = previousDest.match(/-v(\d+)\.db$/);
@@ -248,6 +259,10 @@ class ConfigManager {
     return previousDest;
   }
 
+  /**
+   * @param {string} previousVersion
+   * @returns {string}
+   */
   suggestNextVersion(previousVersion) {
     // If version has a date, suggest today's date
     const dateMatch = previousVersion.match(/-(\d{4}-\d{2}-\d{2})$/);
@@ -270,7 +285,7 @@ class ConfigManager {
 
   /**
    * Export configuration for backup
-   * @returns {object} Complete configuration
+   * @returns {{config: ConfigRecord, history: Record<string, ConfigRecord>, exportDate: string}} Complete configuration
    */
   exportConfig() {
     return {
@@ -282,7 +297,7 @@ class ConfigManager {
 
   /**
    * Import configuration from backup
-   * @param {object} data
+   * @param {{config?: ConfigRecord, history?: Record<string, ConfigRecord>}} data
    */
   importConfig(data) {
     if (data.config) {
@@ -298,8 +313,12 @@ class ConfigManager {
 }
 
 // Singleton instance
+/** @type {ConfigManager | null} */
 let configManagerInstance = null;
 
+/**
+ * @returns {ConfigManager}
+ */
 function getConfigManager() {
   if (!configManagerInstance) {
     configManagerInstance = new ConfigManager();

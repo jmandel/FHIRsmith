@@ -1,8 +1,22 @@
+// @ts-check
+
 const { BaseTerminologyModule } = require('./tx-import-base');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const chalk = require('chalk');
+
+/** @typedef {{filesFound: string[], codeCount: number, uniqueCodes: number, warnings: string[]}} LoincSubsetValidationStats */
+/** @typedef {{source: string, dest: string, handler: string}} LoincSubsetFile */
+/** @typedef {boolean|{include: boolean, modifiedLine: string}} FilterResult */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 class LoincSubsetModule extends BaseTerminologyModule {
   constructor() {
@@ -23,6 +37,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
 
   getDefaultConfig() {
     return {
+      ...super.getDefaultConfig(),
       verbose: true,
       overwrite: false,
       dest: './loinc-subset',
@@ -34,6 +49,10 @@ class LoincSubsetModule extends BaseTerminologyModule {
     return '5-15 minutes (depending on subset size)';
   }
 
+  /**
+   * @param {any} terminologyCommand
+   * @param {Record<string, any>} globalOptions
+   */
   registerCommands(terminologyCommand, globalOptions) {
     // Subset command
     terminologyCommand
@@ -43,7 +62,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
       .option('-d, --dest <directory>', 'Destination directory for subset')
       .option('-c, --codes <file>', 'Text file with LOINC codes (one per line)')
       .option('-y, --yes', 'Skip confirmations')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleSubsetCommand({...globalOptions, ...options});
       });
 
@@ -53,11 +72,14 @@ class LoincSubsetModule extends BaseTerminologyModule {
       .description('Validate subset inputs')
       .option('-s, --source <directory>', 'Source LOINC directory to validate')
       .option('-c, --codes <file>', 'Codes file to validate')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleValidateCommand({...globalOptions, ...options});
       });
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleSubsetCommand(options) {
     try {
       // Gather configuration
@@ -81,14 +103,18 @@ class LoincSubsetModule extends BaseTerminologyModule {
       // Run the subset operation
       await this.runSubset(config);
     } catch (error) {
-      this.logError(`Subset operation failed: ${error.message}`);
+      this.logError(`Subset operation failed: ${errorMessage(error)}`);
       if (options.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       throw error;
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   * @returns {Promise<Record<string, any>>}
+   */
   async gatherSubsetConfig(options) {
     const terminology = this.getName();
 
@@ -96,20 +122,22 @@ class LoincSubsetModule extends BaseTerminologyModule {
     const smartDefaults = this.configManager.generateDefaults(terminology);
     const recentSources = this.configManager.getRecentSources(terminology, 3);
 
+    /** @type {any[]} */
     const questions = [];
 
     // Source directory
     if (!options.source) {
+      /** @type {Record<string, any>} */
       const sourceQuestion = {
         type: 'input',
         name: 'source',
         message: 'Source LOINC directory:',
-        validate: (input) => {
+        validate: (/** @type {string} */ input) => {
           if (!input) return 'Source directory is required';
           if (!fs.existsSync(input)) return 'Source directory does not exist';
           return true;
         },
-        filter: (input) => path.resolve(input)
+        filter: (/** @type {string} */ input) => path.resolve(input)
       };
 
       // Add default if we have a previous source
@@ -121,7 +149,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
       if (recentSources.length > 0) {
         sourceQuestion.type = 'list';
         sourceQuestion.choices = [
-          ...recentSources.map(src => ({
+          ...recentSources.map((/** @type {string} */ src) => ({
             name: `${src} ${src === smartDefaults.source ? '(last used)' : ''}`.trim(),
             value: src
           })),
@@ -138,13 +166,13 @@ class LoincSubsetModule extends BaseTerminologyModule {
           type: 'input',
           name: 'source',
           message: 'Enter new source path:',
-          when: (answers) => answers.source === 'NEW_PATH',
-          validate: (input) => {
+          when: (/** @type {Record<string, any>} */ answers) => answers.source === 'NEW_PATH',
+          validate: (/** @type {string} */ input) => {
             if (!input) return 'Source directory is required';
             if (!fs.existsSync(input)) return 'Source directory does not exist';
             return true;
           },
-          filter: (input) => path.resolve(input)
+          filter: (/** @type {string} */ input) => path.resolve(input)
         });
       }
     }
@@ -156,11 +184,11 @@ class LoincSubsetModule extends BaseTerminologyModule {
         name: 'dest',
         message: 'Destination directory:',
         default: smartDefaults.dest || './loinc-subset',
-        validate: (input) => {
+        validate: (/** @type {string} */ input) => {
           if (!input) return 'Destination directory is required';
           return true;
         },
-        filter: (input) => path.resolve(input)
+        filter: (/** @type {string} */ input) => path.resolve(input)
       });
     }
 
@@ -171,12 +199,12 @@ class LoincSubsetModule extends BaseTerminologyModule {
         name: 'codes',
         message: 'Codes file (one code per line):',
         default: smartDefaults.codes,
-        validate: (input) => {
+        validate: (/** @type {string} */ input) => {
           if (!input) return 'Codes file is required';
           if (!fs.existsSync(input)) return 'Codes file does not exist';
           return true;
         },
-        filter: (input) => path.resolve(input)
+        filter: (/** @type {string} */ input) => path.resolve(input)
       });
     }
 
@@ -186,7 +214,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
       name: 'overwrite',
       message: 'Overwrite destination directory if it exists?',
       default: smartDefaults.overwrite !== undefined ? smartDefaults.overwrite : false,
-      when: (answers) => {
+      when: (/** @type {Record<string, any>} */ answers) => {
         const destPath = options.dest || answers.dest;
         return fs.existsSync(destPath);
       }
@@ -218,6 +246,10 @@ class LoincSubsetModule extends BaseTerminologyModule {
     return finalConfig;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async confirmSubset(config) {
     console.log(chalk.cyan(`\n📋 LOINC Subset Configuration:`));
     console.log(`  Source: ${chalk.white(config.source)}`);
@@ -240,6 +272,9 @@ class LoincSubsetModule extends BaseTerminologyModule {
     return confirmed;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async runSubset(config) {
     try {
       console.log(chalk.blue.bold(`🔬 Starting LOINC Subset Creation...\n`));
@@ -267,14 +302,17 @@ class LoincSubsetModule extends BaseTerminologyModule {
 
     } catch (error) {
       this.stopProgress();
-      this.logError(`LOINC subset creation failed: ${error.message}`);
+      this.logError(`LOINC subset creation failed: ${errorMessage(error)}`);
       if (config.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       throw error;
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleValidateCommand(options) {
     if (!options.source || !options.codes) {
       const answers = await require('inquirer').prompt([
@@ -283,14 +321,14 @@ class LoincSubsetModule extends BaseTerminologyModule {
           name: 'source',
           message: 'Source LOINC directory:',
           when: !options.source,
-          validate: (input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
+          validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
         },
         {
           type: 'input',
           name: 'codes',
           message: 'Codes file:',
           when: !options.codes,
-          validate: (input) => input && fs.existsSync(input) ? true : 'File does not exist'
+          validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'File does not exist'
         }
       ]);
       Object.assign(options, answers);
@@ -308,14 +346,18 @@ class LoincSubsetModule extends BaseTerminologyModule {
 
       if (stats.warnings.length > 0) {
         this.logWarning('Validation warnings:');
-        stats.warnings.forEach(warning => console.log(`    ${warning}`));
+        stats.warnings.forEach((/** @type {string} */ warning) => console.log(`    ${warning}`));
       }
 
     } catch (error) {
-      this.logError(`Validation failed: ${error.message}`);
+      this.logError(`Validation failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async validateSubsetPrerequisites(config) {
     const checks = [
       {
@@ -372,7 +414,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
           allPassed = false;
         }
       } catch (error) {
-        this.logError(`${name}: ${error.message}`);
+        this.logError(`${name}: ${errorMessage(error)}`);
         allPassed = false;
       }
     }
@@ -380,6 +422,9 @@ class LoincSubsetModule extends BaseTerminologyModule {
     return allPassed;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async executeSubset(config) {
     this.logInfo('Loading target codes...');
 
@@ -411,7 +456,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
       this.logInfo(`Added ${addedCodes.toLocaleString()} related codes from PartLink relationships`);
 
       if (config.verbose && addedCodes > 0) {
-        const newCodes = Array.from(finalTargetCodes).filter(code => !initialTargetCodes.has(code));
+        const newCodes = Array.from(finalTargetCodes).filter((/** @type {string} */ code) => !initialTargetCodes.has(code));
         const sampleNewCodes = newCodes.slice(0, 10);
         console.log(`Sample newly added codes: ${sampleNewCodes.join(', ')}`);
       }
@@ -443,6 +488,12 @@ class LoincSubsetModule extends BaseTerminologyModule {
     );
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {Set<string>} initialCodes
+   * @param {boolean} [verbose]
+   * @returns {Promise<Set<string>>}
+   */
   async expandCodesFromPartLinks(sourceDir, initialCodes, verbose = false) {
     const partLinkPath = path.join(sourceDir, 'AccessoryFiles/PartFile/LoincPartLink_Primary.csv');
 
@@ -513,7 +564,13 @@ class LoincSubsetModule extends BaseTerminologyModule {
   }
 
   // Helper method for CSV parsing (moved from processor for reuse)
+  /**
+   * @param {string} line
+   * @param {number} expectedCount
+   * @returns {string[]}
+   */
   csvSplit(line, expectedCount) {
+    /** @type {string[]} */
     const result = new Array(expectedCount).fill('');
     let inQuoted = false;
     let currentField = 0;
@@ -548,11 +605,19 @@ class LoincSubsetModule extends BaseTerminologyModule {
   }
 
   // Helper method for removing quotes (moved from processor for reuse)
+  /**
+   * @param {string} str
+   * @returns {string}
+   */
   removeQuotes(str) {
     if (!str) return '';
     return str.replace(/^"|"$/g, '');
   }
 
+  /**
+   * @param {Set<string>} codeSet
+   * @param {string} filePath
+   */
   async exportCodesToFile(codeSet, filePath) {
     const sortedCodes = Array.from(codeSet).sort();
     const content = sortedCodes.join('\n') + '\n';
@@ -561,6 +626,11 @@ class LoincSubsetModule extends BaseTerminologyModule {
     this.logInfo(`Exported ${sortedCodes.length.toLocaleString()} codes to ${filePath}`);
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {Set<string>} targetCodes
+   * @returns {Promise<{found: number, checked: number, notFound: string[]}>}
+   */
   async validateCodesExist(sourceDir, targetCodes) {
     const loincMainPath = path.join(sourceDir, 'LoincTable/Loinc.csv');
 
@@ -568,6 +638,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
       return { found: 0, checked: 0, notFound: [] };
     }
 
+    /** @type {Set<string>} */
     const foundCodes = new Set();
 
     const rl = readline.createInterface({
@@ -592,7 +663,7 @@ class LoincSubsetModule extends BaseTerminologyModule {
     }
 
     const checked = Math.min(targetCodes.size, 100); // Only check first 100 for performance
-    const notFound = Array.from(targetCodes).slice(0, 100).filter(code => !foundCodes.has(code));
+    const notFound = Array.from(targetCodes).slice(0, 100).filter((/** @type {string} */ code) => !foundCodes.has(code));
 
     return {
       found: foundCodes.size,
@@ -601,7 +672,12 @@ class LoincSubsetModule extends BaseTerminologyModule {
     };
   }
 
+  /**
+   * @param {string} codesFile
+   * @returns {Promise<Set<string>>}
+   */
   async loadTargetCodes(codesFile) {
+    /** @type {Set<string>} */
     const codes = new Set();
 
     const rl = readline.createInterface({
@@ -619,7 +695,13 @@ class LoincSubsetModule extends BaseTerminologyModule {
     return codes;
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string} codesFile
+   * @returns {Promise<LoincSubsetValidationStats>}
+   */
   async validateSubsetInputs(sourceDir, codesFile) {
+    /** @type {LoincSubsetValidationStats} */
     const stats = {
       filesFound: [],
       codeCount: 0,
@@ -658,20 +740,41 @@ class LoincSubsetModule extends BaseTerminologyModule {
 }
 
 class LoincSubsetProcessor {
+  /**
+   * @param {LoincSubsetModule} moduleInstance
+   * @param {boolean} [verbose]
+   */
   constructor(moduleInstance, verbose = true) {
+    /** @type {LoincSubsetModule} */
     this.module = moduleInstance;
+    /** @type {boolean} */
     this.verbose = verbose;
-    this.targetCodes = null;
+    /** @type {Set<string>} */
+    this.targetCodes = new Set();
+    /** @type {Set<string>} */
+    this.originalCodes = new Set();
+    /** @type {number} */
     this.processedFiles = 0;
+    /** @type {number} */
     this.totalFiles = 0;
   }
 
   // Add this method to LoincSubsetProcessor
+  /**
+   * @param {string} line
+   * @returns {string}
+   */
   cleanLine(line) {
     // Remove trailing commas and whitespace
     return line.replace(/,+\s*$/, '');
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string} destDir
+   * @param {Set<string>} targetCodes
+   * @param {Record<string, any>} options
+   */
   async createSubset(sourceDir, destDir, targetCodes, options) {
     this.targetCodes = targetCodes;
     this.originalCodes = options.originalCodes || targetCodes;  // Fallback to targetCodes if not provided
@@ -680,6 +783,7 @@ class LoincSubsetProcessor {
     await this.createDirectoryStructure(destDir, options.overwrite);
 
     // Define files to process with their handlers
+    /** @type {LoincSubsetFile[]} */
     const filesToProcess = [
       {
         source: 'LoincTable/Loinc.csv',
@@ -746,7 +850,8 @@ class LoincSubsetProcessor {
           this.module.logInfo(`Processing ${file.source}...`);
         }
 
-        await this[file.handler](sourcePath, destPath);
+        const handler = /** @type {(sourcePath: string, destPath: string) => Promise<void>} */ (/** @type {any} */ (this)[file.handler].bind(this));
+        await handler(sourcePath, destPath);
         this.processedFiles++;
         this.module.updateProgress(this.processedFiles);
       }
@@ -769,6 +874,10 @@ class LoincSubsetProcessor {
     this.module.stopProgress();
   }
 
+  /**
+   * @param {string} destDir
+   * @param {boolean} overwrite
+   */
   async createDirectoryStructure(destDir, overwrite) {
     if (fs.existsSync(destDir)) {
       if (overwrite) {
@@ -795,7 +904,12 @@ class LoincSubsetProcessor {
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<string[]>}
+   */
   async findLanguageVariantFiles(sourceDir) {
+    /** @type {string[]} */
     const languageVariantFiles = [];
     const linguisticVariantsDir = path.join(sourceDir, 'AccessoryFiles/LinguisticVariants');
 
@@ -811,8 +925,12 @@ class LoincSubsetProcessor {
     return languageVariantFiles;
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processMainCodes(sourcePath, destPath) {
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 39);
@@ -823,6 +941,10 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processParts(sourcePath, destPath) {
     if (this.verbose) {
       console.log(`    Processing parts file: ${sourcePath}`);
@@ -833,7 +955,7 @@ class LoincSubsetProcessor {
       console.log(`    Sample target codes: ${sampleCodes.join(', ')}`);
     }
 
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 5);
@@ -851,6 +973,10 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processConsumerNames(sourcePath, destPath) {
     if (this.verbose) {
       console.log(`    Processing consumer names file: ${sourcePath}`);
@@ -861,7 +987,7 @@ class LoincSubsetProcessor {
       console.log(`    Sample target codes: ${sampleCodes.join(', ')}`);
     }
 
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 2);
@@ -879,8 +1005,12 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processAnswerLists(sourcePath, destPath) {
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 11);
@@ -893,6 +1023,10 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processPartLinks(sourcePath, destPath) {
     if (this.verbose) {
       console.log(`    Processing part links file: ${sourcePath}`);
@@ -902,7 +1036,7 @@ class LoincSubsetProcessor {
     }
 
     let debugCount = 0;
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 7);
@@ -926,8 +1060,12 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processAnswerListLinks(sourcePath, destPath) {
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 7); // Increased expected count to handle 6th column
@@ -943,8 +1081,12 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processHierarchy(sourcePath, destPath) {
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 12);
@@ -974,8 +1116,12 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processLanguageVariants(sourcePath, destPath) {
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       // For the main LinguisticVariants.csv, include all language definitions
@@ -984,8 +1130,12 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processLanguageVariantFile(sourcePath, destPath) {
-    await this.processFileWithFilter(sourcePath, destPath, (line, lineNum) => {
+    await this.processFileWithFilter(sourcePath, destPath, (/** @type {string} */ line, /** @type {number} */ lineNum) => {
       if (lineNum === 1) return true; // Keep header
 
       const items = this.csvSplit(line, 12);
@@ -997,6 +1147,11 @@ class LoincSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   * @param {(line: string, lineNum: number) => FilterResult} filterFunction
+   */
   async processFileWithFilter(sourcePath, destPath, filterFunction) {
     if (!fs.existsSync(sourcePath)) {
       return;
@@ -1036,7 +1191,13 @@ class LoincSubsetProcessor {
     }
   }
 
+  /**
+   * @param {string} line
+   * @param {number} expectedCount
+   * @returns {string[]}
+   */
   csvSplit(line, expectedCount) {
+    /** @type {string[]} */
     const result = new Array(expectedCount).fill('');
     let inQuoted = false;
     let currentField = 0;
@@ -1070,6 +1231,10 @@ class LoincSubsetProcessor {
     return result;
   }
 
+  /**
+   * @param {string} str
+   * @returns {string}
+   */
   removeQuotes(str) {
     if (!str) return '';
     return str.replace(/^"|"$/g, '');

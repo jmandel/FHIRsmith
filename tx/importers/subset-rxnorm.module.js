@@ -1,8 +1,21 @@
+// @ts-check
+
 const { BaseTerminologyModule } = require('./tx-import-base');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const chalk = require('chalk');
+
+/** @typedef {{requiredFiles: string[], optionalFiles: string[], codeCount: number, uniqueCodes: number, warnings: string[]}} SubsetValidationStats */
+/** @typedef {{source: string, dest: string, handler: string}} RrfSubsetFile */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 class RxNormSubsetModule extends BaseTerminologyModule {
   constructor() {
@@ -36,6 +49,10 @@ class RxNormSubsetModule extends BaseTerminologyModule {
     return '10-30 minutes (depending on relationship expansion)';
   }
 
+  /**
+   * @param {any} terminologyCommand
+   * @param {Record<string, any>} globalOptions
+   */
   registerCommands(terminologyCommand, globalOptions) {
     // Subset command
     terminologyCommand
@@ -49,7 +66,7 @@ class RxNormSubsetModule extends BaseTerminologyModule {
       .option('--include-archived', 'Include archived concepts')
       .option('--max-iterations <n>', 'Maximum relationship expansion iterations', '5')
       .option('-y, --yes', 'Skip confirmations')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleSubsetCommand({...globalOptions, ...options});
       });
 
@@ -59,11 +76,14 @@ class RxNormSubsetModule extends BaseTerminologyModule {
       .description('Validate subset inputs')
       .option('-s, --source <directory>', 'Source RxNorm directory to validate')
       .option('-c, --codes <file>', 'Codes file to validate')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleValidateCommand({...globalOptions, ...options});
       });
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleSubsetCommand(options) {
     try {
       // Gather configuration
@@ -84,14 +104,18 @@ class RxNormSubsetModule extends BaseTerminologyModule {
       // Run the subset operation
       await this.runSubset(config);
     } catch (error) {
-      this.logError(`Subset operation failed: ${error.message}`);
+      this.logError(`Subset operation failed: ${errorMessage(error)}`);
       if (options.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       throw error;
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   * @returns {Promise<Record<string, any>>}
+   */
   async gatherSubsetConfig(options) {
     const terminology = this.getName();
     const smartDefaults = this.configManager.generateDefaults(terminology);
@@ -101,16 +125,17 @@ class RxNormSubsetModule extends BaseTerminologyModule {
 
     // Source directory
     if (!options.source) {
+      /** @type {Record<string, any>} */
       const sourceQuestion = {
         type: 'input',
         name: 'source',
         message: 'Source RxNorm directory (RRF files):',
-        validate: (input) => {
+        validate: (/** @type {string} */ input) => {
           if (!input) return 'Source directory is required';
           if (!fs.existsSync(input)) return 'Source directory does not exist';
           return true;
         },
-        filter: (input) => path.resolve(input)
+        filter: (/** @type {string} */ input) => path.resolve(input)
       };
 
       if (smartDefaults.source) {
@@ -120,7 +145,7 @@ class RxNormSubsetModule extends BaseTerminologyModule {
       if (recentSources.length > 0) {
         sourceQuestion.type = 'list';
         sourceQuestion.choices = [
-          ...recentSources.map(src => ({
+          ...recentSources.map((/** @type {string} */ src) => ({
             name: `${src} ${src === smartDefaults.source ? '(last used)' : ''}`.trim(),
             value: src
           })),
@@ -136,13 +161,13 @@ class RxNormSubsetModule extends BaseTerminologyModule {
           type: 'input',
           name: 'source',
           message: 'Enter new source path:',
-          when: (answers) => answers.source === 'NEW_PATH',
-          validate: (input) => {
+          when: (/** @type {Record<string, any>} */ answers) => answers.source === 'NEW_PATH',
+          validate: (/** @type {string} */ input) => {
             if (!input) return 'Source directory is required';
             if (!fs.existsSync(input)) return 'Source directory does not exist';
             return true;
           },
-          filter: (input) => path.resolve(input)
+          filter: (/** @type {string} */ input) => path.resolve(input)
         });
       }
     }
@@ -154,11 +179,11 @@ class RxNormSubsetModule extends BaseTerminologyModule {
         name: 'dest',
         message: 'Destination directory for subset:',
         default: smartDefaults.dest || './rxnorm-subset',
-        validate: (input) => {
+        validate: (/** @type {string} */ input) => {
           if (!input) return 'Destination directory is required';
           return true;
         },
-        filter: (input) => path.resolve(input)
+        filter: (/** @type {string} */ input) => path.resolve(input)
       });
     }
 
@@ -170,12 +195,12 @@ class RxNormSubsetModule extends BaseTerminologyModule {
         name: 'codes',
         message: 'Codes file (one code per line):',
         default: fs.existsSync(defaultCodesFile) ? defaultCodesFile : smartDefaults.codes,
-        validate: (input) => {
+        validate: (/** @type {string} */ input) => {
           if (!input) return 'Codes file is required';
           if (!fs.existsSync(input)) return 'Codes file does not exist';
           return true;
         },
-        filter: (input) => path.resolve(input)
+        filter: (/** @type {string} */ input) => path.resolve(input)
       });
     }
 
@@ -185,7 +210,7 @@ class RxNormSubsetModule extends BaseTerminologyModule {
       name: 'overwrite',
       message: 'Overwrite destination directory if it exists?',
       default: smartDefaults.overwrite !== undefined ? smartDefaults.overwrite : false,
-      when: (answers) => {
+      when: (/** @type {Record<string, any>} */ answers) => {
         const destPath = options.dest || answers.dest;
         return fs.existsSync(destPath);
       }
@@ -236,6 +261,10 @@ class RxNormSubsetModule extends BaseTerminologyModule {
     return finalConfig;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async confirmSubset(config) {
     console.log(chalk.cyan(`\n📋 RxNorm Subset Configuration:`));
     console.log(`  Source: ${chalk.white(config.source)}`);
@@ -261,6 +290,9 @@ class RxNormSubsetModule extends BaseTerminologyModule {
     return confirmed;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async runSubset(config) {
     try {
       console.log(chalk.blue.bold(`🧬 Starting RxNorm Subset Creation...\n`));
@@ -280,14 +312,17 @@ class RxNormSubsetModule extends BaseTerminologyModule {
 
     } catch (error) {
       this.stopProgress();
-      this.logError(`RxNorm subset creation failed: ${error.message}`);
+      this.logError(`RxNorm subset creation failed: ${errorMessage(error)}`);
       if (config.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       throw error;
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleValidateCommand(options) {
     if (!options.source || !options.codes) {
       const answers = await require('inquirer').prompt([
@@ -296,14 +331,14 @@ class RxNormSubsetModule extends BaseTerminologyModule {
           name: 'source',
           message: 'Source RxNorm directory:',
           when: !options.source,
-          validate: (input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
+          validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
         },
         {
           type: 'input',
           name: 'codes',
           message: 'Codes file:',
           when: !options.codes,
-          validate: (input) => input && fs.existsSync(input) ? true : 'File does not exist'
+          validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'File does not exist'
         }
       ]);
       Object.assign(options, answers);
@@ -322,14 +357,18 @@ class RxNormSubsetModule extends BaseTerminologyModule {
 
       if (stats.warnings.length > 0) {
         this.logWarning('Validation warnings:');
-        stats.warnings.forEach(warning => console.log(`    ${warning}`));
+        stats.warnings.forEach((warning) => console.log(`    ${warning}`));
       }
 
     } catch (error) {
-      this.logError(`Validation failed: ${error.message}`);
+      this.logError(`Validation failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async validateSubsetPrerequisites(config) {
     const checks = [
       {
@@ -363,7 +402,7 @@ class RxNormSubsetModule extends BaseTerminologyModule {
           allPassed = false;
         }
       } catch (error) {
-        this.logError(`${name}: ${error.message}`);
+        this.logError(`${name}: ${errorMessage(error)}`);
         allPassed = false;
       }
     }
@@ -371,6 +410,9 @@ class RxNormSubsetModule extends BaseTerminologyModule {
     return allPassed;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async executeSubset(config) {
     this.logInfo('Loading target codes...');
 
@@ -401,7 +443,7 @@ class RxNormSubsetModule extends BaseTerminologyModule {
       this.logInfo(`Added ${addedCodes.toLocaleString()} related codes through relationship expansion`);
 
       if (config.verbose && addedCodes > 0) {
-        const newCodes = Array.from(finalTargetCodes).filter(code => !initialTargetCodes.has(code));
+        const newCodes = Array.from(finalTargetCodes).filter((/** @type {string} */ code) => !initialTargetCodes.has(code));
         const sampleNewCodes = newCodes.slice(0, 10);
         console.log(`Sample newly added codes: ${sampleNewCodes.join(', ')}`);
       }
@@ -431,6 +473,10 @@ class RxNormSubsetModule extends BaseTerminologyModule {
     );
   }
 
+  /**
+   * @param {string} codesFile
+   * @returns {Promise<Set<string>>}
+   */
   async loadTargetCodes(codesFile) {
     const codes = new Set();
 
@@ -457,6 +503,10 @@ class RxNormSubsetModule extends BaseTerminologyModule {
     return codes;
   }
 
+  /**
+   * @param {Set<string>} codeSet
+   * @param {string} filePath
+   */
   async exportCodesToFile(codeSet, filePath) {
     const sortedCodes = Array.from(codeSet).sort();
     const content = sortedCodes.join('\n') + '\n';
@@ -465,7 +515,13 @@ class RxNormSubsetModule extends BaseTerminologyModule {
     this.logInfo(`Exported ${sortedCodes.length.toLocaleString()} codes to ${filePath}`);
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string} codesFile
+   * @returns {Promise<SubsetValidationStats>}
+   */
   async validateSubsetInputs(sourceDir, codesFile) {
+    /** @type {SubsetValidationStats} */
     const stats = {
       requiredFiles: [],
       optionalFiles: [],
@@ -507,6 +563,22 @@ class RxNormSubsetModule extends BaseTerminologyModule {
 
 // RxNorm relationship expander
 class RxNormRelationshipExpander {
+  /** @type {string} */
+  sourceDir;
+  /** @type {boolean} */
+  verbose;
+  /** @type {number} */
+  maxIterations;
+  /** @type {Set<string>} */
+  inwardRelationships;
+  /** @type {Set<string>} */
+  inwardRels;
+
+  /**
+   * @param {string} sourceDir
+   * @param {boolean} [verbose]
+   * @param {number} [maxIterations]
+   */
   constructor(sourceDir, verbose = false, maxIterations = 5) {
     this.sourceDir = sourceDir;
     this.verbose = verbose;
@@ -527,11 +599,16 @@ class RxNormRelationshipExpander {
     this.inwardRels = new Set(['RN', 'IN']); // Ingredient relationships
   }
 
+  /**
+   * @param {Set<string>} initialCodes
+   * @returns {Promise<Set<string>>}
+   */
   async expandCodes(initialCodes) {
     if (this.verbose) {
       console.log(`    Starting relationship expansion with ${initialCodes.size} codes`);
     }
 
+    /** @type {Set<string>} */
     let currentCodes = new Set(initialCodes);
     let iteration = 0;
 
@@ -569,7 +646,12 @@ class RxNormRelationshipExpander {
     return currentCodes;
   }
 
+  /**
+   * @param {Set<string>} targetCodes
+   * @returns {Promise<Set<string>>}
+   */
   async findRelatedCodes(targetCodes) {
+    /** @type {Set<string>} */
     const relatedCodes = new Set();
     const rxnrelPath = path.join(this.sourceDir, 'RXNREL.RRF');
 
@@ -635,6 +717,11 @@ class RxNormRelationshipExpander {
     return relatedCodes;
   }
 
+  /**
+   * @param {string} rel
+   * @param {string} rela
+   * @returns {boolean}
+   */
   isInwardRelationship(rel, rela) {
     // REL-based relationships
     if (this.inwardRels.has(rel)) {
@@ -657,9 +744,15 @@ class RxNormRelationshipExpander {
       'consists_of'
     ];
 
-    return rela && inwardPatterns.some(pattern => rela.includes(pattern));
+    return !!(rela && inwardPatterns.some((pattern) => rela.includes(pattern)));
   }
 
+  /**
+   * @param {string} rel
+   * @param {string} rela
+   * @returns {boolean}
+   */
+  // eslint-disable-next-line no-unused-vars
   isReverseInwardRelationship(rel, rela) {
     // These are relationships where if our target is RXCUI2,
     // we want to include RXCUI1 as it helps define our target
@@ -672,12 +765,27 @@ class RxNormRelationshipExpander {
       'part_of'
     ];
 
-    return rela && reversePatterns.some(pattern => rela.includes(pattern));
+    return !!(rela && reversePatterns.some((pattern) => rela.includes(pattern)));
   }
 }
 
 // RxNorm subset processor
 class RxNormSubsetProcessor {
+  /** @type {RxNormSubsetModule} */
+  module;
+  /** @type {boolean} */
+  verbose;
+  /** @type {Set<string> | null} */
+  targetCodes;
+  /** @type {number} */
+  processedFiles;
+  /** @type {number} */
+  totalFiles;
+
+  /**
+   * @param {RxNormSubsetModule} moduleInstance
+   * @param {boolean} [verbose]
+   */
   constructor(moduleInstance, verbose = true) {
     this.module = moduleInstance;
     this.verbose = verbose;
@@ -686,6 +794,12 @@ class RxNormSubsetProcessor {
     this.totalFiles = 0;
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string} destDir
+   * @param {Set<string>} targetCodes
+   * @param {Record<string, any>} options
+   */
   async createSubset(sourceDir, destDir, targetCodes, options) {
     this.targetCodes = targetCodes;
 
@@ -693,6 +807,7 @@ class RxNormSubsetProcessor {
     await this.createDirectoryStructure(destDir, options.overwrite);
 
     // Define RRF files to process
+    /** @type {RrfSubsetFile[]} */
     const filesToProcess = [
       {
         source: 'RXNCONSO.RRF',
@@ -731,7 +846,7 @@ class RxNormSubsetProcessor {
     }
 
     // Count existing files
-    this.totalFiles = filesToProcess.filter(file =>
+    this.totalFiles = filesToProcess.filter((file) =>
       fs.existsSync(path.join(sourceDir, file.source))
     ).length;
 
@@ -749,7 +864,8 @@ class RxNormSubsetProcessor {
           this.module.logInfo(`Processing ${file.source}...`);
         }
 
-        await this[file.handler](sourcePath, destPath, options);
+        const handler = /** @type {(sourcePath: string, destPath: string, options: Record<string, any>) => Promise<void>} */ (/** @type {any} */ (this)[file.handler].bind(this));
+        await handler(sourcePath, destPath, options);
         this.processedFiles++;
         this.module.updateProgress(this.processedFiles);
       }
@@ -761,6 +877,10 @@ class RxNormSubsetProcessor {
     await this.generateSubsetStats(destDir, targetCodes);
   }
 
+  /**
+   * @param {string} destDir
+   * @param {boolean} overwrite
+   */
   async createDirectoryStructure(destDir, overwrite) {
     if (fs.existsSync(destDir)) {
       if (overwrite) {
@@ -773,13 +893,18 @@ class RxNormSubsetProcessor {
     fs.mkdirSync(destDir, { recursive: true });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   * @param {Record<string, any>} options
+   */
   async processRXNCONSO(sourcePath, destPath, options) {
     await this.processRRFFile(sourcePath, destPath, (items) => {
       const rxcui = items[0];
       const tty = items[12];
 
       // Include if RXCUI is in target set
-      if (this.targetCodes.has(rxcui)) {
+      if (this.targetCodes && this.targetCodes.has(rxcui)) {
         // Optionally filter out synonyms
         if (!options.includeSynonyms && tty === 'SY') {
           return false;
@@ -791,23 +916,35 @@ class RxNormSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processRXNREL(sourcePath, destPath) {
     await this.processRRFFile(sourcePath, destPath, (items) => {
       const rxcui1 = items[0];
       const rxcui2 = items[4];
 
       // Include if either RXCUI is in target set
-      return this.targetCodes.has(rxcui1) || this.targetCodes.has(rxcui2);
+      return !!this.targetCodes && (this.targetCodes.has(rxcui1) || this.targetCodes.has(rxcui2));
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processRXNSTY(sourcePath, destPath) {
     await this.processRRFFile(sourcePath, destPath, (items) => {
       const rxcui = items[0];
-      return this.targetCodes.has(rxcui);
+      return !!this.targetCodes && this.targetCodes.has(rxcui);
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processRXNSAB(sourcePath, destPath) {
     // For RXNSAB, we need to find which sources are referenced
     // First pass: collect all SABs referenced in target concepts
@@ -819,24 +956,37 @@ class RxNormSubsetProcessor {
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processRXNCUI(sourcePath, destPath) {
     await this.processRRFFile(sourcePath, destPath, (items) => {
       const cui1 = items[0];
       const cui2 = items[4];
 
       // Include if either CUI is in target set
-      return this.targetCodes.has(cui1) || (cui2 && this.targetCodes.has(cui2));
+      return !!this.targetCodes && (this.targetCodes.has(cui1) || (!!cui2 && this.targetCodes.has(cui2)));
     });
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   */
   async processRXNATOMARCHIVE(sourcePath, destPath) {
     await this.processRRFFile(sourcePath, destPath, (items) => {
       const rxcui = items[12]; // RXCUI field in archive
-      return rxcui && this.targetCodes.has(rxcui);
+      return !!(rxcui && this.targetCodes && this.targetCodes.has(rxcui));
     });
   }
 
+  /**
+   * @param {string} rxnconsoPath
+   * @returns {Promise<Set<string>>}
+   */
   async findReferencedSabs(rxnconsoPath) {
+    /** @type {Set<string>} */
     const referencedSabs = new Set();
 
     if (!fs.existsSync(rxnconsoPath)) {
@@ -855,7 +1005,7 @@ class RxNormSubsetProcessor {
       const rxcui = items[0];
       const sab = items[11];
 
-      if (this.targetCodes.has(rxcui)) {
+      if (this.targetCodes && this.targetCodes.has(rxcui)) {
         referencedSabs.add(sab);
       }
     }
@@ -863,6 +1013,11 @@ class RxNormSubsetProcessor {
     return referencedSabs;
   }
 
+  /**
+   * @param {string} sourcePath
+   * @param {string} destPath
+   * @param {(items: string[]) => boolean} filterFunction
+   */
   async processRRFFile(sourcePath, destPath, filterFunction) {
     const readStream = fs.createReadStream(sourcePath);
     const writeStream = fs.createWriteStream(destPath);
@@ -894,7 +1049,12 @@ class RxNormSubsetProcessor {
     }
   }
 
+  /**
+   * @param {string} destDir
+   * @param {Set<string>} targetCodes
+   */
   async generateSubsetStats(destDir, targetCodes) {
+    /** @type {{originalTargetCodes: number, timestamp: string, files: Record<string, number>}} */
     const stats = {
       originalTargetCodes: targetCodes.size,
       timestamp: new Date().toISOString(),
@@ -918,8 +1078,12 @@ class RxNormSubsetProcessor {
     this.module.logInfo(`Subset statistics written to ${statsPath}`);
   }
 
+  /**
+   * @param {string} filePath
+   * @returns {Promise<number>}
+   */
   async countLines(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: number) => void} */ resolve, reject) => {
       let lineCount = 0;
       const rl = readline.createInterface({
         input: fs.createReadStream(filePath),

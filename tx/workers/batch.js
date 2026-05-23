@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Batch Worker - Handles batch terminology operations
 //
@@ -8,14 +10,17 @@ const { TerminologyWorker } = require('./worker');
 const { Issue, OperationOutcome } = require('../library/operation-outcome');
 const {debugLog} = require("../operation-context");
 
+/** @typedef {{resourceType: string, operation: string, instanceId: string | null, queryParams: Record<string, string | string[]>}} ParsedOperation */
+/** @typedef {{statusCode: number, body: any, status: (code: number) => any, json: (body: any) => any}} MockResponse */
+
 class BatchWorker extends TerminologyWorker {
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for terminology resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
-   * @param {Object} workers - Map of operation workers (validate, lookup, subsumes, translate, expand)
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for terminology resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
+   * @param {Record<string, any>} workers - Map of operation workers (validate, lookup, subsumes, translate, expand)
    */
   constructor(opContext, log, provider, languages, i18n, workers) {
     super(opContext, log, provider, languages, i18n);
@@ -33,8 +38,9 @@ class BatchWorker extends TerminologyWorker {
   /**
    * Handle a batch request
    * POST with Bundle resource
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {{status: (code: number) => {json: (body: any) => any}}} res - Express response
+   * @returns {Promise<any>}
    */
   async handle(req, res) {
     try {
@@ -47,16 +53,18 @@ class BatchWorker extends TerminologyWorker {
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        const batchError = /** @type {{statusCode?: number, issueCode?: string, message?: string}} */ (error);
+        return res.status(batchError.statusCode || 500).json(this.operationOutcome(
+          'error', batchError.issueCode || 'exception', batchError.message || String(error)));
       }
     }
   }
 
   /**
    * Handle the batch operation
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {{status: (code: number) => {json: (body: any) => any}}} res - Express response
+   * @returns {Promise<any>}
    */
   async handleBatch(req, res) {
     this.deadCheck('batch');
@@ -77,6 +85,7 @@ class BatchWorker extends TerminologyWorker {
 
     // Process entries
     const entries = bundle.entry || [];
+    /** @type {any[]} */
     const responseEntries = [];
 
     for (let i = 0; i < entries.length; i++) {
@@ -98,9 +107,9 @@ class BatchWorker extends TerminologyWorker {
 
   /**
    * Process a single batch entry
-   * @param {Object} entry - Bundle entry
+   * @param {any} entry - Bundle entry
    * @param {number} index - Entry index for error reporting
-   * @returns {Object} Response entry
+   * @returns {Promise<any>} Response entry
    */
   async processEntry(entry, index) {
     try {
@@ -162,17 +171,18 @@ class BatchWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      const statusCode = error.statusCode || 500;
-      const issueCode = error.issueCode || 'exception';
+      const entryError = /** @type {{statusCode?: number, issueCode?: string, message?: string}} */ (error);
+      const statusCode = entryError.statusCode || 500;
+      const issueCode = entryError.issueCode || 'exception';
 
-      return this.errorEntry(statusCode, issueCode, error.message);
+      return this.errorEntry(statusCode, issueCode, entryError.message || String(error));
     }
   }
 
   /**
    * Parse an operation URL to extract the operation type and parameters
    * @param {string} url - Request URL (e.g., "CodeSystem/$lookup?system=...&code=...")
-   * @returns {Object|null} Parsed operation info or null if not recognized
+   * @returns {ParsedOperation|null} Parsed operation info or null if not recognized
    */
   parseOperationUrl(url) {
     // Remove leading slash if present
@@ -223,19 +233,20 @@ class BatchWorker extends TerminologyWorker {
 
   /**
    * Parse a query string into an object
-   * @param {string} queryString - Query string (without leading ?)
-   * @returns {Object} Parsed query parameters
+   * @param {string | undefined} queryString - Query string (without leading ?)
+   * @returns {Record<string, string | string[]>} Parsed query parameters
    */
   parseQueryString(queryString) {
     if (!queryString) {
       return {};
     }
 
+    /** @type {Record<string, string | string[]>} */
     const params = {};
     const pairs = queryString.split('&');
 
     for (const pair of pairs) {
-      const [key, value] = pair.split('=').map(decodeURIComponent);
+      const [key, value = ''] = pair.split('=').map(decodeURIComponent);
       if (key) {
         // Handle repeated parameters
         if (params[key] !== undefined) {
@@ -256,9 +267,10 @@ class BatchWorker extends TerminologyWorker {
   /**
    * Get the worker for a given operation
    * @param {string} operation - Operation name (e.g., 'lookup', 'validate-code', 'expand')
-   * @returns {Object|null} Worker instance or null
+   * @returns {any|null} Worker instance or null
    */
   getWorkerForOperation(operation) {
+    /** @type {Record<string, any>} */
     const operationMap = {
       'lookup': this.workers.lookup,
       'validate-code': this.workers.validate,
@@ -273,12 +285,13 @@ class BatchWorker extends TerminologyWorker {
   /**
    * Build a mock request object for a worker
    * @param {string} method - HTTP method
-   * @param {Object} parsedOp - Parsed operation info
-   * @param {Object} resource - Request resource (for POST)
-   * @param {Object} request - Original request element
-   * @returns {Object} Mock request object
+   * @param {ParsedOperation} parsedOp - Parsed operation info
+   * @param {any} resource - Request resource (for POST)
+   * @param {any} [request] - Original request element
+   * @returns {any} Mock request object
    */
-  buildMockRequest(method, parsedOp, resource) {
+  buildMockRequest(method, parsedOp, resource, request = null) {
+    void request;
     return {
       method,
       params: {
@@ -290,6 +303,10 @@ class BatchWorker extends TerminologyWorker {
         'content-type': 'application/json',
         'accept': 'application/json'
       },
+      /**
+       * @param {string} header
+       * @returns {string | undefined}
+       */
       get: function(header) {
         return this.headers[header.toLowerCase()];
       }
@@ -298,16 +315,19 @@ class BatchWorker extends TerminologyWorker {
 
   /**
    * Build a mock response object to capture worker output
-   * @returns {Object} Mock response object
+   * @returns {MockResponse} Mock response object
    */
   buildMockResponse() {
+    /** @type {MockResponse} */
     const mockRes = {
       statusCode: 200,
       body: null,
+      /** @param {number} code */
       status: function(code) {
         this.statusCode = code;
         return this;
       },
+      /** @param {any} body */
       json: function(body) {
         this.body = body;
         return this;
@@ -321,7 +341,7 @@ class BatchWorker extends TerminologyWorker {
    * @param {number} statusCode - HTTP status code
    * @param {string} issueCode - FHIR issue code
    * @param {string} message - Error message
-   * @returns {Object} Error entry
+   * @returns {any} Error entry
    */
   errorEntry(statusCode, issueCode, message) {
     const outcome = {
@@ -347,7 +367,7 @@ class BatchWorker extends TerminologyWorker {
    * @param {string} severity - error, warning, information
    * @param {string} code - Issue code
    * @param {string} message - Diagnostic message
-   * @returns {Object} OperationOutcome resource
+   * @returns {any} OperationOutcome resource
    */
   operationOutcome(severity, code, message) {
     return {

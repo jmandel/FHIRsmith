@@ -1,10 +1,16 @@
+// @ts-check
+
+/** @typedef {any} ConceptMap */
+/** @typedef {{name: string, value: string}} SearchParam */
+
 /**
  * Abstract base class for Concept Map providers
  * Defines the interface that all Concept Map providers must implement
  */
 class AbstractConceptMapProvider {
   /**
-   * {int} Unique number assigned to this provider
+   * Unique number assigned to this provider
+   * @type {number | undefined}
    */
   spaceId;
 
@@ -12,7 +18,7 @@ class AbstractConceptMapProvider {
    * ensure that the ids on the Concept Maps are unique, if they are
    * in the global namespace
    *
-   * @param {Set<String>} ids
+   * @param {Set<string>} ids
    */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
@@ -46,7 +52,8 @@ class AbstractConceptMapProvider {
 
   /**
    * Searches for Concept Maps based on provided criteria
-   * @param {Array<{name: string, value: string}>} searchParams - List of name/value pairs for search criteria
+   * @param {SearchParam[]} searchParams - List of name/value pairs for search criteria
+   * @param {string[] | null} [elements] - Optional elements to return
    * @returns {Promise<Array<ConceptMap>>} List of matching Concept Maps
    * @throws {Error} Must be implemented by subclasses
    */
@@ -57,7 +64,7 @@ class AbstractConceptMapProvider {
 
   /**
    * Validates search parameters
-   * @param {Array<{name: string, value: string}>} searchParams - Search parameters to validate
+   * @param {SearchParam[]} searchParams - Search parameters to validate
    * @protected
    */
   _validateSearchParams(searchParams) {
@@ -78,7 +85,7 @@ class AbstractConceptMapProvider {
   /**
    * Validates URL and version parameters
    * @param {string} url - URL to validate
-   * @param {string} version - Version to validate
+   * @param {string | null | undefined} version - Version to validate
    * @protected
    */
   _validateFetchParams(url, version) {
@@ -90,15 +97,30 @@ class AbstractConceptMapProvider {
     }
   }
 
+  /**
+   * @param {any} opContext
+   * @param {ConceptMap[]} conceptMaps
+   * @param {string | null | undefined} sourceSystem
+   * @param {string | null | undefined} sourceScope
+   * @param {string | null | undefined} targetScope
+   * @param {string | null | undefined} targetSystem
+   * @returns {Promise<void>}
+   */
   // eslint-disable-next-line no-unused-vars
   async findConceptMapForTranslation(opContext, conceptMaps, sourceSystem, sourceScope, targetScope, targetSystem) {
     // nothing
   }
 
+  /**
+   * @returns {number}
+   */
   cmCount() {
     return 0;
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async close() {
 
   }

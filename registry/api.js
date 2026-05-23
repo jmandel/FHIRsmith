@@ -1,9 +1,13 @@
 // Enhanced registry-api.js with resolver and HTML rendering functions
+// @ts-check
 
 const { ServerRegistryUtilities } = require('./model');
 const escape = require('escape-html');
 
 class RegistryAPI {
+  /**
+   * @param {any} crawler
+   */
   constructor(crawler) {
     this.crawler = crawler;
   }
@@ -11,6 +15,8 @@ class RegistryAPI {
   /**
    * Build rows for code system queries
    * Matches the Pascal buildRowsCS functionality
+   * @param {Record<string, any>} [params]
+   * @returns {any[]}
    */
   buildRowsForCodeSystem(params = {}) {
     const {
@@ -20,13 +26,14 @@ class RegistryAPI {
       codeSystem = ''
     } = params;
 
+    /** @type {any[]} */
     const rows = [];
     const data = this.crawler.getData();
 
-    data.registries.forEach(registry => {
+    data.registries.forEach((/** @type {any} */ registry) => {
       if (registryCode && registry.code !== registryCode) return;
 
-      registry.servers.forEach(server => {
+      registry.servers.forEach((/** @type {any} */ server) => {
         if (serverCode && server.code !== serverCode) return;
 
         // Check if server is authoritative for this code system
@@ -34,10 +41,11 @@ class RegistryAPI {
           codeSystem,
           server.authCSList,
           true, // support wildcards,
-            false // allow version matching
+          null,
+          false // allow version matching
         ) : false;
 
-        server.versions.forEach(versionInfo => {
+        server.versions.forEach((/** @type {any} */ versionInfo) => {
           if (version && !ServerRegistryUtilities.versionMatches(version, versionInfo.version)) {
             return;
           }
@@ -56,7 +64,8 @@ class RegistryAPI {
             (codeSystem && ServerRegistryUtilities.hasMatchingCodeSystem(
               codeSystem,
               versionInfo.codeSystems,
-              false // no wildcards for actual content
+              false, // no wildcards for actual content
+              null
             ))) {
             const row = ServerRegistryUtilities.createRow(
               registry,
@@ -76,6 +85,8 @@ class RegistryAPI {
   /**
    * Build rows for value set queries
    * Matches the Pascal buildRowsVS functionality
+   * @param {Record<string, any>} [params]
+   * @returns {any[]}
    */
   buildRowsForValueSet(params = {}) {
     const {
@@ -85,13 +96,14 @@ class RegistryAPI {
       valueSet = ''
     } = params;
 
+    /** @type {any[]} */
     const rows = [];
     const data = this.crawler.getData();
 
-    data.registries.forEach(registry => {
+    data.registries.forEach((/** @type {any} */ registry) => {
       if (registryCode && registry.code !== registryCode) return;
 
-      registry.servers.forEach(server => {
+      registry.servers.forEach((/** @type {any} */ server) => {
         if (serverCode && server.code !== serverCode) return;
 
         // Check if server is authoritative for this value set
@@ -101,7 +113,7 @@ class RegistryAPI {
           true // support wildcards
         ) : false;
 
-        server.versions.forEach(versionInfo => {
+        server.versions.forEach((/** @type {any} */ versionInfo) => {
           if (version && !ServerRegistryUtilities.versionMatches(version, versionInfo.version)) {
             return;
           }
@@ -156,7 +168,7 @@ class RegistryAPI {
    */
   getRegistries() {
     const data = this.crawler.getData();
-    return data.registries.map(r => ({
+    return data.registries.map((/** @type {any} */ r) => ({
       code: r.code,
       name: r.name,
       address: r.address,
@@ -169,6 +181,9 @@ class RegistryAPI {
   /**
    * Get all servers for a registry
    */
+  /**
+   * @param {string} registryCode
+   */
   getServers(registryCode) {
     const data = this.crawler.getData();
     const registry = data.getRegistry(registryCode);
@@ -177,7 +192,7 @@ class RegistryAPI {
       return null;
     }
 
-    return registry.servers.map(s => ({
+    return registry.servers.map((/** @type {any} */ s) => ({
       code: s.code,
       name: s.name,
       address: s.address,
@@ -192,6 +207,10 @@ class RegistryAPI {
 
   /**
    * Get server details
+   */
+  /**
+   * @param {string} registryCode
+   * @param {string} serverCode
    */
   getServerDetails(registryCode, serverCode) {
     const data = this.crawler.getData();
@@ -208,7 +227,7 @@ class RegistryAPI {
 
     return {
       ...server.toJSON(),
-      versions: server.versions.map(v => ({
+      versions: server.versions.map((/** @type {any} */ v) => ({
         ...v.toJSON(),
         details: v.getDetails(),
         csList: v.getCsListHtml(),
@@ -225,18 +244,20 @@ class RegistryAPI {
 
     let totalServers = 0;
     let totalVersions = 0;
+    /** @type {Set<string>} */
     let totalCodeSystems = new Set();
+    /** @type {Set<string>} */
     let totalValueSets = new Set();
     let errorCount = 0;
     let workingVersions = 0;
 
-    data.registries.forEach(registry => {
+    data.registries.forEach((/** @type {any} */ registry) => {
       if (registry.error) errorCount++;
 
-      registry.servers.forEach(server => {
+      registry.servers.forEach((/** @type {any} */ server) => {
         totalServers++;
 
-        server.versions.forEach(version => {
+        server.versions.forEach((/** @type {any} */ version) => {
           totalVersions++;
           if (version.error) {
             errorCount++;
@@ -244,8 +265,8 @@ class RegistryAPI {
             workingVersions++;
           }
 
-          version.codeSystems.forEach(cs => totalCodeSystems.add(cs.uri+(cs.version ? '|'+cs.version : '')));
-          version.valueSets.forEach(vs => totalValueSets.add(vs));
+          version.codeSystems.forEach((/** @type {any} */ cs) => totalCodeSystems.add(cs.uri+(cs.version ? '|'+cs.version : '')));
+          version.valueSets.forEach((/** @type {string} */ vs) => totalValueSets.add(vs));
         });
       });
     });
@@ -265,6 +286,8 @@ class RegistryAPI {
 
   /**
    * Sort and rank rows based on various criteria
+   * @param {any[]} rows
+   * @returns {any[]}
    */
   _sortAndRankRows(rows) {
     return rows.sort((a, b) => {
@@ -306,6 +329,9 @@ class RegistryAPI {
     });
   }
 
+  /**
+   * @param {string} version
+   */
   _normalizeFhirVersion(version) {
     if (!version) return version;
 
@@ -320,10 +346,12 @@ class RegistryAPI {
 
   /**
    * Compare semantic versions
+   * @param {string} v1
+   * @param {string} v2
    */
   _compareVersions(v1, v2) {
-    const parts1 = v1.split('.').map(p => parseInt(p) || 0);
-    const parts2 = v2.split('.').map(p => parseInt(p) || 0);
+    const parts1 = v1.split('.').map((/** @type {string} */ p) => parseInt(p) || 0);
+    const parts2 = v2.split('.').map((/** @type {string} */ p) => parseInt(p) || 0);
 
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
       const p1 = parts1[i] || 0;
@@ -338,6 +366,9 @@ class RegistryAPI {
 
   /**
    * Find best server for a given code system/value set
+   * @param {string} type
+   * @param {string} url
+   * @param {string} version
    */
   findBestServer(type, url, version) {
     let rows;
@@ -369,7 +400,7 @@ class RegistryAPI {
    * Express middleware for handling API requests
    */
   expressMiddleware() {
-    return (req, res, next) => {
+    return (/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       // Attach API instance to request
       req.registryAPI = this;
       next();
@@ -379,6 +410,10 @@ class RegistryAPI {
   /**
    * NEW FUNCTION: Resolve the best server for a code system
    * Based on Pascal resolveCS function
+   * @param {string} fhirVersion
+   * @param {string} codeSystem
+   * @param {boolean} authoritativeOnly
+   * @param {string} [usage]
    */
   resolveCodeSystem(fhirVersion, codeSystem, authoritativeOnly, usage = '') {
     if (!fhirVersion) {
@@ -389,6 +424,7 @@ class RegistryAPI {
     }
     const normalizedVersion = this._normalizeFhirVersion(fhirVersion);
 
+    /** @type {Record<string, any>} */
     const result = {
       formatVersion: '1',
       'registry-url': this.getData().address,
@@ -396,11 +432,12 @@ class RegistryAPI {
       candidates: []
     };
 
+    /** @type {string[]} */
     const matchedServers = [];
     const data = this.crawler.getData();
 
-    data.registries.forEach(registry => {
-      registry.servers.forEach(server => {
+    data.registries.forEach((/** @type {any} */ registry) => {
+      registry.servers.forEach((/** @type {any} */ server) => {
         let added = false;
 
         // Check if server supports the requested usage tag
@@ -410,10 +447,11 @@ class RegistryAPI {
           // Check if server is authoritative for this code system
           const isAuth = server.isAuthCS(codeSystem);
 
-          server.versions.forEach(version => {
+          server.versions.forEach((/** @type {any} */ version) => {
             if (ServerRegistryUtilities.versionMatches(normalizedVersion, version.version)) {
               // Check if the server has the code system
               // Test against both the full URL and the base URL
+              /** @type {Record<string, any>} */
               let content = {};
               const hasMatchingCS =
                 // ServerRegistryUtilities.hasMatchingCodeSystem(baseCodeSystem, version.codeSystems, false, content) ||
@@ -443,8 +481,8 @@ class RegistryAPI {
 
     // NEW: Fallback - if no matches found, check for authoritative pattern matches
     if (result.authoritative.length === 0 && result.candidates.length === 0) {
-      data.registries.forEach(registry => {
-        registry.servers.forEach(server => {
+      data.registries.forEach((/** @type {any} */ registry) => {
+        registry.servers.forEach((/** @type {any} */ server) => {
           // Check if server supports the requested usage tag
           if (server.usageList.length === 0 ||
             (usage && server.usageList.includes(usage))) {
@@ -453,7 +491,7 @@ class RegistryAPI {
             const isAuth = server.isAuthCS(codeSystem);
 
             if (isAuth) {
-              server.versions.forEach(version => {
+              server.versions.forEach((/** @type {any} */ version) => {
                 if (ServerRegistryUtilities.versionMatches(normalizedVersion, version.version)) {
                   result.authoritative.push(this.createServerEntry(server, version));
                   if (!matchedServers.includes(server.code)) {
@@ -476,6 +514,10 @@ class RegistryAPI {
   /**
    * NEW FUNCTION: Resolve the best server for a value set
    * Based on Pascal resolveVS function
+   * @param {string} fhirVersion
+   * @param {string} valueSet
+   * @param {boolean} authoritativeOnly
+   * @param {string} [usage]
    */
   resolveValueSet(fhirVersion, valueSet, authoritativeOnly, usage = '') {
     if (!fhirVersion) {
@@ -487,6 +529,7 @@ class RegistryAPI {
 
     const normalizedVersion = this._normalizeFhirVersion(fhirVersion);
 
+    /** @type {Record<string, any>} */
     const result = {
       formatVersion: '1',
       'registry-url': this.getData().address,
@@ -494,6 +537,7 @@ class RegistryAPI {
       candidates: []
     };
 
+    /** @type {string[]} */
     const matchedServers = [];
     const data = this.crawler.getData();
 
@@ -504,8 +548,8 @@ class RegistryAPI {
     }
 
     // Lock for thread safety during read
-    data.registries.forEach(registry => {
-      registry.servers.forEach(server => {
+    data.registries.forEach((/** @type {any} */ registry) => {
+      registry.servers.forEach((/** @type {any} */ server) => {
         let added = false;
 
         // Check if server supports the requested usage tag
@@ -515,7 +559,7 @@ class RegistryAPI {
           // Check if server is authoritative for this value set
           const isAuth = server.isAuthVS(baseValueSet);
 
-          server.versions.forEach(version => {
+          server.versions.forEach((/** @type {any} */ version) => {
             if (ServerRegistryUtilities.versionMatches(normalizedVersion, version.version)) {
               // For authoritative servers, we don't need to check if they have the value set
               if (isAuth) {
@@ -547,7 +591,11 @@ class RegistryAPI {
     };
   }
 
+  /**
+   * @param {Record<string, any>} result
+   */
   _cleanEmptyArrays(result) {
+    /** @type {Record<string, any>} */
     const cleanedResult = { ...result };
 
     // Remove empty arrays
@@ -562,8 +610,12 @@ class RegistryAPI {
 
   /**
    * Helper function to create a server entry for resolve results
+   * @param {any} server
+   * @param {any} version
+   * @param {any} [content]
    */
-  createServerEntry(server, version) {
+  createServerEntry(server, version, content = null) {
+    /** @type {Record<string, any>} */
     const entry = {
       'server-name': server.name,
       url: version.address
@@ -575,8 +627,8 @@ class RegistryAPI {
     if (server.accessInfo) {
       entry.access_info = server.accessInfo;
     }
-    if (version.content) {
-      entry.content = version.content;
+    if (content || version.content) {
+      entry.content = content || version.content;
     }
 
     return entry;
@@ -585,6 +637,11 @@ class RegistryAPI {
   /**
    * NEW FUNCTION: Render a JSON result as an HTML table
    * Based on Pascal renderJson function
+   * @param {any} json
+   * @param {string} path
+   * @param {string} [regCode]
+   * @param {string} [serverCode]
+   * @param {string} [versionCode]
    */
   renderJsonToHtml(json, path, regCode = '', serverCode = '', versionCode = '') {
     let html = '<table class="grid">\n';
@@ -656,21 +713,21 @@ class RegistryAPI {
     
     html += `<tr><td width="130px"><img src="/assets/images/tx-registry-root.gif">&nbsp;Registries</td><td>${data.address} (${escape(data.outcome)})</td></tr>`;
     
-    data.registries.forEach(registry => {
+    data.registries.forEach((/** @type {any} */ registry) => {
       if (registry.error) {
         html += `<tr><td title="${escape(registry.name)}">&nbsp;<img src="/assets/images/tx-registry.png">&nbsp;${registry.code}</td><td><a href="${escape(registry.address)}">${escape(registry.address)}</a>. Error: ${escape(registry.error)}</td></tr>`;
       } else {
         html += `<tr><td title="${escape(registry.name)}">&nbsp;&nbsp;<img src="/assets/images/tx-registry.png">&nbsp;${registry.code}</td><td><a href="${escape(registry.address)}">${escape(registry.address)}</a></td></tr>`;
       }
       
-      registry.servers.forEach(server => {
+      registry.servers.forEach((/** @type {any} */ server) => {
         if (server.authCSList.length > 0 || server.authVSList.length > 0 || server.usageList.length > 0) {
           html += `<tr><td title="${escape(server.name)}">&nbsp;&nbsp;&nbsp;&nbsp;<img src="/assets/images/tx-server.png">&nbsp;${server.code}</td><td><a href="${escape(server.address)}">${escape(server.address)}</a>. ${server.description}</td></tr>`;
         } else {
           html += `<tr><td title="${escape(server.name)}">&nbsp;&nbsp;&nbsp;&nbsp;<img src="/assets/images/tx-server.png">&nbsp;${server.code}</td><td><a href="${escape(server.address)}">${escape(server.address)}</a></td></tr>`;
         }
         
-        server.versions.forEach(version => {
+        server.versions.forEach((/** @type {any} */ version) => {
           // Get major.minor version only
           const versionParts = version.version.split('.');
           const majorMinor = versionParts.slice(0, 2).join('.');
@@ -686,6 +743,7 @@ class RegistryAPI {
 
   /**
    * Helper function to format a duration in seconds to a human-readable string
+   * @param {number} seconds
    */
   _formatDuration(seconds) {
     if (seconds < 60) {
@@ -701,6 +759,7 @@ class RegistryAPI {
 
   /**
    * Helper function to escape HTML special characters
+   * @param {string} text
    */
   _escapeHtml(text) {
     if (!text) return '';

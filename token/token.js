@@ -3,6 +3,7 @@
 //
 // Licensed under BSD-3: https://opensource.org/license/bsd-3-clause
 //
+// @ts-check
 
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -16,16 +17,30 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const GitHubStrategy = require('passport-github2').Strategy;
-const rateLimit = require('express-rate-limit');
+const rateLimit = /** @type {any} */ (require('express-rate-limit'));
 const lusca = require('lusca');
 const folders = require('../library/folder-setup');
 const escape = require('escape-html');
 
 
-const Logger = require('../library/logger');
+const Logger = /** @type {any} */ (require('../library/logger'));
 const htmlServer = require('../library/html-server');
 
 class TokenModule {
+  /** @type {any} */
+  router;
+  /** @type {any} */
+  db;
+  /** @type {any} */
+  config;
+  /** @type {any} */
+  log;
+  /** @type {any} */
+  stats;
+
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.router = express.Router();
     this.db = null;
@@ -34,6 +49,10 @@ class TokenModule {
     this.stats = stats;
   }
 
+  /**
+   * @param {any} config
+   * @returns {Promise<void>}
+   */
   async initialize(config) {
     this.config = config;
     this.log.info('Initializing Token module...');
@@ -149,7 +168,7 @@ class TokenModule {
         });
 
         this.log.info(`Token database initialized: ${dbPath}`);
-        resolve();
+        resolve(undefined);
       });
     });
   }
@@ -213,7 +232,7 @@ class TokenModule {
       message: 'Too many authentication attempts, please try again later.',
       standardHeaders: true,
       legacyHeaders: false,
-      skip: (req) => {
+      skip: (/** @type {any} */ req) => {
         // Skip rate limiting for successful authentications
         return req.user && req.isAuthenticated();
       }
@@ -238,11 +257,11 @@ class TokenModule {
     this.router.use(passport.session());
 
     // User serialization
-    passport.serializeUser((user, done) => {
+    passport.serializeUser((/** @type {any} */ user, /** @type {any} */ done) => {
       done(null, user.id);
     });
 
-    passport.deserializeUser(async (id, done) => {
+    passport.deserializeUser(async (/** @type {any} */ id, /** @type {any} */ done) => {
       try {
         const user = await this.getUserById(id);
         done(null, user);
@@ -266,7 +285,7 @@ class TokenModule {
         callbackURL: oauth.google.redirectUri,
         scope: oauth.google.scope || ['openid', 'profile', 'email'],
         passReqToCallback: true
-      }, async (req, accessToken, refreshToken, profile, done) => {
+      }, async (/** @type {any} */ req, /** @type {any} */ accessToken, /** @type {any} */ refreshToken, /** @type {any} */ profile, /** @type {any} */ done) => {
         try {
           const user = await this.handleOAuthCallback(req, 'google', profile, {
             accessToken, // Don't store this in production
@@ -287,7 +306,7 @@ class TokenModule {
         callbackURL: oauth.facebook.redirectUri,
         profileFields: ['id', 'emails', 'name'],
         passReqToCallback: true
-      }, async (req, accessToken, refreshToken, profile, done) => {
+      }, async (/** @type {any} */ req, /** @type {any} */ accessToken, /** @type {any} */ refreshToken, /** @type {any} */ profile, /** @type {any} */ done) => {
         try {
           const user = await this.handleOAuthCallback(req, 'facebook', profile, {
             accessToken,
@@ -308,7 +327,7 @@ class TokenModule {
         callbackURL: oauth.github.redirectUri,
         scope: oauth.github.scope || ['user:email'],
         passReqToCallback: true
-      }, async (req, accessToken, refreshToken, profile, done) => {
+      }, async (/** @type {any} */ req, /** @type {any} */ accessToken, /** @type {any} */ refreshToken, /** @type {any} */ profile, /** @type {any} */ done) => {
         try {
           const user = await this.handleOAuthCallback(req, 'github', profile, {
             accessToken,
@@ -326,6 +345,13 @@ class TokenModule {
     this.log.info('OAuth strategies configured:', configuredStrategies);
   }
 
+  /**
+   * @param {any} req
+   * @param {string} provider
+   * @param {any} profile
+   * @param {any} tokens
+   * @returns {Promise<any>}
+   */
   // eslint-disable-next-line no-unused-vars
   async handleOAuthCallback(req, provider, profile, tokens) {
     const email = this.extractEmail(profile);
@@ -361,6 +387,10 @@ class TokenModule {
     return await this.getUserById(userId);
   }
 
+  /**
+   * @param {any} profile
+   * @returns {string | null}
+   */
   extractEmail(profile) {
     if (profile.emails && profile.emails.length > 0) {
       return profile.emails[0].value;
@@ -371,6 +401,10 @@ class TokenModule {
     return null;
   }
 
+  /**
+   * @param {any} profile
+   * @returns {string}
+   */
   extractName(profile) {
     if (profile.displayName) {
       return profile.displayName;
@@ -450,6 +484,12 @@ class TokenModule {
   }
 
   // Middleware
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @param {any} next
+   * @returns {any}
+   */
   requireAuth(req, res, next) {
     if (!req.isAuthenticated()) {
       return res.redirect('/token/login');
@@ -458,6 +498,11 @@ class TokenModule {
   }
 
   // Web interface handlers
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
   async renderDashboard(req, res) {
     const start = Date.now();
     try {
@@ -487,6 +532,11 @@ class TokenModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {any}
+   */
   renderLogin(req, res) {
     const start = Date.now();
     try {
@@ -511,18 +561,23 @@ class TokenModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
   async handleLogout(req, res) {
     const start = Date.now();
     try {
 
       const userId = req.user ? req.user.id : null;
 
-      req.logout((err) => {
+      req.logout((/** @type {any} */ err) => {
         if (err) {
           this.log.error('Logout error:', err);
         }
 
-        req.session.destroy((err) => {
+        req.session.destroy((/** @type {any} */ err) => {
           if (err) {
             this.log.error('Session destruction error:', err);
           }
@@ -540,6 +595,11 @@ class TokenModule {
   }
 
   // API Key management
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
   async createApiKey(req, res) {
     const start = Date.now();
     try {
@@ -594,6 +654,11 @@ class TokenModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
   async deleteApiKey(req, res) {
     const start = Date.now();
     try {
@@ -628,6 +693,11 @@ class TokenModule {
   }
 
   // JSON API for other servers
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
   async validateApiKey(req, res) {
     const start = Date.now();
     try {
@@ -701,6 +771,11 @@ class TokenModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
   async recordUsage(req, res) {
     const start = Date.now();
     try {
@@ -738,6 +813,11 @@ class TokenModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
   async getUsageStats(req, res) {
     const start = Date.now();
     try {
@@ -773,13 +853,17 @@ class TokenModule {
   }
 
   // Database helper methods
+  /**
+   * @param {any} userData
+   * @returns {Promise<number>}
+   */
   async findOrCreateUser(userData) {
     return new Promise((resolve, reject) => {
       // First try to find user by email OR by provider combination
       this.db.get(
         'SELECT id FROM users WHERE (email = ?) OR (provider = ? AND provider_id = ?)',
         [userData.email, userData.provider, userData.provider_id],
-        (err, row) => {
+        (/** @type {any} */ err, /** @type {any} */ row) => {
           if (err) {
             reject(err);
             return;
@@ -790,7 +874,7 @@ class TokenModule {
             this.db.run(
               'UPDATE users SET email = ?, name = ?, profile_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
               [userData.email, userData.name, userData.profile_data, row.id],
-              (err) => {
+              (/** @type {any} */ err) => {
                 if (err) {
                   reject(err);
                 } else {
@@ -803,6 +887,10 @@ class TokenModule {
             this.db.run(
               'INSERT INTO users (email, name, provider, provider_id, profile_data) VALUES (?, ?, ?, ?, ?)',
               [userData.email, userData.name, userData.provider, userData.provider_id, userData.profile_data],
+              /**
+               * @this {any}
+               * @param {any} err
+               */
               function(err) {
                 if (err) {
                   reject(err);
@@ -817,12 +905,16 @@ class TokenModule {
     });
   }
 
+  /**
+   * @param {number | string} userId
+   * @returns {Promise<any>}
+   */
   async getUserById(userId) {
     return new Promise((resolve, reject) => {
       this.db.get(
         'SELECT * FROM users WHERE id = ? AND is_active = 1',
         [userId],
-        (err, row) => {
+        (/** @type {any} */ err, /** @type {any} */ row) => {
           if (err) reject(err);
           else resolve(row);
         }
@@ -830,19 +922,27 @@ class TokenModule {
     });
   }
 
+  /**
+   * @param {number | string} userId
+   * @returns {Promise<void>}
+   */
   async updateUserLastLogin(userId) {
     return new Promise((resolve, reject) => {
       this.db.run(
         'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
         [userId],
-        (err) => {
+        (/** @type {any} */ err) => {
           if (err) reject(err);
-          else resolve();
+          else resolve(undefined);
         }
       );
     });
   }
 
+  /**
+   * @param {number | string} userId
+   * @returns {Promise<any[]>}
+   */
   async getUserApiKeys(userId) {
     return new Promise((resolve, reject) => {
       this.db.all(
@@ -851,7 +951,7 @@ class TokenModule {
          WHERE user_id = ? 
          ORDER BY created_at DESC`,
         [userId],
-        (err, rows) => {
+        (/** @type {any} */ err, /** @type {any[]} */ rows) => {
           if (err) reject(err);
           else resolve(rows || []);
         }
@@ -859,6 +959,15 @@ class TokenModule {
     });
   }
 
+  /**
+   * @param {number} userId
+   * @param {string} keyHash
+   * @param {string} keyPrefix
+   * @param {string} name
+   * @param {string} scopes
+   * @param {string | undefined} ip
+   * @returns {Promise<number>}
+   */
   async storeApiKey(userId, keyHash, keyPrefix, name, scopes, ip) {
     return new Promise((resolve, reject) => {
       const expiresAt = this.config.apiKeys?.keyExpiration ? 
@@ -869,6 +978,10 @@ class TokenModule {
         `INSERT INTO api_keys (user_id, key_hash, key_prefix, name, scopes, expires_at, created_ip) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [userId, keyHash, keyPrefix, name, scopes, expiresAt, ip],
+        /**
+         * @this {any}
+         * @param {any} err
+         */
         function(err) {
           if (err) reject(err);
           else resolve(this.lastID);
@@ -877,6 +990,10 @@ class TokenModule {
     });
   }
 
+  /**
+   * @param {string} apiKey
+   * @returns {Promise<any | null>}
+   */
   async findApiKeyByValue(apiKey) {
     return new Promise((resolve, reject) => {
       const keyPrefix = apiKey.substring(0, 11); // 'tk_' + 8 hex chars
@@ -886,7 +1003,7 @@ class TokenModule {
         FROM api_keys ak 
         JOIN users u ON ak.user_id = u.id 
         WHERE ak.key_prefix = ? AND ak.is_active = 1 AND u.is_active = 1
-      `, [keyPrefix], async (err, rows) => {
+      `, [keyPrefix], async (/** @type {any} */ err, /** @type {any[]} */ rows) => {
         if (err) {
           reject(err);
           return;
@@ -914,11 +1031,20 @@ class TokenModule {
     });
   }
 
+  /**
+   * @param {number} keyId
+   * @param {number} userId
+   * @returns {Promise<boolean>}
+   */
   async removeApiKey(keyId, userId) {
     return new Promise((resolve, reject) => {
       this.db.run(
         'UPDATE api_keys SET is_active = 0 WHERE id = ? AND user_id = ?',
         [keyId, userId],
+        /**
+         * @this {any}
+         * @param {any} err
+         */
         function(err) {
           if (err) {
             reject(err);
@@ -930,20 +1056,31 @@ class TokenModule {
     });
   }
 
+  /**
+   * @param {number} keyId
+   * @param {string | null} [ip]
+   * @returns {Promise<void>}
+   */
   // eslint-disable-next-line no-unused-vars
   async updateKeyLastUsed(keyId, ip = null) {
     return new Promise((resolve, reject) => {
       this.db.run(
         'UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE id = ?',
         [keyId],
-        (err) => {
+        (/** @type {any} */ err) => {
           if (err) reject(err);
-          else resolve();
+          else resolve(undefined);
         }
       );
     });
   }
 
+  /**
+   * @param {number} keyId
+   * @param {number} [count]
+   * @param {string | null} [ip]
+   * @returns {Promise<void>}
+   */
   async incrementUsage(keyId, count = 1, ip = null) {
     const today = new Date().toISOString().split('T')[0];
     
@@ -955,13 +1092,17 @@ class TokenModule {
           request_count = request_count + ?,
           last_request_ip = ?,
           updated_at = CURRENT_TIMESTAMP
-      `, [keyId, today, count, ip, count, ip], function(err) {
+      `, [keyId, today, count, ip, count, ip], function(/** @type {any} */ err) {
         if (err) reject(err);
-        else resolve();
+        else resolve(undefined);
       });
     });
   }
 
+  /**
+   * @param {number} keyId
+   * @returns {Promise<number>}
+   */
   async getTodayUsage(keyId) {
     const today = new Date().toISOString().split('T')[0];
     
@@ -969,7 +1110,7 @@ class TokenModule {
       this.db.get(
         'SELECT request_count FROM usage_stats WHERE api_key_id = ? AND date = ?',
         [keyId, today],
-        (err, row) => {
+        (/** @type {any} */ err, /** @type {any} */ row) => {
           if (err) reject(err);
           else resolve(row ? row.request_count : 0);
         }
@@ -977,6 +1118,10 @@ class TokenModule {
     });
   }
 
+  /**
+   * @param {number} userId
+   * @returns {Promise<any[]>}
+   */
   async getUserUsageStats(userId) {
     return new Promise((resolve, reject) => {
       this.db.all(`
@@ -985,13 +1130,18 @@ class TokenModule {
         JOIN api_keys ak ON us.api_key_id = ak.id
         WHERE ak.user_id = ? AND us.date >= date('now', '-30 days')
         ORDER BY us.date DESC
-      `, [userId], (err, rows) => {
+      `, [userId], (/** @type {any} */ err, /** @type {any[]} */ rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
     });
   }
 
+  /**
+   * @param {number} keyId
+   * @param {number} [days]
+   * @returns {Promise<any[]>}
+   */
   async getApiKeyUsageStats(keyId, days = 30) {
     return new Promise((resolve, reject) => {
       this.db.all(`
@@ -999,31 +1149,45 @@ class TokenModule {
         FROM usage_stats 
         WHERE api_key_id = ? AND date >= date('now', '-${days} days')
         ORDER BY date DESC
-      `, [keyId], (err, rows) => {
+      `, [keyId], (/** @type {any} */ err, /** @type {any[]} */ rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
     });
   }
 
+  /**
+   * @param {number | null} userId
+   * @param {string} eventType
+   * @param {string | undefined} ip
+   * @param {string | undefined} userAgent
+   * @param {any} details
+   * @returns {Promise<void>}
+   */
   async logSecurityEvent(userId, eventType, ip, userAgent, details) {
     // eslint-disable-next-line no-unused-vars
     return new Promise((resolve, reject) => {
       this.db.run(
         'INSERT INTO security_log (user_id, event_type, ip_address, user_agent, details) VALUES (?, ?, ?, ?, ?)',
         [userId, eventType, ip, userAgent, JSON.stringify(details)],
-        function(err) {
+        function(/** @type {any} */ err) {
           if (err) {
             // Don't fail the main operation if logging fails
             console.error('Failed to log security event:', err);
           }
-          resolve();
+          resolve(undefined);
         }
       );
     });
   }
 
   // Content builders
+  /**
+   * @param {any} user
+   * @param {any[]} apiKeys
+   * @param {any[]} usageStats
+   * @returns {string}
+   */
   // eslint-disable-next-line no-unused-vars
   buildDashboardContent(user, apiKeys, usageStats) {
     let content = `
@@ -1161,6 +1325,11 @@ class TokenModule {
     return content;
   }
 
+  /**
+   * @param {string[]} providers
+   * @param {any} error
+   * @returns {string}
+   */
   buildLoginContent(providers, error) {
     let content = `
       <div class="row justify-content-center">
@@ -1252,6 +1421,11 @@ class TokenModule {
     return content;
   }
 
+  /**
+   * @param {string} title
+   * @param {string} content
+   * @returns {string}
+   */
   buildSimpleHtml(title, content) {
     return `
       <!DOCTYPE html>
@@ -1278,6 +1452,9 @@ class TokenModule {
   }
 
   // Status and cleanup
+  /**
+   * @returns {any}
+   */
   getStatus() {
     return {
       enabled: true,
@@ -1286,16 +1463,19 @@ class TokenModule {
     };
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async shutdown() {
     if (this.db) {
       await new Promise((resolve) => {
-        this.db.close((err) => {
+        this.db.close((/** @type {any} */ err) => {
           if (err) {
             this.log.error('Error closing database:', err);
           } else {
             this.log.info('Database connection closed');
           }
-          resolve();
+          resolve(undefined);
         });
       });
     }

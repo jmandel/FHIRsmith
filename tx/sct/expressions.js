@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * SNOMED CT Expression Library
  * Converted from Pascal ftx_sct_expressions.pas
@@ -5,6 +7,18 @@
  * Copyright (c) 2011+, HL7 and Health Intersections Pty Ltd
  * Licensed under BSD-3-Clause
  */
+
+/** @typedef {string | number | bigint} SnomedIdLike */
+/** @typedef {Record<string, any>} SnomedStructuresLike */
+/** @typedef {{isPreferred: boolean, isActive: boolean, languageCode: string, term: string, descriptionIndex: number}} DisplayDesignation */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 const MAX_TERM_LENGTH = 1024;
 const NO_REFERENCE = 0xFFFFFFFF;
@@ -30,6 +44,9 @@ class SnomedExpressionBase {
  * Represents a SNOMED concept with optional code, description, literal, or decimal value
  */
 class SnomedConcept extends SnomedExpressionBase {
+  /**
+   * @param {number} [reference]
+   */
   constructor(reference = NO_REFERENCE) {
     super();
     this.reference = reference;
@@ -41,6 +58,8 @@ class SnomedConcept extends SnomedExpressionBase {
 
   /**
    * Check if this concept matches another concept
+   * @param {SnomedConcept | null | undefined} other
+   * @returns {boolean}
    */
   matches(other) {
     if (!other) return false;
@@ -60,6 +79,7 @@ class SnomedConcept extends SnomedExpressionBase {
 
   /**
    * Get a string description of this concept
+   * @returns {string}
    */
   describe() {
     if (this.code) {
@@ -74,6 +94,8 @@ class SnomedConcept extends SnomedExpressionBase {
 
   /**
    * Compare two concepts for sorting
+   * @param {SnomedConcept} other
+   * @returns {number}
    */
   compare(other) {
     if (this.code) {
@@ -87,6 +109,7 @@ class SnomedConcept extends SnomedExpressionBase {
 
   /**
    * Create a canonical copy of this concept
+   * @returns {SnomedConcept}
    */
   canonical() {
     const result = new SnomedConcept();
@@ -96,6 +119,7 @@ class SnomedConcept extends SnomedExpressionBase {
 
   /**
    * Copy properties from another concept
+   * @param {SnomedConcept} other
    */
   copyFrom(other) {
     this.reference = other.reference;
@@ -112,12 +136,15 @@ class SnomedConcept extends SnomedExpressionBase {
 class SnomedRefinement extends SnomedExpressionBase {
   constructor() {
     super();
+    /** @type {SnomedConcept | null} */
     this.name = null;  // SnomedConcept
+    /** @type {SnomedExpression | null} */
     this.value = null; // SnomedExpression
   }
 
   /**
    * Set the name (attribute) of this refinement
+   * @param {SnomedConcept} name
    */
   setName(name) {
     this.name = name;
@@ -125,6 +152,7 @@ class SnomedRefinement extends SnomedExpressionBase {
 
   /**
    * Set the value of this refinement
+   * @param {SnomedExpression} value
    */
   setValue(value) {
     this.value = value;
@@ -132,34 +160,42 @@ class SnomedRefinement extends SnomedExpressionBase {
 
   /**
    * Check if this refinement matches another
+   * @param {SnomedRefinement | null | undefined} other
+   * @returns {boolean}
    */
   matches(other) {
     if (!other) return false;
+    if (!this.name || !this.value) return false;
     if (!this.name.matches(other.name)) return false;
     return this.value.matches(other.value) === '';
   }
 
   /**
    * Get a string description of this refinement
+   * @returns {string}
    */
   describe() {
-    return this.name.describe() + '=' + this.value.describe();
+    return (this.name ? this.name.describe() : '') + '=' + (this.value ? this.value.describe() : '');
   }
 
   /**
    * Compare two refinements for sorting
+   * @param {SnomedRefinement} other
+   * @returns {number}
    */
   compare(other) {
+    if (!this.name || !other.name) return this.name ? 1 : other.name ? -1 : 0;
     return this.name.compare(other.name);
   }
 
   /**
    * Create a canonical copy of this refinement
+   * @returns {SnomedRefinement}
    */
   canonical() {
     const result = new SnomedRefinement();
-    result.name = this.name.canonical();
-    result.value = this.value.canonical();
+    result.name = this.name ? this.name.canonical() : null;
+    result.value = this.value ? this.value.canonical() : null;
     return result;
   }
 }
@@ -170,11 +206,14 @@ class SnomedRefinement extends SnomedExpressionBase {
 class SnomedRefinementGroup extends SnomedExpressionBase {
   constructor() {
     super();
+    /** @type {SnomedRefinement[]} */
     this.refinements = []; // Array of SnomedRefinement
   }
 
   /**
    * Check if this group matches another group
+   * @param {SnomedRefinementGroup | null | undefined} other
+   * @returns {boolean}
    */
   matches(other) {
     if (!other) return false;
@@ -198,6 +237,8 @@ class SnomedRefinementGroup extends SnomedExpressionBase {
 
   /**
    * Check if this group contains a specific refinement
+   * @param {SnomedRefinement} refinement
+   * @returns {boolean}
    */
   hasRefinement(refinement) {
     return this.refinements.some(test => test.matches(refinement));
@@ -205,6 +246,7 @@ class SnomedRefinementGroup extends SnomedExpressionBase {
 
   /**
    * Get a string description of this refinement group
+   * @returns {string}
    */
   describe() {
     return this.refinements.map(r => r.describe()).join(',');
@@ -212,6 +254,8 @@ class SnomedRefinementGroup extends SnomedExpressionBase {
 
   /**
    * Compare two refinement groups for sorting
+   * @param {SnomedRefinementGroup} other
+   * @returns {number}
    */
   compare(other) {
     if (this.refinements.length === 0 || other.refinements.length === 0) {
@@ -222,6 +266,7 @@ class SnomedRefinementGroup extends SnomedExpressionBase {
 
   /**
    * Create a canonical copy of this refinement group
+   * @returns {SnomedRefinementGroup}
    */
   canonical() {
     const result = new SnomedRefinementGroup();
@@ -239,8 +284,11 @@ class SnomedExpression extends SnomedExpressionBase {
   constructor() {
     super();
     this.status = SnomedExpressionStatus.Unknown;
+    /** @type {SnomedConcept[]} */
     this.concepts = []; // Array of SnomedConcept
+    /** @type {SnomedRefinement[]} */
     this.refinements = []; // Array of SnomedRefinement
+    /** @type {SnomedRefinementGroup[]} */
     this.refinementGroups = []; // Array of SnomedRefinementGroup
   }
 
@@ -276,6 +324,8 @@ class SnomedExpression extends SnomedExpressionBase {
 
   /**
    * Check if expression contains a specific concept
+   * @param {number | SnomedConcept} concept
+   * @returns {boolean}
    */
   hasConcept(concept) {
     if (typeof concept === 'number') {
@@ -287,6 +337,8 @@ class SnomedExpression extends SnomedExpressionBase {
 
   /**
    * Check if expression contains a specific refinement
+   * @param {SnomedRefinement} refinement
+   * @returns {boolean}
    */
   hasRefinement(refinement) {
     return this.refinements.some(test => test.matches(refinement));
@@ -294,6 +346,8 @@ class SnomedExpression extends SnomedExpressionBase {
 
   /**
    * Check if expression contains a specific refinement group
+   * @param {SnomedRefinementGroup} refinementGroup
+   * @returns {boolean}
    */
   hasRefinementGroup(refinementGroup) {
     return this.refinementGroups.some(test => test.matches(refinementGroup));
@@ -302,6 +356,8 @@ class SnomedExpression extends SnomedExpressionBase {
   /**
    * Check if this expression matches another expression
    * Returns empty string if match, error message if not
+   * @param {SnomedExpression | null | undefined} other
+   * @returns {string}
    */
   matches(other) {
     if (!other) return 'other is nil';
@@ -347,8 +403,10 @@ class SnomedExpression extends SnomedExpressionBase {
 
   /**
    * Get a string description of this expression
+   * @returns {string}
    */
   describe() {
+    /** @type {string[]} */
     const parts = [];
 
     // Status prefix
@@ -375,6 +433,7 @@ class SnomedExpression extends SnomedExpressionBase {
 
   /**
    * Create a canonical form of this expression (sorted and normalized)
+   * @returns {SnomedExpression}
    */
   canonical() {
     const result = new SnomedExpression();
@@ -417,6 +476,7 @@ class SnomedExpression extends SnomedExpressionBase {
 
   /**
    * Merge another expression into this one
+   * @param {SnomedExpression | null | undefined} exp
    */
   merge(exp) {
     if (exp) {
@@ -432,9 +492,9 @@ class SnomedExpression extends SnomedExpressionBase {
  */
 class SnomedExpressionParser {
   /**
-   * @param {SnomedConceptList} conceptList - list of all snomed concepts
+   * @param {any} [conceptList] - list of all snomed concepts
    */
-  constructor(conceptList) {
+  constructor(conceptList = null) {
     this.source = '';
     this.cursor = 0;
     this.conceptList = conceptList;
@@ -442,6 +502,8 @@ class SnomedExpressionParser {
 
   /**
    * Parse a SNOMED expression string
+   * @param {string} source
+   * @returns {SnomedExpression}
    */
   parse(source) {
     this.source = source;
@@ -481,6 +543,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse a concept
+   * @returns {SnomedConcept}
    */
   concept() {
     const result = new SnomedConcept();
@@ -495,7 +558,7 @@ class SnomedExpressionParser {
     } else {
       result.code = this.conceptId();
       if (this.conceptList) {
-        const found = this.conceptList.findConcept(result.code)
+        const found = this.conceptList.findConcept(result.code);
         this.rule(found.found, 'Concept "' + result.code + '" not valid');
         result.reference = found.index;
       } else {
@@ -519,6 +582,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse refinements for an expression
+   * @param {SnomedExpression} expr
    */
   refinements(expr) {
     let next = true;
@@ -536,6 +600,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse an attribute group
+   * @returns {SnomedRefinementGroup}
    */
   attributeGroup() {
     const result = new SnomedRefinementGroup();
@@ -559,6 +624,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse an attribute (refinement)
+   * @returns {SnomedRefinement}
    */
   attribute() {
     const result = new SnomedRefinement();
@@ -575,6 +641,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse an attribute name
+   * @returns {SnomedConcept}
    */
   attributeName() {
     const result = new SnomedConcept();
@@ -598,6 +665,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse an attribute value
+   * @returns {SnomedExpression}
    */
   attributeValue() {
     this.ws();
@@ -613,6 +681,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse a sub-expression
+   * @returns {SnomedExpression}
    */
   expression() {
     const result = new SnomedExpression();
@@ -636,6 +705,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse a concept ID (sequence of digits)
+   * @returns {string}
    */
   conceptId() {
     let result = '';
@@ -650,6 +720,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse a decimal number
+   * @returns {string}
    */
   decimal() {
     let result = '';
@@ -664,6 +735,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse a term (text between | characters)
+   * @returns {string}
    */
   term() {
     let result = '';
@@ -677,6 +749,7 @@ class SnomedExpressionParser {
 
   /**
    * Parse a string constant
+   * @returns {string}
    */
   stringConstant() {
     let result = '';
@@ -708,6 +781,8 @@ class SnomedExpressionParser {
 
   /**
    * Try to consume a specific character
+   * @param {string} c
+   * @returns {boolean}
    */
   gchar(c) {
     const result = this.peek() === c;
@@ -719,6 +794,7 @@ class SnomedExpressionParser {
 
   /**
    * Require a specific character
+   * @param {string} c
    */
   fixed(c) {
     const success = this.gchar(c);
@@ -728,6 +804,7 @@ class SnomedExpressionParser {
 
   /**
    * Require a three-character prefix
+   * @param {string} c
    */
   prefix(c) {
     this.fixed(c);
@@ -738,6 +815,7 @@ class SnomedExpressionParser {
 
   /**
    * Get the next character and advance cursor
+   * @returns {string}
    */
   next() {
     const result = this.peek();
@@ -747,6 +825,7 @@ class SnomedExpressionParser {
 
   /**
    * Peek at the current character
+   * @returns {string}
    */
   peek() {
     if (this.cursor >= this.source.length) {
@@ -757,6 +836,7 @@ class SnomedExpressionParser {
 
   /**
    * Get a display string for the current character
+   * @returns {string}
    */
   peekDisp() {
     if (this.cursor >= this.source.length) {
@@ -767,6 +847,8 @@ class SnomedExpressionParser {
 
   /**
    * Assert a rule and throw if it fails
+   * @param {boolean} test
+   * @param {string} message
    */
   rule(test, message) {
     if (!test) {
@@ -776,6 +858,8 @@ class SnomedExpressionParser {
 
   /**
    * Check if character is a digit
+   * @param {string} c
+   * @returns {boolean}
    */
   isDigit(c) {
     return c >= '0' && c <= '9';
@@ -783,6 +867,8 @@ class SnomedExpressionParser {
 
   /**
    * Check if character is whitespace
+   * @param {string} c
+   * @returns {boolean}
    */
   isWhitespace(c) {
     return c === ' ' || c === '\t' || c === '\n' || c === '\r';
@@ -808,6 +894,10 @@ const SnomedRefinementGroupMatchState = {
  * Represents a matching concept with optional unmatched refinement groups
  */
 class MatchingConcept {
+  /**
+   * @param {string} code
+   * @param {SnomedRefinementGroup[] | null} [unmatchedGroups]
+   */
   constructor(code, unmatchedGroups = null) {
     this.code = code;
     this.unmatchedGroups = unmatchedGroups || [];
@@ -819,6 +909,10 @@ class MatchingConcept {
  * Provides comprehensive expression processing capabilities
  */
 class SnomedExpressionServices {
+  /**
+   * @param {SnomedStructuresLike} snomedStructures
+   * @param {number} isAIndex
+   */
   constructor(snomedStructures, isAIndex) {
     this.strings = snomedStructures.strings;
     this.words = snomedStructures.words;
@@ -835,12 +929,16 @@ class SnomedExpressionServices {
     this.defaultLanguage = 1; // Default to English
     this.building = false; // Set to true during import
     this.assumeClassified = true; // Optimization flag
+    this.log = console;
   }
 
   /**
    * Condense an expression to find matching concepts
+   * @param {SnomedExpression} exp
+   * @returns {MatchingConcept[]}
    */
   condenseExpression(exp) {
+    /** @type {SnomedRefinementGroup[]} */
     const grps = [];
 
     // Add all refinement groups
@@ -853,6 +951,7 @@ class SnomedExpressionServices {
       grps.push(grp);
     }
 
+    /** @type {MatchingConcept[]} */
     const result = [];
 
     if (exp.concepts.length === 1) {
@@ -872,6 +971,8 @@ class SnomedExpressionServices {
 
   /**
    * Get defining relationships for a concept
+   * @param {number} conceptIndex
+   * @returns {number[]}
    */
   getDefiningRelationships(conceptIndex) {
     const concept = this.concepts.getConcept(conceptIndex);
@@ -881,10 +982,11 @@ class SnomedExpressionServices {
       return [];
     }
 
+    /** @type {number[]} */
     const result = [];
     const outbounds = this.refs.getReferences(outboundIndex);
 
-    for (const relIndex of outbounds) {
+    for (const relIndex of outbounds || []) {
       const rel = this.relationships.getRelationship(relIndex);
 
       // Only include active defining relationships that are not is-a
@@ -898,14 +1000,18 @@ class SnomedExpressionServices {
 
   /**
    * Check if groups match exactly
+   * @param {SnomedRefinementGroup} a
+   * @param {SnomedRefinementGroup} b
+   * @returns {boolean}
    */
   groupsMatch(a, b) {
     for (const refA of a.refinements) {
+      /** @type {SnomedRefinement | null} */
       let refB = null;
 
       // Find matching refinement by name
       for (const testRef of b.refinements) {
-        if (refA.name.matches(testRef.name)) {
+        if (refA.name && refA.name.matches(testRef.name)) {
           refB = testRef;
           break;
         }
@@ -926,6 +1032,8 @@ class SnomedExpressionServices {
 
   /**
    * Parse expression string
+   * @param {string} source
+   * @returns {SnomedExpression}
    */
   parseExpression(source) {
     const parser = new SnomedExpressionParser();
@@ -936,8 +1044,12 @@ class SnomedExpressionServices {
 
   /**
    * Check if two expressions are equivalent
+   * @param {SnomedExpression | null} a
+   * @param {SnomedExpression | null} b
+   * @returns {boolean}
    */
   expressionsEquivalent(a, b) {
+    if (!a || !b) return false;
     const e1 = a.canonical();
     const e2 = b.canonical();
 
@@ -947,6 +1059,9 @@ class SnomedExpressionServices {
 
   /**
    * Create defined expression from concept
+   * @param {number} reference
+   * @param {SnomedExpression} exp
+   * @param {boolean} [ancestor]
    */
   createDefinedExpression(reference, exp, ancestor = false) {
     if (this.isPrimitive(reference)) {
@@ -963,6 +1078,7 @@ class SnomedExpressionServices {
       }
 
       if (!ancestor || !this.assumeClassified) {
+        /** @type {Map<string, SnomedRefinementGroup>} */
         const groups = new Map(); // Group number -> refinement group
 
         // Process defining relationships
@@ -990,7 +1106,10 @@ class SnomedExpressionServices {
             if (!groups.has(groupKey)) {
               groups.set(groupKey, new SnomedRefinementGroup());
             }
-            groups.get(groupKey).refinements.push(ref);
+            const group = groups.get(groupKey);
+            if (group) {
+              group.refinements.push(ref);
+            }
           }
         }
 
@@ -1006,6 +1125,8 @@ class SnomedExpressionServices {
 
   /**
    * Create normal form for a concept
+   * @param {number} reference
+   * @returns {SnomedExpression}
    */
   createNormalForm(reference) {
     if (this.building) {
@@ -1015,6 +1136,7 @@ class SnomedExpressionServices {
     } else {
       // Read from stored normal form
       const normalFormIndex = this.concepts.getNormalForm(reference);
+      /** @type {string} */
       let source;
 
       if (normalFormIndex === 0) {
@@ -1031,6 +1153,7 @@ class SnomedExpressionServices {
 
   /**
    * Rationalize expression by merging concepts and refinements
+   * @param {SnomedExpression} exp
    */
   rationaliseExpression(exp) {
     // Merge subsumable concepts
@@ -1085,15 +1208,20 @@ class SnomedExpressionServices {
 
   /**
    * Merge refinement groups if possible
+   * @param {SnomedRefinementGroup} grp1
+   * @param {SnomedRefinementGroup} grp2
+   * @returns {boolean}
    */
   mergeGroups(grp1, grp2) {
     // Find matching attribute names
+    /** @type {number[]} */
     const matches = [];
+    /** @type {boolean[]} */
     const targets = [];
 
     for (const ref1 of grp1.refinements) {
       for (const ref2 of grp2.refinements) {
-        if (ref1.name.reference === ref2.name.reference) {
+        if (ref1.name && ref2.name && ref1.name.reference === ref2.name.reference) {
           matches.push(ref1.name.reference);
           break;
         }
@@ -1132,13 +1260,15 @@ class SnomedExpressionServices {
         if (targets[i]) {
           const ref1 = this.getRefinementByName(nameRef, grp1.refinements);
           const ref2 = this.getRefinementByName(nameRef, grp2.refinements);
-          ref1.value = ref2.value;
+          if (ref1 && ref2) {
+            ref1.value = ref2.value;
+          }
         }
       }
 
       // Add non-matching refinements from grp2 to grp1
       for (const ref2 of grp2.refinements) {
-        if (!matches.includes(ref2.name.reference)) {
+        if (ref2.name && !matches.includes(ref2.name.reference)) {
           grp1.refinements.push(ref2);
         }
       }
@@ -1149,10 +1279,13 @@ class SnomedExpressionServices {
 
   /**
    * Get refinement by name reference
+   * @param {number} nameRef
+   * @param {SnomedRefinement[]} refinements
+   * @returns {SnomedRefinement | null}
    */
   getRefinementByName(nameRef, refinements) {
     for (const ref of refinements) {
-      if (ref.name.reference === nameRef) {
+      if (ref.name && ref.name.reference === nameRef) {
         return ref;
       }
     }
@@ -1161,6 +1294,7 @@ class SnomedExpressionServices {
 
   /**
    * Merge refinements in a list
+   * @param {SnomedRefinement[]} list
    */
   mergeRefinements(list) {
     let i = 0;
@@ -1171,7 +1305,7 @@ class SnomedExpressionServices {
       while (j < list.length) {
         const ref2 = list[j];
 
-        if (ref1.name.matches(ref2.name)) {
+        if (ref1.name && ref1.name.matches(ref2.name)) {
           if (this.expressionSubsumes(ref1.value, ref2.value)) {
             ref1.value = ref2.value;
             list.splice(j, 1);
@@ -1190,6 +1324,8 @@ class SnomedExpressionServices {
 
   /**
    * Normalize expression to normal form
+   * @param {SnomedExpression} exp
+   * @returns {SnomedExpression}
    */
   normaliseExpression(exp) {
     const work = new SnomedExpression();
@@ -1209,7 +1345,7 @@ class SnomedExpressionServices {
       const refDst = new SnomedRefinement();
       work.refinements.push(refDst);
       refDst.name = refSrc.name;
-      refDst.value = this.normaliseExpression(refSrc.value);
+      refDst.value = this.normaliseExpression(/** @type {SnomedExpression} */ (refSrc.value));
     }
 
     // Process refinement groups
@@ -1221,7 +1357,7 @@ class SnomedExpressionServices {
         const refDst = new SnomedRefinement();
         grpDst.refinements.push(refDst);
         refDst.name = refSrc.name;
-        refDst.value = this.normaliseExpression(refSrc.value);
+        refDst.value = this.normaliseExpression(/** @type {SnomedExpression} */ (refSrc.value));
       }
     }
 
@@ -1232,8 +1368,12 @@ class SnomedExpressionServices {
 
   /**
    * Check if expression a subsumes expression b
+   * @param {SnomedExpression | null} a
+   * @param {SnomedExpression | null} b
+   * @returns {boolean}
    */
   expressionSubsumes(a, b) {
+    if (!a || !b) return false;
     if (a.isSimple() && b.isSimple()) {
       return this.subsumes(a.concepts[0].reference, b.concepts[0].reference);
     }
@@ -1268,6 +1408,9 @@ class SnomedExpressionServices {
 
   /**
    * Check if concept a subsumes concept b
+   * @param {SnomedConcept} a
+   * @param {SnomedConcept} b
+   * @returns {boolean}
    */
   subsumesConcept(a, b) {
     if (a.matches(b)) {
@@ -1281,13 +1424,17 @@ class SnomedExpressionServices {
 
   /**
    * Check if group a subsumes group b
+   * @param {SnomedRefinementGroup} a
+   * @param {SnomedRefinementGroup} b
+   * @returns {boolean}
    */
   subsumesGroup(a, b) {
     for (const refA of a.refinements) {
+      /** @type {SnomedRefinement | null} */
       let refB = null;
 
       for (const testRef of b.refinements) {
-        if (refA.name.matches(testRef.name)) {
+        if (refA.name && refA.name.matches(testRef.name)) {
           refB = testRef;
           break;
         }
@@ -1307,6 +1454,9 @@ class SnomedExpressionServices {
 
   /**
    * Find matching group in expression
+   * @param {SnomedRefinementGroup} r
+   * @param {SnomedExpression} exp
+   * @returns {SnomedRefinementGroup | null}
    */
   findMatchingGroup(r, exp) {
     for (const t of exp.refinementGroups) {
@@ -1315,7 +1465,7 @@ class SnomedExpressionServices {
       for (const refs of r.refinements) {
         let match = false;
         for (const reft of t.refinements) {
-          if (refs.name.matches(reft.name)) {
+          if (refs.name && refs.name.matches(reft.name)) {
             match = true;
             break;
           }
@@ -1336,6 +1486,9 @@ class SnomedExpressionServices {
 
   /**
    * Find concepts matching refinement patterns
+   * @param {MatchingConcept[]} list
+   * @param {number} reference
+   * @param {SnomedRefinementGroup[]} refinements
    */
   findMatchingConcepts(list, reference, refinements) {
     const children = this.getConceptChildren(reference);
@@ -1355,6 +1508,7 @@ class SnomedExpressionServices {
 
       let allMatched = true;
       let oneUnMatched = false;
+      /** @type {SnomedRefinementGroup[]} */
       const matchedGroups = [];
 
       for (const grp of exp.refinementGroups) {
@@ -1385,6 +1539,10 @@ class SnomedExpressionServices {
 
   /**
    * Check group state in refinements
+   * @param {SnomedRefinementGroup} grp
+   * @param {SnomedRefinementGroup[]} refinements
+   * @param {SnomedRefinementGroup[]} matchedGroups
+   * @returns {number}
    */
   checkGroupStateInRefinements(grp, refinements, matchedGroups) {
     for (const g of refinements) {
@@ -1400,8 +1558,12 @@ class SnomedExpressionServices {
 
   /**
    * List non-matching groups
+   * @param {SnomedRefinementGroup[]} target
+   * @param {SnomedRefinementGroup[]} source
+   * @returns {SnomedRefinementGroup[]}
    */
   listNonMatchingGroups(target, source) {
+    /** @type {SnomedRefinementGroup[]} */
     const result = [];
 
     for (const g of target) {
@@ -1416,6 +1578,9 @@ class SnomedExpressionServices {
 
   /**
    * Find matching group in list
+   * @param {SnomedRefinementGroup} r
+   * @param {SnomedRefinementGroup[]} groups
+   * @returns {SnomedRefinementGroup | null}
    */
   findMatchingGroupInList(r, groups) {
     for (const t of groups) {
@@ -1424,7 +1589,7 @@ class SnomedExpressionServices {
       for (const refs of r.refinements) {
         let match = false;
         for (const reft of t.refinements) {
-          if (refs.name.matches(reft.name)) {
+          if (refs.name && refs.name.matches(reft.name)) {
             match = true;
             break;
           }
@@ -1445,6 +1610,7 @@ class SnomedExpressionServices {
 
   /**
    * Validate expression structure and concept references
+   * @param {SnomedExpression} expression
    */
   checkExpression(expression) {
     for (const concept of expression.concepts) {
@@ -1468,8 +1634,13 @@ class SnomedExpressionServices {
 
   /**
    * Validate concept reference
+   * @param {SnomedConcept | null} concept
+   * @param {string[]} [limits]
    */
   checkConcept(concept, limits) {
+    if (!concept) {
+      throw new Error('Missing concept');
+    }
     if (concept.code) {
       const conceptId = BigInt(concept.code);
       const result = this.concepts.findConcept(conceptId);
@@ -1484,8 +1655,8 @@ class SnomedExpressionServices {
       // if a limit is specified, then the concept has to be a specialization of one of them.
       let ok = false;
       for (const limit of limits) {
-        let parentRef = this.concepts.findConcept(limit);
-        let descendentsRef = this.concepts.getAllDesc(parentRef.index);
+        const parentRef = this.concepts.findConcept(limit);
+        const descendentsRef = this.concepts.getAllDesc(parentRef.index);
         const descendants = this.refs.getReferences(descendentsRef);
         if (descendants && descendants.includes(concept.reference)) {
           ok = true;
@@ -1533,8 +1704,12 @@ class SnomedExpressionServices {
   /**
    * List all display names for a concept
    * Equivalent to Pascal ListDisplayNames procedure
+   * @param {number} conceptIndex
+   * @param {number} [languageFilter]
+   * @returns {DisplayDesignation[]}
    */
   listDisplayNames(conceptIndex, languageFilter = 0) {
+    /** @type {DisplayDesignation[]} */
     const designations = [];
 
     try {
@@ -1547,7 +1722,7 @@ class SnomedExpressionServices {
 
       const descriptionIndices = this.refs.getReferences(descriptionsRef);
 
-      for (let i = 0; i < descriptionIndices.length; i++) {
+      for (let i = 0; i < (descriptionIndices || []).length; i++) {
         const descIndex = descriptionIndices[i];
         const description = this.descriptions.getDescription(descIndex);
 
@@ -1569,7 +1744,7 @@ class SnomedExpressionServices {
       }
     } catch (error) {
       // If we can't read the concept descriptions, return empty list
-      this.log.warn(`Warning: Could not read descriptions for concept ${conceptIndex}: ${error.message}`);
+      this.log.warn(`Warning: Could not read descriptions for concept ${conceptIndex}: ${errorMessage(error)}`);
     }
 
     return designations;
@@ -1577,6 +1752,8 @@ class SnomedExpressionServices {
 
   /**
    * Normalize text for comparison (equivalent to Pascal normalise function)
+   * @param {string | null | undefined} text
+   * @returns {string}
    */
   normalizeText(text) {
     if (!text) return '';
@@ -1601,6 +1778,8 @@ class SnomedExpressionServices {
 
   /**
    * Check if character is whitespace
+   * @param {string} char
+   * @returns {boolean}
    */
   isWhitespace(char) {
     return char === ' ' || char === '\t' || char === '\n' || char === '\r';
@@ -1608,9 +1787,12 @@ class SnomedExpressionServices {
 
   /**
    * Get language code from internal language index
+   * @param {number} langIndex
+   * @returns {string}
    */
   codeForLanguage(langIndex) {
     // Simplified mapping - could be enhanced with proper language reference
+    /** @type {Record<number, string>} */
     const languageMap = {
       1: 'en-US',
       2: 'en-GB',
@@ -1624,16 +1806,24 @@ class SnomedExpressionServices {
 
   /**
    * Validate refinement
+   * @param {SnomedRefinement} refinement
    */
   checkRefinement(refinement) {
+    if (!refinement.value) {
+      throw new Error('Missing refinement value');
+    }
     this.checkConcept(refinement.name, ['410662002', '106237007']);
     this.checkExpression(refinement.value);
   }
 
   /**
    * Render expression as string
+   * @param {SnomedExpression} source
+   * @param {number} [option]
+   * @returns {string}
    */
   renderExpression(source, option = SnomedServicesRenderOption.AsIs) {
+    /** @type {string[]} */
     const parts = [];
     this.renderExpressionParts(parts, source, option);
     return parts.join('');
@@ -1643,6 +1833,10 @@ class SnomedExpressionServices {
    * Helper methods that need to be implemented based on SNOMED structures
    */
 
+  /**
+   * @param {number} reference
+   * @returns {boolean}
+   */
   isPrimitive(reference) {
     // Check if concept is primitive based on concept flags
     // In SNOMED CT, primitive concepts are not fully defined by their relationships
@@ -1653,22 +1847,30 @@ class SnomedExpressionServices {
       return (concept.flags & 1) !== 0;
     } catch (error) {
       // If we can't read the concept, assume it's primitive for safety
-      this.log.warn(`Warning: Could not check primitive status for concept ${reference}: ${error.message}`);
+      this.log.warn(`Warning: Could not check primitive status for concept ${reference}: ${errorMessage(error)}`);
       return true;
     }
   }
 
+  /**
+   * @param {number} reference
+   * @returns {string}
+   */
   getConceptId(reference) {
     // Get concept ID string from reference index
     try {
       const concept = this.concepts.getConcept(reference);
       return concept.identity.toString();
     } catch (error) {
-      this.log.warn(`Warning: Could not get concept ID for reference ${reference}: ${error.message}`);
+      this.log.warn(`Warning: Could not get concept ID for reference ${reference}: ${errorMessage(error)}`);
       return reference.toString(); // Fall back to using the reference itself
     }
   }
 
+  /**
+   * @param {number} reference
+   * @returns {number[]}
+   */
   getConceptParents(reference) {
     // Get active parent concepts (needs implementation)
     const concept = this.concepts.getConcept(reference);
@@ -1678,11 +1880,16 @@ class SnomedExpressionServices {
       return [];
     }
 
-    return this.refs.getReferences(parentsIndex);
+    return this.refs.getReferences(parentsIndex) || [];
   }
 
+  /**
+   * @param {number} reference
+   * @returns {number[]}
+   */
   getConceptChildren(reference) {
     // Get child concepts (needs implementation based on inbound is-a relationships)
+    /** @type {number[]} */
     const children = [];
     const concept = this.concepts.getConcept(reference);
     const inboundsIndex = concept.inbounds;
@@ -1693,7 +1900,7 @@ class SnomedExpressionServices {
 
     const inbounds = this.refs.getReferences(inboundsIndex);
 
-    for (const relIndex of inbounds) {
+    for (const relIndex of inbounds || []) {
       const rel = this.relationships.getRelationship(relIndex);
 
       if (rel.active && rel.defining && rel.relType === this.isAIndex) {
@@ -1704,6 +1911,11 @@ class SnomedExpressionServices {
     return children;
   }
 
+  /**
+   * @param {number} a
+   * @param {number} b
+   * @returns {boolean}
+   */
   subsumes(a, b) {
     // Check if concept a subsumes concept b using closure/descendants
     if (a === b) {
@@ -1724,16 +1936,19 @@ class SnomedExpressionServices {
       const descendants = this.refs.getReferences(closureRef);
 
       // Check if b is in the descendants of a
-      return descendants.includes(b);
+      return (descendants || []).includes(b);
     } catch (error) {
       // If we can't read closure data, fall back to simple equality check
-      this.log.warn(`Warning: Could not check subsumption for ${a} -> ${b}: ${error.message}`);
+      this.log.warn(`Warning: Could not check subsumption for ${a} -> ${b}: ${errorMessage(error)}`);
       return false;
     }
   }
 
   /**
    * Helper to render expression parts
+   * @param {string[]} parts
+   * @param {SnomedExpression} expr
+   * @param {number} option
    */
   renderExpressionParts(parts, expr, option) {
     // Render concepts
@@ -1771,6 +1986,11 @@ class SnomedExpressionServices {
     }
   }
 
+  /**
+   * @param {string[]} parts
+   * @param {SnomedConcept} expr
+   * @param {number} option
+   */
   renderConcept(parts, expr, option) {
     if (expr.reference !== NO_REFERENCE && expr.code === '') {
       expr.code = this.getConceptId(expr.reference);
@@ -1811,14 +2031,27 @@ class SnomedExpressionServices {
     }
   }
 
+  /**
+   * @param {string[]} parts
+   * @param {SnomedRefinement} expr
+   * @param {number} option
+   */
   renderRefinement(parts, expr, option) {
+    if (!expr.name || !expr.value) {
+      throw new Error('Cannot render incomplete refinement');
+    }
     this.renderConcept(parts, expr.name, option);
     parts.push('=');
     this.renderExpressionParts(parts, expr.value, option);
   }
 
+  /**
+   * @param {string | number} conceptIdOrReference
+   * @returns {string}
+   */
   getDisplayName(conceptIdOrReference) {
     // Get display name for concept
+    /** @type {number} */
     let conceptIndex;
 
     if (typeof conceptIdOrReference === 'string') {
@@ -1856,46 +2089,64 @@ class SnomedExpressionServices {
  * Expression context for maintaining state during processing
  */
 class SnomedExpressionContext {
+  /**
+   * @param {string | null | undefined} source
+   * @param {SnomedExpression} expression
+   */
   constructor(source, expression) {
     this.source = source || '';
     this.expression = expression;
   }
 
+  /**
+   * @param {number} reference
+   * @returns {SnomedExpressionContext}
+   */
   static fromReference(reference) {
     const expression = new SnomedExpression();
     expression.concepts.push(new SnomedConcept(reference));
     return new SnomedExpressionContext('', expression);
   }
 
+  /**
+   * @param {string} source
+   * @param {number} reference
+   * @returns {SnomedExpressionContext}
+   */
   static fromSource(source, reference) {
     const expression = new SnomedExpression();
     expression.concepts.push(new SnomedConcept(reference));
     return new SnomedExpressionContext(source, expression);
   }
 
+  /**
+   * @returns {boolean}
+   */
   isComplex() {
     return this.expression.isComplex();
   }
 
+  /**
+   * @returns {number}
+   */
   getReference() {
     return this.expression.concepts[0].reference;
   }
 
+  /**
+   * @param {SnomedExpression} expression
+   */
   setExpression(expression) {
     this.expression = expression;
   }
 }
 
-module.exports = {
-  SnomedExpressionServices,
-  SnomedExpressionContext,
-  MatchingConcept,
-  SnomedServicesRenderOption,
-  SnomedRefinementGroupMatchState
-};
-
 // Also add this method to SnomedExpressionServices to help with debugging
 class SnomedExpressionServicesExtended extends SnomedExpressionServices {
+  /**
+   * @param {SnomedStructuresLike} snomedStructures
+   * @param {number} isAIndex
+   */
   constructor(snomedStructures, isAIndex) {
     super(snomedStructures, isAIndex);
 
@@ -1905,6 +2156,8 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
 
   /**
    * Enhanced getDefiningRelationships with better error handling
+   * @param {number} conceptIndex
+   * @returns {number[]}
    */
   getDefiningRelationships(conceptIndex) {
     try {
@@ -1915,6 +2168,7 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
         return [];
       }
 
+      /** @type {number[]} */
       const result = [];
       const outbounds = this.refs.getReferences(outboundIndex);
 
@@ -1933,7 +2187,7 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
         } catch (error) {
           // Skip problematic relationships
           if (this.building) {
-            this.log.warn(`Warning: Could not read relationship ${relIndex}: ${error.message}`);
+            this.log.warn(`Warning: Could not read relationship ${relIndex}: ${errorMessage(error)}`);
           }
         }
       }
@@ -1941,7 +2195,7 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
       return result;
     } catch (error) {
       if (this.building) {
-        this.log.warn(`Warning: Could not get defining relationships for concept ${conceptIndex}: ${error.message}`);
+        this.log.warn(`Warning: Could not get defining relationships for concept ${conceptIndex}: ${errorMessage(error)}`);
       }
       return [];
     }
@@ -1949,6 +2203,8 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
 
   /**
    * Enhanced getConceptParents with better error handling
+   * @param {number} reference
+   * @returns {number[]}
    */
   getConceptParents(reference) {
     try {
@@ -1963,7 +2219,7 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
       return parents || [];
     } catch (error) {
       if (this.building) {
-        this.log.warn(`Warning: Could not get parents for concept ${reference}: ${error.message}`);
+        this.log.warn(`Warning: Could not get parents for concept ${reference}: ${errorMessage(error)}`);
       }
       return [];
     }
@@ -1971,6 +2227,8 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
 
   /**
    * Enhanced isPrimitive check with fallback
+   * @param {number} reference
+   * @returns {boolean}
    */
   isPrimitive(reference) {
     try {
@@ -1982,7 +2240,7 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
     } catch (error) {
       // If we can't read the concept, assume it's primitive for safety
       if (this.building) {
-        this.log.warn(`Warning: Could not check primitive status for concept ${reference}, assuming primitive: ${error.message}`);
+        this.log.warn(`Warning: Could not check primitive status for concept ${reference}, assuming primitive: ${errorMessage(error)}`);
       }
       return true;
     }
@@ -1990,6 +2248,9 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
 
   /**
    * Enhanced createDefinedExpression with better error handling
+   * @param {number} reference
+   * @param {SnomedExpression} exp
+   * @param {boolean} [ancestor]
    */
   createDefinedExpression(reference, exp, ancestor = false) {
     try {
@@ -2009,6 +2270,7 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
       }
 
       if (!ancestor || !this.assumeClassified) {
+        /** @type {Map<string, SnomedRefinementGroup>} */
         const groups = new Map(); // Group number -> refinement group
 
         // Process defining relationships
@@ -2037,12 +2299,15 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
               if (!groups.has(groupKey)) {
                 groups.set(groupKey, new SnomedRefinementGroup());
               }
-              groups.get(groupKey).refinements.push(ref);
+              const group = groups.get(groupKey);
+              if (group) {
+                group.refinements.push(ref);
+              }
             }
           } catch (error) {
             // Skip problematic relationships but continue
             if (this.building) {
-              this.log.warn(`Warning: Could not process relationship ${relIndex}: ${error.message}`);
+              this.log.warn(`Warning: Could not process relationship ${relIndex}: ${errorMessage(error)}`);
             }
           }
         }
@@ -2056,7 +2321,7 @@ class SnomedExpressionServicesExtended extends SnomedExpressionServices {
       }
     } catch (error) {
       if (this.building) {
-        this.log.warn(`Warning: Could not create defined expression for concept ${reference}: ${error.message}`);
+        this.log.warn(`Warning: Could not create defined expression for concept ${reference}: ${errorMessage(error)}`);
       }
       // Add as primitive concept as fallback
       if (!exp.hasConcept(reference)) {
@@ -2094,4 +2359,3 @@ module.exports = {
   SnomedServicesRenderOption,
   SnomedRefinementGroupMatchState
 };
-

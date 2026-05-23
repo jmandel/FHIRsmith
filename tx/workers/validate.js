@@ -10,21 +10,22 @@
 // GET /ValueSet/{id}/$validate-code?{params}
 // POST /ValueSet/{id}/$validate-code
 //
+// @ts-check
 
-const { TerminologyWorker } = require('./worker');
-const {Languages, Language} = require("../../library/languages");
-const {Extensions} = require("../library/extensions");
-const {validateParameter, isAbsoluteUrl, validateOptionalParameter, getValuePrimitive} = require("../../library/utilities");
-const {TxParameters} = require("../params");
-const {OperationOutcome, Issue} = require("../library/operation-outcome");
-const {Parameters} = require("../library/parameters");
-const {Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText} = require("../library/designations");
-const ValueSet = require("../library/valueset");
-const {ValueSetExpander} = require("./expand");
-const {FhirCodeSystemProvider} = require("../cs/cs-cs");
-const {CodeSystem} = require("../library/codesystem");
-const {VersionUtilities} = require("../../library/version-utilities");
-const {debugLog} = require("../operation-context");
+const { TerminologyWorker } = /** @type {any} */ (require('./worker'));
+const {Languages, Language} = /** @type {any} */ (require("../../library/languages"));
+const {Extensions} = /** @type {any} */ (require("../library/extensions"));
+const {validateParameter, isAbsoluteUrl, validateOptionalParameter, getValuePrimitive} = /** @type {any} */ (require("../../library/utilities"));
+const {TxParameters} = /** @type {any} */ (require("../params"));
+const {OperationOutcome, Issue} = /** @type {any} */ (require("../library/operation-outcome"));
+const {Parameters} = /** @type {any} */ (require("../library/parameters"));
+const {Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText} = /** @type {any} */ (require("../library/designations"));
+const ValueSet = /** @type {any} */ (require("../library/valueset"));
+const {ValueSetExpander} = /** @type {any} */ (require("./expand"));
+const {FhirCodeSystemProvider} = /** @type {any} */ (require("../cs/cs-cs"));
+const {CodeSystem} = /** @type {any} */ (require("../library/codesystem"));
+const {VersionUtilities} = /** @type {any} */ (require("../../library/version-utilities"));
+const {debugLog} = /** @type {any} */ (require("../operation-context"));
 
 const DEV_IGNORE_VALUESET = false; // todo: what's going on with this (ported from pascal)
 
@@ -38,16 +39,36 @@ const ValidationCheckMode = {
 };
 
 /**
+ * @param {unknown} error
+ * @returns {any}
+ */
+function asErrorLike(error) {
+  return /** @type {any} */ (error);
+}
+
+/**
  * Value Set Checker - performs validation against a ValueSet
  * Port of TValueSetChecker from Pascal
  */
 class ValueSetChecker {
+  /** @type {any} */
   worker;
+  /** @type {any} */
   valueSet;
+  /** @type {any} */
   params;
+  /** @type {Map<string, any>} */
   others = new Map();
+  /** @type {number} */
   indentCount = 0;
+  /** @type {boolean} */
+  allValueSet = false;
 
+  /**
+   * @param {any} worker
+   * @param {any} valueSet
+   * @param {any} params
+   */
   constructor(worker, valueSet, params) {
     validateParameter(worker, "worker", TerminologyWorker);
     validateOptionalParameter(valueSet, "valueSet", ValueSet);
@@ -57,6 +78,13 @@ class ValueSetChecker {
     this.params = params;
   }
 
+  /**
+   * @param {any} path
+   * @param {any} op
+   * @param {any} resource
+   * @param {any} source
+   * @returns {any}
+   */
   checkCanonicalStatus(path, op, resource, source) {
     if (resource.jsonObj) {
       resource = resource.jsonObj;
@@ -64,6 +92,13 @@ class ValueSetChecker {
     this.checkCanonicalStatusFull(path, op, resource.resourceType, this.worker.makeVurl(resource), resource.SourcePackage, resource.status, Extensions.readString(resource, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'), resource.experimental, source);
   }
 
+  /**
+   * @param {any} path
+   * @param {any} op
+   * @param {any} cs
+   * @param {any} source
+   * @returns {Promise<any>}
+   */
   async checkCanonicalStatusCS(path, op, cs, source) {
     let status = await cs.status();
     if (cs.version()) {
@@ -73,6 +108,18 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} path
+   * @param {any} op
+   * @param {any} rtype
+   * @param {any} vurl
+   * @param {any} pid
+   * @param {any} status
+   * @param {any} standardsStatus
+   * @param {any} experimental
+   * @param {any} source
+   * @returns {any}
+   */
   checkCanonicalStatusFull(path, op, rtype, vurl, pid, status, standardsStatus, experimental, source) {
     if (op !== null) {
       if (standardsStatus === 'deprecated') {
@@ -104,6 +151,11 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} code
+   * @param {any} systems
+   * @returns {Promise<any>}
+   */
   async determineSystemFromExpansion(code, systems) {
     let result;
     try {
@@ -124,9 +176,9 @@ class ValueSetChecker {
         }
       }
     } catch (error) {
-      this.log.error(error);
+      this.worker.log.error(error);
       debugLog(error);
-      throw new Error('Exception expanding value set in order to infer system: ' + error.message);
+      throw new Error('Exception expanding value set in order to infer system: ' + (error instanceof Error ? error.message : String(error)));
     }
     return result;
   }
@@ -151,6 +203,13 @@ class ValueSetChecker {
     return result;
   }
 
+  /**
+   * @param {any} opContext
+   * @param {any} code
+   * @param {any} systems
+   * @param {any} op
+   * @returns {Promise<any>}
+   */
   async determineSystem(opContext, code, systems, op) {
     let result = '';
     let needDoExpansion = false;
@@ -212,6 +271,16 @@ class ValueSetChecker {
     return result;
   }
 
+  /**
+   * @param {any} path
+   * @param {any} system
+   * @param {any} versionVS
+   * @param {any} versionCoding
+   * @param {any} op
+   * @param {any} unknownSystems
+   * @param {any} messages
+   * @returns {Promise<any>}
+   */
   async determineVersion(path, system, versionVS, versionCoding, op, unknownSystems, messages) {
     validateParameter(path, "path", String);
     validateParameter(system, "system", String);
@@ -237,7 +306,7 @@ class ValueSetChecker {
       }
       if (!result) {
         let vl = await this.worker.listVersions(system);
-        if (vl.find(v => v == versionCoding || (csa && csa.versionIsMoreDetailed(versionCoding, v)))) {
+        if (vl.find(/** @param {any} v */ v => v == versionCoding || (csa && csa.versionIsMoreDetailed(versionCoding, v)))) {
           result = versionCoding;
         }
       }
@@ -342,6 +411,12 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} desc
+   * @param {any} cc
+   * @param {any} vs
+   * @returns {Promise<any>}
+   */
   async prepareConceptSet(desc, cc, vs) {
     this.worker.deadCheck('prepareConceptSet');
     Extensions.checkNoModifiers(cc, 'ValueSetChecker.prepare', desc, vs.vurl);
@@ -357,7 +432,7 @@ class ValueSetChecker {
           }
           let checker = new ValueSetChecker(this.worker, other, this.params);
           checker.indentCount = this.indentCount + 1;
-          await checker.prepare(other, this.params, null);
+          await checker.prepare();
           this.others.set(s, checker);
         }
       }
@@ -392,6 +467,14 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} code
+   * @param {any} list
+   * @param {any} displays
+   * @param {any} isabstract
+   * @returns {Promise<any>}
+   */
   async findCode(cs, code, list, displays, isabstract) {
     let result = false;
     for (let i = 0; i < list.length; i++) {
@@ -403,7 +486,7 @@ class ValueSetChecker {
         } else {
           isabstract.value = await cs.isAbstract(list[i]);
         }
-        displays.baseLang = this.FLanguages.parse(cs.language);
+        displays.baseLang = this.worker.languages.parse(cs.language);
         !displays.addDesignation(true, "active", '', '', list[i].displayElement);
         throw new Error("Check this");
         // return result;
@@ -425,6 +508,14 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} issuePath
+   * @param {any} system
+   * @param {any} version
+   * @param {any} code
+   * @param {any} op
+   * @returns {Promise<any>}
+   */
   async checkSimple(issuePath, system, version, code, op) {
     this.worker.opContext.clearContexts();
     if (this.params.inferSystem) {
@@ -433,7 +524,9 @@ class ValueSetChecker {
       this.worker.opContext.addNote(this.valueSet, 'Validate "' + this.worker.renderer.displayCoded(system, version, code) + '"', this.indentCount);
     }
     let unknownSystems = new Set();
+    /** @type {any[]} */
     let ts = [];
+    /** @type {any[]} */
     let msgs = [];
     let ver = {value: ''};
     let inactive = {value: false};
@@ -443,9 +536,32 @@ class ValueSetChecker {
     let contentMode = {value: null};
     let impliedSystem = {value: ''};
     let defLang = {value: null};
-    return await this.check(issuePath, system, version, code, null, unknownSystems, ver, inactive, normalForm, vstatus, it, op, null, null, contentMode, impliedSystem, ts, msgs, defLang);
+    return await this.check(issuePath, system, version, code, null, unknownSystems, ver, inactive, normalForm, vstatus, it, op, null, null, contentMode, impliedSystem, ts, msgs, defLang, undefined);
   }
 
+  /**
+   * @param {any} path
+   * @param {any} system
+   * @param {any} version
+   * @param {any} code
+   * @param {any} displays
+   * @param {any} unknownSystems
+   * @param {any} ver
+   * @param {any} inactive
+   * @param {any} normalForm
+   * @param {any} vstatus
+   * @param {any} cause
+   * @param {any} op
+   * @param {any} vcc
+   * @param {any} params
+   * @param {any} contentMode
+   * @param {any} impliedSystem
+   * @param {any} unkCodes
+   * @param {any} messages
+   * @param {any} defLang
+   * @param {any} display
+   * @returns {Promise<any>}
+   */
   async check(path, system, version, code, displays, unknownSystems, ver, inactive, normalForm, vstatus, cause, op, vcc, params, contentMode, impliedSystem, unkCodes, messages, defLang, display) {
     defLang.value = new Language('en');
     this.worker.opContext.addNote(this.valueSet, 'Check "' + this.worker.renderer.displayCoded(system, version, code) + '"', this.indentCount);
@@ -467,7 +583,7 @@ class ValueSetChecker {
         return false;
       }
       let cs = await this.worker.findCodeSystem(system, version, this.params, ['complete', 'fragment'], op,true, false, false, this.worker.requiredSupplements);
-      this.seeSourceProvider(cs, system);
+      this.worker.seeSourceProvider(cs, system);
       if (cs === null) {
         this.worker.opContext.addNote(this.valueSet, 'Didn\'t find CodeSystem "' + this.worker.renderer.displayCoded(system, version) + '"', this.indentCount);
         result = null;
@@ -483,7 +599,7 @@ class ValueSetChecker {
           let css = await this.worker.findCodeSystem(system, version, this.params, ['supplement'], op,true, false, false, this.worker.requiredSupplements);
           if (css !== null) {
             vss = null;
-            let msg = this.worker.i18n.translate('CODESYSTEM_CS_NO_SUPPLEMENT', this.params.HTTPLanguages, [this.canonical(css.system(), css.version())]);
+            let msg = this.worker.i18n.translate('CODESYSTEM_CS_NO_SUPPLEMENT', this.params.HTTPLanguages, [this.worker.canonical(css.system(), css.version())]);
             messages.push(msg);
             op.addIssue(new Issue('error', 'invalid', addToPath(path, 'system'), 'CODESYSTEM_CS_NO_SUPPLEMENT', msg, 'invalid-data'));
             unknownSystems.add(system);
@@ -583,7 +699,7 @@ class ValueSetChecker {
         this.worker.opContext.addNote(this.valueSet, 'Unknown code system', this.indentCount);
         let vl, mid, vn;
         if (version) {
-          vl = this.listVersions(system);
+          vl = await this.worker.listVersions(system);
           if (vl.length == 0) {
             mid = 'UNKNOWN_CODESYSTEM_VERSION_NONE';
             vn = system + '|' + version;
@@ -683,8 +799,8 @@ class ValueSetChecker {
         if (!version) {
           // if we don't have a fixed version, and we have more than one possible version, we have to pick the version
           // now, by looking to see which version we can find the value in, starting from the most revent.
-          let includes = (this.valueSet.jsonObj.compose.include || []).filter(inc => inc.system == system);
-          let vset = new Set(includes.map(inc => inc.version).filter(Boolean));
+          let includes = (this.valueSet.jsonObj.compose.include || []).filter(/** @param {any} inc */ inc => inc.system == system);
+          let vset = new Set(includes.map(/** @param {any} inc */ inc => inc.version).filter(Boolean));
           if (vset.size > 1) {
             determinedVersion = await this.pickApplicableVersion(vset, system, code, display);
           }
@@ -787,7 +903,7 @@ class ValueSetChecker {
               this.worker.checkSupplements(cs, cc, this.worker.requiredSupplements, this.worker.usedSupplements);
               contentMode.value = cs.contentMode();
               let msg = '';
-              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc);
+              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc, messages);
               if (msg) {
                 messages.push(msg);
               }
@@ -813,13 +929,14 @@ class ValueSetChecker {
           result = false;
         } else {
           let v;
+          let csForVersion = await this.worker.findCodeSystem(system, version, this.params, ['complete', 'fragment'], op, true, true, false, this.worker.requiredSupplements);
           if (!ccc.version && !version) {
             v = '';
           } else if (!ccc.version) {
             v = version;
           } else if (!version || version === ccc.version) {
             v = ccc.version;
-          } else if (cs !== null && cs.versionIsMoreDetailed(ccc.version, version)) {
+          } else if (csForVersion !== null && csForVersion.versionIsMoreDetailed(ccc.version, version)) {
             v = version;
           } else {
             let msg = 'The code system "' + ccc.system + '" version "' + ccc.version + '" in the ValueSet expansion is different to the one in the value ("' + version + '")';
@@ -882,11 +999,18 @@ class ValueSetChecker {
     return result;
   }
 
+  /**
+   * @param {any} issuePath
+   * @param {any} coding
+   * @returns {Promise<any>}
+   */
   async checkCoding(issuePath, coding) {
-    let inactive = false;
+    let inactive = {value: false, path: ''};
     let path = issuePath;
     let unknownSystems = new Set();
+    /** @type {any[]} */
     let unkCodes = [];
+    /** @type {any[]} */
     let messages = [];
     let result = new Parameters();
 
@@ -901,7 +1025,7 @@ class ValueSetChecker {
     this.checkCanonicalStatus(path, op, this.valueSet, this.valueSet);
     let list = new Designations(this.worker.languages);
     let ver = {value: ''};
-    inactive = {value: false};
+    inactive = {value: false, path: ''};
     let normalForm = {value: ''};
     let vstatus = {value: ''};
     let cause = {value: null};
@@ -909,7 +1033,7 @@ class ValueSetChecker {
     let impliedSystem = {value: ''};
     let defLang = {value: null};
 
-    let ok = await this.check(path, coding.system, coding.version, coding.code, list, unknownSystems, ver, inactive, normalForm, vstatus, cause, op, null, result, contentMode, impliedSystem, unkCodes, messages, defLang);
+    let ok = await this.check(path, coding.system, coding.version, coding.code, list, unknownSystems, ver, inactive, normalForm, vstatus, cause, op, null, result, contentMode, impliedSystem, unkCodes, messages, defLang, undefined);
     if (ok === true) {
       result.AddParamBool('result', true);
       if ((cause.value === 'not-found' && contentMode.value !== 'complete') || contentMode.value === 'example') {
@@ -977,6 +1101,11 @@ class ValueSetChecker {
     return result;
   }
 
+  /**
+   * @param {any} url
+   * @param {any} version
+   * @returns {any}
+   */
   valueSetDependsOnCodeSystem(url, version) {
     for (let inc of this.valueSet.include) {
       this.worker.deadCheck('valueSetDependsOnCodeSystem');
@@ -987,6 +1116,10 @@ class ValueSetChecker {
     return false;
   }
 
+  /**
+   * @param {any} vs
+   * @returns {Promise<any>}
+   */
   async checkSupplementsExist(vs) {
     for (let inc of vs.jsonObj.compose.include) {
       if (inc.system) {
@@ -998,6 +1131,12 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} issuePath
+   * @param {any} code
+   * @param {any} mode
+   * @returns {Promise<any>}
+   */
   async checkCodeableConcept(issuePath, code, mode) {
     this.worker.opContext.clearContexts();
     if (this.params.inferSystem) {
@@ -1006,7 +1145,7 @@ class ValueSetChecker {
       this.worker.opContext.addNote(this.valueSet, 'Validate "' + this.worker.renderer.displayCoded(code) + '"', this.indentCount);
     }
 
-    let inactive = { value: false };
+    let inactive = { value: false, path: '' };
     let cause = { value: "null" };
     if (this.valueSet === null) {
       throw new Issue('error', 'invalid', null, null, 'Error: cannot validate a CodeableConcept without a nominated valueset');
@@ -1019,11 +1158,14 @@ class ValueSetChecker {
 
     let vstatus = {value: ''};
     let normalForm = {value: ''};
+    /** @type {any[]} */
     let mt = [];
+    /** @type {any[]} */
     let ts = [];
     let tsys = '';
     let tcode = '';
     let tver = '';
+    /** @type {any} */
     let vcc = {}; // todo: VCC is an appendage, and useless. remove it
     if (code.text) {
       vcc.text = code.text;
@@ -1031,7 +1173,7 @@ class ValueSetChecker {
     let unknownSystems = new Set();
     let result = new Parameters();
 
-    const msg = (s, clear = false) => {
+    const msg = (/** @type {any} */ s, clear = false) => {
       if (!s) {
         return;
       }
@@ -1216,7 +1358,7 @@ class ValueSetChecker {
             //   message = '';
             // }
             if (vcc.coding) {
-              vcc.coding = vcc.coding.filter(ccc => ccc.system === prov.system() && (!prov.version() || ccc.version == prov.version()) && ccc.code === c.code);
+              vcc.coding = vcc.coding.filter(/** @param {any} ccc */ ccc => ccc.system === prov.system() && (!prov.version() || ccc.version == prov.version()) && ccc.code === c.code);
             }
             let vs = ws + '|' + prov.version() + '#' + c.code;
             if (!ts.includes(vs)) {
@@ -1385,6 +1527,15 @@ class ValueSetChecker {
     return result;
   }
 
+  /**
+   * @param {any} list
+   * @param {any} defLang
+   * @param {any} c
+   * @param {any} msg
+   * @param {any} op
+   * @param {any} path
+   * @returns {Promise<any>}
+   */
   async checkDisplays(list, defLang, c, msg, op, path) {
     let hd = list.hasDisplay(this.params.workingLanguages(), null, c.display, false, DisplayCheckingStyle.CASE_INSENSITIVE)
     if (!hd.found) {
@@ -1429,10 +1580,10 @@ class ValueSetChecker {
           }
         }
       } else if (dc === 1) {
-        m = this.worker.i18n.translate(baseMsg + '_one', this.params.workingLanguages(),
+        m = this.worker.i18n.translate(baseMsg + '_one', this.params.HTTPLanguages,
           ['', c.system, c.code, list.present(this.params.workingLanguages(), defLang.value, dc > 0), c.display, this.params.langSummary()]);
       } else {
-        m = this.worker.i18n.translate(baseMsg + '_other', this.params.workingLanguages(),
+        m = this.worker.i18n.translate(baseMsg + '_other', this.params.HTTPLanguages,
           [dc.toString(), c.system, c.code, list.present(this.params.workingLanguages(), defLang.value, dc > 0), c.display, this.params.langSummary()]);
       }
       msg(m);
@@ -1454,6 +1605,7 @@ class ValueSetChecker {
       } else {
         let hd = list.hasDisplay(this.params.workingLanguages(), null, c.display, true, DisplayCheckingStyle.CASE_INSENSITIVE);
         if (!hd.found) {
+          /** @type {any[]} */
           let ts2 = [];
           list.allowedDisplays(ts2, null, defLang.value);
           let mid = 'INACTIVE_DISPLAY_FOUND';
@@ -1464,6 +1616,13 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} issuePath
+   * @param {any} system
+   * @param {any} version
+   * @param {any} code
+   * @returns {Promise<any>}
+   */
   async checkSystemCode(issuePath, system, version, code) {
     this.worker.opContext.clearContexts();
     if (this.params.inferSystem) {
@@ -1472,14 +1631,16 @@ class ValueSetChecker {
       this.worker.opContext.addNote(this.valueSet, 'Validate "' + this.worker.renderer.displayCoded(system, version, code) + '"', this.indentCount);
     }
     let unknownSystems = new Set();
+    /** @type {any[]} */
     let unkCodes = [];
+    /** @type {any[]} */
     let messages = [];
     let result = new Parameters();
     let op = new OperationOutcome();
     this.checkCanonicalStatus(issuePath, op, this.valueSet, this.valueSet);
     let list = new Designations(this.worker.languages);
     let ver = {value: ''};
-    let inactive = {value: false};
+    let inactive = {value: false, path: ''};
     let normalForm = {value: ''};
     let vstatus = {value: ''};
     let cause = {value: null};
@@ -1536,6 +1697,23 @@ class ValueSetChecker {
     return result;
   }
 
+  /**
+   * @param {any} path
+   * @param {any} role
+   * @param {any} cs
+   * @param {any} cset
+   * @param {any} code
+   * @param {any} displays
+   * @param {any} vs
+   * @param {any} message
+   * @param {any} inactive
+   * @param {any} normalForm
+   * @param {any} vstatus
+   * @param {any} op
+   * @param {any} vcc
+   * @param {any} messages
+   * @returns {Promise<any>}
+   */
   async checkConceptSet(path, role, cs, cset, code, displays, vs, message, inactive, normalForm, vstatus, op, vcc, messages) {
     this.worker.opContext.addNote(vs, 'check code ' + role + ' ' + this.worker.renderer.displayValueSetInclude(cset) + ' at ' + path, this.indentCount);
     let result = false;
@@ -1732,6 +1910,19 @@ class ValueSetChecker {
     return result;
   }
 
+  /**
+   * @param {any} path
+   * @param {any} cs
+   * @param {any} cset
+   * @param {any} code
+   * @param {any} displays
+   * @param {any} vs
+   * @param {any} message
+   * @param {any} inactive
+   * @param {any} vstatus
+   * @param {any} op
+   * @returns {Promise<any>}
+   */
   async checkExpansion(path, cs, cset, code, displays, vs, message, inactive, vstatus, op) {
     let result = false;
     let loc = await cs.locate(code, null, message);
@@ -1761,6 +1952,10 @@ class ValueSetChecker {
     return this.valueSet.jsonObj.compose && this.valueSet.jsonObj.compose.inactive != undefined && !this.valueSet.jsonObj.compose.inactive;
   }
 
+  /**
+   * @param {any} cset
+   * @returns {any}
+   */
   filterSummary(cset) {
     let list = [];
     for (let filter of cset.filter) {
@@ -1772,6 +1967,10 @@ class ValueSetChecker {
     return list.join(",");
   }
 
+  /**
+   * @param {any} system
+   * @returns {any}
+   */
   findVSVersionForSystem(system) {
     let set = new Set();
     for (let inc of this.valueSet.jsonObj.compose?.include || []) {
@@ -1788,6 +1987,13 @@ class ValueSetChecker {
     return v;
   }
 
+  /**
+   * @param {any} vset
+   * @param {any} system
+   * @param {any} code
+   * @param {any} display
+   * @returns {Promise<any>}
+   */
   async pickApplicableVersion(vset, system, code, display) {
     let found = [];
     for (let v of vset) {
@@ -1814,15 +2020,26 @@ class ValueSetChecker {
     }
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} context
+   * @param {any} display
+   * @returns {Promise<any>}
+   */
   async displayIsOk(cs, context, display) {
     if (display == await cs.display(context)) {
       return true;
     }
     const cds = new Designations(this.worker.i18n.languageDefinitions);
     await cs.designations(context, cds);
-    return cds.designations.find(cd => cd.value == display);
+    return cds.designations.find(/** @param {any} cd */ cd => cd.value == display);
   }
 
+  /**
+   * @param {any} includes
+   * @param {any} version
+   * @returns {any}
+   */
   hasMatchForVersion(includes, version) {
     for (let inc of includes) {
       if (inc.version == version) {
@@ -1832,6 +2049,11 @@ class ValueSetChecker {
     return false;
   }
 
+  /**
+   * @param {any} cc
+   * @param {any} version
+   * @returns {any}
+   */
   useThisVersion(cc, version) {
     if (!version || cc.version == version) {
       return true;
@@ -1840,6 +2062,11 @@ class ValueSetChecker {
   }
 }
 
+/**
+ * @param {any} path
+ * @param {any} name
+ * @returns {any}
+ */
 function addToPath(path, name) {
   if (!path) {
     return name;
@@ -1849,6 +2076,11 @@ function addToPath(path, name) {
 }
 
 
+/**
+ * @param {any} url
+ * @param {any} version
+ * @returns {any}
+ */
 function Unknown_Code_in_VersionSCT(url, version) {
   if (url === 'http://snomed.info/sct') {
     return 'Unknown_Code_in_Version_SCT';
@@ -1859,6 +2091,11 @@ function Unknown_Code_in_VersionSCT(url, version) {
   }
 }
 
+/**
+ * @param {any} url
+ * @param {any} ver
+ * @returns {any}
+ */
 function SCTVersion(url, ver) {
   if (url !== 'http://snomed.info/sct' || !ver) {
     return '';
@@ -1901,6 +2138,11 @@ function SCTVersion(url, ver) {
 }
 
 
+/**
+ * @param {any} st
+ * @param {any} sep
+ * @returns {any}
+ */
 function toText(st, sep) {
   if (st === null || st.length === 0) {
     return '';
@@ -1915,14 +2157,18 @@ function toText(st, sep) {
 
 class ValidateWorker extends TerminologyWorker {
 
+  /** @type {Set<string>} */
   requiredSupplements = new Set();
+  /** @type {Set<string>} */
   usedSupplements = new Set();
+  /** @type {any} */
+  params;
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -1942,37 +2188,50 @@ class ValidateWorker extends TerminologyWorker {
    * Handle a type-level CodeSystem $validate-code request
    * GET/POST /CodeSystem/$validate-code
    */
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async handleCodeSystem(req, res) {
     try {
       const params = this.buildParameters(req);
       this.addHttpParams(req, params);
       this.log.debug('CodeSystem $validate-code with params:', params);
 
-      let result = await this.handleCodeSystemInner(params);
+      let result = await this.handleCodeSystemInner(params, req);
 
       return res.status(200).json(result);
 
     } catch (error) {
       this.log.error(error);
       debugLog(error);
+      const err = asErrorLike(error);
       if (error instanceof Issue) {
-        if (error.isHandleAsOO()) {
+        if (err.isHandleAsOO()) {
           let oo = new OperationOutcome();
           oo.addIssue(error);
-          return res.status(error.statusCode || 500).json(oo.jsonObj);
+          return res.status(err.statusCode || 500).json(oo.jsonObj);
         } else {
           // this is actually handled in the inner method
         }
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(err.statusCode || 500).json(this.operationOutcome(
+          'error', err.issueCode || 'exception', err.message));
       }
 
     }
   }
 
-  async handleCodeSystemInner(params, req) {
+  /**
+   * @param {any} params
+   * @param {any} req
+   * @returns {Promise<any>}
+   */
+  async handleCodeSystemInner(params, req = null) {
+    /** @type {any} */
     let coded;
+    /** @type {any} */
     let mode;
 
     // Handle tx-resource and cache-id parameters
@@ -1985,7 +2244,7 @@ class ValidateWorker extends TerminologyWorker {
     try {
 
       // Extract coded value
-      mode = {mode: null};
+      mode = {mode: null, issuePath: ''};
       coded = this.extractCodedValue(params, true, mode);
       if (!coded) {
         throw new Issue('error', 'invalid', null, null, 'Unable to find code to validate (looked for coding | codeableConcept | code in parameters)', null, 400).handleAsOO(400);
@@ -2014,7 +2273,8 @@ class ValidateWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      if (error instanceof Issue && !error.isHandleAsOO()) {
+      const err = asErrorLike(error);
+      if (error instanceof Issue && !err.isHandleAsOO()) {
         return await this.handlePrepareError(error, coded, mode.mode, txp);
       } else {
         throw error;
@@ -2024,6 +2284,10 @@ class ValidateWorker extends TerminologyWorker {
 
 
   }
+  /**
+   * @param {any} mode
+   * @returns {any}
+   */
   systemPath(mode) {
     switch (mode.mode) {
       case 'code': return 'system';
@@ -2035,6 +2299,11 @@ class ValidateWorker extends TerminologyWorker {
   /**
    * Handle an instance-level CodeSystem $validate-code request
    * GET/POST /CodeSystem/{id}/$validate-code
+   */
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
    */
   async handleCodeSystemInstance(req, res) {
     try {
@@ -2058,7 +2327,8 @@ class ValidateWorker extends TerminologyWorker {
       const csp = new FhirCodeSystemProvider(this.opContext, new CodeSystem(codeSystem), []);
 
       // Extract coded value
-      let mode = { mode : null }
+      /** @type {any} */
+      let mode = { mode : null, issuePath: '' }
       const coded = this.extractCodedValue(params, true, mode);
       if (!coded) {
         return res.status(400).json(this.operationOutcome('error', 'invalid',
@@ -2073,14 +2343,20 @@ class ValidateWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      return res.status(error.statusCode || 500).json(this.operationOutcome(
-        'error', error.issueCode || 'exception', error.message));
+      const err = asErrorLike(error);
+      return res.status(err.statusCode || 500).json(this.operationOutcome(
+        'error', err.issueCode || 'exception', err.message));
     }
   }
 
   /**
    * Handle a type-level ValueSet $validate-code request
    * GET/POST /ValueSet/$validate-code
+   */
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
    */
   async handleValueSet(req, res) {
     try {
@@ -2094,18 +2370,24 @@ class ValidateWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
+      const err = asErrorLike(error);
       if (error instanceof Issue) {
         let op = new OperationOutcome();
         op.addIssue(error);
-        return res.status(error.statusCode || 500).json(op.jsonObj);
+        return res.status(err.statusCode || 500).json(op.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(err.statusCode || 500).json(this.operationOutcome(
+          'error', err.issueCode || 'exception', err.message));
       }
     }
   }
 
-  async handleValueSetInner(params, req) {
+  /**
+   * @param {any} params
+   * @param {any} req
+   * @returns {Promise<any>}
+   */
+  async handleValueSetInner(params, req = null) {
     // Handle tx-resource and cache-id parameters
     this.setupAdditionalResources(params);
 
@@ -2120,7 +2402,8 @@ class ValidateWorker extends TerminologyWorker {
     }
     // Extract coded value
 
-    let mode = { mode : null };
+    /** @type {any} */
+    let mode = { mode : null, issuePath: '' };
     const coded = this.extractCodedValue(params, false, mode);
     if (!coded) {
       throw new Issue("error", "invalid", null, null, 'Unable to find code to validate (looked for coding | codeableConcept | code+system | code+inferSystem in parameters', null, 422);
@@ -2136,6 +2419,11 @@ class ValidateWorker extends TerminologyWorker {
   /**
    * Handle an instance-level ValueSet $validate-code request
    * GET/POST /ValueSet/{id}/$validate-code
+   */
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
    */
   async handleValueSetInstance(req, res) {
     try {
@@ -2159,7 +2447,8 @@ class ValidateWorker extends TerminologyWorker {
       }
 
       // Extract coded value
-      let mode = { mode : null };
+      /** @type {any} */
+      let mode = { mode : null, issuePath: '' };
       const coded = this.extractCodedValue(params, false, mode);
       if (!coded) {
         return res.status(400).json(this.operationOutcome('error', 'invalid',
@@ -2174,8 +2463,9 @@ class ValidateWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      return res.status(error.statusCode || 500).json(this.operationOutcome(
-        'error', error.issueCode || 'exception', error.message));
+      const err = asErrorLike(error);
+      return res.status(err.statusCode || 500).json(this.operationOutcome(
+        'error', err.issueCode || 'exception', err.message));
     }
   }
 
@@ -2183,9 +2473,11 @@ class ValidateWorker extends TerminologyWorker {
 
   /**
    * Resolve the CodeSystem to validate against
-   * @param {Object} params - Parameters resource
-   * @param {string|null} id - Instance id (if instance-level request)
-   * @returns {CodeSystemProvider|null} CodeSystem resource (wrapper or JSON)
+   * @param {any} params - Parameters resource
+   * @param {any} txParams - Request terminology parameters
+   * @param {any} coded - Coding selected from the request
+   * @param {any} mode - Validation mode holder
+   * @returns {Promise<any>} CodeSystem provider or null
    */
   async resolveCodeSystem(params, txParams, coded, mode) {
     // Check for codeSystem resource parameter
@@ -2249,9 +2541,9 @@ class ValidateWorker extends TerminologyWorker {
 
   /**
    * Resolve the ValueSet to validate against
-   * @param {Object} params - Parameters resource
-   * @param {string|null} id - Instance id (if instance-level request)
-   * @returns {Object|null} ValueSet resource (wrapper or JSON)
+   * @param {any} params - Parameters resource
+   * @param {any} txParams - Request terminology parameters
+   * @returns {Promise<any>} ValueSet resource or null
    */
   async resolveValueSet(params, txParams) {
     // Check for valueSet resource parameter
@@ -2275,7 +2567,7 @@ class ValidateWorker extends TerminologyWorker {
       let vs = await this.provider.findValueSet(this.opContext, url, version);
       this.seeSourceVS(vs, url);
       if (vs == null) {
-        throw new Issue('error', 'not-found', null, 'Unable_to_resolve_value_Set_', this.i18n.translate('Unable_to_resolve_value_Set_', params.HTTPLanguages, [url+(version ? "|"+version : "")]), 'not-found', 422);
+        throw new Issue('error', 'not-found', null, 'Unable_to_resolve_value_Set_', this.i18n.translate('Unable_to_resolve_value_Set_', txParams.HTTPLanguages, [url+(version ? "|"+version : "")]), 'not-found', 422);
       } else {
         return vs;
       }
@@ -2288,9 +2580,10 @@ class ValidateWorker extends TerminologyWorker {
 
   /**
    * Extract the coded value to validate as a CodeableConcept
-   * @param {Object} params - Parameters resource
-   * @param {string} mode - 'cs' for CodeSystem, 'vs' for ValueSet
-   * @returns {Object|null} CodeableConcept or null
+   * @param {any} params - Parameters resource
+   * @param {any} isCs - Whether this is a CodeSystem validation
+   * @param {any} mode - Mutable validation mode holder
+   * @returns {any} CodeableConcept or null
    */
   extractCodedValue(params, isCs, mode) {
     // Priority 1: codeableConcept parameter
@@ -2333,6 +2626,7 @@ class ValidateWorker extends TerminologyWorker {
       if (!system && !this.getStringParam(params, 'inferSystem')) {
         return null;
       }
+      /** @type {any} */
       const codingObj = {code};
       if (system) codingObj.system = system;
       if (version) codingObj.version = version;
@@ -2348,10 +2642,11 @@ class ValidateWorker extends TerminologyWorker {
 
   /**
    * Perform CodeSystem validation
-   * @param {Object} coded - CodeableConcept to validate
-   * @param {Object} codeSystem - CodeSystem to validate against
-   * @param {Object} params - Full parameters
-   * @returns {Object} Parameters resource with result
+   * @param {any} coded - CodeableConcept to validate
+   * @param {any} codeSystem - CodeSystem to validate against
+   * @param {any} params - Full parameters
+   * @param {any} mode - Validation mode holder
+   * @returns {Promise<any>} Parameters resource with result
    */
   async doValidationCS(coded, codeSystem, params, mode) {
     this.deadCheck('doValidationCS');
@@ -2373,7 +2668,12 @@ class ValidateWorker extends TerminologyWorker {
     return result.jsonObj;
   }
 
+  /**
+   * @param {any} codeSystem
+   * @returns {any}
+   */
   makeVsForCS(codeSystem) {
+    /** @type {any} */
     let vs = {
       resourceType: "ValueSet",
       internallyDefined : true,
@@ -2394,10 +2694,12 @@ class ValidateWorker extends TerminologyWorker {
 
   /**
    * Perform ValueSet validation
-   * @param {Object} coded - CodeableConcept to validate
-   * @param {Object} valueSet - ValueSet to validate against
-   * @param {Object} params - Full parameters
-   * @returns {Object} Parameters resource with result
+   * @param {any} coded - CodeableConcept to validate
+   * @param {any} valueSet - ValueSet to validate against
+   * @param {any} params - Full parameters
+   * @param {any} mode - Validation mode
+   * @param {any} issuePath - Request issue path
+   * @returns {Promise<any>} Parameters resource with result
    */
   async doValidationVS(coded, valueSet, params, mode, issuePath) {
     this.deadCheck('doValidationVS');
@@ -2414,7 +2716,8 @@ class ValidateWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      if (!(error instanceof Issue) || error.isHandleAsOO()) {
+      const err = asErrorLike(error);
+      if (!(error instanceof Issue) || err.isHandleAsOO()) {
         throw error;
       } else {
         return await this.handlePrepareError(error, coded, mode, params);
@@ -2436,9 +2739,15 @@ class ValidateWorker extends TerminologyWorker {
    * Get a boolean parameter value
    * @private
    */
+  /**
+   * @param {any} params
+   * @param {any} name
+   * @param {any} defaultValue
+   * @returns {any}
+   */
   _getBoolParam(params, name, defaultValue) {
     if (!params?.parameter) return defaultValue;
-    const p = params.parameter.find(param => param.name === name);
+    const p = params.parameter.find(/** @param {any} param */ param => param.name === name);
     if (!p) return defaultValue;
     if (p.valueBoolean !== undefined) return p.valueBoolean;
     if (p.valueString !== undefined) return p.valueString === 'true';
@@ -2466,7 +2775,12 @@ class ValidateWorker extends TerminologyWorker {
    * Get display text for a code (stub implementation for doValidationCS)
    * @private
    */
+  /**
+   * @param {any} code
+   * @returns {any}
+   */
   getDisplayForCode(code) {
+    /** @type {Record<string, string>} */
     const displays = {
       'male': 'Male',
       'female': 'Female',
@@ -2479,7 +2793,15 @@ class ValidateWorker extends TerminologyWorker {
   /**
    * Build the validation result Parameters resource
    */
+  /**
+   * @param {any} result
+   * @param {any} message
+   * @param {any} display
+   * @param {any} coded
+   * @returns {any}
+   */
   buildValidationResult(result, message, display, coded) {
+    /** @type {any} */
     const parameters = {
       resourceType: 'Parameters',
       parameter: [
@@ -2515,6 +2837,12 @@ class ValidateWorker extends TerminologyWorker {
   /**
    * Build an OperationOutcome
    */
+  /**
+   * @param {any} severity
+   * @param {any} code
+   * @param {any} message
+   * @returns {any}
+   */
   operationOutcome(severity, code, message) {
     return {
       resourceType: 'OperationOutcome',
@@ -2530,6 +2858,13 @@ class ValidateWorker extends TerminologyWorker {
   }
 
 
+  /**
+   * @param {any} error
+   * @param {any} coded
+   * @param {any} mode
+   * @param {any} txp
+   * @returns {Promise<any>}
+   */
   async handlePrepareError(error, coded, mode, txp) {
     let op = new OperationOutcome();
     op.addIssue(error);

@@ -1,16 +1,45 @@
+// @ts-check
+
 const {validateParameter} = require("../../library/utilities");
 
-class Issue extends Error {
-  level;
-  cause;
-  path;
-  msgId;
-  issueCode;
-  statusCode;
-  isSetForhandleAsOO;
-  diagnostics;
-  issues = [];
+/**
+ * @typedef {import('../../types/fhirsmith').FhirOperationOutcome} FhirOperationOutcome
+ * @typedef {import('../../types/fhirsmith').FhirOperationOutcomeIssue} FhirOperationOutcomeIssue
+ */
 
+class Issue extends Error {
+  /** @type {string} */
+  level;
+  /** @type {string} */
+  cause;
+  /** @type {string | null} */
+  path;
+  /** @type {string | null} */
+  msgId;
+  /** @type {string | null} */
+  issueCode;
+  /** @type {number} */
+  statusCode;
+  /** @type {boolean | undefined} */
+  isSetForhandleAsOO;
+  /** @type {string | undefined} */
+  diagnostics;
+  /** @type {Issue[]} */
+  issues = [];
+  /** @type {boolean | undefined} */
+  finished;
+  /** @type {string | undefined} */
+  unknownSystem;
+
+  /**
+   * @param {string} level
+   * @param {string} cause
+   * @param {string | null} path
+   * @param {string | null} msgId
+   * @param {string} message
+   * @param {string | null} [issueCode]
+   * @param {number} [statusCode]
+   */
   constructor (level, cause, path, msgId, message, issueCode = null, statusCode = 500) {
     super(message);
     this.level = level;
@@ -22,14 +51,17 @@ class Issue extends Error {
     this.statusCode = statusCode;
   }
 
+  /**
+   * @returns {FhirOperationOutcomeIssue}
+   */
   asIssue() {
-    let res = {
+    let res = /** @type {FhirOperationOutcomeIssue} */ ({
       severity: this.level,
       code: this.cause,
       details: {
         text: this.message
       }
-    }
+    });
     if (this.path) {
       res.expression = [this.path]
     }
@@ -45,24 +77,42 @@ class Issue extends Error {
     return res;
   }
 
+  /**
+   * @param {number} statusCode
+   * @returns {this}
+   */
   handleAsOO(statusCode) {
     this.isSetForhandleAsOO = true;
     this.statusCode = statusCode;
     return this;
   }
 
+  /**
+   * @returns {boolean | undefined}
+   */
   isHandleAsOO() {
     return this.isSetForhandleAsOO;
   }
 
+  /**
+   * @returns {this}
+   */
   setFinished() {
     this.finished = true;
     return this;
   }
+  /**
+   * @param {string} s
+   * @returns {this}
+   */
   setUnknownSystem(s) {
     this.unknownSystem = s;
     return this;
   }
+  /**
+   * @param {Issue | null | undefined} issue
+   * @returns {this}
+   */
   addIssue(issue) {
     if (issue) {
       this.issues.push(issue);
@@ -70,6 +120,10 @@ class Issue extends Error {
     return this;
   }
 
+  /**
+   * @param {string} diagnostics
+   * @returns {this}
+   */
   withDiagnostics(diagnostics) {
     this.diagnostics = diagnostics;
     return this;
@@ -77,16 +131,29 @@ class Issue extends Error {
 }
 
 class OperationOutcome {
+  /** @type {FhirOperationOutcome} */
   jsonObj;
 
+  /**
+   * @param {FhirOperationOutcome | null} [jsonObj]
+   */
   constructor (jsonObj = null) {
     this.jsonObj = jsonObj ? jsonObj : { "resourceType": "OperationOutcome" };
   }
 
+  /**
+   * @param {Issue} newIssue
+   * @returns {boolean}
+   */
   addIssueIfNew(newIssue) {
     return this.addIssue(newIssue, true);
   }
 
+  /**
+   * @param {Issue} newIssue
+   * @param {boolean} [ifNotDuplicate]
+   * @returns {boolean}
+   */
   addIssue(newIssue, ifNotDuplicate = false) {
     validateParameter(newIssue, "newIssue", Object);
     if (ifNotDuplicate) {
@@ -106,10 +173,16 @@ class OperationOutcome {
     return true;
   }
 
+  /**
+   * @returns {FhirOperationOutcomeIssue[] | undefined}
+   */
   hasIssues() {
     return this.jsonObj && this.jsonObj.issue;
   }
 
+  /**
+   * @returns {boolean}
+   */
   hasErrors() {
     for (let iss of this.jsonObj.issue || []) {
       if (iss.severity === 'error') {
@@ -119,6 +192,10 @@ class OperationOutcome {
     return false;
   }
 
+  /**
+   * @param {string[]} list
+   * @returns {number | undefined}
+   */
   listMissedErrors(list) {
     for (let iss of this.jsonObj.issue || []) {
       if (iss.severity === 'error' && iss.details && iss.details.text && !list.find(msg => msg === iss.details.text )) {

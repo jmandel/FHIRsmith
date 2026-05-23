@@ -1,3 +1,5 @@
+// @ts-check
+
 const inquirer = require('inquirer');
 const chalk = require('chalk');
 const cliProgress = require('cli-progress');
@@ -11,7 +13,9 @@ const { getConfigManager } = require('./tx-import-settings');
  */
 class BaseTerminologyModule {
   constructor() {
+    /** @type {any} */
     this.progressBar = null;
+    /** @type {any} */
     this.configManager = getConfigManager();
   }
 
@@ -24,6 +28,10 @@ class BaseTerminologyModule {
     throw new Error('getDescription() must be implemented by subclass');
   }
 
+  /**
+   * @param {any} terminologyCommand
+   * @param {any} globalOptions
+   */
   // eslint-disable-next-line no-unused-vars
   registerCommands(terminologyCommand, globalOptions) {
     throw new Error('registerCommands() must be implemented by subclass');
@@ -47,6 +55,10 @@ class BaseTerminologyModule {
   }
 
   // Common utility methods available to all modules
+  /**
+   * @param {Record<string, any>} [options]
+   * @returns {Promise<Record<string, any>>}
+   */
   async gatherCommonConfig(options = {}) {
     const terminology = this.getName();
 
@@ -54,6 +66,7 @@ class BaseTerminologyModule {
     const smartDefaults = this.configManager.generateDefaults(terminology);
     const recentSources = this.configManager.getRecentSources(terminology, 3);
 
+    /** @type {any[]} */
     const questions = [];
 
     // Source file/directory
@@ -65,7 +78,7 @@ class BaseTerminologyModule {
           name: 'sourceChoice',
           message: `Select source for ${terminology}:`,
           choices: [
-            ...recentSources.map(src => ({
+            ...recentSources.map((/** @type {string} */ src) => ({
               name: `${src} ${src === smartDefaults.source ? '(last used)' : ''}`.trim(),
               value: src
             })),
@@ -78,13 +91,13 @@ class BaseTerminologyModule {
           type: 'input',
           name: 'newSource',
           message: `Enter new source path for ${terminology}:`,
-          when: (answers) => answers.sourceChoice === 'NEW_PATH',
-          validate: (input) => {
+          when: (/** @type {Record<string, any>} */ answers) => answers.sourceChoice === 'NEW_PATH',
+          validate: (/** @type {string} */ input) => {
             if (!input) return 'Source is required';
             if (!fs.existsSync(input)) return 'Source path does not exist';
             return true;
           },
-          filter: (input) => path.resolve(input)
+          filter: (/** @type {string} */ input) => path.resolve(input)
         });
       } else {
         // No recent sources, just ask for input directly
@@ -93,12 +106,12 @@ class BaseTerminologyModule {
           name: 'source',
           message: `Source file/directory for ${terminology}:`,
           default: smartDefaults.source,
-          validate: (input) => {
+          validate: (/** @type {string} */ input) => {
             if (!input) return 'Source is required';
             if (!fs.existsSync(input)) return 'Source path does not exist';
             return true;
           },
-          filter: (input) => path.resolve(input)
+          filter: (/** @type {string} */ input) => path.resolve(input)
         });
       }
     }
@@ -110,7 +123,7 @@ class BaseTerminologyModule {
         name: 'dest',
         message: 'Destination database path:',
         default: smartDefaults.dest || `./data/${terminology}.db`,
-        validate: (input) => {
+        validate: (/** @type {string} */ input) => {
           if (!input) return 'Destination path is required';
           const dir = path.dirname(input);
           if (!fs.existsSync(dir)) {
@@ -118,7 +131,7 @@ class BaseTerminologyModule {
           }
           return true;
         },
-        filter: (input) => path.resolve(input)
+        filter: (/** @type {string} */ input) => path.resolve(input)
       });
     }
 
@@ -128,7 +141,7 @@ class BaseTerminologyModule {
       name: 'overwrite',
       message: 'Overwrite existing database if it exists?',
       default: smartDefaults.overwrite !== undefined ? smartDefaults.overwrite : false,
-      when: (answers) => {
+      when: (/** @type {Record<string, any>} */ answers) => {
         const destPath = options.dest || answers.dest;
         return fs.existsSync(destPath);
       }
@@ -166,6 +179,9 @@ class BaseTerminologyModule {
     return finalConfig;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async confirmImport(config) {
     console.log(chalk.cyan(`\n📋 ${this.getName()} Import Configuration:`));
     console.log(`  Source: ${chalk.white(config.source)}`);
@@ -187,6 +203,9 @@ class BaseTerminologyModule {
     return confirmed;
   }
 
+  /**
+   * @param {string | null} [format]
+   */
   createProgressBar(format = null) {
     const defaultFormat = chalk.cyan('Progress') + ' |{bar}| {percentage}% | {value}/{total} | ETA: {eta}s';
 
@@ -200,6 +219,10 @@ class BaseTerminologyModule {
     return this.progressBar;
   }
 
+  /**
+   * @param {number} current
+   * @param {number | null} [total]
+   */
   updateProgress(current, total = null) {
     if (this.progressBar) {
       if (total !== null) {
@@ -217,22 +240,37 @@ class BaseTerminologyModule {
     }
   }
 
+  /**
+   * @param {string} message
+   */
   logInfo(message) {
     console.log(chalk.blue('ℹ'), message);
   }
 
+  /**
+   * @param {string} message
+   */
   logSuccess(message) {
     console.log(chalk.green('✓'), message);
   }
 
+  /**
+   * @param {string} message
+   */
   logWarning(message) {
     console.log(chalk.yellow('⚠'), message);
   }
 
+  /**
+   * @param {string} message
+   */
   logError(message) {
     console.log(chalk.red('✗'), message);
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async validatePrerequisites(config) {
     // Base validation - can be extended by subclasses
     const checks = [
@@ -261,7 +299,7 @@ class BaseTerminologyModule {
           allPassed = false;
         }
       } catch (error) {
-        this.logError(`${name}: ${error.message}`);
+        this.logError(`${name}: ${error instanceof Error ? error.message : String(error)}`);
         allPassed = false;
       }
     }
@@ -270,6 +308,12 @@ class BaseTerminologyModule {
   }
 
   // Helper method for batch processing with progress updates
+  /**
+   * @param {any[]} items
+   * @param {number} batchSize
+   * @param {(batch: any[]) => Promise<void>} processor
+   * @param {string} [progressMessage]
+   */
   async processBatch(items, batchSize, processor, progressMessage = 'Processing') {
     const total = items.length;
     let processed = 0;
@@ -291,12 +335,18 @@ class BaseTerminologyModule {
   }
 
   // Abstract method for actual import logic
+  /**
+   * @param {Record<string, any>} config
+   */
   // eslint-disable-next-line no-unused-vars
   async executeImport(config) {
     throw new Error('executeImport() must be implemented by subclass');
   }
 
   // Common import workflow
+  /**
+   * @param {Record<string, any>} config
+   */
   async runImport(config) {
     try {
       console.log(chalk.blue.bold(`🏥 Starting ${this.getName()} Import...\n`));
@@ -319,15 +369,19 @@ class BaseTerminologyModule {
 
     } catch (error) {
       this.stopProgress(); // Ensure progress bar is cleaned up
-      this.logError(`${this.getName()} import failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logError(`${this.getName()} import failed: ${message}`);
       if (config.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       process.exit(1);
     }
   }
 
   // Remember successful configuration
+  /**
+   * @param {Record<string, any>} config
+   */
   rememberSuccessfulConfig(config) {
     try {
       const terminology = this.getName();
@@ -343,7 +397,7 @@ class BaseTerminologyModule {
       this.logInfo('Configuration saved for future use');
     } catch (error) {
       // Don't fail the import if we can't save config
-      this.logWarning(`Could not save configuration: ${error.message}`);
+      this.logWarning(`Could not save configuration: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

@@ -1,24 +1,37 @@
-const {CodeSystemProvider} = require("../cs/cs-api");
-const {Extensions} = require("./extensions");
-const {div} = require("../../library/html");
-const {getValuePrimitive} = require("../../library/utilities");
-const {getValueName} = require("../../library/utilities");
+// @ts-check
+const {CodeSystemProvider} = /** @type {any} */ (require("../cs/cs-api"));
+const {Extensions} = /** @type {any} */ (require("./extensions"));
+const {div} = /** @type {any} */ (require("../../library/html"));
+const {getValuePrimitive} = /** @type {any} */ (require("../../library/utilities"));
+const {getValueName} = /** @type {any} */ (require("../../library/utilities"));
 
 /**
  * @typedef {Object} TerminologyLinkResolver
- * @property {function(OperationContext, string, string=): {description: string, link: string}|null} resolveURL
+ * @property {function(any, string, string=): Promise<{description: string, link: string}|null>} resolveURL
  *   Given a URL and optional version, returns description and link, or null if not found
- * @property {function(OperationContext, string, string, string=): {display: string, link: string}|null} resolveCode
+ * @property {function(any, string, string, string=): Promise<{description: string, link: string}|null>} resolveCode
  *   Given a URL, code, and optional version, returns display and link, or null if not found
  */
 
 class Renderer {
+  /** @type {any} */
+  opContext;
+  /** @type {any} */
+  linkResolver;
 
+  /**
+   * @param {any} opContext
+   * @param {any} linkResolver
+   */
   constructor(opContext, linkResolver = null) {
     this.opContext = opContext;
     this.linkResolver = linkResolver;
   }
 
+  /**
+   * @param {any} args
+   * @returns {any}
+   */
   displayCoded(...args) {
     if (args.length === 1) {
       const arg = args[0];
@@ -44,6 +57,10 @@ class Renderer {
     throw new Error('Invalid arguments to renderCoded');
   }
 
+  /**
+   * @param {any} system
+   * @returns {any}
+   */
   displayCodedProvider(system) {
     let result = system.system + '|' + system.version;
     if (system.sourcePackage) {
@@ -52,6 +69,11 @@ class Renderer {
     return result;
   }
 
+  /**
+   * @param {any} system
+   * @param {any} version
+   * @returns {any}
+   */
   displayCodedSystemVersion(system, version) {
     if (!version) {
       return system;
@@ -60,18 +82,39 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} system
+   * @param {any} version
+   * @param {any} code
+   * @returns {any}
+   */
   displayCodedSystemVersionCode(system, version, code) {
     return this.displayCodedSystemVersion(system, version) + '#' + code;
   }
 
+  /**
+   * @param {any} system
+   * @param {any} version
+   * @param {any} code
+   * @param {any} display
+   * @returns {any}
+   */
   displayCodedSystemVersionCodeDisplay(system, version, code, display) {
     return this.displayCodedSystemVersionCode(system, version, code) + ' ("' + display + '")';
   }
 
+  /**
+   * @param {any} code
+   * @returns {any}
+   */
   displayCodedCoding(code) {
     return this.displayCodedSystemVersionCodeDisplay(code.system, code.version, code.code, code.display);
   }
 
+  /**
+   * @param {any} code
+   * @returns {any}
+   */
   displayCodedCodeableConcept(code) {
     let result = '';
     if (code.text && !code.coding) {
@@ -87,6 +130,10 @@ class Renderer {
     return '[' + result + ']';
   }
 
+  /**
+   * @param {any} inc
+   * @returns {any}
+   */
   displayValueSetInclude(inc) {
     let result;
     if (inc.system) {
@@ -133,11 +180,17 @@ class Renderer {
     return result;
   }
 
-  async renderMetadataTable(res, tbl, sourcePackage) {
+  /**
+   * @param {any} res
+   * @param {any} tbl
+   * @param {any} sourcePackage
+   * @returns {Promise<any>}
+   */
+  async renderMetadataTable(res, tbl, sourcePackage = undefined) {
     this.renderMetadataVersion(res, tbl);
     await this.renderMetadataProfiles(res, tbl);
-    this.renderMetadataTags(res, tbl);
-    this.renderMetadataLabels(res, tbl);
+    await this.renderMetadataTags(res, tbl);
+    await this.renderMetadataLabels(res, tbl);
     this.renderMetadataLastUpdated(res, tbl);
     this.renderMetadataSource(res, tbl);
     this.renderProperty(tbl, 'TEST_PLAN_LANG', res.language);
@@ -185,6 +238,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} res
+   * @param {any} tbl
+   * @returns {Promise<any>}
+   */
   async renderMetadataProfiles(res, tbl) {
     if (res.meta?.profile) {
       let tr = tbl.tr();
@@ -200,36 +258,51 @@ class Renderer {
     }
   }
 
-  renderMetadataTags(res, tbl) {
+  /**
+   * @param {any} res
+   * @param {any} tbl
+   * @returns {Promise<any>}
+   */
+  async renderMetadataTags(res, tbl) {
     if (res.meta?.tag) {
       let tr = tbl.tr();
       tr.td().b().tx(this.translate('GENERAL_PROF'));
       if (res.meta.tag.length > 1) {
         let ul = tr.td();
         for (let u of res.meta.tag) {
-          this.renderCoding(ul.li(), u);
+          await this.renderCoding(ul.li(), u);
         }
       } else {
-        this.renderCoding(tr.td(), res.meta.tag[0]);
+        await this.renderCoding(tr.td(), res.meta.tag[0]);
       }
     }
   }
 
-  renderMetadataLabels(res, tbl) {
+  /**
+   * @param {any} res
+   * @param {any} tbl
+   * @returns {Promise<any>}
+   */
+  async renderMetadataLabels(res, tbl) {
     if (res.meta?.label) {
       let tr = tbl.tr();
       tr.td().b().tx(this.translate('GENERAL_PROF'));
       if (res.meta.label.length > 1) {
         let ul = tr.td();
         for (let u of res.meta.label) {
-          this.renderCodin(ul.li(), u);
+          await this.renderCoding(ul.li(), u);
         }
       } else {
-        this.renderCoding(tr.td(), res.meta.label[0]);
+        await this.renderCoding(tr.td(), res.meta.label[0]);
       }
     }
   }
 
+  /**
+   * @param {any} res
+   * @param {any} tbl
+   * @returns {any}
+   */
   renderMetadataVersion(res, tbl) {
     if (res.meta?.version) {
       let tr = tbl.tr();
@@ -238,14 +311,25 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} res
+   * @param {any} tbl
+   * @returns {any}
+   */
   renderMetadataLastUpdated(res, tbl) {
-    if (res.meta?.version) {
+    if (res.meta?.lastUpdated) {
       let tr = tbl.tr();
       tr.td().b().tx(this.translate('RES_REND_UPDATED'));
-      tr.td().tx(this.displayDate(res.meta.version));
+      tr.td().tx(new Date(res.meta.lastUpdated).toLocaleString());
     }
   }
 
+  /**
+   * @param {any} tbl
+   * @param {any} msgId
+   * @param {any} value
+   * @returns {any}
+   */
   renderProperty(tbl, msgId, value) {
     if (value) {
       let tr = tbl.tr();
@@ -258,6 +342,12 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} tbl
+   * @param {any} msgId
+   * @param {any} value
+   * @returns {any}
+   */
   renderPropertyCopy(tbl, msgId, value) {
     if (value) {
       let tr = tbl.tr();
@@ -276,6 +366,12 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} tbl
+   * @param {any} msgId
+   * @param {any} value
+   * @returns {any}
+   */
   renderPropertyLink(tbl, msgId, value) {
     if (value) {
       let tr = tbl.tr();
@@ -288,6 +384,12 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} tbl
+   * @param {any} msgId
+   * @param {any} value
+   * @returns {any}
+   */
   renderPropertyMD(tbl, msgId, value) {
     if (value) {
       let tr = tbl.tr();
@@ -300,6 +402,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} res
+   * @param {any} tbl
+   * @returns {any}
+   */
   renderMetadataSource(res, tbl) {
     if (res.meta?.source) {
       let tr = tbl.tr();
@@ -308,6 +415,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} uri
+   * @returns {Promise<any>}
+   */
   async renderLink(x, uri) {
     const result = this.linkResolver ? await this.linkResolver.resolveURL(this.opContext, uri) : null;
     if (result) {
@@ -317,36 +429,57 @@ class Renderer {
     }
   }
 
-  renderLinkComma(x, uri) {
-    let {desc, url} = this.linkResolver ? this.linkResolver.resolveURL(this.opContext, uri) : null;
-    if (url) {
-      x.commaItem(desc, url);
+  /**
+   * @param {any} x
+   * @param {any} uri
+   * @returns {Promise<any>}
+   */
+  async renderLinkComma(x, uri) {
+    const result = this.linkResolver ? await this.linkResolver.resolveURL(this.opContext, uri) : null;
+    if (result) {
+      x.commaItem(result.description, result.link);
     } else {
       x.commaItem(uri);
     }
   }
 
 
+  /**
+   * @param {any} x
+   * @param {any} coding
+   * @returns {Promise<any>}
+   */
   async renderCoding(x, coding) {
-    let {
-      desc,
-      url
-    } = this.linkResolver ? await this.linkResolver.resolveCode(this.opContext, coding.system, coding.version, coding.code) : null;
-    if (url) {
-      x.ah(url).tx(desc);
+    const result = this.linkResolver ? await this.linkResolver.resolveCode(this.opContext, coding.system, coding.version, coding.code) : null;
+    if (result) {
+      x.ah(result.link).tx(result.description);
     } else {
       x.code(coding.code);
     }
   }
 
+  /**
+   * @param {any} msgId
+   * @param {any} params
+   * @returns {any}
+   */
   translate(msgId, params = []) {
     return this.opContext.i18n.formatPhrase(msgId, this.opContext.langs, params);
   }
 
+  /**
+   * @param {any} num
+   * @param {any} msgId
+   * @returns {any}
+   */
   translatePlural(num, msgId) {
     return this.opContext.i18n.formatPhrasePlural(msgId, this.opContext.langs, num,[]);
   }
 
+  /**
+   * @param {any} vs
+   * @returns {Promise<any>}
+   */
   async renderValueSet(vs) {
     if (vs.json) {
       vs = vs.json;
@@ -368,6 +501,11 @@ class Renderer {
     return div_.toString();
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} sourcePackage
+   * @returns {Promise<any>}
+   */
   async renderCodeSystem(cs, sourcePackage) {
     if (cs.json) {
       cs = cs.json;
@@ -391,6 +529,11 @@ class Renderer {
     return div_.toString();
   }
 
+  /**
+   * @param {any} vs
+   * @param {any} x
+   * @returns {Promise<any>}
+   */
   async renderCompose(vs, x) {
     let supplements = Extensions.list(vs, 'http://hl7.org/fhir/StructureDefinition/valueset-supplement');
     if (supplements && supplements.length > 0) {
@@ -399,7 +542,7 @@ class Renderer {
       p.tx(" ");
       p.startCommaList("and");
       for (let ext of supplements) {
-        this.renderLinkComma(p, ext);
+        await this.renderLinkComma(p, ext);
       }
       p.stopCommaList();
       p.tx(".");
@@ -436,6 +579,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} li
+   * @param {any} inc
+   * @returns {Promise<any>}
+   */
   async renderInclude(li, inc) {
     if (inc.system) {
       if (!inc.concept && !inc.filter) {
@@ -489,12 +637,17 @@ class Renderer {
       li.tx(this.translatePlural(inc.valueSet.length, 'VALUE_SET_RULES_INC'));
       li.startCommaList("and");
       for (let vs of inc.valueSet) {
-        this.renderLinkComma(li, vs);
+        await this.renderLinkComma(li, vs);
       }
       li.stopCommaList();
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} cs
+   * @returns {any}
+   */
   generateProperties(x, cs) {
     if (!cs.property || cs.property.length === 0) {
       return false;
@@ -538,6 +691,11 @@ class Renderer {
     return true;
   }
 
+  /**
+   * @param {any} x
+   * @param {any} cs
+   * @returns {any}
+   */
   generateFilters(x, cs) {
     if (!cs.filter || cs.filter.length === 0) {
       return;
@@ -561,6 +719,12 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} cs
+   * @param {any} hasProps
+   * @returns {Promise<any>}
+   */
   async generateCodeSystemContent(x, cs, hasProps) {
     if (hasProps) {
       x.para().b().tx(this.translate('CODESYSTEM_CONCEPTS'));
@@ -616,6 +780,12 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} cs
+   * @param {any} caseSensitive
+   * @returns {any}
+   */
   makeCasedParam(x, cs, caseSensitive) {
     if (caseSensitive) {
       let s = caseSensitive ? "case-sensitive" : "case-insensitive";
@@ -625,16 +795,27 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} cs
+   * @param {any} hm
+   * @returns {any}
+   */
   makeHierarchyParam(x, cs, hm) {
     if (hm) {
       let s = hm; // look it up?
       x.tx(" "+this.translate('CODE_SYS_IN_A_HIERARCHY', [s]));
-    } else if ((cs.concept || []).find(c => (c.concept || []).length > 0)) {
+    } else if ((cs.concept || []).find((/** @type {any} */ c) => (c.concept || []).length > 0)) {
       x.tx(" "+ this.translate('CODE_SYS_UNDEF_HIER'));
     }
   }
 
+  /**
+   * @param {any} cs
+   * @returns {any}
+   */
   analyzeConceptColumns(cs) {
+    /** @type {any} */
     const info = {
       hasHierarchy: false,
       hasDisplay: false,
@@ -647,7 +828,7 @@ class Renderer {
     // Check which properties are actually used
     const usedProperties = new Set();
 
-    const analyzeConceptList = (concepts) => {
+    const analyzeConceptList = (/** @type {any[]} */ concepts) => {
       for (const c of concepts) {
         if (c.display && c.display !== c.code) {
           info.hasDisplay = true;
@@ -688,17 +869,29 @@ class Renderer {
     return info;
   }
 
+  /**
+   * @param {any} prop
+   * @returns {any}
+   */
   showPropertyInTable(prop) {
     // Skip certain internal properties
     const skipCodes = ['status', 'inactive', 'deprecated', 'notSelectable'];
     return !skipCodes.includes(prop.code);
   }
 
+  /**
+   * @param {any} prop
+   * @returns {any}
+   */
   getDisplayForProperty(prop) {
     // Could look up a display name for well-known properties
     return prop.description || prop.code;
   }
 
+  /**
+   * @param {any} concept
+   * @returns {any}
+   */
   isDeprecated(concept) {
     if (concept.property) {
       for (const prop of concept.property) {
@@ -712,6 +905,14 @@ class Renderer {
     return false;
   }
 
+  /**
+   * @param {any} tbl
+   * @param {any} concept
+   * @param {any} level
+   * @param {any} cs
+   * @param {any} columnInfo
+   * @returns {Promise<any>}
+   */
   async addConceptRow(tbl, concept, level, cs, columnInfo) {
     const tr = tbl.tr();
 
@@ -794,20 +995,34 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} concept
+   * @param {any} code
+   * @returns {any}
+   */
   getPropertyValue(concept, code) {
     if (!concept.property) return null;
-    const prop = concept.property.find(p => p.code === code);
+    const prop = concept.property.find((/** @type {any} */ p) => p.code === code);
     return prop ? this.extractPropertyValue(prop) : null;
   }
 
+  /**
+   * @param {any} concept
+   * @param {any} code
+   * @returns {any}
+   */
   getPropertyValues(concept, code) {
     if (!concept.property) return [];
     return concept.property
-        .filter(p => p.code === code)
-        .map(p => this.extractPropertyValue(p))
-        .filter(v => v !== null);
+        .filter((/** @type {any} */ p) => p.code === code)
+        .map((/** @type {any} */ p) => this.extractPropertyValue(p))
+        .filter((/** @type {any} */ v) => v !== null);
   }
 
+  /**
+   * @param {any} prop
+   * @returns {any}
+   */
   extractPropertyValue(prop) {
     if (prop.valueCode !== undefined) return { type: 'code', value: prop.valueCode };
     if (prop.valueString !== undefined) return { type: 'string', value: prop.valueString };
@@ -819,6 +1034,13 @@ class Renderer {
     return null;
   }
 
+  /**
+   * @param {any} td
+   * @param {any} val
+   * @param {any} propDef
+   * @param {any} cs
+   * @returns {Promise<any>}
+   */
   async renderPropertyValue(td, val, propDef, cs) {
     if (!val) return;
 
@@ -864,6 +1086,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} mode
+   * @param {any} cs
+   * @returns {any}
+   */
   sentenceForContent(mode, cs) {
     switch (mode) {
       case 'complete':
@@ -894,8 +1121,12 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} cs
+   * @returns {any}
+   */
   hasDesignations(cs) {
-    const checkConcepts = (concepts) => {
+    const checkConcepts = (/** @type {any[]} */ concepts) => {
       for (const c of concepts) {
         if (c.designation && c.designation.length > 0) {
           return true;
@@ -909,6 +1140,10 @@ class Renderer {
     return checkConcepts(cs.concept || []);
   }
 
+  /**
+   * @param {any} concepts
+   * @returns {any}
+   */
   countConcepts(concepts) {
     if (!concepts) {
       return 0;
@@ -922,6 +1157,11 @@ class Renderer {
     return count;
   }
 
+  /**
+   * @param {any} vs
+   * @param {any} showProps
+   * @returns {Promise<any>}
+   */
   async renderVSExpansion(vs, showProps) {
     let div_ = div();
     let tbl;
@@ -935,6 +1175,12 @@ class Renderer {
     return div_.toString();
   }
 
+  /**
+   * @param {any} x
+   * @param {any} vs
+   * @param {any} tbl
+   * @returns {Promise<any>}
+   */
   async renderExpansion(x, vs, tbl) {
     this.renderProperty(tbl, 'Expansion Identifier', vs.expansion.identifier);
     this.renderProperty(tbl, 'Expansion Timestamp', vs.expansion.timestamp);
@@ -1011,7 +1257,12 @@ class Renderer {
   /**
    * Analyze expansion contains to determine which columns are needed
    */
+  /**
+   * @param {any} expansion
+   * @returns {any}
+   */
   analyzeExpansionColumns(expansion) {
+    /** @type {any} */
     const info = {
       hasHierarchy: false,
       hasVersion: false,
@@ -1022,16 +1273,19 @@ class Renderer {
     };
 
     // Build map of property codes from expansion.property
+    /** @type {Map<string, any>} */
     const propertyDefs = new Map();
     for (const prop of expansion.property || []) {
       propertyDefs.set(prop.code, prop);
     }
 
     // Track which properties and designations are actually used
+    /** @type {Set<string>} */
     const usedProperties = new Set();
+    /** @type {Map<string, any>} */
     const usedDesignations = new Map(); // key: "use|language", value: {use, language}
 
-    const analyzeContains = (containsList, level) => {
+    const analyzeContains = (/** @type {any[]} */ containsList, /** @type {number} */ level) => {
       for (const c of containsList) {
         if (c.version) {
           info.hasVersion = true;
@@ -1081,7 +1335,7 @@ class Renderer {
     }
 
     // Convert designation map to array, sorted for consistent ordering
-    info.designations = Array.from(usedDesignations.values()).sort((a, b) => {
+    info.designations = Array.from(usedDesignations.values()).sort((/** @type {any} */ a, /** @type {any} */ b) => {
       const keyA = this.getDesignationKey(a);
       const keyB = this.getDesignationKey(b);
       return keyA.localeCompare(keyB);
@@ -1093,6 +1347,10 @@ class Renderer {
   /**
    * Get a unique key for a designation based on use and language
    */
+  /**
+   * @param {any} desig
+   * @returns {any}
+   */
   getDesignationKey(desig) {
     const useCode = desig.use?.code || '';
     const useSystem = desig.use?.system || '';
@@ -1102,6 +1360,10 @@ class Renderer {
 
   /**
    * Format a designation header for display
+   */
+  /**
+   * @param {any} desig
+   * @returns {any}
    */
   formatDesignationHeader(desig) {
     const parts = [];
@@ -1118,6 +1380,13 @@ class Renderer {
 
   /**
    * Add a row for an expansion contains entry
+   */
+  /**
+   * @param {any} tbl
+   * @param {any} contains
+   * @param {any} level
+   * @param {any} columnInfo
+   * @returns {Promise<any>}
    */
   async addExpansionRow(tbl, contains, level, columnInfo) {
     const tr = tbl.tr();
@@ -1211,16 +1480,25 @@ class Renderer {
   /**
    * Get property values from a contains entry
    */
+  /**
+   * @param {any} contains
+   * @param {any} code
+   * @returns {any}
+   */
   getContainsPropertyValues(contains, code) {
     if (!contains.property) return [];
     return contains.property
-        .filter(p => p.code === code)
-        .map(p => this.extractExpansionPropertyValue(p))
-        .filter(v => v !== null);
+        .filter((/** @type {any} */ p) => p.code === code)
+        .map((/** @type {any} */ p) => this.extractExpansionPropertyValue(p))
+        .filter((/** @type {any} */ v) => v !== null);
   }
 
   /**
    * Extract the value from an expansion property
+   */
+  /**
+   * @param {any} prop
+   * @returns {any}
    */
   extractExpansionPropertyValue(prop) {
     if (prop.valueCode !== undefined) return { type: 'code', value: prop.valueCode };
@@ -1237,7 +1515,14 @@ class Renderer {
    * Render an expansion property value
    */
   // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {any} td
+   * @param {any} val
+   * @param {any} propDef
+   * @returns {Promise<any>}
+   */
   async renderExpansionPropertyValue(td, val, propDef) {
+    void propDef;
     if (!val) return;
 
     switch (val.type) {
@@ -1279,6 +1564,11 @@ class Renderer {
   /**
    * Get a designation value matching the given use/language
    */
+  /**
+   * @param {any} contains
+   * @param {any} desigDef
+   * @returns {any}
+   */
   getDesignationValue(contains, desigDef) {
     if (!contains.designation) return null;
 
@@ -1297,12 +1587,21 @@ class Renderer {
   /**
    * Check if two codings match (both null, or same system/code)
    */
+  /**
+   * @param {any} a
+   * @param {any} b
+   * @returns {any}
+   */
   codingMatches(a, b) {
     if (!a && !b) return true;
     if (!a || !b) return false;
     return (a.system || '') === (b.system || '') && (a.code || '') === (b.code || '');
   }
 
+  /**
+   * @param {any} cs
+   * @returns {Promise<any>}
+   */
   async renderCapabilityStatement(cs) {
     if (cs.json) {
       cs = cs.json;
@@ -1332,13 +1631,18 @@ class Renderer {
     // REST definitions
     if (cs.rest && cs.rest.length > 0) {
       for (const rest of cs.rest) {
-        await this.renderCapabilityRest(div_, rest, cs);
+        await this.renderCapabilityRest(div_, rest);
       }
     }
 
     return div_.toString();
   }
 
+  /**
+   * @param {any} x
+   * @param {any} rest
+   * @returns {Promise<any>}
+   */
   async renderCapabilityRest(x, rest) {
     x.h3().tx(`REST ${rest.mode || 'server'} Definition`);
 
@@ -1384,6 +1688,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} security
+   * @returns {Promise<any>}
+   */
   async renderCapabilitySecurity(x, security) {
     x.h4().tx('Security');
 
@@ -1422,6 +1731,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} rest
+   * @returns {Promise<any>}
+   */
   async renderCapabilityResources(x, rest) {
     x.h4().tx('Resources');
 
@@ -1457,10 +1771,17 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} resources
+   * @returns {any}
+   */
   analyzeCapabilityResourceColumns(resources) {
+    /** @type {Set<string>} */
+    const interactionSet = new Set();
     const info = {
       hasProfile: false,
-      interactions: new Set(),
+      /** @type {string[]} */
+      interactions: [],
       hasSearchParams: false,
       hasOperations: false
     };
@@ -1472,7 +1793,7 @@ class Renderer {
 
       if (res.interaction) {
         for (const int of res.interaction) {
-          info.interactions.add(int.code);
+          interactionSet.add(int.code);
         }
       }
 
@@ -1487,7 +1808,7 @@ class Renderer {
 
     // Convert interactions to sorted array for consistent column ordering
     const interactionOrder = ['read', 'vread', 'update', 'patch', 'delete', 'history-instance', 'history-type', 'create', 'search-type'];
-    info.interactions = interactionOrder.filter(i => info.interactions.has(i));
+    info.interactions = interactionOrder.filter((/** @type {string} */ i) => interactionSet.has(i));
 
     // Add any other interactions not in our predefined order
     for (const res of resources) {
@@ -1503,6 +1824,12 @@ class Renderer {
     return info;
   }
 
+  /**
+   * @param {any} tbl
+   * @param {any} resource
+   * @param {any} columnInfo
+   * @returns {Promise<any>}
+   */
   async addCapabilityResourceRow(tbl, resource, columnInfo) {
     const tr = tbl.tr();
 
@@ -1534,7 +1861,7 @@ class Renderer {
 
     // Interaction columns - render checkmarks
     const supportedInteractions = new Set(
-        (resource.interaction || []).map(i => i.code)
+        (resource.interaction || []).map((/** @type {any} */ i) => i.code)
     );
 
     for (const intCode of columnInfo.interactions) {
@@ -1549,7 +1876,7 @@ class Renderer {
     if (columnInfo.hasSearchParams) {
       const td = tr.td();
       if (resource.searchParam && resource.searchParam.length > 0) {
-        const paramNames = resource.searchParam.map(sp => sp.name);
+        const paramNames = resource.searchParam.map((/** @type {any} */ sp) => sp.name);
         td.tx(paramNames.join(', '));
       }
     }
@@ -1574,6 +1901,10 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} tc
+   * @returns {Promise<any>}
+   */
   async renderTerminologyCapabilities(tc) {
     if (tc.json) {
       tc = tc.json;
@@ -1618,6 +1949,11 @@ class Renderer {
     return div_.toString();
   }
 
+  /**
+   * @param {any} x
+   * @param {any} warnings
+   * @returns {Promise<any>}
+   */
   async renderWarnings(x, warnings) {
     await this.renderWarningsForStatus(x, 'deprecated', warnings);
     await this.renderWarningsForStatus(x, 'withdrawn', warnings);
@@ -1626,13 +1962,19 @@ class Renderer {
     await this.renderWarningsForStatus(x, 'draft', warnings);
   }
 
+  /**
+   * @param {any} x
+   * @param {any} name
+   * @param {any} warnings
+   * @returns {Promise<any>}
+   */
   async renderWarningsForStatus(x, name, warnings) {
-    const wl = warnings.filter(item => item.name == 'warning-'+name);
+    const wl = warnings.filter((/** @type {any} */ item) => item.name == 'warning-'+name);
     if (wl && wl.length > 0) {
       x.para().tx(`This ValueSet depends on the following ${name} ValueSets: `);
       let ul = x.ul();
       for (const w of wl) {
-        const linkinfo = await this.linkResolver.resolveURL(this.opContext, getValuePrimitive(w));
+        const linkinfo = this.linkResolver ? await this.linkResolver.resolveURL(this.opContext, getValuePrimitive(w)) : null;
         if (linkinfo) {
           ul.li().ah(linkinfo.link).tx(linkinfo.description);
         } else {
@@ -1642,6 +1984,11 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} x
+   * @param {any} list
+   * @returns {Promise<any>}
+   */
   async renderUsed(x, list) {
     x.para().tx(`This ValueSet depends on the following items:`);
     let ul = x.ul();
@@ -1650,12 +1997,19 @@ class Renderer {
     await this.renderUsedForType(ul, 'supplement', 'Supplement', list);
   }
 
+  /**
+   * @param {any} ul
+   * @param {any} name
+   * @param {any} title
+   * @param {any} list
+   * @returns {Promise<any>}
+   */
   async renderUsedForType(ul, name, title, list) {
-    const wl = list.filter(item => item.name == 'used-' + name);
+    const wl = list.filter((/** @type {any} */ item) => item.name == 'used-' + name);
     for (const w of wl) {
       const li = ul.li();
       li.tx(title+": ");
-      const linkinfo = await this.linkResolver.resolveURL(this.opContext, getValuePrimitive(w));
+      const linkinfo = this.linkResolver ? await this.linkResolver.resolveURL(this.opContext, getValuePrimitive(w)) : null;
       if (linkinfo) {
         li.ah(linkinfo.link).tx(linkinfo.description);
       } else {
@@ -1673,6 +2027,10 @@ class Renderer {
    * Render a ConceptMap resource to HTML.
    * Follows the same pattern as renderValueSet/renderCodeSystem:
    * metadata table (reusing renderMetadataTable), then group-by-group rendering.
+   */
+  /**
+   * @param {any} cm
+   * @returns {Promise<any>}
    */
   async renderConceptMap(cm) {
     if (cm.json) {
@@ -1723,14 +2081,24 @@ class Renderer {
    * Determines whether this is a "simple" group (1:1 mappings, no dependsOn/product)
    * or a "complex" group, and delegates accordingly.
    */
+  /**
+   * @param {any} x
+   * @param {any} cm
+   * @param {any} grp
+   * @param {any} gc
+   * @returns {Promise<any>}
+   */
   async renderConceptMapGroup(x, cm, grp, gc) {
     // Analyze the group to determine rendering mode
     let hasComment = false;
     let hasProperties = false;
     let ok = true; // true = simple rendering
 
+    /** @type {Record<string, Set<any>>} */
     const props = {};   // property code -> Set of systems
+    /** @type {Record<string, Set<any>>} */
     const sources = { code: new Set() };
+    /** @type {Record<string, Set<any>>} */
     const targets = { code: new Set() };
 
     if (grp.source) sources.code.add(grp.source);
@@ -1801,6 +2169,12 @@ class Renderer {
    * This is the "ok" path from the Java code where all elements have at most
    * one target and no dependsOn/product.
    */
+  /**
+   * @param {any} x
+   * @param {any} grp
+   * @param {any} hasComment
+   * @returns {Promise<any>}
+   */
   async renderSimpleConceptMapGroup(x, grp, hasComment) {
     const tbl = x.table("grid");
     let tr = tbl.tr();
@@ -1863,6 +2237,16 @@ class Renderer {
   /**
    * Render a complex ConceptMap group with dependsOn, product, and/or property columns.
    * This is the "!ok" path from the Java code.
+   */
+  /**
+   * @param {any} x
+   * @param {any} grp
+   * @param {any} hasComment
+   * @param {any} hasProperties
+   * @param {any} props
+   * @param {any} sources
+   * @param {any} targets
+   * @returns {Promise<any>}
    */
   async renderComplexConceptMapGroup(x, grp, hasComment, hasProperties, props, sources, targets) {
     // Check if any targets have relationships
@@ -2078,6 +2462,11 @@ class Renderer {
    * Render the relationship cell for a target element.
    * Handles both R5 relationship codes and legacy R4 equivalence codes via extension.
    */
+  /**
+   * @param {any} tr
+   * @param {any} tgt
+   * @returns {any}
+   */
   renderConceptMapRelationship(tr, tgt) {
     if (tgt.relationship) {
       tr.td().tx(this.presentRelationshipCode(tgt.relationship));
@@ -2091,6 +2480,12 @@ class Renderer {
   /**
    * Render a code system details link in a header cell.
    * Mirrors Java renderCSDetailsLink.
+   */
+  /**
+   * @param {any} tr
+   * @param {any} url
+   * @param {any} span2
+   * @returns {Promise<any>}
    */
   async renderCSDetailsLink(tr, url, span2) {
     const td = tr.td();
@@ -2111,6 +2506,10 @@ class Renderer {
    * Translate a FHIR R5 ConceptMap relationship code to a human-readable string.
    * Uses the same strings as the Java renderer.
    */
+  /**
+   * @param {any} code
+   * @returns {any}
+   */
   presentRelationshipCode(code) {
     switch (code) {
       case 'related-to':                   return 'is related to';
@@ -2125,6 +2524,10 @@ class Renderer {
   /**
    * Translate a legacy (R2/R3/R4) ConceptMap equivalence code to a human-readable string.
    * Uses the same strings as the Java renderer.
+   */
+  /**
+   * @param {any} code
+   * @returns {any}
    */
   presentEquivalenceCode(code) {
     switch (code) {
@@ -2146,6 +2549,11 @@ class Renderer {
    * Check if a code and its display text are essentially the same
    * (ignoring spaces, hyphens, and case).
    */
+  /**
+   * @param {any} code
+   * @param {any} display
+   * @returns {any}
+   */
   isSameCodeAndDisplay(code, display) {
     if (!code || !display) return false;
     const c = code.replace(/[ -]/g, '').toLowerCase();
@@ -2155,6 +2563,11 @@ class Renderer {
 
   /**
    * Look up a display string for a concept. Delegates to the linkResolver if available.
+   */
+  /**
+   * @param {any} system
+   * @param {any} code
+   * @returns {Promise<any>}
    */
   async getDisplayForConcept(system, code) {
     if (!system || !code) return null;
@@ -2167,6 +2580,10 @@ class Renderer {
    * Get a description for a concept attribute code (used in complex table headers).
    * Mirrors Java getDescForConcept.
    */
+  /**
+   * @param {any} s
+   * @returns {any}
+   */
   getDescForConcept(s) {
     if (s.startsWith('http://hl7.org/fhir/v2/element/')) {
       return 'v2 ' + s.substring('http://hl7.org/fhir/v2/element/'.length);
@@ -2177,7 +2594,13 @@ class Renderer {
   /**
    * Extract a value from a dependsOn or product list by attribute name.
    */
-  getDependsOnValue(list, attribute) {
+  /**
+   * @param {any} list
+   * @param {any} attribute
+   * @returns {any}
+   */
+  getDependsOnValue(list, attribute, includeSystem = false) {
+    void includeSystem;
     if (!list) return null;
     for (const item of list) {
       if (item.attribute === attribute) {
@@ -2194,8 +2617,14 @@ class Renderer {
   /**
    * Extract a display from a dependsOn or product list by attribute name.
    */
-  // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {any} list
+   * @param {any} attribute
+   * @returns {any}
+   */
   getDependsOnDisplay(list, attribute) {
+    void list;
+    void attribute;
     // In current FHIR, dependsOn display is not directly available;
     // would require a lookup. Return null for now (matches Java which also returns null).
     return null;
@@ -2203,6 +2632,11 @@ class Renderer {
 
   /**
    * Extract a property value from a target's property list by code.
+   */
+  /**
+   * @param {any} list
+   * @param {any} code
+   * @returns {any}
    */
   getPropertyValueFromList(list, code) {
     if (!list) return '';
@@ -2226,12 +2660,21 @@ class Renderer {
    * Render the unmapped section for a group, if present.
    * Currently a stub matching the Java implementation.
    */
+  /**
+   * @param {any} tbl
+   * @param {any} grp
+   * @returns {any}
+   */
   addUnmapped(tbl, grp) {
     if (grp.unmapped) {
       // TODO: render unmapped mode/code/url when needed
     }
   }
 
+  /**
+   * @param {any} ext
+   * @returns {any}
+   */
   featureSummary(ext) {
     let defn = Extensions.readString(ext, 'definition');
     let value = Extensions.readString(ext, 'value');
@@ -2245,6 +2688,10 @@ class Renderer {
     }
   }
 
+  /**
+   * @param {any} f
+   * @returns {any}
+   */
   readFilterOp(f) {
     if (f._op) {
       return Extensions.readString(f._op, 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op');

@@ -1,3 +1,5 @@
+// @ts-check
+
 const fs = require('fs').promises;
 const path = require('path');
 const yaml = require('yaml'); // npm install yaml
@@ -37,6 +39,18 @@ const { OCLConceptMapProvider } = require('./ocl/cm-ocl');
 const {UriServicesFactory} = require("./cs/cs-uri");
 const {debugLog} = require("./operation-context");
 
+/** @typedef {'fetch' | 'cs' | 'npm'} LoadMode */
+/** @typedef {{baseUrl: string, org?: string, token?: string, timeout?: number}} OclSourceConfig */
+/** @typedef {{config: OclSourceConfig, codeSystemProvider: any, valueSetProvider: any, conceptMapProvider: any, csRegistered: boolean, factoriesRegistered: boolean, vsRegistered: boolean, cmRegistered: boolean}} OclProviderSet */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * This class holds all the loaded content ready for processing
  *
@@ -49,34 +63,72 @@ class Library {
   /**
    * {Map<String, CodeSystemFactoryProvider>} A list of code system factories that contains all the preloaded native code systems
    */
+  /** @type {Map<string, any>} */
   codeSystemFactories;
 
   /**
    * {Lisr<AbstractCodeSystemProvider>} A list of preloaded FHIR code systems
    */
+  /** @type {any[]} */
   codeSystemProviders;
 
   /**
    * {List<AbstractValueSetProvider>} A list of value set providers that know how to provide value sets by request
    */
+  /** @type {any[]} */
   valueSetProviders;
 
   /**
    * {List<AbstractConceptMapProvider>} A list of value set providers that know how to provide value sets by request
    */
+  /** @type {any[]} */
   conceptMapProviders;
 
+  /** @type {any[]} */
   packageSources = [];
+  /** @type {any[]} */
   externalSources = [];
 
-  baseUrl = null;
-  cacheFolder = null;
+  /** @type {string} */
+  baseUrl = '';
+  /** @type {string} */
+  cacheFolder = '';
+  /** @type {number} */
   startTime = Date.now();
+  /** @type {NodeJS.MemoryUsage} */
   startMemory = process.memoryUsage();
+  /** @type {number | null} */
   lastTime = null;
+  /** @type {NodeJS.MemoryUsage | undefined} */
+  lastMemory;
+  /** @type {number} */
   totalDownloaded = 0;
+  /** @type {any} */
   vsacCfg = undefined;
+  /** @type {string | null | undefined} */
+  configFile;
+  /** @type {any} */
+  log;
+  /** @type {any} */
+  stats;
+  /** @type {PackageManager} */
+  packageManager;
+  /** @type {LanguageDefinitions} */
+  languageDefinitions = /** @type {any} */ (undefined);
+  /** @type {I18nSupport} */
+  i18n = /** @type {any} */ (undefined);
+  /** @type {Map<string, OclProviderSet>} */
+  oclProviderSets;
+  /** @type {Record<string, any>} */
+  oclConfig;
+  /** @type {Set<string>} */
+  ignored;
 
+  /**
+   * @param {string} source
+   * @param {any} factory
+   * @param {boolean} [isDefault]
+   */
   registerProvider(source, factory, isDefault = false) {
     this.#logSystem(factory.system(), factory.version(), source);
     if (isDefault || !this.codeSystemFactories.has(factory.system())) {
@@ -90,6 +142,12 @@ class Library {
     }
   }
 
+  /**
+   * @param {string | null | undefined} configFile
+   * @param {any} vsacCfg
+   * @param {any} log
+   * @param {any} stats
+   */
   constructor(configFile, vsacCfg, log, stats) {
     this.configFile = configFile;
     this.vsacCfg = vsacCfg;
@@ -122,9 +180,14 @@ class Library {
     // this.lastMemory = process.memoryUsage();
   }
 
+  /**
+   * @param {string} url
+   * @param {string | null | undefined} ver
+   * @param {string} source
+   */
   #logSystem(url, ver, source) {
     //const mem = process.memoryUsage();
-    let time = Math.floor(Date.now() - this.lastTime).toString().padStart(5)+" ";
+    let time = Math.floor(Date.now() - (this.lastTime || Date.now())).toString().padStart(5)+" ";
     let system = url.padEnd(50);
     let version = (ver == null ? "" : ver).padEnd(62);
     this.log.info(`${time}${system}${version}${source}`);
@@ -142,10 +205,16 @@ class Library {
     this.lastTime = Date.now();
   }
 
+  /**
+   * @param {string} idp
+   * @param {string | null | undefined} verp
+   * @param {number} csp
+   * @param {number} vsp
+   */
   #logPackage(idp, verp, csp, vsp) {
-    let time = Math.floor(Date.now() - this.lastTime).toString().padStart(5)+" ";
+    let time = Math.floor(Date.now() - (this.lastTime || Date.now())).toString().padStart(5)+" ";
     let id = idp.padEnd(20);
-    let ver = verp.padEnd(20);
+    let ver = (verp || '').padEnd(20);
     let cs = csp.toString().padEnd(6);
     let vs = vsp.toString().padEnd(6);
     this.log.info(`${time}${id}${ver}${cs}${vs}`);
@@ -172,7 +241,7 @@ class Library {
       try {
         await this.processSource(source, this.packageManager, "fetch");
       } catch (error) {
-        console.error(`Failed to fetch source '${source}': ${error.message}`);
+        console.error(`Failed to fetch source '${source}': ${errorMessage(error)}`);
         throw error;
       }
     }
@@ -187,7 +256,7 @@ class Library {
         await this.processSource(source, this.packageManager, "cs");
       } catch (error) {
         debugLog(error);
-        console.error(`Failed to load code systems from '${source}': ${error.message}`);
+        console.error(`Failed to load code systems from '${source}': ${errorMessage(error)}`);
         throw error;
       }
     }
@@ -199,7 +268,7 @@ class Library {
         await this.processSource(source, this.packageManager, "npm");
       } catch (error) {
         debugLog(error);
-        console.error(`Failed to load package '${source}': ${error.message}`);
+        console.error(`Failed to load package '${source}': ${errorMessage(error)}`);
         throw error;
       }
     }
@@ -220,6 +289,11 @@ class Library {
     this.assignIds();
   }
 
+  /**
+   * @param {string} source
+   * @param {PackageManager} packageManager
+   * @param {LoadMode} mode
+   */
   async processSource(source, packageManager, mode) {
     // Parse the source string
     const colonIndex = source.indexOf(':');
@@ -300,18 +374,23 @@ class Library {
     }
   }
 
+  /**
+   * @param {string} details
+   * @returns {OclSourceConfig}
+   */
   parseOclConfig(details) {
     const text = String(details || '').trim();
     if (!text) {
       throw new Error('OCL source requires details, e.g. ocl:https://ocl.example.org');
     }
 
-    const parts = text.split('|').map(p => p.trim()).filter(Boolean);
+    const parts = text.split('|').map((p) => p.trim()).filter(Boolean);
     const baseUrl = this.resolveOclConfigValue(parts[0]);
     if (!baseUrl) {
       throw new Error('OCL source requires a base URL');
     }
 
+    /** @type {OclSourceConfig} */
     const config = { baseUrl };
     for (let i = 1; i < parts.length; i++) {
       const part = parts[i];
@@ -339,6 +418,10 @@ class Library {
     return config;
   }
 
+  /**
+   * @param {any} value
+   * @returns {string}
+   */
   resolveOclConfigValue(value) {
     const text = String(value || '').trim();
     if (!text) {
@@ -355,6 +438,11 @@ class Library {
     return text;
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadOcl(details, isDefault, mode) {
     const config = this.parseOclConfig(details);
     const cacheKey = `${config.baseUrl}|${config.org || ''}`;
@@ -414,6 +502,11 @@ class Library {
     }
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadInternal(details, isDefault, mode) {
     if (isDefault) {
       throw new Error("Default is not supported for internal code system providers");
@@ -475,11 +568,11 @@ class Library {
           throw new Error("Unable to load VSAC provider unless vsacCfg is provided in the configuration");
         }
         let vsac = new VSACValueSetProvider(this.vsacCfg, this.stats);
-        vsac.initialize();
+        await vsac.initialize();
         this.valueSetProviders.push(vsac);
         this.externalSources.push(vsac);
         //const mem = process.memoryUsage();
-        let time = Math.floor(Date.now() - this.lastTime).toString().padStart(5)+" ";
+        let time = Math.floor(Date.now() - (this.lastTime || Date.now())).toString().padStart(5)+" ";
         let system = "vsac".padEnd(50);
         let version = "n/a".padEnd(62);
         this.log.info(`${time}${system}${version}${vsac.baseUrl}`);
@@ -491,6 +584,11 @@ class Library {
     }
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadUcum(details, isDefault, mode) {
     if (mode === "fetch" || mode === "npm") {
       return;
@@ -506,6 +604,11 @@ class Library {
     this.registerProvider(source, ucum, isDefault);
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadLoinc(details, isDefault, mode) {
     const loincFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -517,6 +620,11 @@ class Library {
     this.registerProvider(loincFN, loinc, isDefault);
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadRxnorm(details, isDefault, mode) {
     const rxNormFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -527,6 +635,11 @@ class Library {
     this.registerProvider(rxNormFN, rxn, isDefault);
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadNdc(details, isDefault, mode) {
     const ndcFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -537,6 +650,11 @@ class Library {
     this.registerProvider(ndcFN, ndc, isDefault);
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadUnii(details, isDefault, mode) {
     const uniFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -547,6 +665,11 @@ class Library {
     this.registerProvider(uniFN, unii, isDefault);
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadSnomed(details, isDefault, mode) {
     const sctFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -557,6 +680,11 @@ class Library {
     this.registerProvider(sctFN, sct, isDefault);
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadCpt(details, isDefault, mode) {
     const cptFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -567,6 +695,11 @@ class Library {
     this.registerProvider(cptFN, cpt, isDefault);
   }
 
+  /**
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   */
   async loadOmop(details, isDefault, mode) {
     const omopFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -580,14 +713,25 @@ class Library {
   /**
    * Returns true if the given url/version should be excluded from npm/url package loading.
    * Matches against the ignored list using either plain url or url#version.
+   * @param {string | null | undefined} url
+   * @param {string | null | undefined} version
+   * @returns {boolean}
    */
   #isIgnored(url, version) {
+    if (!url) return false;
     if (this.ignored.size === 0) return false;
     if (this.ignored.has(url)) return true;
     if (version && this.ignored.has(`${url}#${version}`)) return true;
     return false;
   }
 
+  /**
+   * @param {PackageManager} packageManager
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   * @param {boolean} csOnly
+   */
   async loadNpm(packageManager, details, isDefault, mode, csOnly) {
     // Parse packageId and version from details (e.g., "hl7.terminology.r4#6.0.2")
     let packageId = details;
@@ -611,7 +755,7 @@ class Library {
     const resources = await contentLoader.getResourcesByType("CodeSystem");
     let csc = 0;
     for (const resource of resources) {
-      const cs = new CodeSystem(await contentLoader.loadFile(resource, contentLoader.fhirVersion()));
+      const cs = new CodeSystem(await contentLoader.loadFile(resource), contentLoader.fhirVersion());
       if (this.#isIgnored(cs.url, cs.version)) {
         this.log.info(`Ignoring CodeSystem ${cs.url}${cs.version ? '#' + cs.version : ''} (excluded by config)`);
         continue;
@@ -631,9 +775,16 @@ class Library {
       this.conceptMapProviders.push(cm);
     }
 
-    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs ? vs.valueSetMap.size : 0);
+    this.#logPackage(contentLoader.id() || '', contentLoader.version(), csc, vs ? vs.valueSetMap.size : 0);
   }
 
+  /**
+   * @param {PackageManager} packageManager
+   * @param {string} url
+   * @param {boolean} isDefault
+   * @param {LoadMode} mode
+   * @param {boolean} csOnly
+   */
   async loadUrl(packageManager, url, isDefault, mode, csOnly) {
     const packagePath = await packageManager.fetchUrl(url);
     if (mode === "fetch" || mode === "cs") {
@@ -649,14 +800,13 @@ class Library {
     const resources = await contentLoader.getResourcesByType("CodeSystem");
     let csc = 0;
     for (const resource of resources) {
-      const cs = new CodeSystem(await contentLoader.loadFile(resource, contentLoader.fhirVersion()));
+      const cs = new CodeSystem(await contentLoader.loadFile(resource), contentLoader.fhirVersion());
       if (this.#isIgnored(cs.url, cs.version)) {
         this.log.info(`Ignoring CodeSystem ${cs.url}${cs.version ? '#' + cs.version : ''} (excluded by config)`);
         continue;
       }
       cs.sourcePackage = contentLoader.pid();
-      cp.codeSystems.set(cs.url, cs);
-      cp.codeSystems.set(cs.vurl, cs);
+      cp.codeSystems.push(cs);
       csc++;
     }
     this.codeSystemProviders.push(cp);
@@ -670,7 +820,7 @@ class Library {
       this.conceptMapProviders.push(cm);
     }
 
-    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs ? vs.valueSetMap.size : 0);
+    this.#logPackage(contentLoader.id() || '', contentLoader.version(), csc, vs ? vs.valueSetMap.size : 0);
   }
 
   /**
@@ -710,7 +860,7 @@ class Library {
       await this.downloadFile(downloadUrl, filePath);
       return filePath;
     } catch (error) {
-      throw new Error(`Failed to download file ${fileName} from ${downloadUrl}: ${error.message}`);
+      throw new Error(`Failed to download file ${fileName} from ${downloadUrl}: ${errorMessage(error)}`);
     }
   }
 
@@ -736,8 +886,9 @@ class Library {
     try {
       await fs.mkdir(folderPath, { recursive: true });
     } catch (error) {
-      if (error.code !== 'EEXIST') {
-        throw new Error(`Failed to create folder ${folderPath}: ${error.message}`);
+      const err = /** @type {any} */ (error);
+      if (err.code !== 'EEXIST') {
+        throw new Error(`Failed to create folder ${folderPath}: ${errorMessage(error)}`);
       }
     }
   }
@@ -749,12 +900,12 @@ class Library {
    * @returns {Promise<void>}
    */
   async downloadFile(url, filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       const protocol = url.startsWith('https:') ? https : http;
 
       const request = protocol.get(url, (response) => {
         // Handle redirects
-        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           return this.downloadFile(response.headers.location, filePath)
             .then(resolve)
             .catch(reject);
@@ -802,6 +953,7 @@ class Library {
    *
    * @param {string} fhirVersion - FHIR version (e.g., '4.0.1', '5.0.0')
    * @param {string} context - other information from the client that sets the context
+   * @param {string} path - Request path
    * @returns {Promise<Provider>} New provider instance with FHIR packages loaded
    */
   async cloneWithFhirVersion(fhirVersion, context, path) {
@@ -833,7 +985,7 @@ class Library {
 
     // Load FHIR packages - these will be added to valueSetProviders first
     for (const packageId of fhirPackages) {
-      await provider.loadNpm(this.packageManager, this.cacheFolder, packageId, false, "npm", false);
+      await provider.loadNpm(this.packageManager, this.cacheFolder, packageId, false, "npm");
     }
 
 
@@ -853,7 +1005,6 @@ class Library {
     provider.startTime = this.startTime;
     provider.startMemory = this.startMemory;
     provider.lastTime = this.lastTime;
-    provider.lastMemory = this.lastMemory;
     provider.totalDownloaded = this.totalDownloaded;
     provider.packageSources = this.packageSources;
     provider.externalSources = this.externalSources;
@@ -874,9 +1025,8 @@ class Library {
 
   /**
    * Gets the list of FHIR packages for a specific version
-   * @param {string} fhirVersion - FHIR version
-   * @returns {string} Package Id
-   * @private
+   * @param {string} ver - FHIR version
+   * @returns {string[]} Package ids
    */
   #getFhirPackagesForVersion(ver) {
     if (VersionUtilities.isR3Ver(ver)) {
@@ -898,6 +1048,7 @@ class Library {
    * later in an ongoing fashion, allocate them in their own space
    */
   assignIds() {
+    /** @type {Set<string>} */
     let ids = new Set();
     // these don't have ids - not available directly for (const cs of this.codeSystemFactories) { .. }
     let i = 0;
@@ -920,16 +1071,16 @@ class Library {
 
   async close() {
     for (let csp of this.codeSystemProviders) {
-      csp.close();
+      await csp.close();
     }
     for (let csp of this.codeSystemFactories.values()) {
-      csp.close();
+      await csp.close();
     }
     for (let vsp of this.valueSetProviders) {
-      vsp.close();
+      await vsp.close();
     }
     for (let cmp of this.conceptMapProviders) {
-      cmp.close();
+      await cmp.close();
     }
   }
 

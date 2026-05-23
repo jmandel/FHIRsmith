@@ -1,3 +1,5 @@
+// @ts-check
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -8,19 +10,53 @@ const folders = require('../library/folder-setup');
 const escape = require('escape-html');
 const {Utilities} = require("../library/utilities");
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 class PublisherModule {
+  /** @type {any} */
+  router;
+  /** @type {import('sqlite3').Database} */
+  db;
+  /** @type {any} */
+  config;
+  /** @type {any} */
+  logger;
+  /** @type {any} */
+  taskProcessor;
+  /** @type {boolean} */
+  isProcessing;
+  /** @type {boolean} */
+  shutdownRequested;
+  /** @type {any} */
+  stats;
+  /** @type {number | null} */
+  isProcessingStarted;
+
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.router = express.Router();
-    this.db = null;
+    this.db = /** @type {any} */ (null);
     this.config = null;
     this.logger = null;
     this.taskProcessor = null;
     this.isProcessing = false;
     this.shutdownRequested = false;
     this.stats = stats;
+    this.isProcessingStarted = null;
   }
 
+  /**
+   * @param {any} config
+   * @returns {Promise<any>}
+   */
   async initialize(config) {
     this.config = config;
     this.logger = require('../library/logger').getInstance().child({ module: 'publisher' });
@@ -173,7 +209,7 @@ class PublisherModule {
             this.logger.error('Failed to create table:', err);
             reject(err);
           } else {
-            resolve();
+            resolve(undefined);
           }
         });
       });
@@ -194,14 +230,14 @@ class PublisherModule {
         else resolve(rows || []);
       });
     });
-    const columnNames = columns.map(c => c.name);
+    const columnNames = columns.map((/** @type {any} */ c) => c.name);
     if (!columnNames.includes('announcement')) {
       await new Promise((resolve, reject) => {
         this.db.run('ALTER TABLE tasks ADD COLUMN announcement TEXT', (err) => {
           if (err) reject(err);
           else {
             this.logger.info('Migration: added announcement column to tasks table');
-            resolve();
+            resolve(undefined);
           }
         });
       });
@@ -212,14 +248,14 @@ class PublisherModule {
         else resolve(rows || []);
       });
     });
-    const websiteColumnNames = websiteColumns.map(c => c.name);
+    const websiteColumnNames = websiteColumns.map((/** @type {any} */ c) => c.name);
     if (!websiteColumnNames.includes('git_root')) {
       await new Promise((resolve, reject) => {
         this.db.run('ALTER TABLE websites ADD COLUMN git_root TEXT', (err) => {
           if (err) reject(err);
           else {
             this.logger.info('Migration: added git_root column to websites table');
-            resolve();
+            resolve(undefined);
           }
         });
       });
@@ -236,7 +272,7 @@ class PublisherModule {
 
         if (row.count === 0) {
           const defaultPassword = 'admin123'; // Change this!
-          bcrypt.hash(defaultPassword, 10, (err, hash) => {
+          bcrypt.hash(defaultPassword, 10, (/** @type {any} */ err, /** @type {any} */ hash) => {
             if (err) {
               reject(err);
               return;
@@ -251,13 +287,13 @@ class PublisherModule {
                     reject(err);
                   } else {
                     this.logger.warn('Created default admin user - login: admin, password: admin123 - CHANGE THIS!');
-                    resolve();
+                    resolve(undefined);
                   }
                 }
             );
           });
         } else {
-          resolve();
+          resolve(undefined);
         }
       });
     });
@@ -281,7 +317,7 @@ class PublisherModule {
     this.router.get('/tasks/:id/output', this.getTaskOutput.bind(this));
     this.router.get('/tasks/:id/history', this.getTaskHistory.bind(this));
     this.router.get('/tasks/:id/qa', this.getTaskQA.bind(this));
-    this.router.use('/tasks/:id/qa-files', (req, res, next) => {
+    this.router.use('/tasks/:id/qa-files', (/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       const taskId = req.params.id;
       this.getTask(taskId).then(task => {
         if (!task || !task.local_folder) {
@@ -309,7 +345,7 @@ class PublisherModule {
     this.logger.info('Starting task processor with ' + pollInterval + 'ms poll interval');
     this.isProcessingStarted = null;
 
-    this.stats.addTask('Publisher', Utilities.formatDuration(pollInterval));  // or however you want to display the frequency
+    this.stats.addTask('Publisher', Utilities.formatDuration(0, pollInterval));  // or however you want to display the frequency
 
     this.taskProcessor = setInterval(async () => {
       if (this.shutdownRequested) return;
@@ -354,7 +390,7 @@ class PublisherModule {
       // No tasks to process
     } catch (error) {
       this.logger.error('Error in task processor:', error);
-      this.stats.taskError('Publisher', 'Error: ' + error.message);
+      this.stats.taskError('Publisher', 'Error: ' + errorMessage(error));
     } finally {
       this.isProcessing = false;
     }
@@ -386,6 +422,12 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} taskId
+   * @param {any} status
+   * @param {any} additionalFields
+   * @returns {Promise<any>}
+   */
   async updateTaskStatus(taskId, status, additionalFields = {}) {
     const fields = ['status = ?'];
     const values = [status];
@@ -402,7 +444,7 @@ class PublisherModule {
     }
 
     // Add any additional fields
-    Object.keys(additionalFields).forEach(key => {
+    Object.keys(additionalFields).forEach((/** @type {string} */ key) => {
       fields.push(key + ' = ?');
       values.push(additionalFields[key]);
     });
@@ -415,22 +457,32 @@ class PublisherModule {
           values,
           (err) => {
             if (err) reject(err);
-            else resolve();
+            else resolve(undefined);
           }
       );
     });
   }
 
+  /**
+   * @param {any} taskId
+   * @param {any} level
+   * @param {any} message
+   * @returns {Promise<any>}
+   */
   async logTaskMessage(taskId, level, message) {
     return new Promise((resolve) => {
       this.db.run(
           'INSERT INTO task_logs (task_id, level, message) VALUES (?, ?, ?)',
           [taskId.toString(), level, message],
-          () => resolve() // Don't fail if logging fails
+          () => resolve(undefined) // Don't fail if logging fails
       );
     });
   }
 
+  /**
+   * @param {any} task
+   * @returns {Promise<any>}
+   */
   async processDraftBuild(task) {
     this.logger.info('Processing draft build for task #' + task.id + ' (' + task.npm_package_id + '#' + task.version + ')');
 
@@ -451,12 +503,16 @@ class PublisherModule {
     } catch (error) {
       this.logger.error('Draft build failed for task #' + task.id + ':', error);
       await this.updateTaskStatus(task.id, 'failed', {
-        failure_reason: error.message
+        failure_reason: errorMessage(error)
       });
-      await this.logTaskMessage(task.id, 'error', 'Draft build failed: ' + error.message);
+      await this.logTaskMessage(task.id, 'error', 'Draft build failed: ' + errorMessage(error));
     }
   }
 
+  /**
+   * @param {any} task
+   * @returns {Promise<any>}
+   */
   async processPublication(task) {
     this.logger.info('Processing publication for task #' + task.id + ' (' + task.npm_package_id + '#' + task.version + ')');
 
@@ -474,12 +530,16 @@ class PublisherModule {
     } catch (error) {
       this.logger.error('Publication failed for task #' + task.id + ':', error);
       await this.updateTaskStatus(task.id, 'failed', {
-        failure_reason: error.message
+        failure_reason: errorMessage(error)
       });
-      await this.logTaskMessage(task.id, 'error', 'Publication failed: ' + error.message);
+      await this.logTaskMessage(task.id, 'error', 'Publication failed: ' + errorMessage(error));
     }
   }
 
+  /**
+   * @param {any} task
+   * @returns {Promise<any>}
+   */
   async runDraftBuild(task) {
     const workspaceRoot = path.isAbsolute(this.config.workspaceRoot)
         ? this.config.workspaceRoot
@@ -516,6 +576,10 @@ class PublisherModule {
     this.logger.info('Draft build completed for ' + task.npm_package_id + '#' + task.version);
   }
 
+  /**
+   * @param {any} taskDir
+   * @returns {Promise<any>}
+   */
   async createTaskDirectory(taskDir) {
     // Remove existing directory if it exists
     if (fs.existsSync(taskDir)) {
@@ -526,8 +590,13 @@ class PublisherModule {
     fs.mkdirSync(taskDir, { recursive: true });
   }
 
+  /**
+   * @param {any} taskDir
+   * @param {any} taskId
+   * @returns {Promise<any>}
+   */
   async downloadPublisher(taskDir, taskId) {
-    const axios = require('axios');
+    const axios = /** @type {any} */ (require('axios'));
     const publisherJar = path.join(taskDir, 'publisher.jar');
 
     await this.logTaskMessage(taskId, 'info', 'Downloading latest FHIR IG Publisher...');
@@ -535,7 +604,7 @@ class PublisherModule {
     try {
       // Get latest release info from GitHub API
       const releaseResponse = await axios.get('https://api.github.com/repos/HL7/fhir-ig-publisher/releases/latest');
-      const downloadUrl = releaseResponse.data.assets.find(asset =>
+      const downloadUrl = releaseResponse.data.assets.find((/** @type {any} */ asset) =>
           asset.name === 'publisher.jar'
       )?.browser_download_url;
 
@@ -564,10 +633,15 @@ class PublisherModule {
       return publisherJar;
 
     } catch (error) {
-      throw new Error('Failed to download publisher: ' + error.message);
+      throw new Error('Failed to download publisher: ' + errorMessage(error));
     }
   }
 
+  /**
+   * @param {any} task
+   * @param {any} draftDir
+   * @returns {Promise<any>}
+   */
   async cloneRepository(task, draftDir) {
     const { spawn } = require('child_process');
     const gitUrl = 'https://github.com/' + task.github_org + '/' + task.github_repo + '.git';
@@ -594,7 +668,7 @@ class PublisherModule {
       git.on('close', async (code) => {
         if (code === 0) {
           await this.logTaskMessage(task.id, 'info', 'Repository cloned successfully');
-          resolve();
+          resolve(undefined);
         } else {
           const error = 'Git clone failed with code ' + code + ': ' + stderr;
           await this.logTaskMessage(task.id, 'error', error);
@@ -603,12 +677,19 @@ class PublisherModule {
       });
 
       git.on('error', async (error) => {
-        await this.logTaskMessage(task.id, 'error', 'Git clone error: ' + error.message);
+        await this.logTaskMessage(task.id, 'error', 'Git clone error: ' + errorMessage(error));
         reject(error);
       });
     });
   }
 
+  /**
+   * @param {any} publisherJar
+   * @param {any} draftDir
+   * @param {any} logFile
+   * @param {any} taskId
+   * @returns {Promise<any>}
+   */
   async runIGPublisher(publisherJar, draftDir, logFile, taskId) {
     const { spawnJava } = require('./spawn-java');
 
@@ -629,11 +710,11 @@ class PublisherModule {
       // Create log file stream
       const logStream = fs.createWriteStream(logFile);
 
-      java.stdout.on('data', (data) => {
+      java.stdout?.on('data', (data) => {
         logStream.write(data);
       });
 
-      java.stderr.on('data', (data) => {
+      java.stderr?.on('data', (data) => {
         logStream.write(data);
       });
 
@@ -642,7 +723,7 @@ class PublisherModule {
 
         if (code === 0) {
           await this.logTaskMessage(taskId, 'info', 'IG Publisher completed successfully');
-          resolve();
+          resolve(undefined);
         } else {
           const error = 'IG Publisher failed with exit code: ' + code;
           await this.logTaskMessage(taskId, 'error', error);
@@ -652,7 +733,7 @@ class PublisherModule {
 
       java.on('error', async (error) => {
         logStream.end();
-        await this.logTaskMessage(taskId, 'error', 'IG Publisher error: ' + error.message);
+        await this.logTaskMessage(taskId, 'error', 'IG Publisher error: ' + errorMessage(error));
         reject(error);
       });
 
@@ -671,6 +752,11 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} task
+   * @param {any} draftDir
+   * @returns {Promise<any>}
+   */
   async verifyBuildOutput(task, draftDir) {
     const qaJsonPath = path.join(draftDir, 'output', 'qa.json');
 
@@ -700,6 +786,10 @@ class PublisherModule {
     await this.logTaskMessage(task.id, 'info', 'Build output verified: package-id=' + qaData['package-id'] + ', version=' + qaData['ig-ver']);
   }
 
+  /**
+   * @param {any} task
+   * @returns {Promise<any>}
+   */
   async runPublication(task) {
     const website = await this.getWebsite(task.website_id);
     if (!website) {
@@ -799,7 +889,7 @@ class PublisherModule {
         await this.updateTaskStatus(task.id, task.status, { announcement: announcement });
         await this.logTaskMessage(task.id, 'info', 'Announcement text saved (' + announcement.length + ' chars)');
       } catch (err) {
-        await this.logTaskMessage(task.id, 'warn', 'Failed to read announcement file: ' + err.message);
+        await this.logTaskMessage(task.id, 'warn', 'Failed to read announcement file: ' + errorMessage(err));
       }
     } else {
       await this.logTaskMessage(task.id, 'warn', 'No announcement file found at ' + announcementPath);
@@ -812,6 +902,18 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} taskId
+   * @param {any} publisherJar
+   * @param {any} sourceDir
+   * @param {any} webDir
+   * @param {any} registryDir
+   * @param {any} historyDir
+   * @param {any} templatesDir
+   * @param {any} zipsDir
+   * @param {any} logFile
+   * @returns {Promise<any>}
+   */
   async runPublisherGoPublish(taskId, publisherJar, sourceDir, webDir, registryDir, historyDir, templatesDir, zipsDir, logFile) {
     const { spawnJava } = require('./spawn-java');
 
@@ -837,11 +939,11 @@ class PublisherModule {
 
       const logStream = fs.createWriteStream(logFile);
 
-      java.stdout.on('data', (data) => {
+      java.stdout?.on('data', (data) => {
         logStream.write(data);
       });
 
-      java.stderr.on('data', (data) => {
+      java.stderr?.on('data', (data) => {
         logStream.write(data);
       });
 
@@ -849,7 +951,7 @@ class PublisherModule {
         logStream.end();
         if (code === 0) {
           await this.logTaskMessage(taskId, 'info', 'IG Publisher go-publish completed successfully');
-          resolve();
+          resolve(undefined);
         } else {
           const error = 'IG Publisher go-publish failed with exit code: ' + code;
           await this.logTaskMessage(taskId, 'error', error);
@@ -859,7 +961,7 @@ class PublisherModule {
 
       java.on('error', async (error) => {
         logStream.end();
-        await this.logTaskMessage(taskId, 'error', 'IG Publisher error: ' + error.message);
+        await this.logTaskMessage(taskId, 'error', 'IG Publisher error: ' + errorMessage(error));
         reject(error);
       });
 
@@ -886,6 +988,12 @@ class PublisherModule {
   }
 
   // Middleware
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @param {any} next
+   * @returns {any}
+   */
   requireAuth(req, res, next) {
     if (!req.session.userId) {
       return res.redirect('/publisher/login');
@@ -893,6 +1001,12 @@ class PublisherModule {
     next();
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @param {any} next
+   * @returns {any}
+   */
   requireAdmin(req, res, next) {
     if (!req.session.userId || !req.session.isAdmin) {
       return res.status(403).send('Admin access required');
@@ -901,12 +1015,17 @@ class PublisherModule {
   }
 
   // Route handlers
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async renderDashboard(req, res) {
     const start = Date.now();
     try {
 
       try {
-        const htmlServer = require('../library/html-server');
+        const htmlServer = /** @type {any} */ (require('../library/html-server'));
 
         // Get recent tasks
         const tasks = await this.getTasks(10);
@@ -940,7 +1059,7 @@ class PublisherModule {
           content += '<thead><tr><th>ID</th><th>Package</th><th>Version</th><th>Status</th><th>Queued</th><th>User</th></tr></thead>';
           content += '<tbody>';
 
-          tasks.forEach(task => {
+          tasks.forEach((/** @type {any} */ task) => {
             content += '<tr>';
             content += '<td><strong>#' + task.id + '</strong></td>';
             content += '<td>' + task.npm_package_id + '</td>';
@@ -978,11 +1097,16 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {any}
+   */
   renderLogin(req, res) {
     const start = Date.now();
     try {
 
-      const htmlServer = require('../library/html-server');
+      const htmlServer = /** @type {any} */ (require('../library/html-server'));
 
       let content = '<div class="row justify-content-center">';
       content += '<div class="col-md-6">';
@@ -1014,6 +1138,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async handleLogin(req, res) {
     const start = Date.now();
     try {
@@ -1058,6 +1187,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {any}
+   */
   handleLogout(req, res) {
     const start = Date.now();
     try {
@@ -1069,12 +1203,17 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async renderTasks(req, res) {
     const start = Date.now();
     try {
 
       try {
-        const htmlServer = require('../library/html-server');
+        const htmlServer = /** @type {any} */ (require('../library/html-server'));
         const tasks = await this.getTasks();
         const userWebsites = req.session.userId ? await this.getUserWebsites(req.session.userId) : [];
 
@@ -1090,7 +1229,7 @@ class PublisherModule {
           content += '<div class="col-md-3">';
           content += '<label for="website_id" class="form-label">Target Website</label>';
           content += '<select class="form-select" id="website_id" name="website_id" required>';
-          userWebsites.forEach(website => {
+          userWebsites.forEach((/** @type {any} */ website) => {
             content += '<option value="' + website.id + '">' + website.name + '</option>';
           });
           content += '</select>';
@@ -1220,6 +1359,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async createTask(req, res) {
     const start = Date.now();
     try {
@@ -1268,6 +1412,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async approveTask(req, res) {
     const start = Date.now();
     try {
@@ -1297,7 +1446,7 @@ class PublisherModule {
               ['publishing', req.session.userId, taskId],
               (err) => {
                 if (err) reject(err);
-                else resolve();
+                else resolve(undefined);
               }
           );
         });
@@ -1316,6 +1465,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async deleteTask(req, res) {
     const start = Date.now();
     try {
@@ -1350,7 +1504,7 @@ class PublisherModule {
           try {
             await require('fs').promises.rm(task.local_folder, { recursive: true, force: true });
           } catch (err) {
-            this.logger.warn('Failed to remove task directory ' + task.local_folder + ': ' + err.message);
+            this.logger.warn('Failed to remove task directory ' + task.local_folder + ': ' + errorMessage(err));
           }
         }
 
@@ -1358,7 +1512,7 @@ class PublisherModule {
         await new Promise((resolve, reject) => {
           this.db.run('DELETE FROM task_logs WHERE task_id = ?', [taskId.toString()], (err) => {
             if (err) reject(err);
-            else resolve();
+            else resolve(undefined);
           });
         });
 
@@ -1366,7 +1520,7 @@ class PublisherModule {
         await new Promise((resolve, reject) => {
           this.db.run('DELETE FROM tasks WHERE id = ?', [taskId], (err) => {
             if (err) reject(err);
-            else resolve();
+            else resolve(undefined);
           });
         });
 
@@ -1375,13 +1529,18 @@ class PublisherModule {
         res.redirect('/publisher/tasks');
       } catch (error) {
         this.logger.error('Error deleting task:', error);
-        res.status(500).send('Failed to delete task: ' + error.message);
+        res.status(500).send('Failed to delete task: ' + errorMessage(error));
       }
     } finally {
       this.stats.countRequest('delete-task', Date.now() - start);
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async retryTask(req, res) {
     const start = Date.now();
     try {
@@ -1406,13 +1565,18 @@ class PublisherModule {
         res.redirect('/publisher/tasks/' + newTaskId + '/history');
       } catch (error) {
         this.logger.error('Error retrying task:', error);
-        res.status(500).send('Failed to retry task: ' + error.message);
+        res.status(500).send('Failed to retry task: ' + errorMessage(error));
       }
     } finally {
       this.stats.countRequest('retry-task', Date.now() - start);
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async getTaskOutput(req, res) {
     const start = Date.now();
     try {
@@ -1434,7 +1598,7 @@ class PublisherModule {
           try {
             buildLog = fs.readFileSync(task.build_output_path, 'utf8');
           } catch (error) {
-            buildLog = 'Error reading build log: ' + error.message;
+            buildLog = 'Error reading build log: ' + errorMessage(error);
           }
         }
 
@@ -1446,13 +1610,13 @@ class PublisherModule {
             try {
               publishLog = fs.readFileSync(publishLogPath, 'utf8');
             } catch (error) {
-              publishLog = 'Error reading publication log: ' + error.message;
+              publishLog = 'Error reading publication log: ' + errorMessage(error);
             }
           }
         }
 
         if (req.headers.accept && req.headers.accept.includes('text/html')) {
-          const htmlServer = require('../library/html-server');
+          const htmlServer = /** @type {any} */ (require('../library/html-server'));
           let content = '<h3>Task Output: #' + task.id + ' - ' + task.npm_package_id + '#' + task.version + '</h3>';
           content += '<p><strong>Status:</strong> <span class="badge bg-' + this.getStatusColor(task.status) + '">' + task.status + '</span></p>';
           content += '<p><strong>GitHub:</strong> ' + task.github_org + '/' + task.github_repo + ' (' + task.git_branch + ')</p>';
@@ -1471,7 +1635,7 @@ class PublisherModule {
             content += '<p>No task logs available yet.</p>';
           } else {
             content += '<div class="output-viewer" style="max-height: 300px;">';
-            logs.forEach(log => {
+            logs.forEach((/** @type {any} */ log) => {
               const timestamp = new Date(log.timestamp).toLocaleString();
               const levelClass = log.level === 'error' ? 'text-danger' : (log.level === 'warn' ? 'text-warning' : '');
               content += '<div class="' + levelClass + '">[' + timestamp + '] [' + log.level.toUpperCase() + '] ' + log.message + '</div>';
@@ -1531,7 +1695,7 @@ class PublisherModule {
           }
 
           output += 'Task Logs:\n';
-          logs.forEach(log => {
+          logs.forEach((/** @type {any} */ log) => {
             const timestamp = new Date(log.timestamp).toLocaleString();
             output += '[' + timestamp + '] [' + log.level.toUpperCase() + '] ' + log.message + '\n';
           });
@@ -1558,6 +1722,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async getTaskQA(req, res) {
     const start = Date.now();
     try {
@@ -1568,6 +1737,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async getTaskHistory(req, res) {
     const start = Date.now();
     try {
@@ -1582,7 +1756,7 @@ class PublisherModule {
         const logs = await this.getTaskLogs(taskId);
         const actions = await this.getTaskActions(taskId);
 
-        const htmlServer = require('../library/html-server');
+        const htmlServer = /** @type {any} */ (require('../library/html-server'));
 
         let content = '<h3>Task History: #' + task.id + ' — ' + escape(task.npm_package_id) + '#' + escape(task.version) + '</h3>';
 
@@ -1684,6 +1858,7 @@ class PublisherModule {
           const tb = new Date(b.timestamp).getTime();
           if (ta !== tb) return ta - tb;
           // Within the same timestamp, put status transitions first, then actions, then logs
+          /** @type {Record<string, number>} */
           const order = { status: 0, action: 1, log: 2 };
           return (order[a.type] || 9) - (order[b.type] || 9);
         });
@@ -1762,10 +1937,15 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async renderEditWebsite(req, res) {
     const start = Date.now();
     try {
-      const htmlServer = require('../library/html-server');
+      const htmlServer = /** @type {any} */ (require('../library/html-server'));
       const website = await this.getWebsite(req.params.id);
       if (!website) return res.status(404).send('Website not found');
 
@@ -1802,6 +1982,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async updateWebsite(req, res) {
     const start = Date.now();
     try {
@@ -1812,7 +1997,7 @@ class PublisherModule {
         this.db.run(
             'UPDATE websites SET name=?, local_folder=?,  git_root = ?, history_templates=?, web_templates=?, server_update_script=?, is_active=? WHERE id=?',
             [name, local_folder,  git_root, history_templates, web_templates, server_update_script, is_active === '1' ? 1 : 0, websiteId],
-            (err) => err ? reject(err) : resolve()
+            (err) => err ? reject(err) : resolve(undefined)
         );
       });
 
@@ -1827,11 +2012,16 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async renderWebsites(req, res) {
     const start = Date.now();
     try {
       try {
-        const htmlServer = require('../library/html-server');
+        const htmlServer = /** @type {any} */ (require('../library/html-server'));
         const websites = await this.getWebsites();
 
         let content = '<div class="row mb-4">';
@@ -1885,7 +2075,7 @@ class PublisherModule {
           content += '<thead><tr><th>Name</th><th>Local Folder</th><th>Git Root</th><th>History Templates</th><th>Web Templates</th><th>Update Script</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>';
           content += '<tbody>';
 
-          websites.forEach(website => {
+          websites.forEach((/** @type {any} */ website) => {
             content += '<tr>';
             content += '<td>' + website.name + '</td>';
             content += '<td><code>' + escape(website.local_folder) + '</code></td>';
@@ -1923,6 +2113,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async createWebsite(req, res) {
     const start = Date.now();
     try {
@@ -1935,7 +2130,7 @@ class PublisherModule {
               [name, local_folder, git_root, history_templates, web_templates, server_update_script],
               function (err) {
                 if (err) reject(err);
-                else resolve();
+                else resolve(undefined);
               }
           );
         });
@@ -1953,13 +2148,18 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async renderUsers(req, res) {
     const start = Date.now();
     try {
 
 
       try {
-        const htmlServer = require('../library/html-server');
+        const htmlServer = /** @type {any} */ (require('../library/html-server'));
         const users = await this.getUsers();
         const websites = await this.getWebsites();
 
@@ -2022,8 +2222,8 @@ class PublisherModule {
               content += '<div><strong>Can Queue</strong></div>';
               content += '<div><strong>Can Approve</strong></div>';
 
-              websites.forEach(website => {
-                const perm = permissions.find(p => p.website_id === website.id) || {};
+              websites.forEach((/** @type {any} */ website) => {
+                const perm = permissions.find((/** @type {any} */ p) => p.website_id === website.id) || {};
                 content += '<div>' + website.name + '</div>';
                 content += '<div>';
                 content += '<input type="checkbox" name="queue_' + website.id + '"' + (perm.can_queue ? ' checked' : '') + '>';
@@ -2065,6 +2265,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async createUser(req, res) {
     const start = Date.now();
     try {
@@ -2079,7 +2284,7 @@ class PublisherModule {
               [name, login, passwordHash, is_admin ? 1 : 0],
               function (err) {
                 if (err) reject(err);
-                else resolve();
+                else resolve(undefined);
               }
           );
         });
@@ -2090,7 +2295,8 @@ class PublisherModule {
         res.redirect('/publisher/admin/users');
       } catch (error) {
         this.logger.error('Error creating user:', error);
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+        const err = /** @type {any} */ (error);
+        if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
           res.status(400).send('Username already exists');
         } else {
           res.status(500).send('Failed to create user');
@@ -2101,6 +2307,11 @@ class PublisherModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async updatePermissions(req, res) {
     const start = Date.now();
     try {
@@ -2113,7 +2324,7 @@ class PublisherModule {
         await new Promise((resolve, reject) => {
           this.db.run('DELETE FROM user_website_permissions WHERE user_id = ?', [user_id], (err) => {
             if (err) reject(err);
-            else resolve();
+            else resolve(undefined);
           });
         });
 
@@ -2129,7 +2340,7 @@ class PublisherModule {
                   [user_id, website.id, canQueue ? 1 : 0, canApprove ? 1 : 0],
                   (err) => {
                     if (err) reject(err);
-                    else resolve();
+                    else resolve(undefined);
                   }
               );
             });
@@ -2148,6 +2359,10 @@ class PublisherModule {
   }
 
   // Helper methods
+  /**
+   * @param {any} limit
+   * @returns {Promise<any>}
+   */
   async getTasks(limit = null) {
     return new Promise((resolve, reject) => {
       let sql = 'SELECT t.*, u.name as user_name, w.name as website_name, approver.name as approved_by_name FROM tasks t JOIN users u ON t.user_id = u.id JOIN websites w ON t.website_id = w.id LEFT JOIN users approver ON t.approved_by = approver.id ORDER BY t.queued_at DESC';
@@ -2163,6 +2378,10 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} taskId
+   * @returns {Promise<any>}
+   */
   async getTask(taskId) {
     return new Promise((resolve, reject) => {
       this.db.get(
@@ -2176,6 +2395,10 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} taskId
+   * @returns {Promise<any>}
+   */
   async getTaskLogs(taskId) {
     return new Promise((resolve, reject) => {
       this.db.all(
@@ -2189,6 +2412,10 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} taskId
+   * @returns {Promise<any>}
+   */
   async getTaskActions(taskId) {
     return new Promise((resolve, reject) => {
       this.db.all(
@@ -2202,6 +2429,10 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} userId
+   * @returns {Promise<any>}
+   */
   async getUserWebsites(userId) {
     return new Promise((resolve, reject) => {
       this.db.all(
@@ -2215,6 +2446,11 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} userId
+   * @param {any} websiteId
+   * @returns {Promise<any>}
+   */
   async userCanQueue(userId, websiteId) {
     return new Promise((resolve, reject) => {
       this.db.get(
@@ -2228,6 +2464,11 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} userId
+   * @param {any} websiteId
+   * @returns {Promise<any>}
+   */
   async userCanApprove(userId, websiteId) {
     return new Promise((resolve, reject) => {
       this.db.get(
@@ -2241,6 +2482,11 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} packageId
+   * @param {any} version
+   * @returns {Promise<any>}
+   */
   async findActiveTask(packageId, version) {
     return new Promise((resolve, reject) => {
       this.db.get(
@@ -2254,6 +2500,11 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} packageId
+   * @param {any} version
+   * @returns {Promise<any>}
+   */
   async findExistingTask(packageId, version) {
     return new Promise((resolve, reject) => {
       this.db.get(
@@ -2276,6 +2527,10 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} websiteId
+   * @returns {Promise<any>}
+   */
   async getWebsite(websiteId) {
     return new Promise((resolve, reject) => {
       this.db.get('SELECT * FROM websites WHERE id = ?', [websiteId], (err, row) => {
@@ -2285,6 +2540,14 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} command
+   * @param {any} args
+   * @param {any} options
+   * @param {any} taskId
+   * @param {any} description
+   * @returns {Promise<any>}
+   */
   async runCommand(command, args, options, taskId, description) {
     const { spawn } = require('child_process');
 
@@ -2318,7 +2581,7 @@ class PublisherModule {
       });
 
       proc.on('error', async (error) => {
-        await this.logTaskMessage(taskId, 'error', description + ' error: ' + error.message);
+        await this.logTaskMessage(taskId, 'error', description + ' error: ' + errorMessage(error));
         reject(error);
       });
     });
@@ -2333,6 +2596,10 @@ class PublisherModule {
     });
   }
 
+  /**
+   * @param {any} userId
+   * @returns {Promise<any>}
+   */
   async getUserPermissions(userId) {
     return new Promise((resolve, reject) => {
       this.db.all(
@@ -2376,13 +2643,18 @@ class PublisherModule {
           } else {
             this.logger.info('Database closed');
           }
-          resolve();
+          resolve(undefined);
         });
       });
     }
   }
 
+  /**
+   * @param {any} status
+   * @returns {any}
+   */
   getStatusColor(status) {
+    /** @type {Record<string, string>} */
     const colors = {
       'queued': 'secondary',
       'building': 'warning',
@@ -2394,12 +2666,19 @@ class PublisherModule {
     return colors[status] || 'secondary';
   }
 
+  /**
+   * @param {any} userId
+   * @param {any} action
+   * @param {any} targetId
+   * @param {any} ipAddress
+   * @returns {Promise<any>}
+   */
   async logUserAction(userId, action, targetId, ipAddress) {
     return new Promise((resolve) => {
       this.db.run(
           'INSERT INTO user_actions (user_id, action, target_id, ip_address) VALUES (?, ?, ?, ?)',
           [userId, action, targetId, ipAddress],
-          () => resolve() // Don't fail if logging fails
+          () => resolve(undefined) // Don't fail if logging fails
       );
     });
   }

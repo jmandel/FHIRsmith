@@ -1,2 +1,3 @@
-﻿module.exports = require('./constants.cjs');
+// @ts-check
 
+module.exports = require('./constants.cjs');

@@ -1,15 +1,29 @@
+// @ts-check
+
 /**
  * UCUM Types - Core data structures and types for UCUM library
  * BSD 3-Clause License
  * Copyright (c) 2006+, Health Intersections Pty Ltd
  */
 
+/** @typedef {BaseUnit|DefinedUnit|Prefix} UcumConcept */
+/** @typedef {BaseUnit|DefinedUnit} UcumUnit */
+
 class Decimal {
+  /**
+   * @param {string|number|null} [value]
+   * @param {number|null} [precision]
+   */
   constructor(value, precision = null) {
+    /** @type {number} */
     this.precision = 0;
+    /** @type {boolean} */
     this.scientific = false;
+    /** @type {boolean} */
     this.negative = false;
+    /** @type {string} */
     this.digits = '';
+    /** @type {number} */
     this.decimal = 0;
 
     if (typeof value === 'number') {
@@ -31,6 +45,9 @@ class Decimal {
     }
   }
 
+  /**
+   * @param {string} value
+   */
   _setValueDecimal(value) {
     this.scientific = false;
     let dec = -1;
@@ -78,6 +95,9 @@ class Decimal {
     }
   }
 
+  /**
+   * @param {string} value
+   */
   _setValueScientific(value) {
     const eIndex = value.indexOf('e');
     const s = value.substring(0, eIndex);
@@ -101,6 +121,11 @@ class Decimal {
     this.decimal = this.decimal + exponent;
   }
 
+  /**
+   * @param {string} s
+   * @param {number} start
+   * @returns {boolean}
+   */
   _allZeros(s, start) {
     for (let i = start; i < s.length; i++) {
       if (s.charAt(i) !== '0') {
@@ -110,6 +135,10 @@ class Decimal {
     return true;
   }
 
+  /**
+   * @param {string} value
+   * @returns {number}
+   */
   _countSignificants(value) {
     const i = value.indexOf('.');
     if (i > -1) {
@@ -121,6 +150,12 @@ class Decimal {
     return value.length;
   }
 
+  /**
+   * @param {string} value
+   * @param {number} offset
+   * @param {number} length
+   * @returns {string}
+   */
   _delete(value, offset, length) {
     if (offset === 0) {
       return value.substring(length);
@@ -129,23 +164,40 @@ class Decimal {
     }
   }
 
+  /**
+   * @param {string} s
+   * @returns {boolean}
+   */
   _isDecimal(s) {
     const decimal = /^-?\d*\.?\d+$/;
     return decimal.test(s);
   }
 
+  /**
+   * @param {string} s
+   * @returns {boolean}
+   */
   _isInteger(s) {
     const integer = /^-?\d+$/;
     return integer.test(s);
   }
 
+  /**
+   * @param {string} c
+   * @param {number} count
+   * @returns {string}
+   */
   _stringMultiply(c, count) {
     return c.repeat(Math.max(0, count));
   }
 
+  /**
+   * @param {string} s
+   * @returns {string}
+   */
   _trimLeadingZeros(s) {
     if (s === null || s === undefined) {
-      return null;
+      return /** @type {any} */ (null);
     }
 
     let i = 0;
@@ -159,11 +211,17 @@ class Decimal {
     }
   }
 
+  /**
+   * @param {string} s1
+   * @param {string} s2
+   * @returns {string}
+   */
   _stringAddition(s1, s2) {
     if (s1.length !== s2.length) {
       throw new Error("String lengths must be equal for addition");
     }
 
+    /** @type {string[]} */
     const result = new Array(s2.length);
     for (let i = 0; i < s2.length; i++) {
       result[i] = '0';
@@ -185,17 +243,23 @@ class Decimal {
     return result.join('');
   }
 
+  /**
+   * @param {string} s1
+   * @param {string} s2
+   * @returns {string}
+   */
   _stringSubtraction(s1, s2) {
     if (s1.length !== s2.length) {
       throw new Error("String lengths must be equal for subtraction");
     }
 
+    /** @type {string[]} */
     const result = new Array(s2.length);
     for (let i = 0; i < s2.length; i++) {
       result[i] = '0';
     }
 
-    let s1Array = s1.split('');
+    const s1Array = s1.split('');
 
     for (let i = s1.length - 1; i >= 0; i--) {
       let t = this._dig(s1Array[i]) - this._dig(s2.charAt(i));
@@ -213,6 +277,12 @@ class Decimal {
     return result.join('');
   }
 
+  /**
+   * @param {string} ins
+   * @param {string} value
+   * @param {number} offset
+   * @returns {string}
+   */
   _insert(ins, value, offset) {
     if (offset === 0) {
       return ins + value;
@@ -221,18 +291,32 @@ class Decimal {
     }
   }
 
+  /**
+   * @param {string} c
+   * @returns {number}
+   */
   _dig(c) {
     return c.charCodeAt(0) - '0'.charCodeAt(0);
   }
 
+  /**
+   * @param {number} i
+   * @returns {string}
+   */
   _cdig(i) {
     return String.fromCharCode(i + '0'.charCodeAt(0));
   }
 
+  /**
+   * @returns {string}
+   */
   toString() {
     return this.asDecimal();
   }
 
+  /**
+   * @returns {Decimal}
+   */
   copy() {
     const result = new Decimal();
     result.precision = this.precision;
@@ -243,28 +327,51 @@ class Decimal {
     return result;
   }
 
+  /**
+   * @returns {Decimal}
+   */
   static zero() {
     return new Decimal('0');
   }
 
+  /**
+   * @returns {boolean}
+   */
   isZero() {
     return this._allZeros(this.digits, 0);
   }
 
+  /**
+   * @returns {Decimal}
+   */
   static one() {
     return new Decimal('1');
   }
 
+  /**
+   * @returns {boolean}
+   */
   isOne() {
     const one = Decimal.one();
     return this.comparesTo(one) === 0;
   }
 
+  /**
+   * @param {unknown} other
+   * @returns {boolean}
+   */
   equals(other) {
     const o = Utilities._ensureDecimal(other);
+    if (o == null) {
+      return false;
+    }
     return this.asDecimal() === o.asDecimal();
   }
 
+  /**
+   * @param {Decimal|null|undefined} other
+   * @returns {number}
+   */
   comparesTo(other) {
     if (other === null || other === undefined) {
       return 0;
@@ -293,10 +400,16 @@ class Decimal {
     }
   }
 
+  /**
+   * @returns {boolean}
+   */
   isWholeNumber() {
     return !this.asDecimal().includes('.');
   }
 
+  /**
+   * @returns {string}
+   */
   asDecimal() {
     let result = this.digits;
     if (this.decimal !== this.digits.length) {
@@ -318,6 +431,9 @@ class Decimal {
     return result;
   }
 
+  /**
+   * @returns {number}
+   */
   asInteger() {
     if (!this.isWholeNumber()) {
       throw new UcumException(`Unable to represent ${this.toString()} as an integer`);
@@ -325,9 +441,13 @@ class Decimal {
     return parseInt(this.asDecimal());
   }
 
+  /**
+   * @param {Decimal|null|undefined} other
+   * @returns {Decimal}
+   */
   multiply(other) {
     if (other === null || other === undefined) {
-      return null;
+      return /** @type {any} */ (null);
     }
 
     if (this.isZero() || other.isZero()) {
@@ -350,6 +470,7 @@ class Decimal {
       s2 = s3;
     }
 
+    /** @type {string[]} */
     const s = new Array(s2.length);
 
     let t = 0;
@@ -424,9 +545,13 @@ class Decimal {
     return result;
   }
 
+  /**
+   * @param {Decimal|null|undefined} other
+   * @returns {Decimal}
+   */
   divide(other) {
     if (other === null || other === undefined) {
-      return null;
+      return /** @type {any} */ (null);
     }
 
     if (this.isZero()) {
@@ -439,6 +564,7 @@ class Decimal {
 
     const s = "0" + other.digits;
     const m = Math.max(this.digits.length, other.digits.length) + 40; // max loops we'll do
+    /** @type {string[]} */
     const tens = new Array(10);
 
     // Create multiples of the divisor (1x, 2x, 3x, ... 9x)
@@ -457,7 +583,9 @@ class Decimal {
       d++;
     }
 
-    let w;
+    /** @type {string} */
+    let w = '';
+    /** @type {number} */
     let vi;
     if (v.substring(0, other.digits.length).localeCompare(other.digits) < 0) {
       if (v.length === tens[0].length) {
@@ -589,9 +717,13 @@ class Decimal {
     return result;
   }
 
+  /**
+   * @param {Decimal|null|undefined} other
+   * @returns {Decimal}
+   */
   add(other) {
     if (other === null || other === undefined) {
-      return null;
+      return /** @type {any} */ (null);
     }
 
     // Simplified addition - convert to numbers and create new Decimal
@@ -614,9 +746,13 @@ class Decimal {
     return newDecimal;
   }
 
+  /**
+   * @param {Decimal|null|undefined} other
+   * @returns {Decimal}
+   */
   subtract(other) {
     if (other === null || other === undefined) {
-      return null;
+      return /** @type {any} */ (null);
     }
 
     // Simplified subtraction - convert to numbers and create new Decimal
@@ -691,6 +827,9 @@ const TokenType = {
 
 // Exception class
 class UcumException extends Error {
+  /**
+   * @param {string} message
+   */
   constructor(message) {
     super(message);
     this.name = 'UcumException';
@@ -699,99 +838,170 @@ class UcumException extends Error {
 
 // Utilities class
 class Utilities {
+  /**
+   * @param {string} ch
+   * @returns {boolean}
+   */
   static isAsciiChar(ch) {
     const code = ch.charCodeAt(0);
     return code >= 0 && code <= 127;
   }
 
+  /**
+   * @param {string|null|undefined} str
+   * @returns {boolean}
+   */
   static noString(str) {
     return !str || !str.trim();
   }
 
+  /**
+   * @param {unknown} v
+   * @returns {Decimal}
+   */
   static _ensureDecimal(v) {
     if (v == null) {
-      return null; // this is probably an error.
+      return /** @type {any} */ (null); // this is probably an error.
     }
     if (v instanceof Decimal) {
       return v;
     }
-    return new Decimal(v);
+    return new Decimal(/** @type {string|number|null} */ (v));
   }
 }
 
 // Base concept class
 class Concept {
+  /**
+   * @param {string} code
+   * @param {string} codeUC
+   */
   constructor(code, codeUC) {
+    /** @type {string} */
     this.code = code;
+    /** @type {string} */
     this.codeUC = codeUC;
+    /** @type {string[]} */
     this.names = [];
+    /** @type {string} */
     this.printSymbol = '';
   }
 }
 
 // Unit class (base for BaseUnit and DefinedUnit)
 class Unit extends Concept {
+  /**
+   * @param {string} code
+   * @param {string} codeUC
+   */
   constructor(code, codeUC) {
     super(code, codeUC);
+    /** @type {string} */
     this.property = '';
   }
 }
 
 // Base unit class
 class BaseUnit extends Unit {
+  /**
+   * @param {string} code
+   * @param {string} codeUC
+   */
   constructor(code, codeUC) {
     super(code, codeUC);
+    /** @type {string} */
     this.kind = ConceptKind.BASEUNIT;
+    /** @type {string} */
     this.dim = '';
   }
 }
 
 // Defined unit class
 class DefinedUnit extends Unit {
+  /**
+   * @param {string} code
+   * @param {string} codeUC
+   */
   constructor(code, codeUC) {
     super(code, codeUC);
+    /** @type {string} */
     this.kind = ConceptKind.UNIT;
+    /** @type {boolean} */
     this.metric = false;
+    /** @type {boolean} */
     this.isSpecial = false;
+    /** @type {string} */
     this.class_ = '';
+    /** @type {Value|null} */
     this.value = null;
   }
 }
 
 // Prefix class
 class Prefix extends Concept {
+  /**
+   * @param {string} code
+   * @param {string} codeUC
+   */
   constructor(code, codeUC) {
     super(code, codeUC);
+    /** @type {string} */
     this.kind = ConceptKind.PREFIX;
+    /** @type {Decimal|null} */
     this.value = null;
   }
 }
 
 // Value class
 class Value {
+  /**
+   * @param {string} unit
+   * @param {string} unitUC
+   * @param {Decimal|null} value
+   */
   constructor(unit, unitUC, value) {
+    /** @type {string} */
     this.unit = unit || '';
+    /** @type {string} */
     this.unitUC = unitUC || '';
+    /** @type {Decimal|null} */
     this.value = value;
+    /** @type {string} */
     this.text = '';
   }
 }
 
 // Pair class for value/unit combinations
 class Pair {
+  /**
+   * @param {any} value
+   * @param {string} code
+   */
   constructor(value, code) {
+    /** @type {any} */
     this.value = value;
+    /** @type {string} */
     this.code = code;
   }
 
+  /**
+   * @returns {any}
+   */
   getValue() {
     return this.value;
   }
 
+  /**
+   * @returns {string}
+   */
   getCode() {
     return this.code;
   }
 
+  /**
+   * @param {unknown} other
+   * @returns {boolean}
+   */
   equals(other) {
     if (other instanceof Pair) {
       return this.value.equals(other.value) && this.code === other.code;
@@ -799,10 +1009,16 @@ class Pair {
     return false;
   }
 
+  /**
+   * @returns {number}
+   */
   hashCode() {
     return this.toString().length; // Simple hash
   }
 
+  /**
+   * @returns {string}
+   */
   toString() {
     return `${this.value.toString()} ${this.code}`;
   }
@@ -816,8 +1032,11 @@ class Component {
 class Term extends Component {
   constructor() {
     super();
+    /** @type {Factor|Symbol|Term|null} */
     this.comp = null;
+    /** @type {string|null} */
     this.op = null;
+    /** @type {Term|null} */
     this.term = null;
   }
 }
@@ -825,15 +1044,22 @@ class Term extends Component {
 class Symbol extends Component {
   constructor() {
     super();
+    /** @type {Prefix|null} */
     this.prefix = null;
+    /** @type {UcumUnit|null} */
     this.unit = null;
+    /** @type {number} */
     this.exponent = 1;
   }
 }
 
 class Factor extends Component {
+  /**
+   * @param {number} value
+   */
   constructor(value) {
     super();
+    /** @type {number} */
     this.value = value;
   }
 }
@@ -841,25 +1067,41 @@ class Factor extends Component {
 // Expression class
 class Expression {
   constructor() {
+    /** @type {Term|null} */
     this.term = null;
   }
 }
 
 // Canonical unit for canonical form representation
 class CanonicalUnit {
+  /**
+   * @param {BaseUnit} base
+   * @param {number} [exponent]
+   */
   constructor(base, exponent = 1) {
+    /** @type {BaseUnit} */
     this.base = base;
+    /** @type {number} */
     this.exponent = exponent;
   }
 
+  /**
+   * @returns {BaseUnit}
+   */
   getBase() {
     return this.base;
   }
 
+  /**
+   * @returns {number}
+   */
   getExponent() {
     return this.exponent;
   }
 
+  /**
+   * @param {number} exponent
+   */
   setExponent(exponent) {
     this.exponent = exponent;
   }
@@ -867,41 +1109,80 @@ class CanonicalUnit {
 
 // Canonical form of a unit expression
 class Canonical {
+  /**
+   * @param {Decimal|null} [value]
+   */
   constructor(value) {
+    /** @type {Decimal} */
     this.value = value || new Decimal("1.000000000000000000000000000000");
+    /** @type {CanonicalUnit[]} */
     this.units = [];
   }
 
+  /**
+   * @returns {Decimal}
+   */
   getValue() {
     return this.value;
   }
 
+  /**
+   * @returns {CanonicalUnit[]}
+   */
   getUnits() {
     return this.units;
   }
 
+  /**
+   * @param {Decimal|number|string|null|undefined} val
+   */
   multiplyValue(val) {
     const v = Utilities._ensureDecimal(val);
-    this.value = this.value.multiply(v);
+    if (v != null) {
+      const result = this.value.multiply(v);
+      if (result != null) {
+        this.value = result;
+      }
+    }
   }
 
+  /**
+   * @param {Decimal|number|string|null|undefined} val
+   */
   divideValue(val) {
-    const v = Utilities._ensureDecimal(val)
-    this.value = this.value.divide(v);
+    const v = Utilities._ensureDecimal(val);
+    if (v != null) {
+      const result = this.value.divide(v);
+      if (result != null) {
+        this.value = result;
+      }
+    }
   }
 }
 
 // Version details class
 class UcumVersionDetails {
+  /**
+   * @param {Date|null} releaseDate
+   * @param {string} version
+   */
   constructor(releaseDate, version) {
+    /** @type {Date|null} */
     this.releaseDate = releaseDate;
+    /** @type {string} */
     this.version = version;
   }
 
+  /**
+   * @returns {Date|null}
+   */
   getReleaseDate() {
     return this.releaseDate;
   }
 
+  /**
+   * @returns {string}
+   */
   getVersion() {
     return this.version;
   }
@@ -910,6 +1191,7 @@ class UcumVersionDetails {
 // Registry for special unit handlers
 class Registry {
   constructor() {
+    /** @type {Map<string, SpecialUnitHandler>} */
     this.handlers = new Map();
 
     this.register(new CelsiusHandler());
@@ -930,16 +1212,27 @@ class Registry {
     this.register(new HoldingHandler("bit_s", "1"))
   }
 
+  /**
+   * @param {string} code
+   * @returns {boolean}
+   */
   exists(code) {
     return this.handlers.has(code);
   }
 
+  /**
+   * @param {string} code
+   * @returns {SpecialUnitHandler|undefined}
+   */
   get(code) {
     return this.handlers.get(code);
   }
 
+  /**
+   * @param {SpecialUnitHandler} handler
+   */
   register(handler) {
-    this.handlers.set(handler.code, handler);
+    this.handlers.set(handler.getCode(), handler);
   }
 }
 
@@ -1022,10 +1315,10 @@ class FahrenheitHandler extends SpecialUnitHandler {
 
   getValue() {
     try {
-      return new Decimal("5").divide(new Decimal("9"));
+      return new Decimal("5").divide(new Decimal("9")) || Decimal.zero();
     } catch (e) {
       // won't happen
-      return null;
+      return Decimal.zero();
     }
   }
 
@@ -1043,12 +1336,15 @@ class HoldingHandler extends SpecialUnitHandler {
   /**
    * @param {string} code
    * @param {string} units
-   * @param {Decimal} value (optional, defaults to Decimal.one())
+   * @param {Decimal|null} value
    */
   constructor(code, units, value = null) {
     super();
+    /** @type {string} */
     this.code = code;
+    /** @type {string} */
     this.units = units;
+    /** @type {Decimal} */
     this.value = value || Decimal.one();
   }
 

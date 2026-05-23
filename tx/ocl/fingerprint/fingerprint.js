@@ -1,2 +1,3 @@
-﻿module.exports = require('./fingerprint.cjs');
+// @ts-check
 
+module.exports = require('./fingerprint.cjs');

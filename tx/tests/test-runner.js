@@ -1,4 +1,6 @@
 
+// @ts-check
+
 const FhirValidator = require('fhir-validator-wrapper');
 const express = require('express');
 const path = require('path');
@@ -13,15 +15,24 @@ const {VersionUtilities} = require("../../library/version-utilities");
 let count = 0;
 let error = 0;
 
+/**
+ * @returns {Set<string>}
+ */
 function txTestModeSet() {
    return new Set(['tx.fhir.org', 'omop', 'general', 'snomed']);
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function startTxTests() {
     await startServer();
     await loadValidator();
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function  finishTxTests() {
     console.log(txTestSummary());
     let textfilename = path.join(__dirname, '../../test-cases-summary.txt');
@@ -31,22 +42,31 @@ async function  finishTxTests() {
     await stopServer();
 }
 
+/**
+ * @returns {string}
+ */
 function txTestSummary() {
     let set = Array.from(txTestModeSet()).join('+');
+    const runnerVersion = validator ? validator.jarVersion() : 'not-started';
     if (error == 0) {
-      return `FHIRsmith passed all ${count} HL7 terminology service tests (modes ${set}, tests v${txTestVersion()}, runner v${validator.jarVersion()})`;
+      return `FHIRsmith passed all ${count} HL7 terminology service tests (modes ${set}, tests v${txTestVersion()}, runner v${runnerVersion})`;
     } else {
-      return `FHIRsmith failed ${error} of ${count} HL7 terminology service tests (modes ${set}, tests v${txTestVersion()}, runner v${validator.jarVersion()})`;
+      return `FHIRsmith failed ${error} of ${count} HL7 terminology service tests (modes ${set}, tests v${txTestVersion()}, runner v${runnerVersion})`;
     }
 }
 
+/**
+ * @param {{suite: string, test: string}} test
+ * @param {string | boolean} [version]
+ * @returns {Promise<void>}
+ */
 async function runTest(test, version = true) {
-    version = version || "5.0";
+    const testVersion = typeof version === 'string' ? version : "5.0";
     const params = {
-        server: 'http://localhost:'+TEST_PORT+(VersionUtilities.isR5Plus(version) ? "/r5" : "/r4"),
+        server: 'http://localhost:'+TEST_PORT+(VersionUtilities.isR5Plus(testVersion) ? "/r5" : "/r4"),
         suiteName: test.suite,
         testName: test.test,
-        version: version
+        version: testVersion
     };
     count++;
     const result = await validator.runTxTest(params);
@@ -60,14 +80,23 @@ async function runTest(test, version = true) {
 
 const TEST_PORT = 9095;
 const VALIDATOR_PORT = 9096;
+const VALIDATOR_STARTUP_TIMEOUT = Number.parseInt(process.env.FHIR_VALIDATOR_STARTUP_TIMEOUT || '180000', 10);
 const TEST_CONFIG_FILE = path.join(__dirname, '..', 'fixtures', 'test-cases-setup.json');
 
+/** @type {import('http').Server | null} */
 let server = null;
+/** @type {any} */
 let validator = null;
+/** @type {any} */
 let txModule = null;
+/** @type {any} */
 let log = null;
+/** @type {any} */
 let stats = null;
 
+/**
+ * @returns {Promise<void>}
+ */
 async function startServer() {
     const app = express();
 
@@ -77,7 +106,7 @@ async function startServer() {
         const configData = fs.readFileSync(TEST_CONFIG_FILE, 'utf8');
         config = JSON.parse(configData);
     } catch (error) {
-        throw new Error(`Failed to load test config: ${error.message}`);
+        throw new Error(`Failed to load test config: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     // Middleware
@@ -91,29 +120,33 @@ async function startServer() {
     await txModule.initialize(config, app);
 
     return new Promise((resolve, reject) => {
-        server = app.listen(TEST_PORT, (err) => {
-            if (err) {
-                reject(err);
-            } else {
-                console.log(`Test server started on port ${TEST_PORT}`);
-                resolve();
-            }
+        const listeningServer = app.listen(TEST_PORT, () => {
+            console.log(`Test server started on port ${TEST_PORT}`);
+            resolve();
         });
+        server = listeningServer;
+        listeningServer.on('error', reject);
     });
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function stopServer() {
-    stats.finishStats();
+    if (stats) {
+        stats.finishStats();
+    }
 
     if (txModule && typeof txModule.shutdown === 'function') {
         await txModule.shutdown();
         txModule = null;
     }
 
-    if (server) {
+    const currentServer = server;
+    if (currentServer) {
         return new Promise((resolve) => {
-            server.closeAllConnections();
-            server.close(() => {
+            currentServer.closeAllConnections();
+            currentServer.close(() => {
                 console.log('Test server stopped');
                 server = null;
                 resolve();
@@ -122,6 +155,9 @@ async function stopServer() {
     }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function loadValidator() {
     const validatorJarPath = folders.ensureFilePath('bin/validator_cli.jar');
     log =  Logger.getInstance().child({ module: 'test-runner' });
@@ -131,13 +167,16 @@ async function loadValidator() {
         txServer : 'http://localhost:'+TEST_PORT+'/r5',
         txLog : path.join(folders.logsDir(), 'tx-test-cases.log'),
         port: VALIDATOR_PORT,
-        timeout: 60000
+        timeout: VALIDATOR_STARTUP_TIMEOUT
     }
     await validator.start(validatorConfig);
     await validator.loadIG("hl7.fhir.uv.tx-ecosystem", "current");
 }
 
 
+/**
+ * @returns {Promise<void>}
+ */
 async function unloadValidator() {
 
     // Stop FHIR validator

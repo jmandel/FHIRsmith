@@ -7,6 +7,8 @@
 // POST /ValueSet/$related (body is ValueSet resource)
 // POST /ValueSet/$related (body is Parameters with valueSet parameter)
 //
+// @ts-check
+//
 
 const { TerminologyWorker } = require('./worker');
 const {TxParameters} = require("../params");
@@ -18,15 +20,22 @@ const {SearchFilterText} = require("../library/designations");
 const {ArrayMatcher} = require("../../library/utilities");
 const {debugLog} = require("../operation-context");
 
+/** @typedef {{msgId?: string, issueCode?: string, statusCode?: number, message?: string}} WorkerErrorLike */
+/** @typedef {{empty?: boolean, left: boolean, right: boolean, fail: boolean, common: boolean, reason?: string}} RelatedStatus */
+/** @typedef {{missing?: any[], extra?: any[], common?: any[], missingCodes?: string[], extraCodes?: string[], commonCodes?: string[]}} RelatedDiagnostics */
+/** @typedef {{this: any[], other: any[], thisEx: any[], otherEx: any[]}} IncludeGroups */
+/** @typedef {{criteria?: boolean, codes?: boolean}} SystemInfo */
+
 class RelatedWorker extends TerminologyWorker {
+  /** @type {boolean} */
   showLogic = false;
 
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -43,32 +52,34 @@ class RelatedWorker extends TerminologyWorker {
   /**
    * Handle a type-level $related request
    * GET/POST /ValueSet/$related
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handle(req, res) {
     try {
       await this.handleTypeLevelRelated(req, res);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
-      const statusCode = error.statusCode || 500;
+      req.logInfo = this.usedSources.join("|")+" - error"+(workerError.msgId  ? " "+workerError.msgId : "");
+      const statusCode = workerError.statusCode || 500;
       if (error instanceof Issue) {
         let oo = new OperationOutcome();
         oo.addIssue(error);
-        return res.status(error.statusCode || 500).json(oo.jsonObj);
+        return res.status(workerError.statusCode || 500).json(oo.jsonObj);
       } else {
-        const issueCode = error.issueCode || 'exception';
+        const issueCode = workerError.issueCode || 'exception';
+        const message = workerError.message || String(error);
         return res.status(statusCode).json({
           resourceType: 'OperationOutcome',
           issue: [{
             severity: 'error',
             code: issueCode,
             details: {
-              text: error.message
+              text: message
             },
-            diagnostics: error.message
+            diagnostics: message
           }]
         });
       }
@@ -78,27 +89,29 @@ class RelatedWorker extends TerminologyWorker {
   /**
    * Handle an instance-level $related request
    * GET/POST /ValueSet/{id}/$related
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handleInstance(req, res) {
     try {
       await this.handleInstanceLevelRelated(req, res);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
-      const statusCode = error.statusCode || 500;
-      const issueCode = error.issueCode || 'exception';
+      req.logInfo = this.usedSources.join("|")+" - error"+(workerError.msgId  ? " "+workerError.msgId : "");
+      const statusCode = workerError.statusCode || 500;
+      const issueCode = workerError.issueCode || 'exception';
+      const message = workerError.message || String(error);
       return res.status(statusCode).json({
         resourceType: 'OperationOutcome',
         issue: [{
           severity: 'error',
           code: issueCode,
           details: {
-            text : error.message
+            text : message
           },
-          diagnostics: error.message
+          diagnostics: message
         }]
       });
     }
@@ -107,6 +120,9 @@ class RelatedWorker extends TerminologyWorker {
   /**
    * Handle type-level $related: /ValueSet/$related
    * ValueSet identified by url, or provided directly in body
+   * @param {any} req - Express request
+   * @param {any} res - Express response
+   * @returns {Promise<any>}
    */
   async handleTypeLevelRelated(req, res) {
     this.deadCheck('related-type-level');
@@ -118,8 +134,8 @@ class RelatedWorker extends TerminologyWorker {
     txp.readParams(params);
     this.params = txp;
 
-    let thisVS = await this.readValueSet(res, "this", params, txp);
-    let otherVS = await this.readValueSet(res, "other", params, txp);
+    let thisVS = await this.readValueSet(res, "this", params);
+    let otherVS = await this.readValueSet(res, "other", params);
 
     const result = await this.doRelated(txp, thisVS, otherVS);
     return res.json(result);
@@ -128,6 +144,9 @@ class RelatedWorker extends TerminologyWorker {
   /**
    * Handle instance-level related: /ValueSet/{id}/$related
    * ValueSet identified by resource ID
+   * @param {any} req - Express request
+   * @param {any} res - Express response
+   * @returns {Promise<any>}
    */
   async handleInstanceLevelRelated(req, res) {
     this.deadCheck('related-instance-level');
@@ -145,7 +164,7 @@ class RelatedWorker extends TerminologyWorker {
       return res.status(404).json(this.operationOutcome('error', 'not-found',
         `ValueSet/${id} not found`));
     }
-    let otherVS = await this.readValueSet(res, "other", params, txp);
+    let otherVS = await this.readValueSet(res, "other", params);
 
     const result = await this.doRelated(txp, thisVS, otherVS);
     return res.json(result);
@@ -156,7 +175,7 @@ class RelatedWorker extends TerminologyWorker {
    * @param {string} severity - error, warning, information
    * @param {string} code - Issue code
    * @param {string} message - Diagnostic message
-   * @returns {Object} OperationOutcome resource
+   * @returns {any} OperationOutcome resource
    */
   operationOutcome(severity, code, message) {
     return {
@@ -169,8 +188,14 @@ class RelatedWorker extends TerminologyWorker {
     };
   }
 
+  /**
+   * @param {any} res - Express response
+   * @param {string} prefix - Parameter prefix
+   * @param {any} params - Request parameters
+   * @returns {Promise<any>}
+   */
   async readValueSet(res, prefix, params) {
-    const valueSetParam = this.findParameter(params, prefix+'ValueSet');
+    const valueSetParam = /** @type {any} */ (this.findParameter(params, prefix+'ValueSet'));
     if (valueSetParam && valueSetParam.resource) {
       let valueSet = new ValueSet(valueSetParam.resource);
       this.seeSourceVS(valueSet);
@@ -185,10 +210,10 @@ class RelatedWorker extends TerminologyWorker {
         `Must provide either a ${prefix}ValueSet resource or a ${prefix}Url parameter`));
     }
 
-    const url = this.getParameterValue(urlParam);
-    const version = versionParam ? this.getParameterValue(versionParam) : null;
+    const url = /** @type {string} */ (this.getParameterValue(urlParam));
+    const version = versionParam ? /** @type {string} */ (this.getParameterValue(versionParam)) : undefined;
 
-    let valueSet = await this.findValueSet(url, version, null);
+    let valueSet = await this.findValueSet(url, version || null, null);
     this.seeSourceVS(valueSet, url);
     if (!valueSet) {
       return res.status(404).json(this.operationOutcome('error', 'not-found',
@@ -198,6 +223,12 @@ class RelatedWorker extends TerminologyWorker {
     }
   }
 
+  /**
+   * @param {TxParameters} txp - Operation parameters
+   * @param {any} thisVS - Left ValueSet
+   * @param {any} otherVS - Right ValueSet
+   * @returns {Promise<any>}
+   */
   async doRelated(txp, thisVS, otherVS) {
 
     // ok, we have to compare the composes. we don't care about anything else
@@ -214,6 +245,7 @@ class RelatedWorker extends TerminologyWorker {
     Extensions.checkNoModifiers(otherC, 'RelatedWorker.doRelated', 'compose', otherVS.vurl)
     this.checkNoLockedDate(otherVS.vurl, otherC);
 
+    /** @type {Map<string, SystemInfo>} */
     let systems = new Map(); // tracks whether the comparison is version dependent or not
 
     // ok, first, if we can determine that the value sets match from the definitions, we will
@@ -222,13 +254,16 @@ class RelatedWorker extends TerminologyWorker {
     let allCriteria = [...thisC.include || [], ...thisC.exclude || [], ...otherC.include || [], ...otherC.exclude || []];
     // first, we sort the includes by system, and then compare them as a group
     // Build a map of system -> { this: [...includes], other: [...includes] }
+    /** @type {Map<string, IncludeGroups>} */
     const systemMap = new Map();
     await this.addIncludes(systems, systemMap, thisC.include || [], 'this', txp, allCriteria);
     await this.addIncludes(systems, systemMap, otherC.include || [], 'other', txp, allCriteria);
     await this.addIncludes(systems, systemMap, thisC.exclude || [], 'thisEx', txp, allCriteria);
     await this.addIncludes(systems, systemMap, otherC.exclude || [], 'otherEx', txp, allCriteria);
 
+    /** @type {RelatedStatus} */
     let status = { empty: false, left: false, right: false, fail: false, common : false};
+    /** @type {RelatedDiagnostics} */
     let diagnostics = {};
 
     let canBeQuick = !this.hasMultipleVersionsForAnySystem(systems, systemMap);
@@ -238,7 +273,7 @@ class RelatedWorker extends TerminologyWorker {
           let cs = await this.findCodeSystem(key, null, txp, ['complete', 'fragment'], null, true);
           await this.compareSystems(systems, status, cs, value, diagnostics);
         } else {
-          this.compareNonSystems(status, value, diagnostics);
+          this.compareNonSystems(status);
         }
       }
     } else {
@@ -250,7 +285,7 @@ class RelatedWorker extends TerminologyWorker {
     // expansions might not work (infinite value sets) so
     // we can't tell.
     if (status.fail) {
-      status = { left: false, right: false, fail: false, common : false}; // reset;
+      status = { empty: false, left: false, right: false, fail: false, common : false}; // reset;
       exp = true;
       await this.compareExpansions(systems, status, thisVS, otherVS, diagnostics);
     }
@@ -273,13 +308,13 @@ class RelatedWorker extends TerminologyWorker {
     if (txp.diagnostics) {
       outcome.parameter.push({name: 'performed-expansion', valueBoolean: exp ? true : false})
       if (diagnostics.missing && diagnostics.missing.length > 0) {
-        outcome.parameter.push({name: 'missing-codes', valueString: diagnostics.missing.map(c => c.code).join(',') })
+        outcome.parameter.push({name: 'missing-codes', valueString: diagnostics.missing.map((/** @type {any} */ c) => c.code).join(',') })
       }
       if (diagnostics.extra && diagnostics.extra.length > 0) {
-        outcome.parameter.push({name: 'extra-codes', valueString: diagnostics.extra.map(c => c.code).join(',') })
+        outcome.parameter.push({name: 'extra-codes', valueString: diagnostics.extra.map((/** @type {any} */ c) => c.code).join(',') })
       }
       if (diagnostics.common && diagnostics.common.length > 0) {
-        outcome.parameter.push({name: 'common-codes', valueString: diagnostics.common.map(c => c.left.code).join(',') })
+        outcome.parameter.push({name: 'common-codes', valueString: diagnostics.common.map((/** @type {any} */ c) => c.left.code).join(',') })
       }
       if (!exp) {
         if (diagnostics.missingCodes && diagnostics.missingCodes.length > 0) {
@@ -296,9 +331,19 @@ class RelatedWorker extends TerminologyWorker {
     return outcome;
   }
 
+  /**
+   * @param {Map<string, SystemInfo>} systems
+   * @param {Map<string, IncludeGroups>} systemMap
+   * @param {any[]} includes
+   * @param {'this' | 'other' | 'thisEx' | 'otherEx'} side
+   * @param {TxParameters} txp
+   * @param {any[]} allCriteria
+   * @returns {Promise<void>}
+   */
   async addIncludes(systems, systemMap, includes, side, txp, allCriteria) {
     for (const inc of includes) {
       let key = inc.system || '';
+      /** @type {Record<string, any>} */
       let v = {};
       if (await this.versionMatters(systems, key, inc.version, v, txp, allCriteria)) {
         key = key + "|" + v.version;
@@ -306,16 +351,29 @@ class RelatedWorker extends TerminologyWorker {
       if (!systemMap.has(key)) {
         systemMap.set(key, {this: [], other: [], thisEx: [], otherEx: []});
       }
-      systemMap.get(key)[side].push(inc);
+      const groups = systemMap.get(key);
+      if (groups) {
+        groups[side].push(inc);
+      }
     }
   }
 
+  /**
+   * @param {Map<string, SystemInfo>} systems
+   * @param {string} key
+   * @param {string | null | undefined} version
+   * @param {Record<string, any>} v
+   * @param {TxParameters} txp
+   * @param {any[]} allCriteria
+   * @returns {Promise<boolean>}
+   */
   async versionMatters(systems, key, version, v, txp, allCriteria) {
-    let cs = await this.findCodeSystem(key, version, txp, ['complete', 'fragment'], null, true);
-    let alreadyVersionDependent = systems.has(key) && systems.get(key).criteria;
+    let cs = await this.findCodeSystem(key, version || null, txp, ['complete', 'fragment'], null, true);
+    const existing = systems.get(key);
+    let alreadyVersionDependent = !!(existing && existing.criteria);
     let res = cs != null && (alreadyVersionDependent || ((version || cs.version()) && (cs.versionNeeded() || this.anyCriteriaHasFilters(allCriteria, key)))); // if there's filters, the version always matters
-    if (res) {
-      v.version = version || cs ? cs.version() : undefined;
+    if (res && cs) {
+      v.version = version || cs.version();
     }
     if (!systems.has(key)) {
       systems.set(key, {criteria: res, codes: cs ? cs.versionNeeded() : false});
@@ -323,11 +381,23 @@ class RelatedWorker extends TerminologyWorker {
     return res;
   }
 
+  /**
+   * @param {RelatedStatus} status
+   * @returns {void}
+   */
   compareNonSystems(status) {
     // not done yet
     status.fail = true;
   }
 
+  /**
+   * @param {Map<string, SystemInfo>} systems
+   * @param {RelatedStatus} status
+   * @param {any} cs
+   * @param {IncludeGroups} value
+   * @param {RelatedDiagnostics} diagnostics
+   * @returns {Promise<void>}
+   */
   async compareSystems(systems, status, cs, value, diagnostics) {
     if ((value.thisEx && value.thisEx.length > 0) || (value.otherEx && value.otherEx.length > 0)) {
       // we don't try in this case
@@ -403,6 +473,10 @@ class RelatedWorker extends TerminologyWorker {
     status.fail = true; // not sure why we got to here, but it doesn't matter: we can't tell
   }
 
+  /**
+   * @param {any[]} list
+   * @returns {boolean}
+   */
   hasValueSets(list) {
     for (const inc of list) {
       if (inc.valueSet) {
@@ -412,6 +486,10 @@ class RelatedWorker extends TerminologyWorker {
     return false;
   }
 
+  /**
+   * @param {any[]} list
+   * @returns {boolean}
+   */
   hasConceptsAndFilters(list) {
     for (const inc of list) {
       if (inc.concept?.length > 0 && inc.filter?.length > 0) {
@@ -421,6 +499,10 @@ class RelatedWorker extends TerminologyWorker {
     return false;
   }
 
+  /**
+   * @param {any[]} list
+   * @returns {boolean}
+   */
   hasFilters(list) {
     for (const inc of list) {
       if (inc.filter?.length > 0) {
@@ -430,7 +512,12 @@ class RelatedWorker extends TerminologyWorker {
     return false;
   }
 
+  /**
+   * @param {any[]} list
+   * @returns {void}
+   */
   tidyIncludes(list) {
+    /** @type {any} */
     let collector = null;
     for (let i = list.length - 1; i >= 0; i--) {
       const inc = list[i];
@@ -445,12 +532,16 @@ class RelatedWorker extends TerminologyWorker {
     }
     for (let inc of list) {
       if (inc.concept) {
-        inc.concept.sort((a, b) => (a.code || '').localeCompare(b.code));
+        inc.concept.sort((/** @type {any} */ a, /** @type {any} */ b) => (a.code || '').localeCompare(b.code));
       }
       if (inc.filter) {
-        inc.filter.sort((a, b) => (a.property || '').localeCompare(b.property) || (a.op || '').localeCompare(b.op) || (a.value || '').localeCompare(b.value));
+        inc.filter.sort((/** @type {any} */ a, /** @type {any} */ b) => (a.property || '').localeCompare(b.property) || (a.op || '').localeCompare(b.op) || (a.value || '').localeCompare(b.value));
       }
     }
+    /**
+     * @param {any} inc
+     * @returns {number}
+     */
     function includeRank(inc) {
       if (!inc.system) return 0;
       const hasConcepts = inc.concept?.length > 0;
@@ -461,6 +552,11 @@ class RelatedWorker extends TerminologyWorker {
       return 4;
     }
 
+    /**
+     * @param {any} a
+     * @param {any} b
+     * @returns {number}
+     */
     function compareFilter(a, b) {
       const af = a.filter?.[0];
       const bf = b.filter?.[0];
@@ -472,25 +568,38 @@ class RelatedWorker extends TerminologyWorker {
         (af.value || '').localeCompare(bf.value || '');
     }
 
-    list.sort((a, b) =>
+    list.sort((/** @type {any} */ a, /** @type {any} */ b) =>
       includeRank(a) - includeRank(b) ||
       compareFilter(a, b)
     );
   }
 
+  /**
+   * @param {RelatedStatus} status
+   * @param {any} t
+   * @param {any} o
+   * @param {RelatedDiagnostics} diagnostics
+   * @returns {void}
+   */
   compareCodeLists(status, t, o, diagnostics) {
-    const tSet = new Set(t.concept.map(x => x.code));
-    const oSet = new Set(o.concept.map(x => x.code));
+    const tSet = new Set(t.concept.map((/** @type {any} */ x) => x.code));
+    const oSet = new Set(o.concept.map((/** @type {any} */ x) => x.code));
 
-    diagnostics.commonCodes = [...tSet].filter(c => oSet.has(c));
-    diagnostics.missingCodes = [...tSet].filter(c => !oSet.has(c));
-    diagnostics.extraCodes = [...oSet].filter(c => !tSet.has(c));
+    diagnostics.commonCodes = [...tSet].filter((/** @type {string} */ c) => oSet.has(c));
+    diagnostics.missingCodes = [...tSet].filter((/** @type {string} */ c) => !oSet.has(c));
+    diagnostics.extraCodes = [...oSet].filter((/** @type {string} */ c) => !tSet.has(c));
     status.common = diagnostics.commonCodes.length > 0;
     status.left = diagnostics.missingCodes.length > 0;
     status.right =diagnostics.extraCodes.length > 0;
   }
 
+  /**
+   * @param {string} code
+   * @param {string | null | undefined} msg
+   * @returns {any}
+   */
   makeOutcome(code, msg) {
+    /** @type {any} */
     const parameters = {
       resourceType: 'Parameters',
       parameter: [
@@ -503,10 +612,22 @@ class RelatedWorker extends TerminologyWorker {
     return parameters;
   }
 
+  /**
+   * @param {any} inc
+   * @returns {boolean}
+   */
   isFullSystem(inc) {
     return !inc.concept && !inc.filter;
   }
 
+  /**
+   * @param {Map<string, SystemInfo>} systems
+   * @param {RelatedStatus} status
+   * @param {any} thisC
+   * @param {any} otherC
+   * @param {RelatedDiagnostics} diagnostics
+   * @returns {Promise<void>}
+   */
   async compareExpansions(systems, status, thisC, otherC, diagnostics) {
 
     const expResThis = await this.doExpand(thisC);
@@ -546,7 +667,7 @@ class RelatedWorker extends TerminologyWorker {
       status.empty = true;
       return;
     }
-    const matcher = new ArrayMatcher((l, r) =>
+    const matcher = new ArrayMatcher((/** @type {any} */ l, /** @type {any} */ r) =>
       this.matchContains(systems, l, r)
     );
     await matcher.match(expThis.expansion.contains, expOther.expansion.contains);
@@ -569,10 +690,20 @@ class RelatedWorker extends TerminologyWorker {
     diagnostics.extra = matcher.unmatchedRight;
   }
 
+  /**
+   * @param {any} vs
+   * @returns {boolean}
+   */
   isUnclosed(vs) {
-    return Extensions.has(vs.expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed");
+    return !!Extensions.has(vs.expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed");
   }
 
+  /**
+   * @param {Map<string, SystemInfo>} systems
+   * @param {any} thisC
+   * @param {any} otherC
+   * @returns {boolean}
+   */
   matchContains(systems, thisC, otherC) {
     if (thisC.system != otherC.system) {
       return false;
@@ -580,7 +711,8 @@ class RelatedWorker extends TerminologyWorker {
     if (thisC.code != otherC.code) {
       return false;
     }
-    let versionMatters = systems.has(thisC.system) && systems.get(thisC.system).codes;
+    const systemInfo = systems.get(thisC.system);
+    let versionMatters = !!(systemInfo && systemInfo.codes);
     if (versionMatters && thisC.version != otherC.version) {
       return false;
     } else {
@@ -588,17 +720,21 @@ class RelatedWorker extends TerminologyWorker {
     }
   }
 
+  /**
+   * @param {any} vs
+   * @returns {Promise<{vs: any, error: any}>}
+   */
   async doExpand(vs) {
     try {
       let txpe = this.params.clone();
       txpe.limit = 10000;
       txpe.excludeNested = true;
-      let start = new Date();
+      let start = Date.now();
       console.log("Expanding value set");
       let exp = new ValueSetExpander(this, txpe);
       exp.noDetails = true;
       let vse = await exp.expand(vs, new SearchFilterText(''), true);
-      console.log("Expanded value set - took " + (new Date() - start) + "ms");
+      console.log("Expanded value set - took " + (Date.now() - start) + "ms");
       return {vs: vse, error: null};
     } catch (error) {
       debugLog(error, "Error expanding value set");
@@ -606,22 +742,37 @@ class RelatedWorker extends TerminologyWorker {
     }
   }
 
+  /**
+   * @param {any} inc
+   * @returns {boolean}
+   */
   isConcepts(inc) {
     return inc.concept && inc.concept.length > 0 && !this.isFilter(inc);
   }
 
+  /**
+   * @param {any} inc
+   * @returns {boolean}
+   */
   isFilter(inc) {
     return inc.filter && inc.filter.length > 0;
   }
 
+  /**
+   * @param {RelatedStatus} status
+   * @param {any} cs
+   * @param {any} t
+   * @param {any} o
+   * @returns {Promise<boolean>}
+   */
   async filterSetsMatch(status, cs, t, o) {
     // two includes have matching filters if the set of filters match.
     if (t.filter.length != o.filter.length) {
       return false;
     }
     if (t.filter.length > 1) {
-      t.filter.sort((a, b) => (a.property || '').localeCompare(b.property) || (a.op || '').localeCompare(b.op) || (a.value || '').localeCompare(b.value));
-      o.filter.sort((a, b) => (a.property || '').localeCompare(b.property) || (a.op || '').localeCompare(b.op) || (a.value || '').localeCompare(b.value))
+      t.filter.sort((/** @type {any} */ a, /** @type {any} */ b) => (a.property || '').localeCompare(b.property) || (a.op || '').localeCompare(b.op) || (a.value || '').localeCompare(b.value));
+      o.filter.sort((/** @type {any} */ a, /** @type {any} */ b) => (a.property || '').localeCompare(b.property) || (a.op || '').localeCompare(b.op) || (a.value || '').localeCompare(b.value))
       // we can't draw any conclusions if there's more than one filter, and they aren't identical,
       // because we don't guess how they might interact with each other
       for (let i = 0; i < (t.filter || []).length; i++) {
@@ -672,6 +823,11 @@ class RelatedWorker extends TerminologyWorker {
     }
   }
 
+  /**
+   * @param {any} t
+   * @param {any} o
+   * @returns {boolean}
+   */
   includesIdentical(t, o) {
     if ((t.concept || []).length !== (o.concept || []).length) {
       return false;
@@ -693,10 +849,20 @@ class RelatedWorker extends TerminologyWorker {
     return true;
   }
 
+  /**
+   * @param {any[]} allCriteria
+   * @param {string} key
+   * @returns {boolean}
+   */
   anyCriteriaHasFilters(allCriteria, key) {
-    return allCriteria.some(c => c.system === key && c.filter && c.filter.length > 0);
+    return allCriteria.some((/** @type {any} */ c) => c.system === key && c.filter && c.filter.length > 0);
   }
 
+  /**
+   * @param {Map<string, SystemInfo>} systems
+   * @param {Map<string, IncludeGroups>} systemMap
+   * @returns {boolean}
+   */
   hasMultipleVersionsForAnySystem(systems, systemMap) {
     return [...systems.entries()].some(([url, val]) => {
       if (val.criteria !== true) return false;

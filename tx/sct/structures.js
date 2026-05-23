@@ -1,14 +1,32 @@
+// @ts-check
+
 const fs = require('fs');
 
+/** @typedef {{index: number, flags: number}} WordEntry */
+/** @typedef {{index: number, reference: number}} StemEntry */
+/** @typedef {{found: boolean, index: number}} FindResult */
+/** @typedef {Record<string, any>} SnomedMember */
+/** @typedef {Record<string, any>} SnomedCacheData */
 
 class SnomedStrings {
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {TextDecoder} */
     this.decoder = new TextDecoder('utf-8');
+    /** @type {Buffer[]|null} */
     this.builder = null;
+    /** @type {number} */
     this.currentOffset = 0; // ADD: Track offset directly
   }
 
+  /**
+   * @param {number} offset
+   * @returns {string}
+   */
   getEntry(offset) {
     if (offset > this.master.length) {
       throw new Error('Wrong length index getting snomed name');
@@ -37,6 +55,10 @@ class SnomedStrings {
     this.currentOffset = this.master.length; // SET: offset to current master length
   }
 
+  /**
+   * @param {string} str
+   * @returns {number}
+   */
   addString(str) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -85,11 +107,20 @@ class SnomedStrings {
 }
 
 class SnomedWords {
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
   }
 
+  /**
+   * @param {number} index
+   * @returns {WordEntry}
+   */
   getEntry(index) {
     const offset = index * 5;
 
@@ -104,6 +135,10 @@ class SnomedWords {
     return { index: stringIndex, flags };
   }
 
+  /**
+   * @param {number} index
+   * @returns {number}
+   */
   getString(index) {
     const entry = this.getEntry(index);
     return entry.index;
@@ -117,6 +152,10 @@ class SnomedWords {
     this.builder = [];
   }
 
+  /**
+   * @param {number} index
+   * @param {number} flags
+   */
   addWord(index, flags) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -149,11 +188,20 @@ class SnomedWords {
 }
 
 class SnomedStems {
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
   }
 
+  /**
+   * @param {number} index
+   * @returns {StemEntry}
+   */
   getEntry(index) {
     const offset = index * 8;
 
@@ -168,6 +216,10 @@ class SnomedStems {
     return { index: stringIndex, reference };
   }
 
+  /**
+   * @param {number} index
+   * @returns {number}
+   */
   getString(index) {
     const entry = this.getEntry(index);
     return entry.index;
@@ -181,6 +233,10 @@ class SnomedStems {
     this.builder = [];
   }
 
+  /**
+   * @param {number} index
+   * @param {number} reference
+   */
   addStem(index, reference) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -213,13 +269,24 @@ class SnomedStems {
 }
 
 class SnomedReferences {
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
+    /** @type {number} */
     this.currentOffset = 0; // ADD: Track offset directly
+    /** @type {number} */
     this.MAGIC_NO_CHILDREN = 0xFFFFFFFF; // Assuming this constant - adjust as needed
   }
 
+  /**
+   * @param {number} index
+   * @returns {number[]|null}
+   */
   getReferences(index) {
     if (index === this.MAGIC_NO_CHILDREN || index === 0) {
       return null;
@@ -243,6 +310,7 @@ class SnomedReferences {
     }
 
     // Read the cardinal array
+    /** @type {number[]} */
     const result = new Array(count);
     let offset = index + 4;
 
@@ -254,6 +322,10 @@ class SnomedReferences {
     return result;
   }
 
+  /**
+   * @param {number} index
+   * @returns {number}
+   */
   getLength(index) {
     if (index > this.master.length) {
       throw new Error('Wrong length index getting Snomed list');
@@ -267,6 +339,10 @@ class SnomedReferences {
     this.currentOffset = 0; // RESET: offset when starting build
   }
 
+  /**
+   * @param {number[]} cardinalArray
+   * @returns {number}
+   */
   addReferences(cardinalArray) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -341,9 +417,15 @@ class SnomedDescriptions {
   static FLAG_MovedElswhere = 10;
   static FLAG_PendingMove = 11;
 
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
+    /** @type {number} */
     this.currentOffset = 0; // ADD: Track offset directly
   }
 
@@ -351,6 +433,10 @@ class SnomedDescriptions {
     return Math.floor(this.master.length / SnomedDescriptions.DESC_SIZE);
   }
 
+  /**
+   * @param {number} index
+   * @returns {Record<string, any>}
+   */
   getDescription(index) {
     if (index >= this.master.length) {
       throw new Error('Wrong length index getting snomed Desc Details');
@@ -373,6 +459,10 @@ class SnomedDescriptions {
     };
   }
 
+  /**
+   * @param {number} index
+   * @returns {number}
+   */
   conceptByIndex(index) {
     if (index >= this.master.length) {
       throw new Error('Wrong length index getting snomed Desc Details');
@@ -386,6 +476,18 @@ class SnomedDescriptions {
     this.currentOffset = 0; // RESET: offset when starting build
   }
 
+  /**
+   * @param {number} iDesc
+   * @param {string|number|bigint} id
+   * @param {number} date
+   * @param {number} concept
+   * @param {number} module
+   * @param {number} kind
+   * @param {number} caps
+   * @param {boolean} active
+   * @param {number} lang
+   * @returns {number}
+   */
   addDescription(iDesc, id, date, concept, module, kind, caps, active, lang) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -417,6 +519,11 @@ class SnomedDescriptions {
     return currentOffset;
   }
 
+  /**
+   * @param {number} index
+   * @param {number} refsets
+   * @param {number} valueses
+   */
   setRefsets(index, refsets, valueses) {
     if (index >= this.master.length) {
       throw new Error('Wrong length index getting snomed Desc Details');
@@ -451,11 +558,20 @@ class SnomedDescriptions {
 }
 
 class SnomedDescriptionIndex {
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
   }
 
+  /**
+   * @param {string|number|bigint} identity
+   * @returns {FindResult}
+   */
   findDescription(identity) {
     // Convert to BigInt if it's not already
     const targetId = typeof identity === 'string' ? BigInt(identity) : BigInt(identity);
@@ -491,6 +607,10 @@ class SnomedDescriptionIndex {
     this.builder = [];
   }
 
+  /**
+   * @param {string|number|bigint} id
+   * @param {number} reference
+   */
   addDescription(id, reference) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -536,13 +656,22 @@ class SnomedConceptList {
   static MASK_CONCEPT_PRIMITIVE = 0x10;
   static MAGIC_NO_CHILDREN = 0xFFFFFFFF;
 
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
+    /** @type {number} */
     this.currentOffset = 0; // ADD: Track offset directly
   }
 
   // Helper method to check post-build state and bounds
+  /**
+   * @param {number} index
+   */
   #checkPostBuildAccess(index) {
     if (this.builder !== null) {
       throw new Error('Cannot call setX methods before doneBuild()');
@@ -555,6 +684,10 @@ class SnomedConceptList {
     }
   }
 
+  /**
+   * @param {string|number|bigint} identity
+   * @returns {FindResult}
+   */
   findConcept(identity) {
     const targetId = typeof identity === 'string' ? BigInt(identity) : BigInt(identity);
 
@@ -581,10 +714,18 @@ class SnomedConceptList {
     return { found: result, index };
   }
 
+  /**
+   * @param {number} index
+   * @returns {Record<string, any>}
+   */
   getConceptByCount(index) {
     return this.getConcept(index * SnomedConceptList.CONCEPT_SIZE);
   }
 
+  /**
+   * @param {number} index
+   * @returns {Record<string, any>}
+   */
   getConcept(index) {
     this.#checkPostBuildAccess(index);
 
@@ -601,6 +742,7 @@ class SnomedConceptList {
     };
   }
 
+  /** @param {number} index @returns {bigint} */
   getConceptId(index) {
     if (index >= this.master.length) {
       throw new Error('Wrong length index getting snomed Concept Details');
@@ -608,66 +750,79 @@ class SnomedConceptList {
     return this.master.readBigUInt64LE(index + 0);
   }
 
+  /** @param {number} index @returns {number} */
   getParent(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 9);
   }
 
+  /** @param {number} index @returns {bigint} */
   getIdentity(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readBigUInt64LE(index + 0);
   }
 
+  /** @param {number} index @returns {number} */
   getDescriptions(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 13);
   }
 
+  /** @param {number} index @returns {number} */
   getInbounds(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 17);
   }
 
+  /** @param {number} index @returns {number} */
   getOutbounds(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 21);
   }
 
+  /** @param {number} index @returns {number} */
   getAllDesc(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 25);
   }
 
+  /** @param {number} index @returns {number} */
   getDepth(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt8(index + 29);
   }
 
+  /** @param {number} index @returns {number} */
   getStems(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 30);
   }
 
+  /** @param {number} index @returns {number} */
   getModuleId(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 36);
   }
 
+  /** @param {number} index @returns {number} */
   getStatus(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 40);
   }
 
+  /** @param {number} index @returns {number} */
   getRefsets(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 44);
   }
 
+  /** @param {number} index @returns {number} */
   getNormalForm(index) {
     this.#checkPostBuildAccess(index);
     return this.master.readUInt32LE(index + 48);
   }
 
+  /** @param {number} index @param {number} value */
   setNormalFormDuringBuild(index, value) {
     // Special version that can be called during building phase
     // This bypasses the post-build access check for normal forms specifically
@@ -681,6 +836,7 @@ class SnomedConceptList {
     this.master.writeUInt32LE(value, index + 48);
   }
   // Also add a helper to check if a concept exists by index
+  /** @param {number} index @returns {boolean} */
   conceptExists(index) {
     try {
       if (index >= this.master.length) {
@@ -696,6 +852,7 @@ class SnomedConceptList {
   }
 
 // Add a helper to get concept identity safely
+  /** @param {number} index @returns {bigint|null} */
   getConceptIdentitySafe(index) {
     try {
       if (!this.conceptExists(index)) {
@@ -708,67 +865,80 @@ class SnomedConceptList {
   }
 
   // All the setter methods - these require doneBuild() to have been called
+  /** @param {number} index @param {number} active @param {number} inactive */
   setParents(index, active, inactive) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(active, index + 9);
     this.master.writeUInt32LE(inactive, index + 52);
   }
 
+  /** @param {number} index @param {number} value */
   setDescriptions(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 13);
   }
 
+  /** @param {number} index @param {number} value */
   setInbounds(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 17);
   }
 
+  /** @param {number} index @param {number} value */
   setOutbounds(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 21);
   }
 
+  /** @param {number} index @param {number} value */
   setAllDesc(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 25);
   }
 
+  /** @param {number} index @param {number} value */
   setDepth(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt8(value, index + 29);
   }
 
+  /** @param {number} index @param {number} value */
   setStems(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 30);
   }
 
+  /** @param {number} index @param {number} effectiveTime */
   setDate(index, effectiveTime) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt16LE(effectiveTime, index + 34);
   }
 
+  /** @param {number} index @param {number} value */
   setModuleId(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 36);
   }
 
+  /** @param {number} index @param {number} value */
   setStatus(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 40);
   }
 
+  /** @param {number} index @param {number} value */
   setRefsets(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 44);
   }
 
+  /** @param {number} index @param {number} value */
   setNormalForm(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 48);
   }
 
+  /** @param {number} index @param {number} flags */
   setFlag(index, flags) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt8(flags, index + 8);
@@ -784,6 +954,12 @@ class SnomedConceptList {
     this.currentOffset = 0; // RESET: offset when starting build
   }
 
+  /**
+   * @param {string|number|bigint} identity
+   * @param {number} effectiveTime
+   * @param {number} flags
+   * @returns {number}
+   */
   addConcept(identity, effectiveTime, flags) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -845,12 +1021,22 @@ class SnomedRelationshipList {
   static REFSET_SIZE_NOLANG = 28;
   static REFSET_SIZE_LANG = 32;
 
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
+    /** @type {number} */
     this.currentOffset = 0; // ADD: Track offset directly
   }
 
+  /**
+   * @param {number} index
+   * @returns {Record<string, any>}
+   */
   getRelationship(index) {
     if (index >= this.master.length) {
       throw new Error('Wrong length index getting snomed relationship Details');
@@ -881,6 +1067,20 @@ class SnomedRelationshipList {
     this.currentOffset = 0; // RESET: offset when starting build
   }
 
+  /**
+   * @param {string|number|bigint} identity
+   * @param {number} source
+   * @param {number} target
+   * @param {number} relType
+   * @param {number} module
+   * @param {number} kind
+   * @param {number} modifier
+   * @param {number} date
+   * @param {boolean} active
+   * @param {boolean} defining
+   * @param {number} group
+   * @returns {number}
+   */
   addRelationship(identity, source, target, relType, module, kind, modifier, date, active, defining, group) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -936,12 +1136,22 @@ class SnomedRelationshipList {
 class SnomedReferenceSetMembers {
   static MAGIC_NO_CHILDREN = 0xFFFFFFFF;
 
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   */
   constructor(buffer = null) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
+    /** @type {number} */
     this.currentOffset = 0; // ADD: Track offset directly
   }
 
+  /**
+   * @param {number} index
+   * @returns {number}
+   */
   getMemberCount(index) {
     if (index === SnomedReferenceSetMembers.MAGIC_NO_CHILDREN) {
       return 0;
@@ -954,6 +1164,10 @@ class SnomedReferenceSetMembers {
     return this.master.readUInt32LE(index);
   }
 
+  /**
+   * @param {number} index
+   * @returns {SnomedMember[]|null}
+   */
   getMembers(index) {
     if (index === SnomedReferenceSetMembers.MAGIC_NO_CHILDREN) {
       return null;
@@ -968,9 +1182,11 @@ class SnomedReferenceSetMembers {
     const ids = this.master.readUInt8(index + 4) !== 0;
 
     let offset = index + 5; // Skip count + ids flag
+    /** @type {SnomedMember[]} */
     const result = new Array(count);
 
     for (let i = 0; i < count; i++) {
+      /** @type {SnomedMember} */
       const member = {};
 
       if (ids) {
@@ -1011,6 +1227,11 @@ class SnomedReferenceSetMembers {
     this.currentOffset = 0; // RESET: offset when starting build
   }
 
+  /**
+   * @param {boolean} ids
+   * @param {SnomedMember[]} membersArray
+   * @returns {number}
+   */
   addMembers(ids, membersArray) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -1072,6 +1293,10 @@ class SnomedReferenceSetMembers {
   }
 
   // Helper method to convert GUID string to 16-byte buffer
+  /**
+   * @param {string} guidString
+   * @returns {Buffer}
+   */
   #guidStringToBuffer(guidString) {
     // Remove hyphens and braces from GUID string
     const cleanGuid = guidString.replace(/[-{}]/g, '');
@@ -1082,6 +1307,10 @@ class SnomedReferenceSetMembers {
   }
 
   // Helper method to convert 16-byte buffer to GUID string
+  /**
+   * @param {Buffer} guidBuffer
+   * @returns {string|null}
+   */
   guidBufferToString(guidBuffer) {
     if (!Buffer.isBuffer(guidBuffer) || guidBuffer.length !== 16) {
       return null;
@@ -1114,13 +1343,25 @@ class SnomedReferenceSetIndex {
   static REFSET_SIZE_LANG = 32; // Always using lang version
   static REFSET_SIZE_NOLANG = 28;
 
+  /**
+   * @param {Buffer|Uint8Array|null} [buffer]
+   * @param {boolean} [hasLangs]
+   */
   constructor(buffer = null, hasLangs = true) {
+    /** @type {Buffer} */
     this.master = buffer ? Buffer.from(buffer) : Buffer.alloc(0);
+    /** @type {Buffer[]|null} */
     this.builder = null;
+    /** @type {boolean} */
     this.hasLangs = hasLangs;
+    /** @type {number} */
     this.recordSize = hasLangs ? SnomedReferenceSetIndex.REFSET_SIZE_LANG : SnomedReferenceSetIndex.REFSET_SIZE_NOLANG;
   }
 
+  /**
+   * @param {number} index
+   * @returns {Record<string, any>}
+   */
   getReferenceSet(index) {
     const byteIndex = index * this.recordSize;
 
@@ -1128,6 +1369,7 @@ class SnomedReferenceSetIndex {
       throw new Error('Wrong length index getting snomed relationship Details');
     }
 
+    /** @type {Record<string, any>} */
     const result = {
       definition: this.master.readUInt32LE(byteIndex + 0),
       filename: this.master.readUInt32LE(byteIndex + 4),
@@ -1148,6 +1390,11 @@ class SnomedReferenceSetIndex {
     return result;
   }
 
+  /**
+   * @param {number} conceptIndex
+   * @param {boolean} [byName]
+   * @returns {number}
+   */
   getMembersByConcept(conceptIndex, byName = false) {
     // Linear search through records looking for matching concept
     for (let i = 0; i < this.count(); i++) {
@@ -1166,6 +1413,10 @@ class SnomedReferenceSetIndex {
     return 0; // Not found
   }
 
+  /**
+   * @param {number} conceptIndex
+   * @returns {number}
+   */
   getRefSetByConcept(conceptIndex) {
     // Linear search through records looking for matching concept, return record index
     for (let i = 0; i < this.count(); i++) {
@@ -1189,6 +1440,16 @@ class SnomedReferenceSetIndex {
     this.builder = [];
   }
 
+  /**
+   * @param {number} name
+   * @param {number} filename
+   * @param {number} definition
+   * @param {number} membersByRef
+   * @param {number} membersByName
+   * @param {number} fieldTypes
+   * @param {number} fieldNames
+   * @param {number} langs
+   */
   addReferenceSet(name, filename, definition, membersByRef, membersByName, fieldTypes, fieldNames, langs) {
     if (!this.builder) {
       throw new Error('Must call startBuild() first');
@@ -1232,9 +1493,15 @@ class SnomedReferenceSetIndex {
 
 
 class SnomedFileReader {
+  /**
+   * @param {string} filePath
+   */
   constructor(filePath) {
+    /** @type {string} */
     this.filePath = filePath;
-    this.buffer = null;
+    /** @type {Buffer} */
+    this.buffer = Buffer.alloc(0);
+    /** @type {number} */
     this.offset = 0;
   }
 
@@ -1313,9 +1580,13 @@ class SnomedFileReader {
   }
 
   // Main loading method that matches the Pascal logic
+  /**
+   * @returns {Promise<SnomedCacheData>}
+   */
   async loadSnomedData() {
     await this.load();
 
+    /** @type {SnomedCacheData} */
     const result = {
       cacheVersion: this.readString(),  // This is "16" or "17" - the cache format version
       versionUri: this.readString(),

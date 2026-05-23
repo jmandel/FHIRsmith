@@ -1,8 +1,25 @@
+// @ts-check
+
 const { BaseTerminologyModule } = require('./tx-import-base');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const readline = require('readline');
+
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {{versions: string[], totalProducts: number, totalPackages: number, warnings: string[]}} NdcValidationStats */
+/** @typedef {{totalLines: number, estimatedRecords: number, formatValid: boolean}} NdcFileStats */
+/** @typedef {{versions: string[], productCount: number, packageCount: number, orgCount: number, typeCount: number, sizeGB: number, lastModified: string}} NdcDatabaseStats */
+/** @typedef {{name: string, sql: string}} CountQuery */
+/** @typedef {{verbose?: boolean, productsOnly?: boolean, packagesOnly?: boolean}} NdcImportOptions */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 class NdcModule extends BaseTerminologyModule {
   getName() {
@@ -21,6 +38,10 @@ class NdcModule extends BaseTerminologyModule {
     return '30-90 minutes (depending on number of versions)';
   }
 
+  /**
+   * @param {any} terminologyCommand
+   * @param {Record<string, any>} globalOptions
+   */
   registerCommands(terminologyCommand, globalOptions) {
     // Import command
     terminologyCommand
@@ -33,7 +54,7 @@ class NdcModule extends BaseTerminologyModule {
       .option('--no-indexes', 'Skip index creation for faster import')
       .option('--products-only', 'Import only products (skip packages)')
       .option('--packages-only', 'Import only packages (requires existing products)')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleImportCommand({...globalOptions, ...options});
       });
 
@@ -43,7 +64,7 @@ class NdcModule extends BaseTerminologyModule {
       .description('Validate NDC source directory structure')
       .option('-s, --source <directory>', 'Source directory to validate')
       .option('--sample <lines>', 'Number of lines to sample per file', '100')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleValidateCommand({...globalOptions, ...options});
       });
 
@@ -52,7 +73,7 @@ class NdcModule extends BaseTerminologyModule {
       .command('status')
       .description('Show status of NDC database')
       .option('-d, --dest <file>', 'Database file to check')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleStatusCommand({...globalOptions, ...options});
       });
 
@@ -61,11 +82,14 @@ class NdcModule extends BaseTerminologyModule {
       .command('versions')
       .description('List available NDC versions in source directory')
       .option('-s, --source <directory>', 'Source directory to scan')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleVersionsCommand({...globalOptions, ...options});
       });
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleImportCommand(options) {
     // Gather configuration
     const config = await this.gatherCommonConfig(options);
@@ -90,6 +114,10 @@ class NdcModule extends BaseTerminologyModule {
     await this.runImport(config);
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async confirmImport(config) {
     const inquirer = require('inquirer');
     const chalk = require('chalk');
@@ -118,13 +146,16 @@ class NdcModule extends BaseTerminologyModule {
     return confirmed;
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleValidateCommand(options) {
     if (!options.source) {
       const answers = await require('inquirer').prompt({
         type: 'input',
         name: 'source',
         message: 'Source directory to validate:',
-        validate: (input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
+        validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
       });
       options.source = answers.source;
     }
@@ -142,21 +173,24 @@ class NdcModule extends BaseTerminologyModule {
 
       if (stats.warnings.length > 0) {
         this.logWarning('Validation warnings:');
-        stats.warnings.forEach(warning => console.log(`    ${warning}`));
+        stats.warnings.forEach((/** @type {string} */ warning) => console.log(`    ${warning}`));
       }
 
     } catch (error) {
-      this.logError(`Validation failed: ${error.message}`);
+      this.logError(`Validation failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleVersionsCommand(options) {
     if (!options.source) {
       const answers = await require('inquirer').prompt({
         type: 'input',
         name: 'source',
         message: 'Source directory to scan:',
-        validate: (input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
+        validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
       });
       options.source = answers.source;
     }
@@ -165,15 +199,18 @@ class NdcModule extends BaseTerminologyModule {
       const versions = await this.findVersions(options.source);
 
       this.logSuccess(`Found ${versions.length} NDC versions:`);
-      versions.forEach((version, index) => {
+      versions.forEach((/** @type {string} */ version, /** @type {number} */ index) => {
         console.log(`  ${index + 1}. ${version}`);
       });
 
     } catch (error) {
-      this.logError(`Failed to scan versions: ${error.message}`);
+      this.logError(`Failed to scan versions: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleStatusCommand(options) {
     const dbPath = options.dest || './data/ndc.db';
 
@@ -197,10 +234,14 @@ class NdcModule extends BaseTerminologyModule {
       console.log(`  Last Modified: ${stats.lastModified}`);
 
     } catch (error) {
-      this.logError(`Status check failed: ${error.message}`);
+      this.logError(`Status check failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async validatePrerequisites(config) {
     const baseValid = await super.validatePrerequisites(config);
 
@@ -210,13 +251,16 @@ class NdcModule extends BaseTerminologyModule {
       await this.validateNdcDirectory(config.source, 10);
       this.logSuccess('NDC directory structure valid');
     } catch (error) {
-      this.logError(`NDC directory validation failed: ${error.message}`);
+      this.logError(`NDC directory validation failed: ${errorMessage(error)}`);
       return false;
     }
 
     return baseValid;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async executeImport(config) {
     this.logInfo('Starting NDC data migration...');
 
@@ -229,7 +273,6 @@ class NdcModule extends BaseTerminologyModule {
     await enhancedMigrator.migrate(
       config.source,
       config.dest,
-      config.version,
       {
         verbose: config.verbose,
         productsOnly: config.productsOnly,
@@ -244,6 +287,10 @@ class NdcModule extends BaseTerminologyModule {
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<string[]>}
+   */
   async findVersions(sourceDir) {
     if (!fs.existsSync(sourceDir)) {
       throw new Error(`Source directory not found: ${sourceDir}`);
@@ -251,13 +298,18 @@ class NdcModule extends BaseTerminologyModule {
 
     const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
     const versions = entries
-      .filter(entry => entry.isDirectory())
-      .map(entry => entry.name)
+      .filter((/** @type {fs.Dirent} */ entry) => entry.isDirectory())
+      .map((/** @type {fs.Dirent} */ entry) => entry.name)
       .sort();
 
     return versions;
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {number} [sampleLines]
+   * @returns {Promise<NdcValidationStats>}
+   */
   async validateNdcDirectory(sourceDir, sampleLines = 100) {
     const versions = await this.findVersions(sourceDir);
 
@@ -267,6 +319,7 @@ class NdcModule extends BaseTerminologyModule {
 
     let totalProducts = 0;
     let totalPackages = 0;
+    /** @type {string[]} */
     const warnings = [];
 
     for (const version of versions) {
@@ -288,7 +341,7 @@ class NdcModule extends BaseTerminologyModule {
         const productStats = await this.validateNdcFile(productFile, sampleLines, 'product');
         totalProducts += productStats.estimatedRecords;
       } catch (error) {
-        warnings.push(`Product file validation failed for ${version}: ${error.message}`);
+        warnings.push(`Product file validation failed for ${version}: ${errorMessage(error)}`);
       }
 
       // Sample package file if it exists
@@ -297,7 +350,7 @@ class NdcModule extends BaseTerminologyModule {
           const packageStats = await this.validateNdcFile(packageFile, sampleLines, 'package');
           totalPackages += packageStats.estimatedRecords;
         } catch (error) {
-          warnings.push(`Package file validation failed for ${version}: ${error.message}`);
+          warnings.push(`Package file validation failed for ${version}: ${errorMessage(error)}`);
         }
       }
     }
@@ -310,6 +363,12 @@ class NdcModule extends BaseTerminologyModule {
     };
   }
 
+  /**
+   * @param {string} filePath
+   * @param {number} sampleLines
+   * @param {string} fileType
+   * @returns {Promise<NdcFileStats>}
+   */
   async validateNdcFile(filePath, sampleLines, fileType) {
     const rl = readline.createInterface({
       input: fs.createReadStream(filePath),
@@ -331,8 +390,8 @@ class NdcModule extends BaseTerminologyModule {
       if (lineCount === 1) {
         // Check header
         const header = line.split('\t');
-        const hasRequiredFields = requiredFields.every(field =>
-          header.some(h => h.toUpperCase().includes(field))
+        const hasRequiredFields = requiredFields.every((/** @type {string} */ field) =>
+          header.some((/** @type {string} */ h) => h.toUpperCase().includes(field))
         );
 
         if (hasRequiredFields) {
@@ -365,17 +424,22 @@ class NdcModule extends BaseTerminologyModule {
     };
   }
 
+  /**
+   * @param {string} dbPath
+   * @returns {Promise<NdcDatabaseStats>}
+   */
   async getDatabaseStats(dbPath) {
     const sqlite3 = require('sqlite3').verbose();
     const db = new sqlite3.Database(dbPath);
 
     return new Promise((resolve, reject) => {
+      /** @type {any} */
       const stats = {};
 
       // Get versions
-      db.all('SELECT Version FROM NDCVersion', (err, rows) => {
+      db.all('SELECT Version FROM NDCVersion', (/** @type {Error|null} */ err, /** @type {{Version: string}[]} */ rows) => {
         if (err) return reject(err);
-        stats.versions = rows.map(row => row.Version);
+        stats.versions = rows.map((/** @type {{Version: string}} */ row) => row.Version);
 
         // Get counts
         const queries = [
@@ -387,8 +451,8 @@ class NdcModule extends BaseTerminologyModule {
 
         let completed = 0;
 
-        queries.forEach(query => {
-          db.get(query.sql, (err, row) => {
+        queries.forEach((/** @type {CountQuery} */ query) => {
+          db.get(query.sql, (/** @type {Error|null} */ err, /** @type {{count: number}} */ row) => {
             if (err) return reject(err);
             stats[query.name] = row.count;
             completed++;
@@ -408,6 +472,9 @@ class NdcModule extends BaseTerminologyModule {
     });
   }
 
+  /**
+   * @param {string} dbPath
+   */
   async createIndexes(dbPath) {
     const sqlite3 = require('sqlite3').verbose();
     const db = new sqlite3.Database(dbPath);
@@ -425,27 +492,49 @@ class NdcModule extends BaseTerminologyModule {
 
     return new Promise((resolve, reject) => {
       db.serialize(() => {
-        indexes.forEach(sql => {
-          db.run(sql, (err) => {
+        indexes.forEach((/** @type {string} */ sql) => {
+          db.run(sql, (/** @type {Error|null} */ err) => {
             if (err) console.warn(`Index creation warning: ${err.message}`);
           });
         });
       });
 
-      db.close((err) => {
+      db.close((/** @type {Error|null} */ err) => {
         if (err) reject(err);
-        else resolve();
+        else resolve(undefined);
       });
     });
   }
 }
 
 class NdcDataMigrator {
+  /**
+   * @param {((currentProgress: number) => void)|null} [progressCallback]
+   */
   constructor(progressCallback = null) {
+    /** @type {((currentProgress: number) => void)|null} */
     this.progressCallback = progressCallback;
+    /** @type {number} */
     this.currentProgress = 0;
+    /** @type {string|null} */
+    this.latestVersion = null;
+    /** @type {Map<string, number>} */
+    this.typesMap = new Map();
+    /** @type {Map<string, number>} */
+    this.orgsMap = new Map();
+    /** @type {Map<string, number>} */
+    this.doseFormsMap = new Map();
+    /** @type {Map<string, number>} */
+    this.routesMap = new Map();
+    /** @type {Map<string, number>} */
+    this.codesMap = new Map();
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string} [destFile]
+   * @param {NdcImportOptions} [options]
+   */
   async migrate(sourceDir, destFile = 'unknown', options = {}) {
     if (options.verbose) console.log('Starting NDC data migration...');
 
@@ -495,6 +584,9 @@ class NdcDataMigrator {
     }
   }
 
+  /**
+   * @param {number} [amount]
+   */
   updateProgress(amount = 1) {
     this.currentProgress += amount;
     if (this.progressCallback) {
@@ -502,14 +594,22 @@ class NdcDataMigrator {
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<string[]>}
+   */
   async #findVersions(sourceDir) {
     const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
     return entries
-      .filter(entry => entry.isDirectory())
-      .map(entry => entry.name)
+      .filter((/** @type {fs.Dirent} */ entry) => entry.isDirectory())
+      .map((/** @type {fs.Dirent} */ entry) => entry.name)
       .sort();
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {boolean} [verbose]
+   */
   async #createTables(db, verbose = true) {
     if (verbose) console.log('Creating database tables...');
 
@@ -568,18 +668,24 @@ class NdcDataMigrator {
 
     return new Promise((resolve, reject) => {
       db.serialize(() => {
-        tableSQL.forEach(sql => {
-          db.run(sql, (err) => {
+        tableSQL.forEach((/** @type {string} */ sql) => {
+          db.run(sql, (/** @type {Error|null} */ err) => {
             if (err) return reject(err);
           });
         });
 
         if (verbose) console.log('Database tables created');
-        resolve();
+        resolve(undefined);
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {string} versionName
+   * @param {NdcImportOptions} options
+   */
   async #processVersion(db, sourceDir, versionName, options) {
     const versionDir = path.join(sourceDir, versionName);
 
@@ -595,6 +701,12 @@ class NdcDataMigrator {
     this.latestVersion = versionName;
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} versionDir
+   * @param {string} versionName
+   * @param {NdcImportOptions} options
+   */
   async #processProducts(db, versionDir, versionName, options) {
     const productFile = path.join(versionDir, 'product.txt');
 
@@ -610,17 +722,24 @@ class NdcDataMigrator {
       crlfDelay: Infinity
     });
 
+    /** @type {string[]|null} */
     let header = null;
     let lineCount = 0;
     let processedCount = 0;
     const batchSize = 1000;
+    /** @type {Record<string, any>[]} */
     let batch = [];
 
     // Lookup maps for normalization
+    /** @type {Map<string, number>} */
     const typesMap = new Map();
+    /** @type {Map<string, number>} */
     const orgsMap = new Map();
+    /** @type {Map<string, number>} */
     const doseFormsMap = new Map();
+    /** @type {Map<string, number>} */
     const routesMap = new Map();
+    /** @type {Map<string, number>} */
     const codesMap = new Map();
 
     const insertProduct = db.prepare(`
@@ -640,7 +759,7 @@ class NdcDataMigrator {
       const cols = line.split('\t');
       if (cols.length < 10) continue;
 
-      const product = this.#parseProductLine(header, cols, versionName);
+      const product = this.#parseProductLine(header || [], cols, versionName);
       if (!product) continue;
 
       // Get or create lookup IDs
@@ -694,6 +813,12 @@ class NdcDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} versionDir
+   * @param {string} versionName
+   * @param {NdcImportOptions} options
+   */
   async #processPackages(db, versionDir, versionName, options) {
     const packageFile = path.join(versionDir, 'package.txt');
 
@@ -709,12 +834,15 @@ class NdcDataMigrator {
       crlfDelay: Infinity
     });
 
+    /** @type {string[]|null} */
     let header = null;
     let lineCount = 0;
     let processedCount = 0;
     const batchSize = 1000;
+    /** @type {Record<string, any>[]} */
     let batch = [];
 
+    /** @type {Map<string, number>} */
     const packageCodesMap = new Map();
 
     const insertPackage = db.prepare(`
@@ -734,7 +862,7 @@ class NdcDataMigrator {
       const cols = line.split('\t');
       if (cols.length < 4) continue;
 
-      const packageData = this.#parsePackageLine(header, cols, versionName);
+      const packageData = this.#parsePackageLine(header || [], cols, versionName);
       if (!packageData) continue;
 
       // Get product key
@@ -782,9 +910,15 @@ class NdcDataMigrator {
     }
   }
 
+  /**
+   * @param {string[]} header
+   * @param {string[]} cols
+   * @param {string} versionName
+   * @returns {Record<string, any>|null}
+   */
   #parseProductLine(header, cols, versionName) {
-    const getField = (fieldName) => {
-      const index = header.findIndex(h => h.toUpperCase().includes(fieldName.toUpperCase()));
+    const getField = (/** @type {string} */ fieldName) => {
+      const index = header.findIndex((/** @type {string} */ h) => h.toUpperCase().includes(fieldName.toUpperCase()));
       return index >= 0 && index < cols.length ? cols[index].trim() : '';
     };
 
@@ -819,9 +953,15 @@ class NdcDataMigrator {
     };
   }
 
+  /**
+   * @param {string[]} header
+   * @param {string[]} cols
+   * @param {string} versionName
+   * @returns {Record<string, any>|null}
+   */
   #parsePackageLine(header, cols, versionName) {
-    const getField = (fieldName) => {
-      const index = header.findIndex(h => h.toUpperCase().includes(fieldName.toUpperCase()));
+    const getField = (/** @type {string} */ fieldName) => {
+      const index = header.findIndex((/** @type {string} */ h) => h.toUpperCase().includes(fieldName.toUpperCase()));
       return index >= 0 && index < cols.length ? cols[index].trim() : '';
     };
 
@@ -851,11 +991,16 @@ class NdcDataMigrator {
     };
   }
 
+  /**
+   * @param {Map<string, number>} map
+   * @param {string} value
+   * @returns {number}
+   */
   #getOrCreateLookupId(map, value) {
     if (!value) return 1; // Default/unknown entry
 
     if (map.has(value)) {
-      return map.get(value);
+      return map.get(value) || 1;
     }
 
     const id = map.size + 1;
@@ -863,6 +1008,10 @@ class NdcDataMigrator {
     return id;
   }
 
+  /**
+   * @param {string} dateStr
+   * @returns {string|null}
+   */
   #parseDate(dateStr) {
     if (!dateStr) return null;
 
@@ -885,6 +1034,10 @@ class NdcDataMigrator {
     return fixed;
   }
 
+  /**
+   * @param {string} date
+   * @returns {string}
+   */
   #fixDate(date) {
     if (date.startsWith('2388')) {
       return '2018' + date.substring(4);
@@ -894,6 +1047,10 @@ class NdcDataMigrator {
     return date;
   }
 
+  /**
+   * @param {string} date
+   * @returns {string}
+   */
   #fixEndDate(date) {
     if (date.startsWith('3031')) {
       return '2031' + date.substring(4);
@@ -901,6 +1058,10 @@ class NdcDataMigrator {
     return this.#fixDate(date);
   }
 
+  /**
+   * @param {string} code
+   * @returns {string}
+   */
   #genCode11(code) {
     if (!code) return '';
 
@@ -914,12 +1075,18 @@ class NdcDataMigrator {
     return code.replace(/-/g, '').padStart(11, '0');
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {any} statement
+   * @param {Record<string, any>[]} batch
+   * @param {string} [type]
+   */
   async _processBatch(db, statement, batch, type = 'product') {
     return new Promise((resolve, reject) => {
       db.serialize(() => {
         db.run('BEGIN TRANSACTION');
 
-        batch.forEach(item => {
+        batch.forEach((/** @type {Record<string, any>} */ item) => {
           if (type === 'product') {
             statement.run(
               item.key,
@@ -950,23 +1117,31 @@ class NdcDataMigrator {
           }
         });
 
-        db.run('COMMIT', (err) => {
+        db.run('COMMIT', (/** @type {Error|null} */ err) => {
           if (err) reject(err);
-          else resolve();
+          else resolve(undefined);
         });
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} versionName
+   */
   async #recordVersion(db, versionName) {
     return new Promise((resolve, reject) => {
-      db.run('INSERT INTO NDCVersion (Version) VALUES (?)', [versionName], (err) => {
+      db.run('INSERT INTO NDCVersion (Version) VALUES (?)', [versionName], (/** @type {Error|null} */ err) => {
         if (err) reject(err);
-        else resolve();
+        else resolve(undefined);
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {boolean} [verbose]
+   */
   async #createLookupTables(db, verbose = true) {
     if (verbose) console.log('Creating lookup tables...');
 
@@ -979,13 +1154,13 @@ class NdcDataMigrator {
 
     return new Promise((resolve) => {
       db.serialize(() => {
-        lookups.forEach(lookup => {
+        lookups.forEach((/** @type {{table: string, map: Map<string, number>}} */ lookup) => {
           if (lookup.map) {
             for (const [name, id] of lookup.map) {
               db.run(
                 `INSERT INTO ${lookup.table} (NDCKey, Name) VALUES (?, ?)`,
                 [id, name.substring(0, 500)],
-                (err) => {
+                (/** @type {Error|null} */ err) => {
                   if (err && verbose) {
                     console.warn(`Warning inserting into ${lookup.table}: ${err.message}`);
                   }
@@ -996,18 +1171,22 @@ class NdcDataMigrator {
         });
 
         if (verbose) console.log('Lookup tables created');
-        resolve();
+        resolve(undefined);
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {boolean} [verbose]
+   */
   async #closeDatabase(db, verbose = true) {
     return new Promise((resolve) => {
-      db.close((err) => {
+      db.close((/** @type {Error|null} */ err) => {
         if (err && verbose) {
           console.error('Error closing database:', err);
         }
-        resolve();
+        resolve(undefined);
       });
     });
   }
@@ -1015,13 +1194,25 @@ class NdcDataMigrator {
 
 // Enhanced migrator with progress reporting
 class NdcDataMigratorWithProgress {
+  /**
+   * @param {NdcModule} moduleInstance
+   * @param {boolean} [verbose]
+   */
   constructor(moduleInstance, verbose = true) {
+    /** @type {NdcModule} */
     this.module = moduleInstance;
+    /** @type {boolean} */
     this.verbose = verbose;
+    /** @type {number} */
     this.totalProgress = 0;
   }
 
-  async migrate(sourceDir, destFile, version, options) {
+  /**
+   * @param {string} sourceDir
+   * @param {string} destFile
+   * @param {NdcImportOptions} options
+   */
+  async migrate(sourceDir, destFile, options) {
     // Estimate total work by counting lines in all files
     const versions = await this.countVersions(sourceDir);
     this.totalProgress = await this.estimateWorkload(sourceDir, versions);
@@ -1031,22 +1222,31 @@ class NdcDataMigratorWithProgress {
     this.module.updateProgress(0, this.totalProgress);
 
     // Create migrator with progress callback
-    const migratorWithProgress = new NdcDataMigrator((currentProgress) => {
+    const migratorWithProgress = new NdcDataMigrator((/** @type {number} */ currentProgress) => {
       this.module.updateProgress(currentProgress);
     });
 
     try {
-      await migratorWithProgress.migrate(sourceDir, destFile, version, options);
+      await migratorWithProgress.migrate(sourceDir, destFile, options);
     } finally {
       this.module.stopProgress();
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<string[]>}
+   */
   async countVersions(sourceDir) {
     const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
-    return entries.filter(entry => entry.isDirectory()).map(entry => entry.name);
+    return entries.filter((/** @type {fs.Dirent} */ entry) => entry.isDirectory()).map((/** @type {fs.Dirent} */ entry) => entry.name);
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string[]} versions
+   * @returns {Promise<number>}
+   */
   async estimateWorkload(sourceDir, versions) {
     let totalLines = 0;
 
@@ -1067,6 +1267,10 @@ class NdcDataMigratorWithProgress {
     return Math.max(totalLines - versions.length * 2, 1); // Subtract headers
   }
 
+  /**
+   * @param {string} filePath
+   * @returns {Promise<number>}
+   */
   async countLines(filePath) {
     return new Promise((resolve, reject) => {
       let lineCount = 0;

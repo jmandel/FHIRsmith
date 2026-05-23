@@ -4,18 +4,21 @@
 // GET /{type}?{params}
 // POST /{type}/_search
 //
+// @ts-check
 
 const { TerminologyWorker } = require('./worker');
 const {Utilities} = require("../../library/utilities");
 const {debugLog} = require("../operation-context");
 
+/** @typedef {{msgId?: string, className?: string, message?: string}} WorkerErrorLike */
+
 class SearchWorker extends TerminologyWorker {
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -40,6 +43,7 @@ class SearchWorker extends TerminologyWorker {
   ];
 
   // Summary elements for _summary=true (marked elements per resource type)
+  /** @type {Record<string, string[]>} */
   static SUMMARY_ELEMENTS = {
     CodeSystem: ['meta', 'url', 'version', 'name', 'title', 'status', 'experimental', 'date', 'publisher', 'description', 'jurisdiction', 'content'],
     ValueSet: ['meta', 'url', 'version', 'name', 'title', 'status', 'experimental', 'date', 'publisher', 'description', 'jurisdiction'],
@@ -51,10 +55,9 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Handle a search request
-   * @param {express.Request} req - Express request (with txProvider attached)
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request (with txProvider attached)
+   * @param {any} res - Express response
    * @param {string} resourceType - The resource type (CodeSystem, ValueSet, ConceptMap)
-   * @param {Object} log - Logger instance
    */
   async handle(req, res, resourceType) {
     const params = req.method === 'POST' ? req.body : req.query;
@@ -68,6 +71,7 @@ class SearchWorker extends TerminologyWorker {
       const totalMode = params._total || 'accurate';
 
       // Determine elements based on _summary parameter
+      /** @type {string[] | null} */
       let elements;
       switch (summary) {
         case 'true':
@@ -80,7 +84,7 @@ class SearchWorker extends TerminologyWorker {
           elements = null; // no filter for terminology
           break;
         default:
-          elements = params._elements ? decodeURIComponent(params._elements).split(',').map(e => e.trim()) : null;
+          elements = params._elements ? decodeURIComponent(params._elements).split(',').map((/** @type {string} */ e) => e.trim()) : null;
           break;
       }
 
@@ -88,6 +92,7 @@ class SearchWorker extends TerminologyWorker {
       const sort = params._sort || "id";
 
       // Get matching resources
+      /** @type {any[]} */
       let matches = [];
       switch (resourceType) {
         case 'CodeSystem':
@@ -118,15 +123,16 @@ class SearchWorker extends TerminologyWorker {
       return res.json(bundle);
 
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = "error "+(error.msgId || error.className);
+      req.logInfo = "error "+(workerError.msgId || workerError.className || '');
       return res.status(500).json({
         resourceType: 'OperationOutcome',
         issue: [{
           severity: 'error',
           code: 'exception',
-          diagnostics: error.message
+          diagnostics: workerError.message || String(error)
         }]
       });
     }
@@ -134,15 +140,19 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Search CodeSystems
+   * @param {Record<string, any>} params
+   * @returns {any[]}
    */
   searchCodeSystems(params) {
+    /** @type {any[]} */
     const matches = [];
 
     // Extract search parameters (excluding special params)
+    /** @type {Record<string, string>} */
     const searchParams = {};
     for (const [key, value] of Object.entries(params)) {
       if (!key.startsWith('_') && value && SearchWorker.ALLOWED_PARAMS.includes(key)) {
-        searchParams[key] = key == 'url' ? value : value.toLowerCase();
+        searchParams[key] = key == 'url' ? String(value) : String(value).toLowerCase();
       }
     }
 
@@ -157,13 +167,19 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Search ValueSets by delegating to providers
+   * @param {Record<string, any>} params
+   * @param {string[] | null} elements
+   * @returns {Promise<any[]>}
    */
   async searchValueSets(params, elements) {
+    /** @type {any[]} */
     const allMatches = [];
 
     // Convert params object to array format expected by ValueSet providers
     // Exclude control params (_offset, _count, _elements, _sort)
+    /** @type {any[]} */
     const searchParams = [];
+    /** @type {any} */
     let source = null;
     for (const [key, value] of Object.entries(params)) {
       if (!key.startsWith('_') && value && SearchWorker.ALLOWED_PARAMS.includes(key)) {
@@ -192,13 +208,19 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Search ConceptMaps by delegating to providers
+   * @param {Record<string, any>} params
+   * @param {string[] | null} elements
+   * @returns {Promise<any[]>}
    */
   async searchConceptMaps(params, elements) {
+    /** @type {any[]} */
     const allMatches = [];
 
     // Convert params object to array format expected by ValueSet providers
     // Exclude control params (_offset, _count, _elements, _sort)
+    /** @type {any[]} */
     const searchParams = [];
+    /** @type {any} */
     let source = null;
     for (const [key, value] of Object.entries(params)) {
       if (!key.startsWith('_') && value && SearchWorker.ALLOWED_PARAMS.includes(key)) {
@@ -227,6 +249,8 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Check if a value matches the search term (partial, case-insensitive)
+   * @param {any} propValue
+   * @param {string} searchValue
    */
   matchValue(propValue, searchValue) {
     if (propValue === undefined || propValue === null) {
@@ -239,6 +263,8 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Check if jurisdiction matches - jurisdiction is an array of CodeableConcept
+   * @param {any} jurisdictions
+   * @param {string} searchValue
    */
   matchJurisdiction(jurisdictions, searchValue) {
     if (!jurisdictions || !Array.isArray(jurisdictions)) {
@@ -268,6 +294,9 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Sort results by the specified field
+   * @param {any[]} results
+   * @param {string} sortField
+   * @returns {any[]}
    */
   sortResults(results, sortField) {
     if (!SearchWorker.SORT_FIELDS.includes(sortField)) {
@@ -290,6 +319,15 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Build a FHIR search Bundle with pagination
+   * @param {any} req
+   * @param {string} resourceType
+   * @param {any[]} allMatches
+   * @param {number} offset
+   * @param {number} count
+   * @param {string[] | null} elements
+   * @param {string} summary
+   * @param {string} totalParam
+   * @returns {any}
    */
   buildSearchBundle(req, resourceType, allMatches, offset, count, elements, summary, totalParam) {
     const totalCount = allMatches.length;
@@ -317,16 +355,17 @@ class SearchWorker extends TerminologyWorker {
     const params = req.method === 'POST' ? req.body : req.query;
     for (const [key, value] of Object.entries(params)) {
       if (key !== '_offset' && value) {
-        searchParams.set(key, value);
+        searchParams.set(key, String(value));
       }
     }
 
     // Build pagination links
+    /** @type {any[]} */
     const links = [];
 
     // Self link
     const selfParams = new URLSearchParams(searchParams);
-    selfParams.set('_offset', offset);
+    selfParams.set('_offset', String(offset));
     links.push({
       relation: 'self',
       url: `${baseUrl}?${selfParams.toString()}`
@@ -334,7 +373,7 @@ class SearchWorker extends TerminologyWorker {
 
     // First link
     const firstParams = new URLSearchParams(searchParams);
-    firstParams.set('_offset', 0);
+    firstParams.set('_offset', '0');
     links.push({
       relation: 'first',
       url: `${baseUrl}?${firstParams.toString()}`
@@ -343,7 +382,7 @@ class SearchWorker extends TerminologyWorker {
     // Previous link (if not on first page)
     if (offset > 0) {
       const prevParams = new URLSearchParams(searchParams);
-      prevParams.set('_offset', Math.max(0, offset - count));
+      prevParams.set('_offset', String(Math.max(0, offset - count)));
       links.push({
         relation: 'previous',
         url: `${baseUrl}?${prevParams.toString()}`
@@ -353,7 +392,7 @@ class SearchWorker extends TerminologyWorker {
     // Next link (if more results)
     if (offset + count < totalCount) {
       const nextParams = new URLSearchParams(searchParams);
-      nextParams.set('_offset', offset + count);
+      nextParams.set('_offset', String(offset + count));
       links.push({
         relation: 'next',
         url: `${baseUrl}?${nextParams.toString()}`
@@ -363,14 +402,14 @@ class SearchWorker extends TerminologyWorker {
     // Last link
     const lastOffset = Math.max(0, Math.floor((totalCount - 1) / count) * count);
     const lastParams = new URLSearchParams(searchParams);
-    lastParams.set('_offset', lastOffset);
+    lastParams.set('_offset', String(lastOffset));
     links.push({
       relation: 'last',
       url: `${baseUrl}?${lastParams.toString()}`
     });
 
     // Build entries
-    const entries = pageResults.map(resource => {
+    const entries = pageResults.map((/** @type {any} */ resource) => {
       // Apply _elements or _summary filter if specified
       let filteredResource = resource;
       if (elements) {
@@ -386,6 +425,7 @@ class SearchWorker extends TerminologyWorker {
       };
     });
 
+    /** @type {Record<string, any>} */
     const bundle = {
       resourceType: 'Bundle',
       type: 'searchset',
@@ -401,9 +441,13 @@ class SearchWorker extends TerminologyWorker {
 
   /**
    * Filter resource to only include specified elements
+   * @param {any} resource
+   * @param {string[]} elements
+   * @returns {any}
    */
   filterElements(resource, elements) {
     // Always include resourceType and id
+    /** @type {Record<string, any>} */
     const filtered = {
       resourceType: resource.resourceType,
       id: resource.id
@@ -425,6 +469,11 @@ class SearchWorker extends TerminologyWorker {
     return filtered;
   }
 
+  /**
+   * @param {Record<string, string>} searchParams
+   * @param {boolean} hasSearchParams
+   * @param {any[]} matches
+   */
   searchCodeSystemResources(searchParams, hasSearchParams, matches) {
     for (const [key, cs] of this.provider.codeSystems) {
       this.deadCheck('searchCodeSystems');
@@ -479,6 +528,11 @@ class SearchWorker extends TerminologyWorker {
     }
   }
 
+  /**
+   * @param {Record<string, string>} searchParams
+   * @param {boolean} hasSearchParams
+   * @param {any[]} matches
+   */
   searchCodeSystemProviders(searchParams, hasSearchParams, matches) {
     let seen = new Set();
     for (const csp of this.provider.codeSystemFactories.values()) {
@@ -489,6 +543,7 @@ class SearchWorker extends TerminologyWorker {
       }
       seen.add(csp.id());
 
+      /** @type {Record<string, any>} */
       let json = {
         resourceType: "CodeSystem",
         id: "x-" + csp.id(),

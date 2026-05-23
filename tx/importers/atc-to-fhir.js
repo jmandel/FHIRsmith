@@ -1,5 +1,12 @@
+// @ts-check
+
 const fs = require('fs');
 const { XMLParser } = require('fast-xml-parser');
+
+/** @typedef {Record<string, any>} XmlRow */
+/** @typedef {{ddd?: any, unit?: any, admRoute?: any, comment?: any}} DddEntry */
+/** @typedef {{code: string, valueCode?: any, valueString?: any, extension?: Array<{url: string, valueCode: string}>}} ConceptProperty */
+/** @typedef {{code: string, display?: string, property?: ConceptProperty[], concept?: AtcConcept[]}} AtcConcept */
 
 // Configuration
 const ATC_FILE = process.argv[2] || '2025_ATC.xml';
@@ -9,6 +16,10 @@ const OUTPUT_FILE = process.argv[4] || 'atc-codesystem.json';
 const PROPERTY_GROUP_EXT_URL = 'http://hl7.org/fhir/StructureDefinition/Codesystem-property-group';
 
 // Parse XML files
+/**
+ * @param {string} filePath
+ * @returns {any}
+ */
 function parseXML(filePath) {
     const xml = fs.readFileSync(filePath, 'utf-8');
     const parser = new XMLParser({
@@ -20,6 +31,10 @@ function parseXML(filePath) {
 }
 
 // Extract rows from parsed XML
+/**
+ * @param {any} parsed
+ * @returns {XmlRow[]}
+ */
 function extractRows(parsed) {
     const data = parsed.xml['rs:data'];
     let rows = data['z:row'];
@@ -30,6 +45,10 @@ function extractRows(parsed) {
 }
 
 // Get parent code for hierarchy
+/**
+ * @param {string} code
+ * @returns {string | null}
+ */
 function getParentCode(code) {
     const len = code.trim().length;
     switch (len) {
@@ -43,7 +62,12 @@ function getParentCode(code) {
 }
 
 // Build DDD lookup map (ATCCode -> array of DDD entries)
+/**
+ * @param {XmlRow[]} dddRows
+ * @returns {Map<string, DddEntry[]>}
+ */
 function buildDDDMap(dddRows) {
+    /** @type {Map<string, DddEntry[]>} */
     const map = new Map();
     
     for (const row of dddRows) {
@@ -60,14 +84,22 @@ function buildDDDMap(dddRows) {
         if (!map.has(code)) {
             map.set(code, []);
         }
-        map.get(code).push(entry);
+        map.get(code)?.push(entry);
     }
     
     return map;
 }
 
 // Create property with optional group extension
+/**
+ * @param {string} code
+ * @param {any} value
+ * @param {number | null} [groupId]
+ * @param {'string' | 'code'} [valueType]
+ * @returns {ConceptProperty}
+ */
 function createProperty(code, value, groupId = null, valueType = 'string') {
+    /** @type {ConceptProperty} */
     const prop = {
         code: code
     };
@@ -89,6 +121,11 @@ function createProperty(code, value, groupId = null, valueType = 'string') {
 }
 
 // Build concept from ATC row with DDD data
+/**
+ * @param {XmlRow} atcRow
+ * @param {Map<string, DddEntry[]>} dddMap
+ * @returns {AtcConcept | null}
+ */
 function buildConcept(atcRow, dddMap) {
     const code = atcRow.ATCCode?.trim();
     const name = atcRow.Name?.trim();
@@ -96,11 +133,13 @@ function buildConcept(atcRow, dddMap) {
     
     if (!code) return null;
     
+    /** @type {AtcConcept} */
     const concept = {
         code: code,
         display: name
     };
     
+    /** @type {ConceptProperty[]} */
     const properties = [];
     
     // Add comment property (non-grouped) if present
@@ -146,6 +185,11 @@ function buildConcept(atcRow, dddMap) {
 }
 
 // Main conversion function
+/**
+ * @param {string} atcFile
+ * @param {string} dddFile
+ * @returns {any}
+ */
 function convertATCtoFHIR(atcFile, dddFile) {
     console.log(`Parsing ${atcFile}...`);
     const atcParsed = parseXML(atcFile);
@@ -163,6 +207,7 @@ function convertATCtoFHIR(atcFile, dddFile) {
     
     console.log('Building FHIR CodeSystem...');
     
+    /** @type {any} */
     const codeSystem = {
         resourceType: 'CodeSystem',
         id: 'atc',
@@ -229,6 +274,7 @@ function convertATCtoFHIR(atcFile, dddFile) {
     };
     
     // Build flat concepts first
+    /** @type {Map<string, AtcConcept>} */
     const conceptMap = new Map();
     for (const row of atcRows) {
         const concept = buildConcept(row, dddMap);
@@ -238,6 +284,7 @@ function convertATCtoFHIR(atcFile, dddFile) {
     }
     
     // Build nested hierarchy
+    /** @type {AtcConcept[]} */
     const rootConcepts = [];
     
     for (const [code, concept] of conceptMap) {
@@ -286,11 +333,15 @@ try {
     console.log(`  Concepts with DDD data: ${withDDD}`);
     
 } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
 }
 
 // Print some stats
+/**
+ * @param {AtcConcept[]} concepts
+ * @returns {number}
+ */
 function countConcepts(concepts) {
     let count = 0;
     for (const c of concepts) {
@@ -302,6 +353,10 @@ function countConcepts(concepts) {
     return count;
 }
 
+/**
+ * @param {AtcConcept[]} concepts
+ * @returns {number}
+ */
 function countWithDDD(concepts) {
     let count = 0;
     for (const c of concepts) {

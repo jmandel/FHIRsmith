@@ -2,6 +2,7 @@
 // NpmProjector Module
 // Watches an npm package directory and serves FHIR resources with search indexes
 //
+// @ts-check
 
 const express = require('express');
 const Logger = require('../library/logger');
@@ -9,6 +10,7 @@ const FHIRIndexer = require('./indexer');
 const PackageWatcher = require('./watcher');
 
 // Load FHIRPath models for different FHIR versions
+/** @type {Record<string, () => any>} */
 const fhirModels = {
   'r4': () => require('fhirpath/fhir-context/r4'),
   'r5': () => require('fhirpath/fhir-context/r5'),
@@ -16,13 +18,21 @@ const fhirModels = {
   'dstu2': () => require('fhirpath/fhir-context/dstu2')
 };
 class NpmProjectorModule {
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.router = express.Router();
     this.log = Logger.getInstance().child({ module: 'npmprojector' });
+    /** @type {any} */
     this.config = null;
+    /** @type {any} */
     this.watcher = null;
+    /** @type {any} */
     this.currentIndexer = null;
+    /** @type {string | null} */
     this.lastReloadTime = null;
+    /** @type {any} */
     this.lastReloadStats = null;
     this.reloadCount = 0;
     this.stats = stats;
@@ -30,10 +40,16 @@ class NpmProjectorModule {
 
   /**
    * Get the configured base path for this module (for server.js to use)
+   * @param {any} config
+   * @returns {string}
    */
   static getBasePath(config) {
     return config.basePath || '/npmprojector';
   }
+
+  /**
+   * @param {any} config
+   */
   async initialize(config) {
     this.config = config;
     this.log.info('Initializing NpmProjector module');
@@ -53,7 +69,7 @@ class NpmProjectorModule {
       this.fhirModel = fhirModels[fhirVersion]();
       this.log.info(`Loaded FHIRPath model for ${fhirVersion.toUpperCase()}`);
     } catch (err) {
-      throw new Error(`Failed to load FHIRPath model for ${fhirVersion}: ${err.message}`);
+      throw new Error(`Failed to load FHIRPath model for ${fhirVersion}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Initialize indexer with the model
@@ -76,6 +92,7 @@ class NpmProjectorModule {
 
   /**
    * Handle package reload - builds new index then swaps atomically
+   * @param {{resources: any[], searchParameters: any[]}} data
    */
   handleReload({ resources, searchParameters }) {
     const startTime = Date.now();
@@ -112,12 +129,13 @@ class NpmProjectorModule {
 
       this.log.info(`Index rebuilt in ${elapsed}ms: ${JSON.stringify(stats)}`);
     } catch (error) {
-      this.log.error('Error during reload:', error);
+      this.log.error('Error during reload:', /** @type {any} */ (error));
     }
   }
 
   /**
    * Get the current indexer for request handling
+   * @returns {any}
    */
   getIndexer() {
     return this.currentIndexer;
@@ -128,14 +146,14 @@ class NpmProjectorModule {
    */
   setupRoutes() {
     // CORS for browser access
-    this.router.use((req, res, next) => {
+    this.router.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
       next();
     });
 
     // Root - module info
-    this.router.get('/', (req, res) => {
+    this.router.get('/', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
 
@@ -165,7 +183,7 @@ class NpmProjectorModule {
     });
 
     // Capability Statement (metadata)
-    this.router.get('/metadata', (req, res) => {
+    this.router.get('/metadata', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const indexer = this.getIndexer();
@@ -176,7 +194,7 @@ class NpmProjectorModule {
     });
 
     // Stats endpoint
-    this.router.get('/_stats', (req, res) => {
+    this.router.get('/_stats', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const indexer = this.getIndexer();
@@ -191,7 +209,7 @@ class NpmProjectorModule {
     });
 
     // Trigger manual reload
-    this.router.post('/_reload', (req, res) => {
+    this.router.post('/_reload', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
 
@@ -204,7 +222,7 @@ class NpmProjectorModule {
     });
 
     // Read: GET /[type]/[id]
-    this.router.get('/:resourceType/:id', (req, res) => {
+    this.router.get('/:resourceType/:id', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
 
@@ -228,7 +246,7 @@ class NpmProjectorModule {
     });
 
     // Search: GET /[type]?params...
-    this.router.get('/:resourceType', (req, res) => {
+    this.router.get('/:resourceType', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
 
@@ -245,6 +263,7 @@ class NpmProjectorModule {
         }
 
         // Extract search parameters
+        /** @type {Record<string, any>} */
         const searchParams = {};
         for (const [key, value] of Object.entries(req.query || {})) {
           if (!key.startsWith('_') || key === '_id') {
@@ -275,6 +294,10 @@ class NpmProjectorModule {
 
   /**
    * Build a FHIR Bundle for search results
+   * @param {any[]} resources
+   * @param {any} req
+   * @param {number} totalCount
+   * @returns {any}
    */
   buildSearchBundle(resources, req, totalCount) {
     const protocol = req.protocol;
@@ -304,11 +327,13 @@ class NpmProjectorModule {
 
   /**
    * Build a CapabilityStatement
+   * @param {any} indexer
+   * @returns {any}
    */
   buildCapabilityStatement(indexer) {
     const resourceTypes = indexer.getResourceTypes();
 
-    const restResources = resourceTypes.map(type => {
+    const restResources = resourceTypes.map((/** @type {string} */ type) => {
       const searchParams = indexer.getSearchParams(type);
 
       return {
@@ -317,7 +342,7 @@ class NpmProjectorModule {
           { code: 'read' },
           { code: 'search-type' }
         ],
-        searchParam: searchParams.map(sp => ({
+        searchParam: searchParams.map((/** @type {any} */ sp) => ({
           name: sp.code,
           type: sp.type,
           documentation: sp.description || sp.name
@@ -347,6 +372,10 @@ class NpmProjectorModule {
 
   /**
    * Build an OperationOutcome for errors
+   * @param {string} severity
+   * @param {string} code
+   * @param {string} message
+   * @returns {any}
    */
   operationOutcome(severity, code, message) {
     return {

@@ -1,9 +1,27 @@
+// @ts-check
+
 const { BaseTerminologyModule } = require('./tx-import-base');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const readline = require('readline');
 const chalk = require('chalk');
+
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {{mainCodesFound: boolean, partsFound: boolean, estimatedCodes: number, languageVariants: string[], warnings: string[]}} LoincValidationStats */
+/** @typedef {{version: string, codeCount: number, mainCodeCount: number, partCount: number, answerListCount: number, languageCount: number, relationshipCount: number, sizeGB: number, lastModified: string}} LoincDatabaseStats */
+/** @typedef {{name: string, sql: string}} CountQuery */
+/** @typedef {{key: number, children: Set<number>}} LoincCodeInfo */
+/** @typedef {{verbose?: boolean, mainOnly?: boolean}} LoincImportOptions */
+/** @typedef {(currentProgress: number, operation: string) => void} ProgressCallback */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 class LoincModule extends BaseTerminologyModule {
   constructor() {
@@ -36,6 +54,10 @@ class LoincModule extends BaseTerminologyModule {
     return '45-120 minutes (depending on language variants)';
   }
 
+  /**
+   * @param {any} terminologyCommand
+   * @param {Record<string, any>} globalOptions
+   */
   registerCommands(terminologyCommand, globalOptions) {
     // Import command
     terminologyCommand
@@ -47,7 +69,7 @@ class LoincModule extends BaseTerminologyModule {
       .option('-y, --yes', 'Skip confirmations')
       .option('--no-indexes', 'Skip index creation for faster import')
       .option('--main-only', 'Import only main codes (skip language variants)')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleImportCommand({...globalOptions, ...options});
       });
 
@@ -56,7 +78,7 @@ class LoincModule extends BaseTerminologyModule {
       .command('validate')
       .description('Validate LOINC source directory structure')
       .option('-s, --source <directory>', 'Source directory to validate')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleValidateCommand({...globalOptions, ...options});
       });
 
@@ -65,11 +87,14 @@ class LoincModule extends BaseTerminologyModule {
       .command('status')
       .description('Show status of LOINC database')
       .option('-d, --dest <file>', 'Database file to check')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleStatusCommand({...globalOptions, ...options});
       });
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleImportCommand(options) {
     try {
       // Gather configuration with remembered values
@@ -106,14 +131,18 @@ class LoincModule extends BaseTerminologyModule {
       // Run the import
       await this.runImportWithoutConfigSaving(config);
     } catch (error) {
-      this.logError(`Import command failed: ${error.message}`);
+      this.logError(`Import command failed: ${errorMessage(error)}`);
       if (options.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       throw error;
     }
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async confirmImport(config) {
     const inquirer = require('inquirer');
     const chalk = require('chalk');
@@ -141,6 +170,9 @@ class LoincModule extends BaseTerminologyModule {
     return confirmed;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async runImportWithoutConfigSaving(config) {
     try {
       console.log(chalk.blue.bold(`🏥 Starting ${this.getName()} Import...\n`));
@@ -160,21 +192,24 @@ class LoincModule extends BaseTerminologyModule {
 
     } catch (error) {
       this.stopProgress();
-      this.logError(`${this.getName()} import failed: ${error.message}`);
+      this.logError(`${this.getName()} import failed: ${errorMessage(error)}`);
       if (config.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       process.exit(1);
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleValidateCommand(options) {
     if (!options.source) {
       const answers = await require('inquirer').prompt({
         type: 'input',
         name: 'source',
         message: 'Source directory to validate:',
-        validate: (input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
+        validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
       });
       options.source = answers.source;
     }
@@ -192,14 +227,17 @@ class LoincModule extends BaseTerminologyModule {
 
       if (stats.warnings.length > 0) {
         this.logWarning('Validation warnings:');
-        stats.warnings.forEach(warning => console.log(`    ${warning}`));
+        stats.warnings.forEach((/** @type {string} */ warning) => console.log(`    ${warning}`));
       }
 
     } catch (error) {
-      this.logError(`Validation failed: ${error.message}`);
+      this.logError(`Validation failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleStatusCommand(options) {
     const dbPath = options.dest || './data/loinc.db';
 
@@ -225,10 +263,14 @@ class LoincModule extends BaseTerminologyModule {
       console.log(`  Last Modified: ${stats.lastModified}`);
 
     } catch (error) {
-      this.logError(`Status check failed: ${error.message}`);
+      this.logError(`Status check failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async validatePrerequisites(config) {
     const baseValid = await super.validatePrerequisites(config);
 
@@ -237,13 +279,16 @@ class LoincModule extends BaseTerminologyModule {
       await this.validateLoincDirectory(config.source);
       this.logSuccess('LOINC directory structure valid');
     } catch (error) {
-      this.logError(`LOINC directory validation failed: ${error.message}`);
+      this.logError(`LOINC directory validation failed: ${errorMessage(error)}`);
       return false;
     }
 
     return baseValid;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async executeImport(config) {
     this.logInfo('Starting LOINC data migration...');
 
@@ -269,6 +314,10 @@ class LoincModule extends BaseTerminologyModule {
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<LoincValidationStats>}
+   */
   async validateLoincDirectory(sourceDir) {
     if (!fs.existsSync(sourceDir)) {
       throw new Error(`Source directory not found: ${sourceDir}`);
@@ -288,6 +337,7 @@ class LoincModule extends BaseTerminologyModule {
       'AccessoryFiles/LinguisticVariants/LinguisticVariants.csv'
     ];
 
+    /** @type {string[]} */
     const warnings = [];
     let mainCodesFound = false;
     let partsFound = false;
@@ -317,6 +367,7 @@ class LoincModule extends BaseTerminologyModule {
     }
 
     // Check for language variants
+    /** @type {string[]} */
     const languageVariants = [];
     const linguisticVariantsDir = path.join(sourceDir, 'AccessoryFiles/LinguisticVariants');
     if (fs.existsSync(linguisticVariantsDir)) {
@@ -337,6 +388,10 @@ class LoincModule extends BaseTerminologyModule {
     };
   }
 
+  /**
+   * @param {string} filePath
+   * @returns {Promise<number>}
+   */
   async countLines(filePath) {
     return new Promise((resolve, reject) => {
       let lineCount = 0;
@@ -351,14 +406,19 @@ class LoincModule extends BaseTerminologyModule {
     });
   }
 
+  /**
+   * @param {string} dbPath
+   * @returns {Promise<LoincDatabaseStats>}
+   */
   async getDatabaseStats(dbPath) {
     const sqlite3 = require('sqlite3').verbose();
     const db = new sqlite3.Database(dbPath);
 
     return new Promise((resolve, reject) => {
+      /** @type {Record<string, any>} */
       const stats = {};
 
-      db.get('SELECT Value FROM Config WHERE ConfigKey = 2', (err, row) => {
+      db.get('SELECT Value FROM Config WHERE ConfigKey = 2', (/** @type {Error | null} */ err, /** @type {{Value?: string} | undefined} */ row) => {
         if (err) return reject(err);
         stats.version = row ? row.Value : 'Unknown';
 
@@ -373,8 +433,8 @@ class LoincModule extends BaseTerminologyModule {
 
         let completed = 0;
 
-        queries.forEach(query => {
-          db.get(query.sql, (err, row) => {
+        queries.forEach((/** @type {CountQuery} */ query) => {
+          db.get(query.sql, (/** @type {Error | null} */ err, /** @type {{count: number}} */ row) => {
             if (err) return reject(err);
             stats[query.name] = row.count;
             completed++;
@@ -385,7 +445,7 @@ class LoincModule extends BaseTerminologyModule {
               stats.lastModified = fileStat.mtime.toISOString();
 
               db.close();
-              resolve(stats);
+              resolve(/** @type {LoincDatabaseStats} */ (stats));
             }
           });
         });
@@ -393,6 +453,10 @@ class LoincModule extends BaseTerminologyModule {
     });
   }
 
+  /**
+   * @param {string} dbPath
+   * @returns {Promise<void>}
+   */
   async createIndexes(dbPath) {
     const sqlite3 = require('sqlite3').verbose();
     const db = new sqlite3.Database(dbPath);
@@ -430,13 +494,13 @@ class LoincModule extends BaseTerminologyModule {
     return new Promise((resolve, reject) => {
       db.serialize(() => {
         indexes.forEach(sql => {
-          db.run(sql, (err) => {
+          db.run(sql, (/** @type {Error | null} */ err) => {
             if (err) console.warn(`Index creation warning: ${err.message}`);
           });
         });
       });
 
-      db.close((err) => {
+      db.close((/** @type {Error | null} */ err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -446,6 +510,10 @@ class LoincModule extends BaseTerminologyModule {
 
 // Enhanced migrator with progress reporting
 class LoincDataMigratorWithProgress {
+  /**
+   * @param {LoincModule} moduleInstance
+   * @param {boolean} [verbose]
+   */
   constructor(moduleInstance, verbose = true) {
     this.module = moduleInstance;
     this.verbose = verbose;
@@ -453,6 +521,12 @@ class LoincDataMigratorWithProgress {
     this.currentOperation = 'Starting';
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string} destFile
+   * @param {string} version
+   * @param {LoincImportOptions} options
+   */
   async migrate(sourceDir, destFile, version, options) {
     // Estimate total work
     this.totalProgress = await this.estimateWorkload(sourceDir, options);
@@ -488,6 +562,11 @@ class LoincDataMigratorWithProgress {
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {LoincImportOptions} options
+   * @returns {Promise<number>}
+   */
   async estimateWorkload(sourceDir, options) {
     let totalLines = 0;
     const files = [
@@ -528,6 +607,10 @@ class LoincDataMigratorWithProgress {
     return Math.max(totalLines - 20, 1);
   }
 
+  /**
+   * @param {string} filePath
+   * @returns {Promise<number>}
+   */
   async countLines(filePath) {
     return new Promise((resolve, reject) => {
       let lineCount = 0;
@@ -544,13 +627,44 @@ class LoincDataMigratorWithProgress {
 }
 
 class LoincDataMigrator {
+  /**
+   * @param {ProgressCallback | null} [progressCallback]
+   */
   constructor(progressCallback = null) {
     this.progressCallback = progressCallback;
     this.currentProgress = 0;
     this.stepCount = 16;
     this.currentOperation = 'Initializing';
+    this.codeKey = 0;
+    this.relKey = 0;
+    this.descKey = 0;
+    this.propKey = 0;
+    this.propValueKey = 0;
+    this.langKey = 1;
+    /** @type {Map<string, LoincCodeInfo>} */
+    this.codes = new Map();
+    /** @type {LoincCodeInfo[]} */
+    this.codeList = [];
+    /** @type {Map<string, number>} */
+    this.statii = new Map();
+    /** @type {Map<string, number>} */
+    this.langs = new Map();
+    /** @type {Map<string, number>} */
+    this.rels = new Map();
+    /** @type {Map<string, number>} */
+    this.dTypes = new Map();
+    /** @type {Map<string, number>} */
+    this.props = new Map();
+    /** @type {Map<string, number>} */
+    this.propValues = new Map();
+    /** @type {Map<string, string>} */
+    this.partNames = new Map();
   }
 
+  /**
+   * @param {number} [amount]
+   * @param {string | null} [operation]
+   */
   updateProgress(amount = 1, operation = null) {
     this.currentProgress += amount;
     if (operation) {
@@ -561,6 +675,12 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @param {string} destFile
+   * @param {string} [version]
+   * @param {LoincImportOptions} [options]
+   */
   async migrate(sourceDir, destFile, version = 'unknown', options = {}) {
     if (options.verbose) console.log('Starting LOINC data migration...');
 
@@ -648,6 +768,12 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} version
+   * @param {boolean} [verbose]
+   * @returns {Promise<void>}
+   */
   async createTables(db, version, verbose = true) {
     if (verbose) console.log('Creating database tables...');
 
@@ -729,7 +855,7 @@ class LoincDataMigrator {
     return new Promise((resolve, reject) => {
       db.serialize(() => {
         tableSQL.forEach(sql => {
-          db.run(sql, (err) => {
+          db.run(sql, (/** @type {Error | null} */ err) => {
             if (err) return reject(err);
           });
         });
@@ -741,6 +867,10 @@ class LoincDataMigrator {
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} version
+   */
   insertInitialData(db, version) {
     // Config
     db.run('INSERT INTO Config (ConfigKey, Value) VALUES (1, "c3c89b66-5930-4aa2-8962-124561a5f8c1")');
@@ -760,7 +890,7 @@ class LoincDataMigrator {
     ];
     statusCodes.forEach(([key, desc]) => {
       db.run('INSERT INTO StatusCodes (StatusKey, Description) VALUES (?, ?)', [key, desc]);
-      this.statii.set(desc, key);
+      this.statii.set(String(desc), Number(key));
     });
 
     // Relationship types
@@ -780,7 +910,7 @@ class LoincDataMigrator {
     ];
     relationshipTypes.forEach(([key, desc]) => {
       db.run('INSERT INTO RelationshipTypes (RelationshipTypeKey, Description) VALUES (?, ?)', [key, desc]);
-      this.rels.set(desc, key);
+      this.rels.set(String(desc), Number(key));
     });
 
     // Description types
@@ -790,7 +920,7 @@ class LoincDataMigrator {
     ];
     descriptionTypes.forEach(([key, desc]) => {
       db.run('INSERT INTO DescriptionTypes (DescriptionTypeKey, Description) VALUES (?, ?)', [key, desc]);
-      this.dTypes.set(desc, key);
+      this.dTypes.set(String(desc), Number(key));
     });
 
     // Property types
@@ -801,7 +931,7 @@ class LoincDataMigrator {
     ];
     propertyTypes.forEach(([key, desc]) => {
       db.run('INSERT INTO PropertyTypes (PropertyTypeKey, Description) VALUES (?, ?)', [key, desc]);
-      this.props.set(desc, key);
+      this.props.set(String(desc), Number(key));
     });
 
     // Languages (English US is default)
@@ -809,7 +939,12 @@ class LoincDataMigrator {
     this.langs.set('en-US', 1);
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<string[]>}
+   */
   async discoverLanguageVariants(sourceDir) {
+    /** @type {string[]} */
     const languageVariants = [];
     const linguisticVariantsDir = path.join(sourceDir, 'AccessoryFiles/LinguisticVariants');
 
@@ -828,6 +963,12 @@ class LoincDataMigrator {
     return languageVariants;
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processLanguageVariants(db, sourceDir, step, options) {
     if (options.verbose) console.log('Processing Language Variants...');
 
@@ -862,6 +1003,12 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processParts(db, sourceDir, step, options) {
     if (options.verbose) console.log('Processing Parts...');
 
@@ -897,6 +1044,10 @@ class LoincDataMigrator {
     if (options.verbose) console.log(`  Processed ${processedCount} parts`);
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string[]} items
+   */
   async processPartItem(db, items) {
     this.codeKey++;
     const codeKey = this.codeKey;
@@ -909,6 +1060,7 @@ class LoincDataMigrator {
     db.run('INSERT INTO Codes (CodeKey, Code, Type, RelationshipKey, StatusKey, Description) VALUES (?, ?, ?, ?, ?, ?)',
       [codeKey, code, type, relKey, statusKey, description]);
 
+    /** @type {LoincCodeInfo} */
     const codeInfo = { key: codeKey, children: new Set() };
     this.codes.set(code, codeInfo);
     this.codeList.push(codeInfo);
@@ -917,6 +1069,12 @@ class LoincDataMigrator {
     this.addDescription(db, codeKey, 1, this.dTypes.get('DisplayName'), items[3]);
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processCodes(db, sourceDir, step, options) {
     if (options.verbose) console.log('Processing Main Codes...');
 
@@ -952,6 +1110,10 @@ class LoincDataMigrator {
     if (options.verbose) console.log(`  Processed ${processedCount} main codes`);
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string[]} items
+   */
   async processCodeItem(db, items) {
     this.codeKey++;
     const codeKey = this.codeKey;
@@ -963,14 +1125,16 @@ class LoincDataMigrator {
     db.run('INSERT INTO Codes (CodeKey, Code, Type, RelationshipKey, StatusKey, Description) VALUES (?, ?, ?, ?, ?, ?)',
       [codeKey, code, type, null, statusKey, description]);
 
+    /** @type {LoincCodeInfo} */
     const codeInfo = { key: codeKey, children: new Set() };
     this.codes.set(code, codeInfo);
     this.codeList.push(codeInfo);
 
     // Add CLASS relationship
     const clsCode = this.partNames.get('CLASS.' + items[7]);
-    if (clsCode && this.codes.has(clsCode)) {
-      this.addRelationship(db, codeKey, this.codes.get(clsCode).key, this.rels.get('CLASS'));
+    const clsInfo = clsCode ? this.codes.get(clsCode) : null;
+    if (clsInfo) {
+      this.addRelationship(db, codeKey, clsInfo.key, this.rels.get('CLASS'));
     }
 
     // Add properties
@@ -992,6 +1156,12 @@ class LoincDataMigrator {
     this.addDescription(db, codeKey, 1, this.dTypes.get('DisplayName'), items[39]);
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processConsumerNames(db, sourceDir, step, options) {
     const filePath = path.join(sourceDir, 'AccessoryFiles/ConsumerName/ConsumerName.csv');
     if (!fs.existsSync(filePath)) {
@@ -1013,9 +1183,11 @@ class LoincDataMigrator {
       if (lineCount === 1) continue;
 
       const items = csvSplit(line, 2);
-      if (items.length < 2 || !this.codes.has(items[0])) continue;
+      if (items.length < 2) continue;
+      const codeInfo = this.codes.get(items[0]);
+      if (!codeInfo) continue;
 
-      this.addDescription(db, this.codes.get(items[0]).key, 1,
+      this.addDescription(db, codeInfo.key, 1,
         this.dTypes.get('ConsumerName'), items[1]);
       processedCount++;
 
@@ -1030,6 +1202,12 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processLists(db, sourceDir, step, options) {
     const filePath = path.join(sourceDir, 'AccessoryFiles/AnswerFile/AnswerList.csv');
     if (!fs.existsSync(filePath)) {
@@ -1070,6 +1248,11 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string[]} items
+   * @param {string} currentList
+   */
   async processListItem(db, items, currentList) {
     const listCode = removeQuotes(items[0]);
     let listCodeKey;
@@ -1084,14 +1267,18 @@ class LoincDataMigrator {
 
       this.codes.set(listCode, { key: listCodeKey, children: new Set() });
     } else {
-      listCodeKey = this.codes.get(listCode).key;
+      const listInfo = this.codes.get(listCode);
+      if (!listInfo) return;
+      listCodeKey = listInfo.key;
     }
 
     const answerCode = removeQuotes(items[6]);
     let answerCodeKey;
 
     if (this.codes.has(answerCode)) {
-      answerCodeKey = this.codes.get(answerCode).key;
+      const answerInfo = this.codes.get(answerCode);
+      if (!answerInfo) return;
+      answerCodeKey = answerInfo.key;
     } else {
       this.codeKey++;
       answerCodeKey = this.codeKey;
@@ -1107,6 +1294,12 @@ class LoincDataMigrator {
     this.addRelationship(db, answerCodeKey, listCodeKey, this.rels.get('AnswerList'));
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processPartLinks(db, sourceDir, step, options) {
     const filePath = path.join(sourceDir, 'AccessoryFiles/PartFile/LoincPartLink_Primary.csv');
     if (!fs.existsSync(filePath)) {
@@ -1135,10 +1328,12 @@ class LoincDataMigrator {
       const relType = adjustPropName(items[5]);
       const status = items[6];
 
-      if (this.codes.has(sourceCode) && this.codes.has(targetCode)) {
+      const sourceInfo = this.codes.get(sourceCode);
+      const targetInfo = this.codes.get(targetCode);
+      if (sourceInfo && targetInfo) {
         this.addRelationship(db,
-          this.codes.get(sourceCode).key,
-          this.codes.get(targetCode).key,
+          sourceInfo.key,
+          targetInfo.key,
           this.rels.get(relType),
           this.statii.get(status) || 0
         );
@@ -1156,6 +1351,12 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processListLinks(db, sourceDir, step, options) {
     const filePath = path.join(sourceDir, 'AccessoryFiles/AnswerFile/LoincAnswerListLink.csv');
     if (!fs.existsSync(filePath)) {
@@ -1183,17 +1384,19 @@ class LoincDataMigrator {
       const targetCode = items[2];
       const status = items[4];
 
-      if (this.codes.has(sourceCode) && this.codes.has(targetCode)) {
+      const sourceInfo = this.codes.get(sourceCode);
+      const targetInfo = this.codes.get(targetCode);
+      if (sourceInfo && targetInfo) {
         const statusKey = this.statii.get(status) || 0;
         this.addRelationship(db,
-          this.codes.get(sourceCode).key,
-          this.codes.get(targetCode).key,
+          sourceInfo.key,
+          targetInfo.key,
           this.rels.get('AnswerList'),
           statusKey
         );
         this.addRelationship(db,
-          this.codes.get(targetCode).key,
-          this.codes.get(sourceCode).key,
+          targetInfo.key,
+          sourceInfo.key,
           this.rels.get('answers-for'),
           statusKey
         );
@@ -1211,6 +1414,12 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processHierarchy(db, sourceDir, step, options) {
     const filePath = path.join(sourceDir, 'AccessoryFiles/ComponentHierarchyBySystem/ComponentHierarchyBySystem.csv');
     if (!fs.existsSync(filePath)) {
@@ -1248,6 +1457,10 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string[]} items
+   */
   async processHierarchyItem(db, items) {
     const pathCode = items[3];
     const parentPath = items[2];
@@ -1260,6 +1473,7 @@ class LoincDataMigrator {
       db.run('INSERT INTO Codes (CodeKey, Code, Type, RelationshipKey, StatusKey, Description) VALUES (?, ?, ?, ?, ?, ?)',
         [codeKey, pathCode, 2, 0, 0, description]);
 
+      /** @type {LoincCodeInfo} */
       const codeInfo = { key: codeKey, children: new Set() };
       this.codes.set(pathCode, codeInfo);
       this.codeList.push(codeInfo);
@@ -1267,23 +1481,31 @@ class LoincDataMigrator {
 
     if (!parentPath) {
       db.run('INSERT INTO Config (ConfigKey, Value) VALUES (3, ?)', [pathCode]);
-    } else if (this.codes.has(parentPath)) {
-      const childKey = this.codes.get(pathCode).key;
-      const parentKey = this.codes.get(parentPath).key;
+    } else {
+      const childInfo = this.codes.get(pathCode);
+      const parentInfo = this.codes.get(parentPath);
+      if (!childInfo || !parentInfo) return;
+      const childKey = childInfo.key;
+      const parentKey = parentInfo.key;
 
       this.addRelationship(db, childKey, parentKey, this.rels.get('parent'));
       this.addRelationship(db, parentKey, childKey, this.rels.get('child'));
 
       const pathParts = items[0].split('.');
       for (const ancestorCode of pathParts) {
-        if (this.codes.has(ancestorCode)) {
-          const ancestorInfo = this.codes.get(ancestorCode);
+        const ancestorInfo = this.codes.get(ancestorCode);
+        if (ancestorInfo) {
           ancestorInfo.children.add(childKey);
         }
       }
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async processPropertyValues(db, step, options) {
     if (options.verbose) console.log('Processing Property Values...');
 
@@ -1292,6 +1514,11 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {number} step
+   * @param {LoincImportOptions} options
+   */
   async storeClosureTable(db, step, options) {
     if (options.verbose) console.log('Storing Closure Table...');
 
@@ -1317,6 +1544,13 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} sourceDir
+   * @param {number} step
+   * @param {string} langCode
+   * @param {LoincImportOptions} options
+   */
   async processLanguage(db, sourceDir, step, langCode, options) {
     if (options.verbose) console.log(`Processing Language ${langCode}...`);
 
@@ -1344,9 +1578,11 @@ class LoincDataMigrator {
       if (lineCount === 1) continue;
 
       const items = csvSplit(line, 12);
-      if (items.length < 12 || !this.codes.has(items[0])) continue;
+      if (items.length < 12) continue;
+      const codeInfo = this.codes.get(items[0]);
+      if (!codeInfo) continue;
 
-      const codeKey = this.codes.get(items[0]).key;
+      const codeKey = codeInfo.key;
 
       this.addDescription(db, codeKey, langKey, this.dTypes.get('LONG_COMMON_NAME'), items[9]);
       this.addDescription(db, codeKey, langKey, this.dTypes.get('RELATEDNAMES2'), items[10]);
@@ -1366,6 +1602,13 @@ class LoincDataMigrator {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {number} codeKey
+   * @param {number} languageKey
+   * @param {number | undefined} descriptionType
+   * @param {string | undefined} value
+   */
   addDescription(db, codeKey, languageKey, descriptionType, value) {
     if (!value) return;
 
@@ -1377,6 +1620,12 @@ class LoincDataMigrator {
       [codeKey, descriptionType, languageKey, value]);
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {number} codeKey
+   * @param {number | undefined} propertyType
+   * @param {string | undefined} value
+   */
   addProperty(db, codeKey, propertyType, value) {
     if (!value || !propertyType) return;
 
@@ -1387,6 +1636,13 @@ class LoincDataMigrator {
       [this.propKey, propertyType, codeKey, propertyValueKey]);
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {number} sourceKey
+   * @param {number} targetKey
+   * @param {number | undefined} relationshipType
+   * @param {number} [statusKey]
+   */
   addRelationship(db, sourceKey, targetKey, relationshipType, statusKey = 0) {
     if (!relationshipType) return;
 
@@ -1395,9 +1651,13 @@ class LoincDataMigrator {
       [this.relKey, relationshipType, sourceKey, targetKey, statusKey]);
   }
 
+  /**
+   * @param {string} value
+   * @returns {number}
+   */
   getPropertyValueKey(value) {
     if (this.propValues.has(value)) {
-      return this.propValues.get(value);
+      return /** @type {number} */ (this.propValues.get(value));
     }
 
     this.propValueKey++;
@@ -1405,9 +1665,15 @@ class LoincDataMigrator {
     return this.propValueKey;
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {boolean} [verbose]
+   * @returns {Promise<void>}
+   */
   async closeDatabase(db, verbose = true) {
+    /** @type {Promise<void>} */
     return new Promise((resolve) => {
-      db.close((err) => {
+      db.close((/** @type {Error | null} */ err) => {
         if (err && verbose) {
           console.error('Error closing database:', err);
         }
@@ -1432,11 +1698,16 @@ const KNOWN_PROPERTY_NAMES = [
   'Answer', 'AnswerList'
 ];
 
+/**
+ * @param {string} s
+ * @returns {string}
+ */
 function adjustPropName(s) {
   if (KNOWN_PROPERTY_NAMES.includes(s)) {
     return s;
   }
 
+  /** @type {Record<string, string>} */
   const mappings = {
     'ADJUSTMENT': 'adjustment',
     'CHALLENGE': 'challenge',
@@ -1481,7 +1752,12 @@ function adjustPropName(s) {
   throw new Error(`Unknown Property Name: ${s}`);
 }
 
+/**
+ * @param {string} s
+ * @returns {string}
+ */
 function descClassType(s) {
+  /** @type {Record<string, string>} */
   const types = {
     '1': 'Laboratory class',
     '2': 'Clinical class',
@@ -1492,6 +1768,11 @@ function descClassType(s) {
 }
 
 // CSV parsing utility
+/**
+ * @param {string} line
+ * @param {number} expectedCount
+ * @returns {string[]}
+ */
 function csvSplit(line, expectedCount) {
   const result = new Array(expectedCount).fill('');
   let inQuoted = false;
@@ -1525,6 +1806,10 @@ function csvSplit(line, expectedCount) {
   return result;
 }
 
+/**
+ * @param {string | undefined} str
+ * @returns {string}
+ */
 function removeQuotes(str) {
   if (!str) return '';
   return str.replace(/^"|"$/g, '');

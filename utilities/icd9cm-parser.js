@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// @ts-check
+
 /**
  * parse-icd9.js
  * Parses an ICD-9-CM text file into a FHIR R4 CodeSystem resource.
@@ -28,8 +30,18 @@
 const fs   = require('fs');
 const path = require('path');
 
+/** @typedef {{code: string, display: string}} HeaderInfo */
+/** @typedef {{type: 'group' | 'icd9', lines: string[]}} RawBlock */
+/** @typedef {{description?: string, includes?: string, excludes?: string, note?: string}} Sections */
+/** @typedef {{code: string, display: string, isGroup: boolean, description?: string, includes?: string, excludes?: string, note?: string}} IcdRecord */
+/** @typedef {{code: string, display: string, property?: Array<Record<string, any>>, concept?: FhirConcept[]}} FhirConcept */
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * @param {string} str
+ * @returns {string}
+ */
 function normalise(str) {
   return str.replace(/[ \t]+/g, ' ').trim();
 }
@@ -41,21 +53,37 @@ const GROUP_HDR = /^(?:[IVXLCDM]+\.\s+)?(.*?)\s+\(([A-Z]?\d{1,3}-[A-Z]?\d{1,3})\
 // ICD-9 / V-code / E-code concept header: code at column 0, then 1+ spaces, then display
 const CODE_HDR = /^([A-Z]?\d{2,3}(?:\.\d+)?)\s+(\S.*)/;
 
+/**
+ * @param {string} line
+ * @returns {boolean}
+ */
 function isGroupHeader(line) {
   return GROUP_HDR.test(line.trim());
 }
 
+/**
+ * @param {string} line
+ * @returns {boolean}
+ */
 function isCodeHeader(line) {
   // Must start at column 0 (no leading whitespace)
   return /^[A-Z]?\d/.test(line) && CODE_HDR.test(line);
 }
 
+/**
+ * @param {string} line
+ * @returns {HeaderInfo | null}
+ */
 function parseGroupHeader(line) {
   const m = line.trim().match(GROUP_HDR);
   if (!m) return null;
   return { code: m[2], display: normalise(m[1]) };
 }
 
+/**
+ * @param {string} line
+ * @returns {HeaderInfo | null}
+ */
 function parseCodeHeader(line) {
   const m = line.match(CODE_HDR);
   if (!m) return null;
@@ -68,9 +96,13 @@ function parseCodeHeader(line) {
  * Walk lines and emit raw blocks.
  * Each block = { type: 'group'|'icd9', lines: string[] }
  * The first line is the header; subsequent lines are body lines (still raw).
+ * @param {string[]} lines
+ * @returns {RawBlock[]}
  */
 function collectBlocks(lines) {
+  /** @type {RawBlock[]} */
   const blocks = [];
+  /** @type {RawBlock | null} */
   let current = null;
 
   const flush = () => { if (current) { blocks.push(current); current = null; } };
@@ -104,11 +136,15 @@ function collectBlocks(lines) {
 /**
  * Given a list of body lines (after the header), split into named sections.
  * Returns { description, includes, excludes, note } - each a plain string or undefined.
+ * @param {string[]} bodyLines
+ * @returns {Sections}
  */
 function parseSections(bodyLines) {
   const lines = bodyLines.map(normalise).filter(Boolean);
 
+  /** @type {Record<'description' | 'includes' | 'excludes' | 'note', string[]>} */
   const sections = { description: [], includes: [], excludes: [], note: [] };
+  /** @type {'description' | 'includes' | 'excludes' | 'note'} */
   let cur = 'description';
 
   for (const line of lines) {
@@ -129,6 +165,7 @@ function parseSections(bodyLines) {
     }
   }
 
+  /** @param {string[]} arr */
   const join = arr => arr.join(' ').replace(/\s+/g, ' ').trim() || undefined;
   return {
     description : join(sections.description),
@@ -138,6 +175,10 @@ function parseSections(bodyLines) {
   };
 }
 
+/**
+ * @param {RawBlock} block
+ * @returns {IcdRecord | null}
+ */
 function parseBlock(block) {
   let header;
   if (block.type === 'group') {
@@ -162,11 +203,15 @@ function parseBlock(block) {
 /**
  * Find the best (narrowest) parent for a given code from codes already seen.
  * Parents always precede children in the source file.
+ * @param {string} code
+ * @param {string[]} seenCodes
+ * @returns {string | null}
  */
 function findParent(code, seenCodes) {
   const isRange = /^[A-Z]?\d{1,3}-[A-Z]?\d{1,3}$/.test(code);
 
   // Helper: strip leading letter and parse int
+  /** @param {string} s */
   const numOf = s => parseInt(s.replace(/^[A-Z]/, ''), 10);
 
   if (isRange) {
@@ -211,9 +256,14 @@ function findParent(code, seenCodes) {
 
 // ── FHIR CodeSystem builder ───────────────────────────────────────────────────
 
+/**
+ * @param {IcdRecord[]} records
+ * @returns {any}
+ */
 function buildFhirCodeSystem(records) {
   const byCode    = new Map(records.map(r => [r.code, r]));
   const parentOf  = new Map();
+  /** @type {string[]} */
   const seenCodes = [];
 
   for (const r of records) {
@@ -221,19 +271,29 @@ function buildFhirCodeSystem(records) {
     seenCodes.push(r.code);
   }
 
+  /** @type {Map<string, string[]>} */
   const childrenOf = new Map();
   for (const r of records) {
     const p = parentOf.get(r.code);
     if (p) {
       if (!childrenOf.has(p)) childrenOf.set(p, []);
-      childrenOf.get(p).push(r.code);
+      childrenOf.get(p)?.push(r.code);
     }
   }
 
+  /**
+   * @param {string} code
+   * @returns {FhirConcept}
+   */
   function buildConcept(code) {
-    const r       = byCode.get(code);
+    const r = byCode.get(code);
+    if (!r) {
+      throw new Error(`Unknown ICD-9-CM code ${code}`);
+    }
+    /** @type {FhirConcept} */
     const concept = { code: r.code, display: r.display };
 
+    /** @type {Array<Record<string, any>>} */
     const props = [];
     if (r.isGroup)     props.push({ code: 'notSelectable', valueBoolean: true });
     if (r.description) props.push({ code: 'description',   valueString: r.description });
@@ -278,11 +338,18 @@ function buildFhirCodeSystem(records) {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
+/**
+ * @param {FhirConcept[] | undefined} concepts
+ * @returns {number}
+ */
 function countAll(concepts) {
   if (!concepts) return 0;
   return concepts.reduce((n, c) => n + 1 + countAll(c.concept), 0);
 }
 
+/**
+ * @returns {void}
+ */
 function main() {
   const [,, inputFile, outputFile] = process.argv;
   if (!inputFile) {
@@ -299,7 +366,7 @@ function main() {
   const blocks  = collectBlocks(lines);
   console.log(`Collected ${blocks.length} blocks`);
 
-  const records = blocks.map(parseBlock).filter(Boolean);
+  const records = blocks.map(parseBlock).filter(record => record !== null);
   const groups  = records.filter(r => r.isGroup).length;
   console.log(`Parsed ${records.length} records  (${groups} groups, ${records.length - groups} codes)`);
 

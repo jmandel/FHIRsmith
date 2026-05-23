@@ -1,4 +1,10 @@
+// @ts-check
+
 const {VersionUtilities, VersionPrecision} = require("../../library/version-utilities");
+
+/**
+ * @typedef {import('../../types/fhirsmith').FhirResource} FhirResource
+ */
 
 /**
  * Base class for metadata resources to provide common interface
@@ -6,9 +12,9 @@ const {VersionUtilities, VersionPrecision} = require("../../library/version-util
 class CanonicalResource {
   /**
    * The original JSON object (always stored in R5 format internally)
-   * @type {Object}
+   * @type {FhirResource}
    */
-  jsonObj = null;
+  jsonObj;
 
   /**
    * FHIR source version of the loaded Resource
@@ -22,10 +28,17 @@ class CanonicalResource {
 
   /**
    * The source package the CodeSystem was loaded from
-   * @type {String}
+   * @type {string | null}
    */
   sourcePackage = null;
 
+  /** @type {string | undefined} */
+  id;
+
+  /**
+   * @param {FhirResource} jsonObj
+   * @param {string} [fhirVersion]
+   */
   constructor(jsonObj, fhirVersion = 'R5') {
     this.jsonObj = jsonObj;
     this.fhirVersion = fhirVersion;
@@ -55,6 +68,9 @@ class CanonicalResource {
     return this.jsonObj.status;
   }
 
+  get date() {
+    return this.jsonObj.date;
+  }
 
   get versionedUrl() {
     return this.version ? this.url+'|' + this.version : this.url;
@@ -93,7 +109,14 @@ class CanonicalResource {
     return this.jsonObj.versionAlgorithmString;
   }
 
+  /**
+   * @param {string | null | undefined} version
+   * @returns {'semver' | 'date' | 'integer' | 'alpha'}
+   */
   guessVersionAlgorithmFromVersion(version) {
+    if (typeof version !== 'string') {
+      return 'alpha';
+    }
     if (VersionUtilities.isSemVerWithWildcards(version)) {
       return 'semver';
     }
@@ -111,7 +134,7 @@ class CanonicalResource {
    *
    * Uses version if possible, otherwise uses date
    *
-   * @param other
+   * @param {CanonicalResource} other
    * @returns {boolean}
    */
   isMoreRecent(other) {
@@ -130,7 +153,7 @@ class CanonicalResource {
         case 'integer':
           return parseInt(this.version, 10) > parseInt(other.version, 10);
         case 'alpha': return this.version.localeCompare(other.version) > 0;
-        default: return this.version.localeCompare(other.version);
+        default: return this.version.localeCompare(other.version) > 0;
       }
     }
     if (this.date && other.date && this.date != other.date) {
@@ -139,6 +162,10 @@ class CanonicalResource {
     return false;
   }
 
+  /**
+   * @param {unknown} version
+   * @returns {boolean}
+   */
   appearsToBeDate(version) {
     if (!version || typeof version !== 'string') return false;
     // Strip optional time portion (T...) before checking
@@ -147,16 +174,30 @@ class CanonicalResource {
 
   }
 
+  /**
+   * @param {string} date
+   * @param {string} date2
+   * @returns {boolean}
+   */
   dateIsMoreRecent(date, date2) {
     return this.normaliseDateString(date) > this.normaliseDateString(date2);
   }
 
+  /**
+   * @param {string} date
+   * @returns {string}
+   */
   normaliseDateString(date) {
     // Strip time portion, then remove dashes so all formats compare uniformly as YYYYMMDD or YYYYMM
     return date.split('T')[0].replace(/-/g, '');
   }
 
+  /**
+   * @param {unknown} version
+   * @returns {boolean}
+   */
   isAnInteger(version) {
+    if (typeof version !== 'string') return false;
     return /^\d+$/.test(version);
   }
 }

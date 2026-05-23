@@ -1,6 +1,10 @@
 //
 // CapabilityStatement XML Serialization
 //
+// @ts-check
+
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+/** @typedef {import('../../types/fhirsmith').XmlElement} XmlElement */
 
 const { FhirXmlBase } = require('./xml-base');
 
@@ -25,7 +29,7 @@ class CapabilityStatementXML extends FhirXmlBase {
 
   /**
    * Convert CapabilityStatement JSON to XML string
-   * @param {Object} json - CapabilityStatement as JSON
+   * @param {FhirResource} json - CapabilityStatement as JSON
    * @param {number} fhirVersion - FHIR version (3, 4, or 5)
    * @returns {string} XML string
    */
@@ -38,8 +42,7 @@ class CapabilityStatementXML extends FhirXmlBase {
   /**
    * Convert XML string to CapabilityStatement JSON
    * @param {string} xml - XML string
-   * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   static fromXml(xml) {
     const element = this.parseXmlString(xml);
@@ -51,9 +54,8 @@ class CapabilityStatementXML extends FhirXmlBase {
 
   /**
    * Parse from a pre-parsed XML element
-   * @param {Object} element - Parsed element with {name, attributes, children}
-   * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @param {XmlElement} element - Parsed element with {name, attributes, children}
+   * @returns {FhirResource} JSON object
    */
   static fromXmlElement(element) {
     return this.convertElementToFhirJson(element, 'CapabilityStatement');

@@ -1,7 +1,12 @@
+// @ts-check
+
 const fs = require('fs');
 const os = require('os');
 const {validateOptionalParameter, Utilities} = require("./utilities");
 const {join} = require("node:path");
+
+/** @typedef {Record<string, string>} RegistryVars */
+/** @typedef {{message?: string}} ParseMessage */
 
 /**
  * Language part types for matching depth
@@ -22,7 +27,9 @@ const LanguagePartType = {
 class LanguageEntry {
   constructor() {
     this.code = '';
+    /** @type {string[]} */
     this.displays = [];
+    /** @type {Map<string, string>} */
     this.translations = new Map(); // language code -> translated display name
   }
 }
@@ -62,16 +69,24 @@ class LanguageVariant extends LanguageEntry {}
  * Individual language representation based on BCP 47
  */
 class Language {
+  /**
+   * @param {string} [code]
+   * @param {LanguageDefinitions | null | undefined} [languageDefinitions]
+   */
   constructor(code = '', languageDefinitions = null) {
     this.code = code;
     this.language = '';
+    /** @type {string[]} */
     this.extLang = [];
     this.script = '';
     this.region = '';
     this.variant = '';
     this.extension = '';
+    /** @type {string[]} */
     this.privateUse = [];
     this.quality = 1.0; // For Accept-Language header quality values
+    /** @type {boolean | undefined} */
+    this.implicit = undefined;
 
     if (this.code) {
       this._parse(languageDefinitions);
@@ -80,6 +95,7 @@ class Language {
 
   /**
    * Get system default language, fallback to en-US
+   * @returns {string}
    */
   static _getDefaultLanguage() {
     try {
@@ -97,6 +113,8 @@ class Language {
 
   /**
    * Create Language from xml:lang attribute
+   * @param {string | null | undefined} xmlLang
+   * @returns {Language}
    */
   static fromXmlLang(xmlLang) {
     return new Language(xmlLang || 'en-US');
@@ -104,6 +122,7 @@ class Language {
 
   /**
    * Create Language from system default
+   * @returns {Language}
    */
   static fromSystemDefault() {
     return new Language(this._getDefaultLanguage());
@@ -111,6 +130,7 @@ class Language {
 
   /**
    * Parse the language code according to BCP 47
+   * @param {LanguageDefinitions | null | undefined} languageDefinitions
    */
   _parse(languageDefinitions) {
     if (!this.code) return;
@@ -199,6 +219,9 @@ class Language {
 
   /**
    * Check if this language matches another to a given depth
+   * @param {Language | null | undefined} other
+   * @param {number} [depth]
+   * @returns {boolean}
    */
   matches(other, depth = LanguagePartType.LANGUAGE) {
     if (!other) return false;
@@ -232,6 +255,8 @@ class Language {
 
   /**
    * Simple matching (all non-empty parts must match)
+   * @param {Language | null | undefined} other
+   * @returns {boolean}
    */
   matchesSimple(other) {
     if (!other) return false;
@@ -248,6 +273,7 @@ class Language {
 
   /**
    * Check if this is a simple language-region tag
+   * @returns {boolean}
    */
   isLangRegion() {
     return (this.language !== '' && this.region !== '' &&
@@ -260,6 +286,8 @@ class Language {
    * - Same language (e.g. en = en)
    * - This language has more details than the target (e.g. en-AU matches en)
    * - Either is blank and the other is en or en-US
+   * @param {Language | string | null | undefined} other
+   * @returns {boolean}
    */
   matchesForDisplay(other) {
     if (!other) return false;
@@ -307,10 +335,16 @@ class Language {
   }
 
 
+  /**
+   * @returns {boolean}
+   */
   isEnglishOrNothing() {
     return !this.code || this.code === 'en' || this.code === 'en-US';
   }
 
+  /**
+   * @returns {string}
+   */
   toString() {
     const parts = [];
 
@@ -328,6 +362,9 @@ class Language {
     return parts.join('-');
   }
 
+  /**
+   * @returns {string}
+   */
   asString() {
     if (this.quality != undefined && this.quality != 1) {
       return this.code+"; q="+this.quality;
@@ -341,11 +378,16 @@ class Language {
  * Collection of languages with preference ordering
  */
 class Languages {
+  /** @type {LanguageDefinitions | null | undefined} */
   definitions;
 
-  constructor(definitions) {
+  /**
+   * @param {LanguageDefinitions | null | undefined} [definitions]
+   */
+  constructor(definitions = null) {
     validateOptionalParameter(definitions, "definitions", LanguageDefinitions);
     this.definitions = definitions;
+    /** @type {Language[]} */
     this.languages = [];
 
   }
@@ -353,8 +395,12 @@ class Languages {
   /**
    * Parse Accept-Language header
    * Format: "en-US,en;q=0.9,fr;q=0.8"
+   * @param {string | null | undefined} acceptLanguageHeader
+   * @param {LanguageDefinitions | null | undefined} [languageDefinitions]
+   * @param {boolean} [addWildcard]
+   * @returns {Languages}
    */
-  static fromAcceptLanguage(acceptLanguageHeader, languageDefinitions, addWildcard) {
+  static fromAcceptLanguage(acceptLanguageHeader, languageDefinitions = null, addWildcard = false) {
     const languages = new Languages(languageDefinitions);
     let wc = false;
 
@@ -394,6 +440,7 @@ class Languages {
 
   /**
    * Add a language to the collection
+   * @param {Language} language
    */
   add(language) {
     this.languages.push(language);
@@ -401,6 +448,7 @@ class Languages {
 
   /**
    * Get iterator for languages in preference order
+   * @returns {IterableIterator<Language>}
    */
   [Symbol.iterator]() {
     return this.languages[Symbol.iterator]();
@@ -408,6 +456,8 @@ class Languages {
 
   /**
    * Get language by index
+   * @param {number} index
+   * @returns {Language | undefined}
    */
   get(index) {
     return this.languages[index];
@@ -422,6 +472,9 @@ class Languages {
 
   /**
    * Find best match for a given language
+   * @param {Language} target
+   * @param {number} [depth]
+   * @returns {Language | null}
    */
   findBestMatch(target, depth = LanguagePartType.LANGUAGE) {
     for (const lang of this.languages) {
@@ -434,6 +487,9 @@ class Languages {
 
   /**
    * Check if any language matches the target
+   * @param {Language} target
+   * @param {number} [depth]
+   * @returns {boolean}
    */
   matches(target, depth = LanguagePartType.LANGUAGE) {
     return this.findBestMatch(target, depth) !== null;
@@ -441,11 +497,15 @@ class Languages {
 
   /**
    * Get primary language (first in preference order)
+   * @returns {Language}
    */
   getPrimary() {
     return this.languages.length > 0 ? this.languages[0] : new Language('en-US');
   }
 
+  /**
+   * @returns {boolean}
+   */
   isEnglishOrNothing() {
     for (const lang of this.languages) {
       if (!lang.isEnglishOrNothing()) {
@@ -455,6 +515,10 @@ class Languages {
     return true;
   }
 
+  /**
+   * @param {string} code
+   * @returns {boolean}
+   */
   includesLanguage(code) {
     const llang = new Language(code);
     for (const lang of this.languages) {
@@ -467,6 +531,7 @@ class Languages {
 
   /**
    * Convert to string representation (similar to Accept-Language header format)
+   * @returns {string}
    */
   toString() {
     if (this.languages.length === 0) {
@@ -482,6 +547,10 @@ class Languages {
     }).join(',');
   }
 
+  /**
+   * @param {boolean} incWildcard
+   * @returns {string}
+   */
   asString(incWildcard) {
     const parts = [];
     for (const lang of this.languages) {
@@ -498,16 +567,24 @@ class Languages {
  */
 class LanguageDefinitions {
   constructor() {
+    /** @type {Map<string, LanguageLanguage>} */
     this.languages = new Map();
+    /** @type {Map<string, LanguageExtLang>} */
     this.extLanguages = new Map();
+    /** @type {Map<string, LanguageScript>} */
     this.scripts = new Map();
+    /** @type {Map<string, LanguageRegion>} */
     this.regions = new Map();
+    /** @type {Map<string, LanguageVariant>} */
     this.variants = new Map();
+    /** @type {Map<string, Language>} */
     this.parsed = new Map(); // Cache for parsed languages
   }
 
   /**
    * Load definitions from IETF language subtag registry file
+   * @param {string} filePath
+   * @returns {Promise<LanguageDefinitions>}
    */
   static async fromFiles(filePath) {
     const definitions = new LanguageDefinitions();
@@ -520,6 +597,8 @@ class LanguageDefinitions {
 
   /**
    * Load definitions from content string
+   * @param {string} content
+   * @returns {LanguageDefinitions}
    */
   static fromContent(content) {
     const definitions = new LanguageDefinitions();
@@ -529,6 +608,8 @@ class LanguageDefinitions {
 
   /**
    * Check if source content is valid
+   * @param {string} source
+   * @returns {string}
    */
   static checkSource(source) {
     return source.startsWith('%%') ? 'Ok' : 'Invalid';
@@ -536,6 +617,7 @@ class LanguageDefinitions {
 
   /**
    * Parse the IETF registry format
+   * @param {string} source
    */
   _load(source) {
     const lines = source.split('\n');
@@ -578,8 +660,12 @@ class LanguageDefinitions {
 
   /**
    * Read variables from the registry format
+   * @param {string[]} lines
+   * @param {number} startIndex
+   * @returns {[RegistryVars, number]}
    */
   _readVars(lines, startIndex) {
+    /** @type {RegistryVars} */
     const vars = {};
     let i = startIndex;
 
@@ -608,6 +694,8 @@ class LanguageDefinitions {
    * Load translations from a CSV file into an existing map of entries.
    * CSV format: code,english,french,german,spanish,arabic,chinese,russian,japanese,swahili
    * The language codes for the translation columns:
+   * @param {string} csvPath
+   * @param {ReadonlyMap<string, LanguageEntry>} targetMap
    */
   _loadTranslations(csvPath, targetMap) {
     if (!fs.existsSync(csvPath)) {
@@ -619,6 +707,7 @@ class LanguageDefinitions {
 
     const header = this._parseCsvLine(lines[0]);
     // header[0] = 'code', header[1..] = language names mapped to codes
+    /** @type {Record<string, string>} */
     const langCodeMap = {
       'english': 'en',
       'french': 'fr',
@@ -655,8 +744,11 @@ class LanguageDefinitions {
 
   /**
    * Parse a single CSV line, handling quoted fields with commas
+   * @param {string} line
+   * @returns {string[]}
    */
   _parseCsvLine(line) {
+    /** @type {string[]} */
     const fields = [];
     let current = '';
     let inQuotes = false;
@@ -688,6 +780,7 @@ class LanguageDefinitions {
 
   /**
    * Load language entry
+   * @param {RegistryVars} vars
    */
   _loadLanguage(vars) {
     const lang = new LanguageLanguage();
@@ -705,6 +798,7 @@ class LanguageDefinitions {
 
   /**
    * Load extended language entry
+   * @param {RegistryVars} vars
    */
   _loadExtLang(vars) {
     const extLang = new LanguageExtLang();
@@ -720,6 +814,7 @@ class LanguageDefinitions {
 
   /**
    * Load script entry
+   * @param {RegistryVars} vars
    */
   _loadScript(vars) {
     const script = new LanguageScript();
@@ -735,6 +830,7 @@ class LanguageDefinitions {
 
   /**
    * Load region entry
+   * @param {RegistryVars} vars
    */
   _loadRegion(vars) {
     const region = new LanguageRegion();
@@ -750,6 +846,7 @@ class LanguageDefinitions {
 
   /**
    * Load variant entry
+   * @param {RegistryVars} vars
    */
   _loadVariant(vars) {
     const variant = new LanguageVariant();
@@ -766,9 +863,11 @@ class LanguageDefinitions {
   /**
    * Parse and validate a language code
    *
-   * @return {Language} parsed language (or null)
+   * @param {string | null | undefined} code
+   * @param {ParseMessage | null | undefined} [msg]
+   * @return {Language | null} parsed language (or null)
    */
-  parse(code, msg) {
+  parse(code, msg = null) {
     if (!code) {
       if (msg) {
         msg.message = 'No code provided';
@@ -778,7 +877,7 @@ class LanguageDefinitions {
 
     // Check cache first
     if (this.parsed.has(code)) {
-      return this.parsed.get(code);
+      return this.parsed.get(code) || null;
     }
 
     try {
@@ -788,7 +887,7 @@ class LanguageDefinitions {
       return lang;
     } catch (e) {
       if (msg) {
-        msg.message = e.message;
+        msg.message = e instanceof Error ? e.message : String(e);
       }
       return null;
     }
@@ -796,6 +895,9 @@ class LanguageDefinitions {
 
   /**
    * Get display name for language, optionally translated
+   * @param {string} code
+   * @param {number} [displayIndex]
+   * @returns {string}
    */
   getDisplayForLang(code, displayIndex = 0) {
     const lang = this.languages.get(code);
@@ -820,6 +922,9 @@ class LanguageDefinitions {
 
   /**
    * Get display name for region
+   * @param {string} code
+   * @param {number} [displayIndex]
+   * @returns {string}
    */
   getDisplayForRegion(code, displayIndex = 0) {
     const region = this.regions.get(code);
@@ -844,6 +949,9 @@ class LanguageDefinitions {
 
   /**
    * Get display name for script
+   * @param {string} code
+   * @param {number} [displayIndex]
+   * @returns {string}
    */
   getDisplayForScript(code, displayIndex = 0) {
     const script = this.scripts.get(code);
@@ -852,6 +960,10 @@ class LanguageDefinitions {
 
   /**
    * Present a language with full display names
+   * @param {Language | null | undefined} lang
+   * @param {number} [displayIndex]
+   * @param {string | null} [template]
+   * @returns {string}
    */
   present(lang, displayIndex = 0, template = null) {
     if (!lang) return '';
@@ -890,6 +1002,8 @@ class LanguageDefinitions {
 
   /**
    * Get number of available displays for a language
+   * @param {Language | null | undefined} lang
+   * @returns {number}
    */
   displayCount(lang) {
     if (!lang) return 0;

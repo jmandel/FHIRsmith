@@ -1,2 +1,3 @@
-﻿module.exports = require('./pagination.cjs');
+// @ts-check
 
+module.exports = require('./pagination.cjs');

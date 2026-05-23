@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Copyright 2025, Health Intersections Pty Ltd (http://www.healthintersections.com.au)
 //
@@ -10,9 +12,15 @@ const {parseVCLAndSetId, validateVCLExpression, VCLParseException} = require('./
 const Logger = require('../library/logger');
 const vclLog = Logger.getInstance().child({ module: 'vcl' });
 
+/** @typedef {{required?: boolean, maxLength?: number, pattern?: RegExp, default?: string}} QueryParamConfig */
+
 class VCLModule {
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.router = express.Router();
+    /** @type {any} */
     this.config = null;
     this.setupSecurityMiddleware();
     this.setupRoutes();
@@ -21,7 +29,8 @@ class VCLModule {
 
   setupSecurityMiddleware() {
     // Security headers middleware
-    this.router.use((req, res, next) => {
+    const middleware = /** @type {(req: any, res: any, next: () => void) => void} */ ((req, res, next) => {
+      void req;
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -38,13 +47,19 @@ class VCLModule {
       res.removeHeader('X-Powered-By');
       next();
     });
+    this.router.use(middleware);
 
   }
 
   // Parameter validation middleware
+  /**
+   * @param {Record<string, QueryParamConfig>} [allowedParams]
+   * @returns {(req: any, res: any, next: () => void) => any}
+   */
   validateQueryParams(allowedParams = {}) {
     return (req, res, next) => {
       try {
+        /** @type {Record<string, string>} */
         const normalized = {};
 
         // Check for parameter pollution (arrays) and validate
@@ -106,13 +121,17 @@ class VCLModule {
         Object.assign(req.query, normalized);
         next();
       } catch (error) {
-        vclLog.error('Parameter validation error:', error);
+        vclLog.error('Parameter validation error: ' + (error instanceof Error ? error.message : String(error)));
         res.status(500).json({ error: 'Parameter validation failed' });
       }
     };
   }
 
   // VCL expression validation
+  /**
+   * @param {unknown} vcl
+   * @returns {string}
+   */
   validateVCLInput(vcl) {
     if (!vcl || typeof vcl !== 'string') {
       throw new Error('VCL expression must be a non-empty string');
@@ -151,6 +170,9 @@ class VCLModule {
     return vcl;
   }
 
+  /**
+   * @param {any} config
+   */
   async initialize(config) {
     this.config = config;
   }
@@ -165,7 +187,7 @@ class VCLModule {
     };
 
     // VCL parsing endpoint
-    this.router.get('/', this.validateQueryParams(vclParams), (req, res) => {
+    const parseHandler = /** @type {(req: any, res: any) => any} */ ((req, res) => {
       const start = Date.now();
       try {
         var {vcl} = req.query;
@@ -207,7 +229,7 @@ class VCLModule {
           } else {
             return res.status(500).json({
               error: 'Internal server error while parsing VCL',
-              message: error.message
+              message: error instanceof Error ? error.message : String(error)
             });
           }
         }
@@ -215,18 +237,29 @@ class VCLModule {
         this.stats.countRequest('vcl', Date.now() - start);
       }
     });
+    this.router.get('/', this.validateQueryParams(vclParams), parseHandler);
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async shutdown() {
     // VCL module doesn't have any resources to clean up
   }
 
+  /**
+   * @returns {{enabled: boolean}}
+   */
   getStatus() {
     return {
       enabled: true
     };
   }
 
+  /**
+   * @param {string} name
+   * @param {number} tat
+   */
   countRequest(name, tat) {
     this.stats.countRequest(name, tat);
   }

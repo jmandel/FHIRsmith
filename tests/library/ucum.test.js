@@ -10,13 +10,12 @@ const { XMLParser } = require('fast-xml-parser');
 
 
 const {
-  UcumException, Decimal, Pair, Registry, UcumVersionDetails
+  UcumException, Decimal, Pair
 } = require('../../tx/library/ucum-types.js');
 const { UcumService} = require('../../tx/library/ucum-service');
 
 describe('UCUM Library Tests', () => {
   let ucumService;
-  const jestConsole = console;
 
   beforeEach(() => {
     global.console = require('console');
@@ -290,7 +289,7 @@ describe('UCUM Library Tests', () => {
         // Test a smaller range for performance
         for (let i = 90.5; i < 91; i += 0.01) {
           const decimal = new Decimal(i.toString());
-          const expected = i * 2.2046226218487758072297380134503;
+          const expected = i * 2.2046226218487757;
           const actual = ucumService.convert(decimal, 'kg', '[lb_av]');
           const actualFloat = parseFloat(actual.asDecimal());
 
@@ -562,12 +561,6 @@ if (functionalTestCases.length > 0) {
 
     // Helper functions
 
-    function getTestCasesByType(type) {
-      return functionalTestCases
-        .filter(tc => tc.type === type)
-        .map(tc => [tc.id, tc]);
-    }
-
     function runValidationCase(testCase) {
       const { id, unit, valid, reason } = testCase.attributes;
       const expectedValid = valid === 'true';
@@ -791,14 +784,6 @@ function parseXmlTestCases(xmlContent) {
       });
     }
   }
-
-  // Log summary of loaded tests
-  const testCounts = testCases.reduce((counts, tc) => {
-    counts[tc.type] = (counts[tc.type] || 0) + 1;
-    return counts;
-  }, {});
-
-  // console.log('Loaded test cases by type:', testCounts);
 
   return testCases;
 }

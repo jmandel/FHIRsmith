@@ -1,3 +1,5 @@
+// @ts-check
+
 // // Convert input to Languages instance if needed
 // const langs = languages instanceof Languages ? languages :
 //   Array.isArray(languages) ? Languages.fromAcceptLanguage(languages.join(',')) :
@@ -12,6 +14,21 @@
 //   for (const requestedLang of langs) {
 //     if (designationLang.matchesForDisplay(requestedLang)) {
 
+/**
+ * @typedef {{new (...args: any[]): any, name: string}} RuntimeConstructor
+ * @typedef {Record<string, unknown>} ValueCarrier
+ */
+
+/**
+ * @type {{
+ *   noString(str: unknown): boolean,
+ *   existsInList<T>(item: T, ...list: T[]): boolean,
+ *   isInteger(str: unknown): boolean,
+ *   parseIntOrDefault(value: string | number, defaultValue: number): number,
+ *   parseFloatOrDefault(value: string | number, defaultValue: number): number,
+ *   formatDuration(start: number, end: number): string
+ * }}
+ */
 const Utilities = {
   noString: (str) => !str || String(str).trim() === '',
   existsInList: (item, ...list) => list.includes(item),
@@ -21,11 +38,11 @@ const Utilities = {
     return num.toString() === str && !isNaN(num);
   },
   parseIntOrDefault(value, defaultValue) {
-    const num = parseInt(value, 10);
+    const num = parseInt(String(value), 10);
     return isNaN(num) ? defaultValue : num;
   },
   parseFloatOrDefault(value, defaultValue) {
-    const num = parseFloat(value);
+    const num = parseFloat(String(value));
     return isNaN(num) ? defaultValue : num;
 
 
@@ -64,6 +81,14 @@ const Utilities = {
 
 };
 
+/**
+ * Validate a value against a runtime constructor.
+ *
+ * @param {any} param
+ * @param {string} name
+ * @param {RuntimeConstructor | StringConstructor | NumberConstructor | BooleanConstructor} type
+ * @returns {void}
+ */
 function validateParameter(param, name, type) {
   if (param == null) {
     throw new Error(`${name} must be provided`);
@@ -94,6 +119,12 @@ function validateParameter(param, name, type) {
   }
 }
 
+/**
+ * @param {any} param
+ * @param {string} name
+ * @param {string} type
+ * @returns {void}
+ */
 function validateResource(param, name, type) {
   if (param == null) {
     throw new Error(`${name} must be provided`);
@@ -106,12 +137,25 @@ function validateResource(param, name, type) {
   }
 }
 
+/**
+ * @param {any} param
+ * @param {string} name
+ * @param {RuntimeConstructor | StringConstructor | NumberConstructor | BooleanConstructor} type
+ * @returns {void}
+ */
 function validateOptionalParameter(param, name, type) {
   if (param) {
     validateParameter(param, name, type);
   }
 }
 
+/**
+ * @param {any[] | null | undefined} param
+ * @param {string} name
+ * @param {RuntimeConstructor | StringConstructor | NumberConstructor | BooleanConstructor} type
+ * @param {boolean} [optional]
+ * @returns {void}
+ */
 function validateArrayParameter(param, name, type, optional) {
   if (param == null) {
     if (optional) {
@@ -128,6 +172,11 @@ function validateArrayParameter(param, name, type, optional) {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {boolean} [defaultValue]
+ * @returns {boolean}
+ */
 function strToBool(value, defaultValue = false) {
   if (value === undefined || value === null || value === '') {
     return defaultValue;
@@ -135,6 +184,12 @@ function strToBool(value, defaultValue = false) {
   return value === 'true' || value === true;
 }
 
+/**
+ * Return the first FHIR primitive value field found on an element.
+ *
+ * @param {ValueCarrier | null | undefined} obj
+ * @returns {unknown}
+ */
 function getValuePrimitive(obj) {
   if (!obj) return null;
 
@@ -153,6 +208,12 @@ function getValuePrimitive(obj) {
   return null;
 }
 
+/**
+ * Return the first FHIR complex datatype value field found on an element.
+ *
+ * @param {ValueCarrier | null | undefined} obj
+ * @returns {unknown}
+ */
 function getValueDT(obj) {
   if (!obj) return null;
 
@@ -175,6 +236,12 @@ function getValueDT(obj) {
 
 
 
+/**
+ * Return the FHIR value[x] field name present on an element.
+ *
+ * @param {ValueCarrier | null | undefined} obj
+ * @returns {string | null}
+ */
 function getValueName(obj) {
   if (!obj) return null;
 
@@ -198,8 +265,12 @@ function getValueName(obj) {
   return null;
 }
 
+/**
+ * @param {string | null | undefined} s
+ * @returns {boolean}
+ */
 function isAbsoluteUrl(s) {
-  return s && (s.startsWith('urn:') || s.startsWith('http:') || s.startsWith('https:') || s.startsWith('ftp:'));
+  return Boolean(s && (s.startsWith('urn:') || s.startsWith('http:') || s.startsWith('https:') || s.startsWith('ftp:')));
 }
 
 /**
@@ -229,19 +300,29 @@ function isAbsoluteUrl(s) {
  * await matcher2.match(propsA, propsB);
  *
  */
+/**
+ * @template L
+ * @template R
+ */
 class ArrayMatcher {
+  /**
+   * @param {(left: L, right: R) => boolean | Promise<boolean>} matchFn
+   */
   constructor(matchFn) {
     this.matchFn = matchFn;
+    /** @type {{left: L, right: R}[]} */
     this.matched = [];
+    /** @type {L[]} */
     this.unmatchedLeft = [];
+    /** @type {R[]} */
     this.unmatchedRight = [];
   }
 
   /**
    *
-   * @param left an array of items (or null/undefined)
-   * @param right an array of items (or null/undefined)
-   * @returns {Promise<ArrayMatcher>}
+   * @param {L[] | null | undefined} left an array of items (or null/undefined)
+   * @param {R[] | null | undefined} right an array of items (or null/undefined)
+   * @returns {Promise<this>}
    */
   async match(left, right) {
     if (!left) {
@@ -276,6 +357,10 @@ class ArrayMatcher {
 
 const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+/**
+ * @param {string} s MMDDYYYY date string
+ * @returns {string}
+ */
 function formatDateMMDDYYYY(s) {
   const mm = parseInt(s.substring(0, 2), 10);
   const dd = s.substring(2, 4);

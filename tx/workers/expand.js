@@ -7,18 +7,19 @@
 // POST /ValueSet/$expand (body is ValueSet resource)
 // POST /ValueSet/$expand (body is Parameters with valueSet parameter)
 //
+// @ts-check
 
-const { TerminologyWorker } = require('./worker');
-const {TxParameters} = require("../params");
-const {Designations, SearchFilterText} = require("../library/designations");
-const {Extensions} = require("../library/extensions");
-const {getValuePrimitive, getValueName, validateParameter} = require("../../library/utilities");
-const {div} = require("../../library/html");
-const {Issue, OperationOutcome} = require("../library/operation-outcome");
+const { TerminologyWorker } = /** @type {any} */ (require('./worker'));
+const {TxParameters} = /** @type {any} */ (require("../params"));
+const {Designations, SearchFilterText} = /** @type {any} */ (require("../library/designations"));
+const {Extensions} = /** @type {any} */ (require("../library/extensions"));
+const {getValuePrimitive, getValueName, validateParameter} = /** @type {any} */ (require("../../library/utilities"));
+const {div} = /** @type {any} */ (require("../../library/html"));
+const {Issue, OperationOutcome} = /** @type {any} */ (require("../library/operation-outcome"));
 const crypto = require('crypto');
-const ValueSet = require("../library/valueset");
-const {VersionUtilities} = require("../../library/version-utilities");
-const {debugLog} = require("../operation-context");
+const ValueSet = /** @type {any} */ (require("../library/valueset"));
+const {VersionUtilities} = /** @type {any} */ (require("../../library/version-utilities"));
+const {debugLog} = /** @type {any} */ (require("../operation-context"));
 
 // Expansion limits (from Pascal constants)
 const EXTERNAL_DEFAULT_LIMIT = 1000;
@@ -41,8 +42,19 @@ const TotalStatus = {
  * Used when importing ValueSets during expansion
  */
 class ImportedValueSet {
+  /** @type {any} */
+  valueSet;
+  /** @type {string} */
+  url;
+  /** @type {string} */
+  version;
+  /** @type {Map<string, any>} */
+  codeMap;
+  /** @type {Set<string>} */
+  systems;
+
   /**
-   * @param {Object} valueSet - Expanded ValueSet resource
+   * @param {any} valueSet - Expanded ValueSet resource
    */
   constructor(valueSet) {
     this.valueSet = valueSet;
@@ -73,6 +85,7 @@ class ImportedValueSet {
   /**
    * Recursively index contains entries
    * @private
+   * @param {any[]} contains
    */
   _indexContains(contains) {
     for (const entry of contains) {
@@ -92,6 +105,9 @@ class ImportedValueSet {
   /**
    * Make a lookup key from system and code
    * @private
+   * @param {string} system
+   * @param {string} code
+   * @returns {string}
    */
   _makeKey(system, code) {
     return `${system}\x00${code}`;
@@ -111,7 +127,7 @@ class ImportedValueSet {
    * Get a contains entry for a specific code
    * @param {string} system - Code system URL
    * @param {string} code - Code value
-   * @returns {Object|null}
+   * @returns {any}
    */
   getCode(system, code) {
     return this.codeMap.get(this._makeKey(system, code)) || null;
@@ -136,7 +152,7 @@ class ImportedValueSet {
 
   /**
    * Iterate over all codes
-   * @yields {{system: string, code: string, entry: Object}}
+   * @returns {Generator<{system: string, code: string, entry: any}>}
    */
   *codes() {
     for (const entry of this.codeMap.values()) {
@@ -154,6 +170,11 @@ class ImportedValueSet {
  * When a ValueSet can be used as a filter instead of full expansion
  */
 class ValueSetFilterContext {
+  /** @type {ImportedValueSet} */
+  importedVs;
+  /** @type {string} */
+  type;
+
   /**
    * @param {ImportedValueSet} importedVs - The imported ValueSet
    */
@@ -177,16 +198,25 @@ class ValueSetFilterContext {
  * Special filter context for empty filter (nothing matches)
  */
 class EmptyFilterContext {
+  /** @type {string} */
+  type;
+
   constructor() {
     this.type = 'empty';
   }
 
+  /**
+   * @returns {boolean}
+   */
   passesFilter() {
     return false;
   }
 }
 
 class ValueSetCounter {
+  /** @type {number} */
+  count;
+
   constructor() {
     this.count = 0;
   }
@@ -197,19 +227,65 @@ class ValueSetCounter {
 }
 
 class ValueSetExpander {
+  /** @type {any} */
   worker;
+  /** @type {any} */
   params;
+  /** @type {boolean} */
   doingVersion = true;
+  /** @type {Set<string>} */
   excludedSystems = new Set();
+  /** @type {Set<string>} */
   excluded = new Set();
+  /** @type {boolean} */
   hasExclusions = false;
+  /** @type {Set<string>} */
   requiredSupplements = new Set();
+  /** @type {Set<any>} */
   usedSupplements = new Set();
+  /** @type {Set<any>} */
   reportedSupplements = new Set();
+  /** @type {number} */
   internalLimit = INTERNAL_DEFAULT_LIMIT;
+  /** @type {number} */
   externalLimit = EXTERNAL_DEFAULT_LIMIT;
+  /** @type {boolean} */
   noDetails = false;
+  /** @type {Map<string, ValueSetCounter>} */
+  csCounter;
+  /** @type {Map<string, any>} */
+  map = new Map();
+  /** @type {any[]} */
+  rootList = [];
+  /** @type {any[]} */
+  fullList = [];
+  /** @type {number} */
+  limitCount = 0;
+  /** @type {number} */
+  count = -1;
+  /** @type {number} */
+  offset = -1;
+  /** @type {any} */
+  valueSet;
+  /** @type {boolean} */
+  canBeHierarchy = false;
+  /** @type {boolean} */
+  noCacheThisOne = false;
+  /** @type {string} */
+  totalStatus = TotalStatus.Uninitialized;
+  /** @type {number} */
+  total = 0;
+  /** @type {any} */
+  logExtraOutput;
+  /** @type {boolean} */
+  excludeSpecialCase = false;
+  /** @type {any} */
+  allAltCodes;
 
+  /**
+   * @param {any} worker
+   * @param {any} params
+   */
   constructor(worker, params) {
     this.worker = worker;
     this.params = params;
@@ -219,17 +295,34 @@ class ValueSetExpander {
     this.csCounter = new Map();
   }
 
+  /**
+   * @param {any} displays
+   * @param {any} cs
+   * @param {any} context
+   * @returns {Promise<void>}
+   */
   async listDisplaysFromProvider(displays, cs, context) {
     await cs.designations(context, displays);
     displays.source = cs;
   }
 
+  /**
+   * @param {any} displays
+   * @param {any} concept
+   * @returns {void}
+   */
   listDisplaysFromConcept(displays, concept) {
     for (const ccd of concept.designations || []) {
       displays.addDesignation(ccd);
     }
   }
 
+  /**
+   * @param {any} displays
+   * @param {any} concept
+   * @param {any} vs
+   * @returns {void}
+   */
   listDisplaysFromIncludeConcept(displays, concept, vs) {
     if (concept.display) {
       if (!VersionUtilities.isR4Plus(this.worker.provider.getFhirVersion())) {
@@ -242,6 +335,11 @@ class ValueSetExpander {
       displays.addDesignationFromConcept(cd);
     }
   }
+  /**
+   * @param {string} system
+   * @param {string | null | undefined} version
+   * @returns {string}
+   */
   canonical(system, version) {
     if (!version) {
       return system;
@@ -250,10 +348,23 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} imp
+   * @param {string} system
+   * @param {string} code
+   * @returns {boolean}
+   */
   passesImport(imp, system, code) {
     return imp.hasCode(system, code);
   }
 
+  /**
+   * @param {any[] | null | undefined} imports
+   * @param {string} system
+   * @param {string} code
+   * @param {number} offset
+   * @returns {boolean}
+   */
   passesImports(imports, system, code, offset) {
     if (imports == null) {
       return true;
@@ -266,6 +377,10 @@ class ValueSetExpander {
     return true;
   }
 
+  /**
+   * @param {any} cd
+   * @returns {boolean}
+   */
   useDesignation(cd) {
     if (!this.params.hasDesignations) {
       return true;
@@ -282,14 +397,27 @@ class ValueSetExpander {
     return false;
   }
 
+  /**
+   * @returns {boolean}
+   */
   isValidating() {
     return false;
   }
 
+  /**
+   * @returns {string}
+   */
   opName() {
     return 'expansion';
   }
 
+  /**
+   * @param {any} n
+   * @param {any} lang
+   * @param {any} use
+   * @param {any} value
+   * @returns {boolean}
+   */
   redundantDisplay(n, lang, use, value) {
     if (!((lang == null) && (!this.valueSet.language)) || ((lang) && lang.code.startsWith(this.valueSet.language))) {
       return false;
@@ -300,7 +428,31 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} parent
+   * @param {string} system
+   * @param {string | null | undefined} version
+   * @param {string} code
+   * @param {any} isAbstract
+   * @param {any} isInactive
+   * @param {any} deprecated
+   * @param {any} status
+   * @param {any} displays
+   * @param {any} definition
+   * @param {any} itemWeight
+   * @param {any} expansion
+   * @param {any[] | null | undefined} imports
+   * @param {any} csExtList
+   * @param {any} vsExtList
+   * @param {any} csProps
+   * @param {any} expProps
+   * @param {any} excludeInactive
+   * @param {string | null | undefined} srcURL
+   * @returns {any}
+   */
   includeCode(cs, parent, system, version, code, isAbstract, isInactive, deprecated, status, displays, definition, itemWeight, expansion, imports, csExtList, vsExtList, csProps, expProps, excludeInactive, srcURL) {
+    void expProps;
     let result = null;
     this.worker.deadCheck('processCode');
 
@@ -352,6 +504,7 @@ class ValueSetExpander {
     const s = this.keyS(system, version, code);
 
     if (!this.map.has(s)) {
+      /** @type {any} */
       const n = {};
       n.system = system;
       n.code = code;
@@ -477,6 +630,16 @@ class ValueSetExpander {
     return result;
   }
 
+  /**
+   * @param {any} cs
+   * @param {string} system
+   * @param {string | null | undefined} version
+   * @param {string} code
+   * @param {any} expansion
+   * @param {any[] | null | undefined} imports
+   * @param {string | null | undefined} srcURL
+   * @returns {void}
+   */
   excludeCode(cs, system, version, code, expansion, imports, srcURL) {
     this.worker.deadCheck('excludeCode');
     if (!this.passesImports(imports, system, code, 0)) {
@@ -509,6 +672,12 @@ class ValueSetExpander {
     this.excluded.add(key);
   }
 
+  /**
+   * @param {string} uri
+   * @param {string | null | undefined} version
+   * @param {any} source
+   * @returns {Promise<void>}
+   */
   async checkCanExpandValueSet(uri, version, source) {
     const vs = await this.worker.findValueSet(uri, version, source);
     if (vs == null) {
@@ -526,6 +695,14 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {string} uri
+   * @param {string | null | undefined} version
+   * @param {any} vs
+   * @param {any} filter
+   * @param {{value: boolean}} notClosed
+   * @returns {Promise<any>}
+   */
   async expandValueSet(uri, version, vs, filter, notClosed) {
 
     if (!vs) {
@@ -555,6 +732,13 @@ class ValueSetExpander {
     return result;
   }
 
+  /**
+   * @param {any} vs
+   * @param {any} expansion
+   * @param {any[]} imports
+   * @param {number} offset
+   * @returns {Promise<number>}
+   */
   async importValueSet(vs, expansion, imports, offset) {
     let count = 0;
     this.canBeHierarchy = false;
@@ -572,6 +756,13 @@ class ValueSetExpander {
     return count;
   }
 
+  /**
+   * @param {any} p
+   * @param {any} c
+   * @param {any[]} imports
+   * @param {number} offset
+   * @returns {Promise<number>}
+   */
   async importValueSetItem(p, c, imports, offset) {
     let count = 0;
     this.worker.deadCheck('importValueSetItem');
@@ -594,6 +785,13 @@ class ValueSetExpander {
     return count;
   }
 
+  /**
+   * @param {any} vs
+   * @param {any} expansion
+   * @param {any[]} imports
+   * @param {number} offset
+   * @returns {void}
+   */
   excludeValueSet(vs, expansion, imports, offset) {
     for (const c of vs.expansion.contains) {
       this.worker.deadCheck('excludeValueSet');
@@ -609,6 +807,16 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} cset
+   * @param {any} exp
+   * @param {any} filter
+   * @param {string} srcURL
+   * @param {Map<string, any>} ts
+   * @param {any} vsInfo
+   * @param {any} source
+   * @returns {Promise<void>}
+   */
   async checkSource(cset, exp, filter, srcURL, ts, vsInfo , source) {
     this.worker.deadCheck('checkSource');
     Extensions.checkNoModifiers(cset, 'ValueSetExpander.checkSource', 'set', srcURL);
@@ -678,7 +886,25 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {string} path
+   * @param {any} vsSrc
+   * @param {any} compose
+   * @param {any} filter
+   * @param {any} expansion
+   * @param {boolean} excludeInactive
+   * @param {{value: boolean}} notClosed
+   * @param {any} vsInfo
+   * @returns {Promise<void>}
+   */
   async processCodes(path, vsSrc, compose, filter, expansion, excludeInactive, notClosed, vsInfo) {
+    void path;
+    void vsSrc;
+    void compose;
+    void filter;
+    void expansion;
+    void excludeInactive;
+    void notClosed;
     const cs = await this.worker.findCodeSystem(vsInfo.system, vsInfo.version, this.params, ['complete', 'fragment'],
       false, false, true, null, this.requiredSupplements);
     if (cs != null) {
@@ -689,7 +915,19 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} cset
+   * @param {string} path
+   * @param {any} vsSrc
+   * @param {any} compose
+   * @param {any} filter
+   * @param {any} expansion
+   * @param {boolean} excludeInactive
+   * @param {{value: boolean}} notClosed
+   * @returns {Promise<void>}
+   */
   async includeCodes(cset, path, vsSrc, compose, filter, expansion, excludeInactive, notClosed) {
+    void compose;
     this.worker.deadCheck('processCodes#1');
     const valueSets = [];
 
@@ -714,6 +952,7 @@ class ValueSetExpander {
       }
       this.addToTotal(await this.importValueSet(valueSets[0].valueSet, expansion, valueSets, 1));
     } else {
+      /** @type {any[]} */
       const filters = [];
       const prep = null;
       const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params, ['complete', 'fragment'],
@@ -918,6 +1157,14 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} c
+   * @param {any} prep
+   * @param {any[]} filters
+   * @param {number} offset
+   * @returns {Promise<boolean>}
+   */
   async passesFilters(cs, c, prep, filters, offset) {
     for (let j = offset; j < filters.length; j++) {
       const f = filters[j];
@@ -929,7 +1176,19 @@ class ValueSetExpander {
     return true;
   }
 
+  /**
+   * @param {any} cset
+   * @param {string} path
+   * @param {any} vsSrc
+   * @param {any} filter
+   * @param {any} expansion
+   * @param {boolean} excludeInactive
+   * @param {{value: boolean}} notClosed
+   * @returns {Promise<void>}
+   */
   async excludeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed) {
+    void path;
+    void excludeInactive;
     this.worker.deadCheck('processCodes#1');
     const valueSets = [];
 
@@ -956,6 +1215,7 @@ class ValueSetExpander {
         this.excludeValueSet(valueSets[0].valueSet, expansion, valueSets, 1);
       }
     } else {
+      /** @type {any[]} */
       const filters = [];
       const prep = null;
       const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params, ['complete', 'fragment'], false,
@@ -1083,6 +1343,16 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} context
+   * @param {any} expansion
+   * @param {any[] | null | undefined} imports
+   * @param {any} parent
+   * @param {boolean} excludeInactive
+   * @param {string} srcUrl
+   * @returns {Promise<number>}
+   */
   async includeCodeAndDescendants(cs, context, expansion, imports, parent, excludeInactive, srcUrl) {
     let result = 0;
     this.worker.deadCheck('processCodeAndDescendants');
@@ -1102,7 +1372,7 @@ class ValueSetExpander {
       let t;
       if (this.noDetails) {
         t = await this.includeCode(cs, null, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), null, null, null,
-            null, expansion, imports, null, null, null, null, excludeInactive, srcUrl);
+            null, null, expansion, imports, null, null, null, null, excludeInactive, srcUrl);
 
       } else {
         await this.listDisplaysFromProvider(cds, cs, context);
@@ -1131,7 +1401,17 @@ class ValueSetExpander {
     return result;
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} context
+   * @param {any} expansion
+   * @param {any[] | null | undefined} imports
+   * @param {boolean} excludeInactive
+   * @param {string} srcUrl
+   * @returns {Promise<void>}
+   */
   async excludeCodeAndDescendants(cs, context, expansion, imports, excludeInactive, srcUrl) {
+    void excludeInactive;
     this.worker.deadCheck('processCodeAndDescendants');
 
     if (expansion) {
@@ -1159,6 +1439,14 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} source
+   * @param {any} filter
+   * @param {any} expansion
+   * @param {{value: boolean}} notClosed
+   * @param {any} vsInfo
+   * @returns {Promise<void>}
+   */
   async handleCompose(source, filter, expansion, notClosed, vsInfo) {
     this.worker.opContext.log('compose #1');
 
@@ -1189,7 +1477,7 @@ class ValueSetExpander {
 
       i = 0;
       const includes = [...(source.jsonObj.compose.include || [])];
-      includes.sort((a, b) => {
+      includes.sort((/** @type {any} */ a, /** @type {any} */ b) => {
         if (a.system === b.system && a.version && b.version) {
           return -VersionUtilities.compareVersionsGeneral(a.version, b.version);
         }
@@ -1203,11 +1491,21 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} source
+   * @returns {boolean}
+   */
   excludeInactives(source) {
     return source.jsonObj.compose && source.jsonObj.compose.inactive != undefined && !source.jsonObj.compose.inactive;
   }
 
-  async expand(source, filter, noCacheThisOne) {
+  /**
+   * @param {any} source
+   * @param {any} filter
+   * @param {boolean} [noCacheThisOne]
+   * @returns {Promise<any>}
+   */
+  async expand(source, filter, noCacheThisOne = false) {
     this.noCacheThisOne = noCacheThisOne;
     this.totalStatus = 'uninitialised';
     this.total = 0;
@@ -1269,6 +1567,7 @@ class ValueSetExpander {
       this.canBeHierarchy = false;
     }
 
+    /** @type {any} */
     const exp = {};
     exp.timestamp = new Date().toISOString();
     exp.identifier = 'urn:uuid:' + crypto.randomUUID();
@@ -1340,24 +1639,25 @@ class ValueSetExpander {
         throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.worker.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', this.params.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(422);
       }
     } catch (e) {
+      const issue = /** @type {any} */ (e);
       if (e instanceof Issue) {
-        if (e.finished) {
+        if (issue.finished) {
           // nothing - we're just trapping this
           if (this.totalStatus === 'uninitialised') {
             this.totalStatus = 'off';
-          } else if (e.toocostly) {
+          } else if (issue.toocostly) {
             Extensions.addBoolean(exp, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly', 'value', true);
             if (table != null) {
-              div_.p().style('color: Maroon').tx(e.message);
+              div_.p().style('color: Maroon').tx(issue.message);
             }
           } else {
             // nothing- swallow it
           }
         } else {
-          throw e;
+          throw issue;
         }
       } else {
-        throw e;
+        throw issue;
       }
     }
 
@@ -1404,9 +1704,9 @@ class ValueSetExpander {
       }
     }
 
-    if (this.offset + this.count < 0 && this.fullList.length > this.limit) {
-      this.log.log('Operation took too long @ expand (' + this.constructor.name + ')');
-      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [source.vurl, '>' + this.limit]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+    if (this.offset + this.count < 0 && this.fullList.length > this.limitCount) {
+      this.worker.log.log('Operation took too long @ expand (' + this.constructor.name + ')');
+      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [source.vurl, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
     } else {
       let t = 0;
       let o = 0;
@@ -1459,17 +1759,17 @@ class ValueSetExpander {
           case "design":
             break; // do nothing - that's the natural order of this class
           case "code" :
-            result.expansion.contains.sort((a, b) => order * (a.code ?? 'zzz').localeCompare(b.code ?? 'zzz'));
+            result.expansion.contains.sort((/** @type {any} */ a, /** @type {any} */ b) => order * (a.code ?? 'zzz').localeCompare(b.code ?? 'zzz'));
             break;
           case "display" :
-            result.expansion.contains.sort((a, b) => order * (a.display ?? 'zzz').localeCompare(b.display ?? 'zzz'));
+            result.expansion.contains.sort((/** @type {any} */ a, /** @type {any} */ b) => order * (a.display ?? 'zzz').localeCompare(b.display ?? 'zzz'));
             break;
           case "codesystem" :
             // do nothing about that here
             break;
           default:
             if (sort.startsWith("prop:")) {
-              result.expansion.contains.sort((a, b) => order * this.sortByProp(a, b, sort.substring(5)));
+              result.expansion.contains.sort((/** @type {any} */ a, /** @type {any} */ b) => order * this.sortByProp(a, b, sort.substring(5)));
             } else {
               // do nothing?
             }
@@ -1479,6 +1779,12 @@ class ValueSetExpander {
     return result;
   }
 
+  /**
+   * @param {any} exp
+   * @param {any} resource
+   * @param {any} source
+   * @returns {void}
+   */
   checkResourceCanonicalStatus(exp, resource, source) {
     if (resource.jsonObj) {
       resource = resource.jsonObj;
@@ -1486,11 +1792,26 @@ class ValueSetExpander {
     this.checkCanonicalStatus(exp, this.worker.makeVurl(resource), resource.status, Extensions.readString(resource, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'), resource.experimental, source);
   }
 
+  /**
+   * @param {any} exp
+   * @param {any} cs
+   * @param {any} source
+   * @returns {void}
+   */
   checkProviderCanonicalStatus(exp, cs, source) {
     let status = cs.status();
     this.checkCanonicalStatus(exp, cs.vurl(), status.status, status.standardsStatus, status.experimental, source);
   }
 
+  /**
+   * @param {any} exp
+   * @param {string} vurl
+   * @param {any} status
+   * @param {any} standardsStatus
+   * @param {any} experimental
+   * @param {any} source
+   * @returns {void}
+   */
   checkCanonicalStatus(exp, vurl, status, standardsStatus, experimental, source) {
     let sourceStatus = source ? source.status : undefined;
     let sourceStandardsStatus= source ? Extensions.readString(source, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status') : undefined;
@@ -1517,6 +1838,12 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} exp
+   * @param {string} name
+   * @param {string} value
+   * @returns {void}
+   */
   addParamStr(exp, name, value) {
     if (!this.hasParam(exp, name, value)) {
       if (!exp.parameter) {
@@ -1526,6 +1853,12 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} exp
+   * @param {string} name
+   * @param {boolean} value
+   * @returns {void}
+   */
   addParamBool(exp, name, value) {
     if (!this.hasParam(exp, name, value)) {
       if (!exp.parameter) {
@@ -1535,6 +1868,12 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} exp
+   * @param {string} name
+   * @param {string} value
+   * @returns {void}
+   */
   addParamCode(exp, name, value) {
     if (!this.hasParam(exp, name, value)) {
       if (!exp.parameter) {
@@ -1544,6 +1883,12 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} exp
+   * @param {string} name
+   * @param {number} value
+   * @returns {void}
+   */
   addParamInt(exp, name, value) {
     if (!this.hasParam(exp, name, value)) {
       if (!exp.parameter) {
@@ -1553,6 +1898,12 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} exp
+   * @param {string} name
+   * @param {string} value
+   * @returns {void}
+   */
   addParamUri(exp, name, value) {
     validateParameter(name, 'name', String);
     validateParameter(value, 'value', String);
@@ -1565,11 +1916,19 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {any} exp
+   * @param {string} name
+   * @param {string} valueName
+   * @param {any} value
+   * @returns {void}
+   */
   addParam(exp, name, valueName, value) {
     if (!this.hasParam(exp, name, value)) {
       if (!exp.parameter) {
         exp.parameter = [];
       }
+      /** @type {any} */
       let p = {name: name}
       exp.parameter.push(p);
       p[valueName] = value;
@@ -1577,10 +1936,22 @@ class ValueSetExpander {
   }
 
 
+  /**
+   * @param {any} exp
+   * @param {string} name
+   * @param {any} value
+   * @returns {any}
+   */
   hasParam(exp, name, value) {
-    return (exp.parameter || []).find((ex => ex.name == name && getValuePrimitive(ex) == value));
+    return (exp.parameter || []).find((/** @type {any} */ ex) => ex.name == name && getValuePrimitive(ex) == value);
   }
 
+  /**
+   * @param {string} system
+   * @param {string | null | undefined} version
+   * @param {string} code
+   * @returns {boolean}
+   */
   isExcluded(system, version, code) {
     if (this.excludedSystems.has(system)) {
       return true;
@@ -1593,14 +1964,33 @@ class ValueSetExpander {
     return this.excluded.has(key);
   }
 
+  /**
+   * @param {string} system
+   * @param {string | null | undefined} version
+   * @param {string} code
+   * @returns {string}
+   */
   keyS(system, version, code) {
     return system+"~"+(this.doingVersion && !this.params.versionsMatch ? version+"~" : "")+code;
   }
 
+  /**
+   * @param {any} contains
+   * @returns {string}
+   */
   keyC(contains) {
     return this.keyS(contains.system, contains.version, contains.code);
   }
 
+  /**
+   * @param {any} expansion
+   * @param {any} contains
+   * @param {string | undefined} url
+   * @param {string} code
+   * @param {string} valueName
+   * @param {any} value
+   * @returns {void}
+   */
   defineProperty(expansion, contains, url, code, valueName, value) {
     if (value === undefined || value == null) {
       return;
@@ -1610,7 +2000,7 @@ class ValueSetExpander {
       if (!expansion.property) {
         expansion.property = [];
       }
-      let pd = expansion.property.find(t1 => t1.uri == url || t1.code == code);
+      let pd = expansion.property.find((/** @type {any} */ t1) => t1.uri == url || t1.code == code);
       if (!pd) {
         pd = {};
         expansion.property.push(pd);
@@ -1629,7 +2019,7 @@ class ValueSetExpander {
     if (!contains.property) {
       contains.property = [];
     }
-    let pdv = contains.property.find(t2 => t2.code == code);
+    let pdv = contains.property.find((/** @type {any} */ t2) => t2.code == code);
     if (!pdv) {
       pdv = {};
       contains.property.push(pdv);
@@ -1638,6 +2028,10 @@ class ValueSetExpander {
     pdv[valueName] = value;
   }
 
+  /**
+   * @param {number} [t]
+   * @returns {void}
+   */
   addToTotal(t = 1) {
     if (this.total > -1 && this.totalStatus != "off") {
       this.total = this.total + t;
@@ -1645,6 +2039,10 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @param {number} [t]
+   * @returns {void}
+   */
   decTotal(t= 1) {
     if (this.total > -1 && this.totalStatus != "off") {
       this.total = this.total - t;
@@ -1652,11 +2050,20 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * @returns {void}
+   */
   noTotal() {
     this.total = -1;
     this.totalStatus = 'off';
   }
 
+  /**
+   * @param {any} cs
+   * @param {string} pn
+   * @param {any} cp
+   * @returns {string | undefined}
+   */
   getPropUrl(cs, pn, cp) {
     if (cp.definition?.uri) {
       return cp.definition.uri;
@@ -1674,8 +2081,8 @@ class ValueSetExpander {
    * If it's all one code system(|version), and has no value set dependencies,
    * then we call it simple - this will affect how it can be handled later
    *
-   * @param compose
-   * @returns {undefined}
+   * @param {any} compose
+   * @returns {any}
    */
   scanValueSet(compose) {
     let result = { isSimple : false, hasExcludes : true, csset : new Set(), csDoExcludes : false, csDoOffset : false};
@@ -1697,11 +2104,20 @@ class ValueSetExpander {
     return result;
   }
 
+  /**
+   * @param {any} inc
+   * @param {Set<string>} set
+   * @returns {boolean}
+   */
   isSimpleSelect(inc, set) {
     set.add(inc.system+"|"+inc.version);
     return !inc.valueset || inc.valueset.length == 0;
   }
 
+  /**
+   * @param {any} exc
+   * @returns {any[]}
+   */
   excludeFilterList(exc) {
     const results = [];
 
@@ -1712,6 +2128,12 @@ class ValueSetExpander {
     return results;
   }
 
+  /**
+   * @param {any} a
+   * @param {any} b
+   * @param {string} name
+   * @returns {number}
+   */
   sortByProp(a, b, name) {
     let pA = this.getPropValue(a, name);
     let pB = this.getPropValue(b, name);
@@ -1727,13 +2149,18 @@ class ValueSetExpander {
 
     // numbers and booleans: subtract
     if (typeof pA === 'number' || typeof pA === 'boolean') {
-      return pA - pB;
+      return Number(pA) - Number(pB);
     } else {
       // strings
       return pA.localeCompare(pB);
     }
   }
 
+  /**
+   * @param {any} cc
+   * @param {string} name
+   * @returns {any}
+   */
   getPropValue(cc, name) {
     for (let p of cc.property) {
       if (p.code == name) {
@@ -1745,6 +2172,11 @@ class ValueSetExpander {
 
 
   // special case: excluding a different version from the include
+  /**
+   * @param {any} source
+   * @param {any} exp
+   * @returns {void}
+   */
   checkForExclusionVersionSpecialCase(source, exp) {
     if (!this.params.hasVersionsMatch) {
 
@@ -1754,9 +2186,9 @@ class ValueSetExpander {
 
       if (includes.length > 0 && excludes.length > 0) {
         const system = includes[0].system;
-        const allSameSystem = includes.every(i => i.system === system && i.version)
-          && excludes.every(e => e.system === system && e.version);
-        const noOverlap = !includes.some(i => excludes.some(e => e.version === i.version));
+        const allSameSystem = includes.every((/** @type {any} */ i) => i.system === system && i.version)
+          && excludes.every((/** @type {any} */ e) => e.system === system && e.version);
+        const noOverlap = !includes.some((/** @type {any} */ i) => excludes.some((/** @type {any} */ e) => e.version === i.version));
 
         if (allSameSystem && noOverlap) {
           this.params.versionsMatch = true;
@@ -1770,16 +2202,24 @@ class ValueSetExpander {
 }
 
 class ExpandWorker extends TerminologyWorker {
+  /** @type {number} */
   internalLimit = INTERNAL_DEFAULT_LIMIT;
+  /** @type {number} */
   externalLimit = EXTERNAL_DEFAULT_LIMIT;
+  /** @type {any} */
+  params;
+  /** @type {any} */
+  additionalResources;
 
 
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
+   * @param {number} [internalLimit]
+   * @param {number} [externalLimit]
    */
   constructor(opContext, log, provider, languages,
               i18n, internalLimit = INTERNAL_DEFAULT_LIMIT, externalLimit = EXTERNAL_DEFAULT_LIMIT) {
@@ -1799,32 +2239,34 @@ class ExpandWorker extends TerminologyWorker {
   /**
    * Handle a type-level $expand request
    * GET/POST /ValueSet/$expand
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
+   * @returns {Promise<any>}
    */
   async handle(req, res) {
     try {
       await this.handleTypeLevelExpand(req, res);
     } catch (error) {
-      this.log.error(error);
-      debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
-      const statusCode = error.statusCode || 500;
+      const err = /** @type {any} */ (error);
+      this.log.error(err);
+      debugLog(err);
+      req.logInfo = this.usedSources.join("|")+" - error"+(err.msgId  ? " "+err.msgId : "");
+      const statusCode = err.statusCode || 500;
       if (error instanceof Issue) {
         let oo = new OperationOutcome();
         oo.addIssue(error);
-        return res.status(error.statusCode || 500).json(oo.jsonObj);
+        return res.status(err.statusCode || 500).json(oo.jsonObj);
       } else {
-        const issueCode = error.issueCode || 'exception';
+        const issueCode = err.issueCode || 'exception';
         return res.status(statusCode).json({
           resourceType: 'OperationOutcome',
           issue: [{
             severity: 'error',
             code: issueCode,
             details: {
-              text: error.message
+              text: err.message
             },
-            diagnostics: error.message
+            diagnostics: err.message
           }]
         });
       }
@@ -1834,27 +2276,29 @@ class ExpandWorker extends TerminologyWorker {
   /**
    * Handle an instance-level $expand request
    * GET/POST /ValueSet/{id}/$expand
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
+   * @returns {Promise<any>}
    */
   async handleInstance(req, res) {
     try {
       await this.handleInstanceLevelExpand(req, res);
     } catch (error) {
-      this.log.error(error);
-      debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
-      const statusCode = error.statusCode || 500;
-      const issueCode = error.issueCode || 'exception';
+      const err = /** @type {any} */ (error);
+      this.log.error(err);
+      debugLog(err);
+      req.logInfo = this.usedSources.join("|")+" - error"+(err.msgId  ? " "+err.msgId : "");
+      const statusCode = err.statusCode || 500;
+      const issueCode = err.issueCode || 'exception';
       return res.status(statusCode).json({
         resourceType: 'OperationOutcome',
         issue: [{
           severity: 'error',
           code: issueCode,
           details: {
-            text : error.message
+            text : err.message
           },
-          diagnostics: error.message
+          diagnostics: err.message
         }]
       });
     }
@@ -1863,6 +2307,9 @@ class ExpandWorker extends TerminologyWorker {
   /**
    * Handle type-level expand: /ValueSet/$expand
    * ValueSet identified by url, or provided directly in body
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
    */
   async handleTypeLevelExpand(req, res) {
     this.deadCheck('expand-type-level');
@@ -1943,6 +2390,9 @@ class ExpandWorker extends TerminologyWorker {
   /**
    * Handle type-level expand: /ValueSet/$expand
    * ValueSet identified by url, or provided directly in body
+   * @param {any} valueSet
+   * @param {any} req
+   * @returns {Promise<any>}
    */
   async handleInternalExpand(valueSet, req) {
     this.deadCheck('expand-internal');
@@ -1984,6 +2434,9 @@ class ExpandWorker extends TerminologyWorker {
   /**
    * Handle instance-level expand: /ValueSet/{id}/$expand
    * ValueSet identified by resource ID
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<any>}
    */
   async handleInstanceLevelExpand(req, res) {
     this.deadCheck('expand-instance-level');
@@ -2038,9 +2491,10 @@ class ExpandWorker extends TerminologyWorker {
   /**
    * Perform the actual expansion operation
    * Uses expansion cache for expensive operations
-   * @param {Object} valueSet - ValueSet resource to expand
-   * @param {Object} params - Parameters resource with expansion options
-   * @returns {Object} Expanded ValueSet resource
+   * @param {any} valueSet - ValueSet resource to expand
+   * @param {any} params - Parameters resource with expansion options
+   * @param {any} logExtraOutput
+   * @returns {Promise<any>} Expanded ValueSet resource
    */
   async doExpand(valueSet, params, logExtraOutput) {
     this.deadCheck('doExpand');
@@ -2077,9 +2531,10 @@ class ExpandWorker extends TerminologyWorker {
 
   /**
    * Perform the actual expansion logic
-   * @param {Object} valueSet - ValueSet resource to expand
-   * @param {Object} params - Parameters resource with expansion options
-   * @returns {Object} Expanded ValueSet resource
+   * @param {any} valueSet - ValueSet resource to expand
+   * @param {any} params - Parameters resource with expansion options
+   * @param {any} logExtraOutput
+   * @returns {Promise<any>} Expanded ValueSet resource
    */
   async performExpansion(valueSet, params, logExtraOutput) {
     this.deadCheck('performExpansion');
@@ -2116,7 +2571,7 @@ class ExpandWorker extends TerminologyWorker {
    * @param {string} severity - error, warning, information
    * @param {string} code - Issue code
    * @param {string} message - Diagnostic message
-   * @returns {Object} OperationOutcome resource
+   * @returns {any} OperationOutcome resource
    */
   operationOutcome(severity, code, message) {
     return {

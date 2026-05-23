@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 
 //
 // Copyright 2025, Health Intersections Pty Ltd (http://www.healthintersections.com.au)
@@ -16,14 +17,17 @@ const folders = require('./library/folder-setup');  // <-- ADD: load early
 const { statSync, readdirSync } = require('fs');
 const escape = require('escape-html');
 
+/** @typedef {Record<string, any>} AnyRecord */
+
 // Load configuration BEFORE logger
+/** @type {AnyRecord} */
 let config;
 try {
   const configPath = folders.filePath('config.json');  // <-- CHANGE: config now in data dir
   const configData = fs.readFileSync(configPath, 'utf8');
   config = JSON.parse(configData);
 } catch (error) {
-  console.error('Failed to load configuration:', error.message);
+  console.error('Failed to load configuration:', errorMessage(error));
   process.exit(1);
 }
 
@@ -63,6 +67,22 @@ const {Liquid} = require("liquidjs");
 const FolderModule = require("./folder/folder");
 const ExtensionTrackerModule = require("./extension-tracker/extension-tracker");
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * @param {unknown} error
+ * @returns {{stack?: string}}
+ */
+function loggerMeta(error) {
+  return error instanceof Error ? {stack: error.stack} : {stack: String(error)};
+}
+
 htmlServer.useLog(serverLog);
 htmlServer.setSponsorMessage(config.sponsorMessage ? config.sponsorMessage : '');
 
@@ -74,7 +94,7 @@ const PORT = process.env.PORT || config.server.port || 3000;
 app.use(express.raw({ type: 'application/fhir+json', limit: '50mb' }));
 app.use(express.raw({ type: 'application/fhir+xml', limit: '50mb' }));
 app.use(express.json({ limit: '50mb' }));
-app.use((req, res, next) => {
+app.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
   const requestId = req.headers['x-request-id'];
   if (requestId) {
     res.setHeader('X-Request-Id', requestId);
@@ -85,8 +105,10 @@ app.use((req, res, next) => {
 // app.use(cors(config.server.cors));
 
 // Module instances
+/** @type {Record<string, any>} */
 const modules = {};
 
+/** @type {any} */
 let stats = null;
 
 // Initialize modules based on configuration
@@ -101,7 +123,7 @@ async function initializeModules() {
       await modules.shl.initialize(config.modules.shl);
       app.use('/shl', modules.shl.router);
     } catch (error) {
-      serverLog.error('Failed to initialize SHL module:', error);
+      serverLog.error('Failed to initialize SHL module:', loggerMeta(error));
       throw error;
     }
   }
@@ -114,7 +136,7 @@ async function initializeModules() {
       await modules.vcl.initialize(config.modules.vcl);
       app.use('/VCL', modules.vcl.router);
     } catch (error) {
-      serverLog.error('Failed to initialize VCL module:', error);
+      serverLog.error('Failed to initialize VCL module:', loggerMeta(error));
       throw error;
     }
   }
@@ -127,7 +149,7 @@ async function initializeModules() {
       app.use('/xig', xigModule.router);
       modules.xig = xigModule;
     } catch (error) {
-      serverLog.error('Failed to initialize XIG module:', error);
+      serverLog.error('Failed to initialize XIG module:', loggerMeta(error));
       throw error;
     }
   }
@@ -141,7 +163,7 @@ async function initializeModules() {
       app.use('/packages', modules.packages.router);
     } catch (error) {
       console.error('Failed to initialize Server:', error);
-      serverLog.error('Failed to initialize Packages module:', error);
+      serverLog.error('Failed to initialize Packages module:', loggerMeta(error));
       throw error;
     }
   }
@@ -154,7 +176,7 @@ async function initializeModules() {
       await modules.registry.initialize(config.modules.registry);
       app.use('/tx-reg', modules.registry.router);
     } catch (error) {
-      serverLog.error('Failed to initialize Registry module:', error);
+      serverLog.error('Failed to initialize Registry module:', loggerMeta(error));
       throw error;
     }
   }
@@ -167,7 +189,7 @@ async function initializeModules() {
       await modules.publisher.initialize(config.modules.publisher);
       app.use('/publisher', modules.publisher.router);
     } catch (error) {
-      serverLog.error('Failed to initialize Publisher module:', error);
+      serverLog.error('Failed to initialize Publisher module:', loggerMeta(error));
       throw error;
     }
   }
@@ -180,7 +202,7 @@ async function initializeModules() {
       await modules.token.initialize(config.modules.token);
       app.use('/token', modules.token.router);
     } catch (error) {
-      serverLog.error('Failed to initialize Token module:', error);
+      serverLog.error('Failed to initialize Token module:', loggerMeta(error));
       throw error;
     }
   }
@@ -194,7 +216,7 @@ async function initializeModules() {
       const basePath = NpmProjectorModule.getBasePath(config.modules.npmprojector);
       app.use(basePath, modules.npmprojector.router);
     } catch (error) {
-      serverLog.error('Failed to initialize NpmProjector module:', error);
+      serverLog.error('Failed to initialize NpmProjector module:', loggerMeta(error));
       throw error;
     }
   }
@@ -206,7 +228,7 @@ async function initializeModules() {
       modules.extTracker = new ExtensionTrackerModule(stats);
       await modules.extTracker.initialize(config.modules['ext-tracker'], app);
     } catch (error) {
-      serverLog.error('Failed to initialize extension tracker module:', error);
+      serverLog.error('Failed to initialize extension tracker module:', loggerMeta(error));
       throw error;
     }
   }
@@ -219,7 +241,7 @@ async function initializeModules() {
       modules.tx = new TXModule(stats);
       await modules.tx.initialize(config.modules.tx, app);
     } catch (error) {
-      serverLog.error('Failed to initialize TX module:', error);
+      serverLog.error('Failed to initialize TX module:', loggerMeta(error));
       throw error;
     }
   }
@@ -231,7 +253,7 @@ async function initializeModules() {
       await modules.folder.initialize(config.modules.folder, app);
       // mount the router
     } catch (error) {
-      serverLog.error('Failed to initialize folder module:', error);
+      serverLog.error('Failed to initialize folder module:', loggerMeta(error));
       throw error;
     }
   }
@@ -264,7 +286,7 @@ async function loadTemplates() {
     htmlServer.loadTemplate('token', tokenTemplatePath);
 
   } catch (error) {
-    serverLog.error('Failed to load templates:', error);
+    serverLog.error('Failed to load templates:', loggerMeta(error));
     // Don't fail initialization if templates fail to load
   }
 }
@@ -447,16 +469,16 @@ async function buildRootPageContent() {
 // eslint-disable-next-line no-unused-vars
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
-  serverLog.error('Unhandled Rejection:', reason);
+  serverLog.error('Unhandled Rejection:', loggerMeta(reason));
 });
 
 process.on('uncaughtException', (error) => {
   console.error('FATAL - Uncaught Exception:', error);
-  serverLog.error('FATAL - Uncaught Exception:', error);
+  serverLog.error('FATAL - Uncaught Exception:', loggerMeta(error));
   process.exitCode = 1;
 });
 
-app.get('/', async (req, res) => {
+app.get('/', async (/** @type {any} */ req, /** @type {any} */ res) => {
   // If an override index.html exists, serve it instead of the FHIRsmith home page
   if (config.server?.webBase) {
     const overrideIndex = path.join(path.resolve(config.server.webBase), 'index.html');
@@ -504,8 +526,8 @@ app.get('/', async (req, res) => {
       res.send(html);
       return;
     } catch (error) {
-      serverLog.error('Error rendering root page:', error);
-      htmlServer.sendErrorResponse(res, 'root', error);
+      serverLog.error('Error rendering root page:', loggerMeta(error));
+      htmlServer.sendErrorResponse(res, 'root', errorMessage(error));
       return;
     }
   } else {
@@ -513,11 +535,11 @@ app.get('/', async (req, res) => {
   }
 });
 
-app.get('/fhirsmith', (req, res) => serveFhirsmithHome(req, res));
+app.get('/fhirsmith', (/** @type {any} */ req, /** @type {any} */ res) => serveFhirsmithHome(req, res));
 
 // Serve static files
 // Count static file hits separately from API/page requests
-app.use((req, res, next) => {
+app.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
   res.on('finish', () => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       stats.staticRequestCount++;
@@ -527,9 +549,9 @@ app.use((req, res, next) => {
 });
 if (config.server?.webBase) {
   const overrideDir = path.resolve(config.server.webBase);
-  app.use((req, res, next) => {
+  app.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
     const filePath = path.join(overrideDir, req.path);
-    fs.access(filePath, fs.constants.F_OK, (err) => {
+    fs.access(filePath, fs.constants.F_OK, (/** @type {NodeJS.ErrnoException | null} */ err) => {
       if (!err) {
         res.sendFile(filePath);
       } else {
@@ -541,7 +563,7 @@ if (config.server?.webBase) {
 app.use(express.static(path.join(__dirname, 'static')));
 
 // Dashboard endpoint - server name, stats, graphs, and background tasks (no modules list)
-app.get('/dashboard', async (req, res) => {
+app.get('/dashboard', async (/** @type {any} */ req, /** @type {any} */ res) => {
   stats.requestCount++;
   try {
     if (!htmlServer.hasTemplate('root-bare')) {
@@ -622,11 +644,15 @@ app.get('/dashboard', async (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
   } catch (error) {
-    serverLog.error('Error rendering dashboard:', error);
-    htmlServer.sendErrorResponse(res, 'root', error);
+    serverLog.error('Error rendering dashboard:', loggerMeta(error));
+    htmlServer.sendErrorResponse(res, 'root', errorMessage(error));
   }
 });
 
+/**
+ * @param {number} pct
+ * @returns {string}
+ */
 function pctColor(pct) {
   // Gradient from green (#deffe0) at 0% to red (#ffd3d1) at 100%
   const t = Math.max(0, Math.min(100, pct)) / 100;
@@ -637,7 +663,8 @@ function pctColor(pct) {
 }
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
+app.get('/health', async (/** @type {any} */ req, /** @type {any} */ res) => {
+  /** @type {{status: string, timestamp: string, modules: Record<string, any>}} */
   const healthStatus = {
     status: 'OK',
     timestamp: new Date().toISOString(),
@@ -705,7 +732,7 @@ function getLogStats() {
         + diskInfo
         + '</tr>';
   } catch (e) {
-    return `<tr><td colspan="3"><strong>Logs:</strong> unable to read (${e.message})</td></tr>`;
+    return `<tr><td colspan="3"><strong>Logs:</strong> unable to read (${errorMessage(e)})</td></tr>`;
   }
 }
 
@@ -717,7 +744,7 @@ async function startServer() {
 
     // Initialize modules
     await initializeModules().catch(error => {
-      serverLog.error('Failed to initialize modules:', error);
+      serverLog.error('Failed to initialize modules:', loggerMeta(error));
       throw error;
     });
 
@@ -738,13 +765,13 @@ async function startServer() {
           serverLog.info(`ConceptUsageTracker scan complete: ${count} valuesets list codes`);
         } catch (err) {
           console.log(err);
-          serverLog.error('ConceptUsageTracker scan failed:', err);
+          serverLog.error('ConceptUsageTracker scan failed:', loggerMeta(err));
         }
       });
     }
   } catch (error) {
     console.error('FATAL - Failed to start server:', error);
-    serverLog.error('FATAL - Failed to start server:', error);
+    serverLog.error('FATAL - Failed to start server:', loggerMeta(error));
     // Give the logger a moment to flush before exiting
     setTimeout(() => process.exit(1), 500);
   }
@@ -763,7 +790,7 @@ process.on('SIGINT', async () => {
         serverLog.info(`${moduleName} module shut down`);
       }
     } catch (error) {
-      serverLog.error(`Error shutting down ${moduleName} module:`, error);
+      serverLog.error(`Error shutting down ${moduleName} module:`, loggerMeta(error));
     }
   }
   stats.finishStats();
@@ -771,6 +798,10 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
+/**
+ * @param {any} req
+ * @param {any} res
+ */
 async function serveFhirsmithHome(req, res) {
   // Check if client wants HTML response
   const acceptsHtml = req.headers.accept && req.headers.accept.includes('text/html');
@@ -799,12 +830,13 @@ async function serveFhirsmithHome(req, res) {
       res.send(html);
       return;
     } catch (error) {
-      serverLog.error('Error rendering root page:', error);
-      htmlServer.sendErrorResponse(res, 'root', error);
+      serverLog.error('Error rendering root page:', loggerMeta(error));
+      htmlServer.sendErrorResponse(res, 'root', errorMessage(error));
       return;
     }
   } else {
     // Return JSON response for API clients
+    /** @type {Record<string, any>} */
     const enabledModules = {};
     Object.keys(config.modules).forEach(moduleName => {
       if (config.modules[moduleName].enabled) {
@@ -812,7 +844,7 @@ async function serveFhirsmithHome(req, res) {
           // TX module has multiple endpoints
           enabledModules[moduleName] = {
             enabled: true,
-            endpoints: config.modules.tx.endpoints.map(e => ({
+            endpoints: config.modules.tx.endpoints.map((/** @type {any} */ e) => ({
               path: e.path,
               fhirVersion: e.fhirVersion,
               context: e.context || null
@@ -843,7 +875,7 @@ async function serveFhirsmithHome(req, res) {
         ),
         // Add TX endpoints separately
         ...(enabledModules.tx ? {
-          tx: config.modules.tx.endpoints.map(e => e.path)
+          tx: config.modules.tx.endpoints.map((/** @type {any} */ e) => e.path)
         } : {})
       }
     });

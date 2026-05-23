@@ -1,3 +1,5 @@
+// @ts-check
+
 const {codeSystemFromR5, codeSystemToR5} = require("./xv-codesystem");
 const {capabilityStatementFromR5, capabilityStatementToR5} = require("./xv-capabiliityStatement");
 const {terminologyCapabilitiesFromR5, terminologyCapabilitiesToR5} = require("./xv-terminologyCapabilities");
@@ -7,7 +9,15 @@ const {parametersFromR5, parametersToR5} = require("./xv-parameters");
 const {operationOutcomeFromR5, operationOutcomeToR5} = require("./xv-operationoutcome");
 const {bundleFromR5, bundleToR5} = require("./xv-bundle");
 
+/**
+ * @typedef {Record<string, any>} FhirJson
+ */
 
+/**
+ * @param {FhirJson} data
+ * @param {string} sourceVersion
+ * @returns {FhirJson}
+ */
 function convertResourceToR5(data, sourceVersion) {
   if (sourceVersion == "5.0" || !data.resourceType) {
     return data;
@@ -25,6 +35,11 @@ function convertResourceToR5(data, sourceVersion) {
   }
 }
 
+/**
+ * @param {FhirJson} data
+ * @param {string} targetVersion
+ * @returns {FhirJson}
+ */
 function convertResourceFromR5(data, targetVersion) {
   if (targetVersion == "5.0" || !data.resourceType) {
     return data;

@@ -1,8 +1,19 @@
-const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./cs-api');
+// @ts-check
+
+const csApi = require('./cs-api');
+const CodeSystemProvider = /** @type {any} */ (csApi.CodeSystemProvider);
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
 const assert = require('assert');
 const { CodeSystem } = require("../library/codesystem");
 
+/** @typedef {string | USStateConcept | null | undefined} USStateContextInput */
+/** @typedef {{index: number, total: number}} IteratorContext */
+
 class USStateConcept {
+  /**
+   * @param {string} code - State code
+   * @param {string} display - Display name
+   */
   constructor(code, display) {
     this.code = code;
     this.display = display;
@@ -10,6 +21,12 @@ class USStateConcept {
 }
 
 class USStateServices extends CodeSystemProvider {
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @param {USStateConcept[] | null | undefined} codes - Loaded concepts
+   * @param {Map<string, USStateConcept> | null | undefined} codeMap - Concept lookup by code
+   */
   constructor(opContext, supplements, codes, codeMap) {
     super(opContext, supplements);
     this.codes = codes || [];
@@ -41,6 +58,10 @@ class USStateServices extends CodeSystemProvider {
     return false; // No hierarchical relationships
   }
 
+  /**
+   * @param {any} languages - Requested languages
+   * @returns {boolean} Whether displays are available
+   */
   hasAnyDisplays(languages) {
     const langs = this._ensureLanguages(languages);
     if (this._hasAnySupplementDisplays(langs)) {
@@ -50,12 +71,20 @@ class USStateServices extends CodeSystemProvider {
   }
 
   // Core concept methods
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<string | null>} State code
+   */
   async code(code) {
     
     const ctxt = await this.#ensureContext(code);
     return ctxt ? ctxt.code : null;
   }
 
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<string | null>} Display string
+   */
   async display(code) {
     
     const ctxt = await this.#ensureContext(code);
@@ -72,30 +101,51 @@ class USStateServices extends CodeSystemProvider {
     return ctxt.display ? ctxt.display.trim() : '';
   }
 
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<null>} No default definitions
+   */
   async definition(code) {
     
     await this.#ensureContext(code);
     return null; // No definitions provided
   }
 
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<boolean>} Whether the concept is abstract
+   */
   async isAbstract(code) {
     
     await this.#ensureContext(code);
     return false; // No abstract concepts
   }
 
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<boolean>} Whether the concept is inactive
+   */
   async isInactive(code) {
     
     await this.#ensureContext(code);
     return false; // No inactive concepts
   }
 
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<boolean>} Whether the concept is deprecated
+   */
   async isDeprecated(code) {
     
     await this.#ensureContext(code);
     return false; // No deprecated concepts
   }
 
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<void>}
+   */
   async designations(code, displays) {
     
     const ctxt = await this.#ensureContext(code);
@@ -105,9 +155,13 @@ class USStateServices extends CodeSystemProvider {
     }
   }
 
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<USStateConcept | null>} State context
+   */
   async #ensureContext(code) {
     if (!code) {
-      return code;
+      return null;
     }
     if (typeof code === 'string') {
       const ctxt = await this.locate(code);
@@ -124,6 +178,10 @@ class USStateServices extends CodeSystemProvider {
   }
 
   // Lookup methods
+  /**
+   * @param {string | null | undefined} code - State code
+   * @returns {Promise<{context: USStateConcept | null, message: string | null | undefined}>} Locate result
+   */
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
@@ -137,6 +195,10 @@ class USStateServices extends CodeSystemProvider {
   }
 
   // Iterator methods
+  /**
+   * @param {USStateContextInput} code - State code or context
+   * @returns {Promise<IteratorContext | null>} Iterator context
+   */
   async iterator(code) {
     
     const ctxt = await this.#ensureContext(code);
@@ -146,6 +208,10 @@ class USStateServices extends CodeSystemProvider {
     return null; // No child iteration
   }
 
+  /**
+   * @param {IteratorContext} iteratorContext - Iterator state
+   * @returns {Promise<USStateConcept | null>} Next concept
+   */
   async nextContext(iteratorContext) {
     
     assert(iteratorContext, 'iteratorContext must be provided');
@@ -158,6 +224,11 @@ class USStateServices extends CodeSystemProvider {
   }
 
   // Subsumption
+  /**
+   * @param {USStateContextInput} codeA - First state code or context
+   * @param {USStateContextInput} codeB - Second state code or context
+   * @returns {Promise<'not-subsumed'>} Subsumption result
+   */
   async subsumesTest(codeA, codeB) {
     await this.#ensureContext(codeA);
     await this.#ensureContext(codeB);
@@ -170,10 +241,15 @@ class USStateServices extends CodeSystemProvider {
 }
 
 class USStateFactoryProvider extends CodeSystemFactoryProvider {
+  /**
+   * @param {any} i18n - I18n support
+   */
   constructor(i18n) {
     super(i18n);
     this.uses = 0;
+    /** @type {USStateConcept[] | null} */
     this.codes = null;
+    /** @type {Map<string, USStateConcept> | null} */
     this.codeMap = null;
   }
 
@@ -181,6 +257,11 @@ class USStateFactoryProvider extends CodeSystemFactoryProvider {
     return null; // No versioning for US states
   }
 
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @returns {USStateServices} US state services
+   */
   build(opContext, supplements) {
     this.uses++;
     return new USStateServices(opContext, supplements, this.codes, this.codeMap);
@@ -204,7 +285,14 @@ class USStateFactoryProvider extends CodeSystemFactoryProvider {
   }
 
   // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - ValueSet version
+   * @returns {Promise<null>} No known ValueSet
+   */
   async buildKnownValueSet(url, version) {
+    void url;
+    void version;
     return null;
   }
 

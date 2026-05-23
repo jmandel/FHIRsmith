@@ -1,3 +1,5 @@
+// @ts-check
+
 // Spawns the IG Publisher (java) with line-buffered stdout/stderr when possible.
 //
 // When Node spawns java with piped stdio, the JVM treats stdout as a block
@@ -12,9 +14,13 @@
 
 const { spawn, spawnSync } = require('child_process');
 
+/** @type {string | null} */
 let stdbufPath = null;
 let stdbufChecked = false;
 
+/**
+ * @returns {string | null}
+ */
 function detectStdbuf() {
   if (stdbufChecked) return stdbufPath;
   stdbufChecked = true;
@@ -34,8 +40,8 @@ function detectStdbuf() {
  * is available. Signature mirrors child_process.spawn's (args, options).
  *
  * @param {string[]} javaArgs - arguments after the `java` command itself
- * @param {object} [options] - passed through to child_process.spawn
- * @returns {ChildProcess}
+ * @param {import('child_process').SpawnOptions} [options] - passed through to child_process.spawn
+ * @returns {import('child_process').ChildProcess}
  */
 function spawnJava(javaArgs, options = {}) {
   const stdbuf = detectStdbuf();
@@ -48,6 +54,7 @@ function spawnJava(javaArgs, options = {}) {
 /**
  * Returns true if line-buffering via stdbuf is active. Useful for one-shot
  * logging at startup so operators can tell whether to expect prompt output.
+ * @returns {boolean}
  */
 function isLineBuffered() {
   return detectStdbuf() !== null;

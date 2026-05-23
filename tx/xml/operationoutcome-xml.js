@@ -1,6 +1,11 @@
 //
 // OperationOutcome XML Serialization
 //
+// @ts-check
+
+/** @typedef {import('../../types/fhirsmith').FhirElement} FhirElement */
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+/** @typedef {import('../../types/fhirsmith').XmlElement} XmlElement */
 
 const { FhirXmlBase } = require('./xml-base');
 
@@ -26,7 +31,7 @@ class OperationOutcomeXML extends FhirXmlBase {
 
   /**
    * Convert OperationOutcome JSON to XML string
-   * @param {Object} json - OperationOutcome as JSON
+   * @param {FhirResource} json - OperationOutcome as JSON
    * @param {number} fhirVersion - FHIR version (3, 4, or 5)
    * @returns {string} XML string
    */
@@ -38,6 +43,9 @@ class OperationOutcomeXML extends FhirXmlBase {
 
   /**
    * Render OperationOutcome with special handling for issues
+   * @param {FhirResource} obj - OperationOutcome as JSON
+   * @param {number} level - Indentation level
+   * @returns {string} XML string
    * @private
    */
   static _renderOperationOutcome(obj, level) {
@@ -66,15 +74,16 @@ class OperationOutcomeXML extends FhirXmlBase {
 
   /**
    * Render issue array with proper element ordering
+   * @param {FhirElement | FhirElement[]} issues - Issue object or array
+   * @param {number} level - Indentation level
+   * @returns {string} XML string
    * @private
    */
   static _renderIssues(issues, level) {
     let xml = '';
-    if (!Array.isArray(issues)) {
-      issues = [issues];
-    }
+    const issueList = Array.isArray(issues) ? issues : [issues];
 
-    for (const issue of issues) {
+    for (const issue of issueList) {
       xml += `${this.indent(level)}<issue>\n`;
 
       // Render issue elements in correct order
@@ -101,7 +110,7 @@ class OperationOutcomeXML extends FhirXmlBase {
    * Convert XML string to OperationOutcome JSON
    * @param {string} xml - XML string
    * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   // eslint-disable-next-line no-unused-vars
   static fromXml(xml, fhirVersion) {
@@ -114,9 +123,9 @@ class OperationOutcomeXML extends FhirXmlBase {
 
   /**
    * Parse from a pre-parsed XML element
-   * @param {Object} element - Parsed element with {name, attributes, children}
+   * @param {XmlElement} element - Parsed element with {name, attributes, children}
    * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   // eslint-disable-next-line no-unused-vars
   static fromXmlElement(element, fhirVersion) {

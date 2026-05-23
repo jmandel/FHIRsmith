@@ -2,6 +2,13 @@
 // FHIR XML Base Class
 // Common functionality for all FHIR resource XML serialization/deserialization
 //
+// @ts-check
+
+/** @typedef {import('../../types/fhirsmith').FhirElement} FhirElement */
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+/** @typedef {import('../../types/fhirsmith').XmlElement} XmlElement */
+/** @typedef {import('../../types/fhirsmith').XmlAttribute} XmlAttribute */
+/** @typedef {{value: any, primitiveExt: FhirElement | null}} ConvertedXmlChild */
 
 /**
  * Base class for FHIR XML serialization/deserialization
@@ -218,12 +225,13 @@ class FhirXmlBase {
 
   /**
    * Convert a manually parsed XML element to FHIR JSON format
-   * @param {Object} element - Element with {name, attributes, children}
+   * @param {XmlElement} element - Element with {name, attributes, children}
    * @param {string} resourceType - The FHIR resource type
    * @param {number} [fhirVersion] - FHIR version (3, 4, or 5) for version-dependent handling
-   * @returns {Object} FHIR JSON object
+   * @returns {FhirResource} FHIR JSON object
    */
   static convertElementToFhirJson(element, resourceType, fhirVersion) {
+    /** @type {FhirResource} */
     const result = { resourceType };
 
     for (const child of element.children) {
@@ -282,7 +290,7 @@ class FhirXmlBase {
     // 'identifier' is 0..* on most resources but 0..1 on ConceptMap in R4 and R3
     if (elementName === 'identifier') {
       if (parentContext === 'ConceptMap') {
-        return fhirVersion >= 5;
+        return fhirVersion !== undefined && fhirVersion >= 5;
       }
       return true; // 0..* on all other resource types
     }
@@ -321,11 +329,10 @@ class FhirXmlBase {
 
   /**
    * Converts a child element to appropriate JSON value, also handling primitive extensions
-   * @param {Object} child - Child element with {name, attributes, children}
+   * @param {XmlElement} child - Child element with {name, attributes, children}
    * @param {string} parentContext - Parent element name for context-dependent array handling
    * @param {number} [fhirVersion] - FHIR version for version-dependent handling
-   * @returns {{value: *, primitiveExt: Object|null}} Converted value and primitive extension if any
-   * @private
+   * @returns {ConvertedXmlChild} Converted value and primitive extension if any
    */
   // eslint-disable-next-line no-unused-vars
   static _convertChildElementWithExt(child, parentContext = '', fhirVersion) {
@@ -366,6 +373,7 @@ class FhirXmlBase {
     }
 
     // Case 4: Complex element - process normally (includes extensions as regular children)
+    /** @type {FhirElement} */
     const obj = {};
     const currentContext = child.name; // Use current element name as context for children
 
@@ -411,11 +419,12 @@ class FhirXmlBase {
 
   /**
    * Build an extension object from extension children
-   * @param {Array} extensionChildren - Array of extension child elements
-   * @returns {Object} Extension object with extension/modifierExtension arrays
+   * @param {XmlElement[]} extensionChildren - Array of extension child elements
+   * @returns {FhirElement} Extension object with extension/modifierExtension arrays
    * @private
    */
   static _buildExtensionObject(extensionChildren) {
+    /** @type {FhirElement} */
     const ext = {};
     for (const extChild of extensionChildren) {
       const key = extChild.name;
@@ -447,7 +456,7 @@ class FhirXmlBase {
       return parseFloat(value);
     }
     // 'value' is a decimal inside Quantity-like types (valueQuantity, valueMoney, Quantity, etc.)
-    if (elementName === 'value' && this._quantityContexts.has(parentContext)) {
+    if (elementName === 'value' && parentContext !== undefined && this._quantityContexts.has(parentContext)) {
       return parseFloat(value);
     }
     // Everything else stays as string
@@ -456,7 +465,7 @@ class FhirXmlBase {
 
   /**
    * Simple child element conversion (without tracking primitive extensions)
-   * @param {Object} child - Child element with {name, attributes, children}
+   * @param {XmlElement} child - Child element with {name, attributes, children}
    * @param {string} parentContext - Parent context for array handling
    * @param {number} [fhirVersion] - FHIR version for version-dependent handling
    * @returns {*} Converted value
@@ -516,7 +525,7 @@ class FhirXmlBase {
   /**
    * Render an element to XML
    * @param {string} name - Element name
-   * @param {*} value - Element value
+   * @param {any} value - Element value
    * @param {number} level - Indentation level
    * @returns {string} XML string
    */
@@ -532,15 +541,16 @@ class FhirXmlBase {
         xml += this.renderElement(name, item, level);
       }
     } else if (typeof value === 'object') {
+      const element = /** @type {FhirElement} */ (value);
       // Special handling for extension - url is an attribute
       if (name === 'extension' || name === 'modifierExtension') {
-        const url = value.url ? ` url="${this.escapeXml(value.url)}"` : '';
+        const url = element.url ? ` url="${this.escapeXml(element.url)}"` : '';
         xml += `${this.indent(level)}<${name}${url}>\n`;
-        xml += this.renderObject(value, level + 1, ['url']);
+        xml += this.renderObject(element, level + 1, ['url']);
         xml += `${this.indent(level)}</${name}>\n`;
       } else {
         xml += `${this.indent(level)}<${name}>\n`;
-        xml += this.renderObject(value, level + 1);
+        xml += this.renderObject(element, level + 1);
         xml += `${this.indent(level)}</${name}>\n`;
       }
     } else if (typeof value === 'boolean' || typeof value === 'number') {
@@ -554,7 +564,7 @@ class FhirXmlBase {
 
   /**
    * Render an object's properties to XML
-   * @param {Object} obj - Object to render
+   * @param {FhirElement} obj - Object to render
    * @param {number} level - Indentation level
    * @param {Array<string>} skipKeys - Keys to skip
    * @returns {string} XML string
@@ -578,7 +588,7 @@ class FhirXmlBase {
 
   /**
    * Render elements in a specific order
-   * @param {Object} obj - Object to render
+   * @param {FhirElement} obj - Object to render
    * @param {number} level - Indentation level
    * @param {Array<string>} elementOrder - Ordered list of element names
    * @returns {string} XML string
@@ -621,6 +631,8 @@ class FhirXmlBase {
 
   /**
    * Manual XML parser - parses XML string to element tree
+   * @param {string} xml - XML string
+   * @returns {XmlElement} Parsed XML root element
    */
   static parseXmlString(xml) {
     const parser = new FhirXmlParser(xml);
@@ -633,17 +645,26 @@ class FhirXmlBase {
  * Parses XML string into {name, attributes, children} structure
  */
 class FhirXmlParser {
+  /**
+   * @param {string} xml - XML string
+   */
   constructor(xml) {
     this.xml = xml;
     this.pos = 0;
   }
 
+  /**
+   * @returns {XmlElement}
+   */
   parse() {
     this._skipDeclaration();
     this._skipWhitespace();
     return this._parseElement();
   }
 
+  /**
+   * @returns {void}
+   */
   _skipDeclaration() {
     this._skipWhitespace();
     if (this.xml.substring(this.pos, this.pos + 5) === '<?xml') {
@@ -654,12 +675,18 @@ class FhirXmlParser {
     }
   }
 
+  /**
+   * @returns {void}
+   */
   _skipWhitespace() {
     while (this.pos < this.xml.length && /\s/.test(this.xml[this.pos])) {
       this.pos++;
     }
   }
 
+  /**
+   * @returns {XmlElement}
+   */
   _parseElement() {
     this._skipWhitespace();
 
@@ -674,6 +701,7 @@ class FhirXmlParser {
     this.pos += nameEnd;
 
     // Parse attributes
+    /** @type {Record<string, string>} */
     const attributes = {};
     this._skipWhitespace();
 
@@ -685,6 +713,7 @@ class FhirXmlParser {
       this._skipWhitespace();
     }
 
+    /** @type {XmlElement[]} */
     const children = [];
 
     // Self-closing tag
@@ -725,6 +754,9 @@ class FhirXmlParser {
     return { name, attributes, children };
   }
 
+  /**
+   * @returns {XmlAttribute | null}
+   */
   _parseAttribute() {
     this._skipWhitespace();
 

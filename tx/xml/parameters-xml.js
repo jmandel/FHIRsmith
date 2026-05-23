@@ -1,11 +1,24 @@
 //
 // Parameters XML Serialization
 //
+// @ts-check
+
+/** @typedef {import('../../types/fhirsmith').FhirElement} FhirElement */
+/** @typedef {import('../../types/fhirsmith').FhirParameterPart} FhirParameterPart */
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+/** @typedef {import('../../types/fhirsmith').XmlElement} XmlElement */
 
 const { FhirXmlBase } = require('./xml-base');
 
 // Forward declarations - will be loaded lazily to avoid circular dependencies
-let CodeSystemXML, ValueSetXML, ConceptMapXML, OperationOutcomeXML;
+/** @type {any} */
+let CodeSystemXML;
+/** @type {any} */
+let ValueSetXML;
+/** @type {any} */
+let ConceptMapXML;
+/** @type {any} */
+let OperationOutcomeXML;
 
 /**
  * XML support for FHIR Parameters resources
@@ -33,7 +46,7 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Convert Parameters JSON to XML string
-   * @param {Object} json - Parameters as JSON
+   * @param {FhirResource} json - Parameters as JSON
    * @param {number} fhirVersion - FHIR version (3, 4, or 5)
    * @returns {string} XML string
    */
@@ -45,6 +58,10 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Render Parameters with special handling for parameter elements
+   * @param {FhirResource} obj - Parameters as JSON
+   * @param {number} level - Indentation level
+   * @param {number} fhirVersion - FHIR version
+   * @returns {string} XML string
    * @private
    */
   static _renderParameters(obj, level, fhirVersion) {
@@ -54,7 +71,9 @@ class ParametersXML extends FhirXmlBase {
     for (const key of this._elementOrder) {
       if (Object.hasOwn(obj, key) && key !== 'resourceType') {
         if (key === 'parameter') {
-          xml += this._renderParameterArray(obj.parameter, level, fhirVersion);
+          if (obj.parameter !== undefined) {
+            xml += this._renderParameterArray(obj.parameter, level, fhirVersion);
+          }
         } else {
           xml += this.renderElement(key, obj[key], level);
         }
@@ -73,6 +92,10 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Render parameter array
+   * @param {FhirParameterPart | FhirParameterPart[]} parameters - Parameters to render
+   * @param {number} level - Indentation level
+   * @param {number} fhirVersion - FHIR version
+   * @returns {string} XML string
    * @private
    */
   static _renderParameterArray(parameters, level, fhirVersion) {
@@ -92,6 +115,10 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Render a single parameter
+   * @param {FhirParameterPart} param - Parameter to render
+   * @param {number} level - Indentation level
+   * @param {number} fhirVersion - FHIR version
+   * @returns {string} XML string
    * @private
    */
   static _renderParameter(param, level, fhirVersion) {
@@ -131,6 +158,10 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Render an embedded resource
+   * @param {FhirResource} resource - Resource to render
+   * @param {number} level - Indentation level
+   * @param {number} fhirVersion - FHIR version
+   * @returns {string} XML string
    * @private
    */
   static _renderResource(resource, level, fhirVersion) {
@@ -140,6 +171,7 @@ class ParametersXML extends FhirXmlBase {
     }
 
     // Try to use dedicated XML converter
+    /** @type {string} */
     let fullXml;
     try {
       switch (resourceType) {
@@ -178,6 +210,9 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Generic resource rendering fallback
+   * @param {FhirResource} resource - Resource to render
+   * @param {number} level - Indentation level
+   * @returns {string} XML string
    * @private
    */
   static _renderGenericResource(resource, level) {
@@ -199,7 +234,7 @@ class ParametersXML extends FhirXmlBase {
    * Convert XML string to Parameters JSON
    * @param {string} xml - XML string
    * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   static fromXml(xml, fhirVersion) {
     this._loadResourceClasses();
@@ -212,9 +247,9 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Parse from a pre-parsed XML element
-   * @param {Object} element - Parsed element with {name, attributes, children}
+   * @param {XmlElement} element - Parsed element with {name, attributes, children}
    * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   static fromXmlElement(element, fhirVersion) {
     this._loadResourceClasses();
@@ -223,9 +258,13 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Parse Parameters element
+   * @param {XmlElement} element - Parsed Parameters XML element
+   * @param {number} fhirVersion - FHIR version
+   * @returns {FhirResource} Parameters resource
    * @private
    */
   static _parseParametersElement(element, fhirVersion) {
+    /** @type {FhirResource} */
     const json = { resourceType: 'Parameters' };
 
     for (const child of element.children) {
@@ -250,9 +289,13 @@ class ParametersXML extends FhirXmlBase {
 
   /**
    * Parse a parameter element
+   * @param {XmlElement} element - Parsed parameter XML element
+   * @param {number} fhirVersion - FHIR version
+   * @returns {FhirParameterPart} Parsed parameter
    * @private
    */
   static _parseParameter(element, fhirVersion) {
+    /** @type {Partial<FhirParameterPart> & FhirElement} */
     const param = {};
 
     for (const child of element.children) {
@@ -267,7 +310,10 @@ class ParametersXML extends FhirXmlBase {
           param['_' + child.name] = primitiveExt;
         }
       } else if (child.name === 'resource') {
-        param.resource = this._parseResourceElement(child, fhirVersion);
+        const resource = this._parseResourceElement(child, fhirVersion);
+        if (resource !== null) {
+          param.resource = resource;
+        }
       } else if (child.name === 'part') {
         if (!param.part) {
           param.part = [];
@@ -276,11 +322,14 @@ class ParametersXML extends FhirXmlBase {
       }
     }
 
-    return param;
+    return /** @type {FhirParameterPart} */ (param);
   }
 
   /**
    * Parse a resource element
+   * @param {XmlElement} element - Parsed resource wrapper element
+   * @param {number} fhirVersion - FHIR version
+   * @returns {FhirResource | null} Parsed resource
    * @private
    */
   static _parseResourceElement(element, fhirVersion) {

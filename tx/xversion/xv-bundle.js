@@ -1,10 +1,16 @@
+// @ts-check
+
 const {VersionUtilities} = require("../../library/version-utilities");
 
 /**
+ * @typedef {Record<string, any>} FhirJson
+ */
+
+/**
  * Converts input Bundle to R5 format (modifies input object for performance)
- * @param {Object} jsonObj - The input Bundle object
- * @param {string} version - Source FHIR version
- * @returns {Object} The same object, potentially modified to R5 format
+ * @param {FhirJson} jsonObj - The input Bundle object
+ * @param {string} sourceVersion - Source FHIR version
+ * @returns {FhirJson} The same object, potentially modified to R5 format
  * @private
  */
 
@@ -24,9 +30,9 @@ function bundleToR5(jsonObj, sourceVersion) {
 
 /**
  * Converts R5 Bundle to target version format (clones object first)
- * @param {Object} r5Obj - The R5 format Bundle object
+ * @param {FhirJson} r5Obj - The R5 format Bundle object
  * @param {string} targetVersion - Target FHIR version
- * @returns {Object} New object in target version format
+ * @returns {FhirJson} New object in target version format
  * @private
  */
 function bundleFromR5(r5Obj, targetVersion) {
@@ -37,9 +43,9 @@ function bundleFromR5(r5Obj, targetVersion) {
   }
 
   // Clone the object to avoid modifying the original
-  const bundle = {
+  const bundle = /** @type {FhirJson} */ ({
     resourceType: "Bundle"
-  }
+  });
   bundle.id = r5Obj.id;
   bundle.meta = r5Obj.meta;
   bundle.implicitRules = r5Obj.implicitRules;
@@ -52,7 +58,7 @@ function bundleFromR5(r5Obj, targetVersion) {
   bundle.total = r5Obj.total;
   bundle.link = r5Obj.link;
   for (let be5 of r5Obj.entry || []) {
-    let be = {};
+    let be = /** @type {FhirJson} */ ({});
     if (!bundle.entry) {
       bundle.entry = [];
     }

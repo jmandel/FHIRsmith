@@ -1,7 +1,14 @@
+// @ts-check
+
 const fs = require('fs').promises;
 const sqlite3 = require('sqlite3').verbose();
 const { VersionUtilities } = require('../../library/version-utilities');
 const { ConceptMap } = require('../library/conceptmap');
+
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {{name: string, value: string}} SearchParam */
+/** @typedef {{query: string, params: any[]}} SearchQuery */
+
 // Columns that can be returned directly without parsing JSON
 const INDEXED_COLUMNS = ['id', 'url', 'version', 'date', 'description', 'name', 'publisher', 'status', 'title'];
 
@@ -10,7 +17,11 @@ const INDEXED_COLUMNS = ['id', 'url', 'version', 'date', 'description', 'name', 
  * Handles SQLite operations for indexing and searching ConceptMaps
  */
 class ConceptMapDatabase {
-  cmCount;
+  /** @type {number} */
+  cmCount = 0;
+
+  /** @type {string} */
+  dbPath;
 
   /**
    * @param {string} dbPath - Path to the SQLite database file
@@ -37,7 +48,7 @@ class ConceptMapDatabase {
    * @returns {Promise<void>}
    */
   async create() {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       const db = new sqlite3.Database(this.dbPath, (err) => {
         if (err) {
           reject(new Error(`Failed to create database: ${err.message}`));
@@ -127,7 +138,7 @@ class ConceptMapDatabase {
 
   /**
    * Insert or update a single ConceptMap in the database
-   * @param {Object} conceptMap - The ConceptMap resource
+   * @param {any} conceptMap - The ConceptMap resource
    * @returns {Promise<void>}
    */
   async upsertConceptMap(conceptMap) {
@@ -135,7 +146,7 @@ class ConceptMapDatabase {
       throw new Error('ConceptMap must have a url property');
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       const db = new sqlite3.Database(this.dbPath, (err) => {
         if (err) {
           reject(new Error(`Failed to open database: ${err.message}`));
@@ -207,10 +218,10 @@ class ConceptMapDatabase {
 
   /**
    * Insert related records for a ConceptMap
-   * @param {sqlite3.Database} db - Database connection
-   * @param {Object} conceptMap - ConceptMap resource
-   * @param {Function} resolve - Promise resolve function
-   * @param {Function} reject - Promise reject function
+   * @param {SqliteDatabase} db - Database connection
+   * @param {any} conceptMap - ConceptMap resource
+   * @param {(value?: void) => void} resolve - Promise resolve function
+   * @param {(reason?: any) => void} reject - Promise reject function
    * @private
    */
   _insertRelatedRecords(db, conceptMap, resolve, reject) {
@@ -225,6 +236,9 @@ class ConceptMapDatabase {
       }
     };
 
+    /**
+     * @param {Error} err
+     */
     const operationError = (err) => {
       if (!hasError) {
         hasError = true;
@@ -311,7 +325,7 @@ class ConceptMapDatabase {
 
   /**
    * Insert multiple ConceptMaps in a batch operation
-   * @param {Array<Object>} conceptMaps - Array of ConceptMap resources
+   * @param {Array<any>} conceptMaps - Array of ConceptMap resources
    * @returns {Promise<void>}
    */
   async batchUpsertConceptMaps(conceptMaps) {
@@ -327,10 +341,10 @@ class ConceptMapDatabase {
 
   /**
    * Load all ConceptMaps from the database
-   * @returns {Promise<Map<string, Object>>} Map of all ConceptMaps keyed by various combinations
+   * @returns {Promise<Map<string, any>>} Map of all ConceptMaps keyed by various combinations
    */
   async loadAllConceptMaps() {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: Map<string, any>) => void} */ resolve, reject) => {
       const db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY, (err) => {
         if (err) {
           reject(new Error(`Failed to open database for loading: ${err.message}`));
@@ -345,6 +359,7 @@ class ConceptMapDatabase {
           }
 
           try {
+            /** @type {Map<string, any>} */
             const conceptMapMap = new Map();
             this.cmCount = rows.length;
 
@@ -384,7 +399,8 @@ class ConceptMapDatabase {
             });
           } catch (error) {
             db.close();
-            reject(new Error(`Failed to parse concept map content: ${error.message}`));
+            const message = error instanceof Error ? error.message : String(error);
+            reject(new Error(`Failed to parse concept map content: ${message}`));
           }
         });
       });
@@ -393,21 +409,24 @@ class ConceptMapDatabase {
 
   /**
    * Search for ConceptMaps based on criteria
-   * @param {Array<{name: string, value: string}>} searchParams - Search criteria
-   * @param {Array<string>|null} elements - Optional list of elements to return (for optimization)
-   * @returns {Promise<Array<Object>>} List of matching ConceptMaps
+   * @param {string | number | null | undefined} spaceId - Optional id prefix
+   * @param {Array<SearchParam>} searchParams - Search criteria
+   * @param {Array<string>|null} [elements] - Optional list of elements to return (for optimization)
+   * @returns {Promise<Array<any>>} List of matching ConceptMaps
    */
   async search(spaceId, searchParams, elements = null) {
+    const selectedElements = elements || [];
+
     // Check if we can optimize by selecting only indexed columns
-    const canOptimize = elements && elements.length > 0 &&
-      elements.every(e => INDEXED_COLUMNS.includes(e));
+    const canOptimize = selectedElements.length > 0 &&
+      selectedElements.every(e => INDEXED_COLUMNS.includes(e));
 
     // Always include 'id' in the columns to select when optimizing
     const columnsToSelect = canOptimize
-      ? (elements.includes('id') ? elements : ['id', ...elements])
+      ? (selectedElements.includes('id') ? selectedElements : ['id', ...selectedElements])
       : null;
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: any[]) => void} */ resolve, reject) => {
       const db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY, (err) => {
         if (err) {
           reject(new Error(`Failed to open database for search: ${err.message}`));
@@ -424,12 +443,15 @@ class ConceptMapDatabase {
           }
 
           try {
+            /** @type {any[]} */
             let results;
             if (canOptimize) {
+              const selectedColumns = columnsToSelect || [];
               // Construct objects directly from columns - much faster!
               results = rows.map(row => {
+                /** @type {Record<string, any>} */
                 const obj = { resourceType: 'ConceptMap' };
-                for (const elem of columnsToSelect) {
+                for (const elem of selectedColumns) {
                   if (row[elem] !== null && row[elem] !== undefined) {
                     if (elem === 'id' && spaceId) {
                       obj[elem] = `${spaceId}-${row[elem]}`;
@@ -461,7 +483,8 @@ class ConceptMapDatabase {
             });
           } catch (error) {
             db.close();
-            reject(new Error(`Failed to parse search results: ${error.message}`));
+            const message = error instanceof Error ? error.message : String(error);
+            reject(new Error(`Failed to parse search results: ${message}`));
           }
         });
       });
@@ -474,15 +497,15 @@ class ConceptMapDatabase {
    * @returns {Promise<number>} Number of records deleted
    */
   async deleteOldConceptMaps(cutoffTimestamp) {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: number) => void} */ resolve, reject) => {
       const db = new sqlite3.Database(this.dbPath, (err) => {
         if (err) {
           reject(new Error(`Failed to open database for cleanup: ${err.message}`));
           return;
         }
 
-        // Get URLs to delete first
-        db.all('SELECT url FROM conceptmaps WHERE last_seen < ?', [cutoffTimestamp], (err, rows) => {
+        // Get ids to delete first so related records can be removed before the main rows.
+        db.all('SELECT id FROM conceptmaps WHERE last_seen < ?', [cutoffTimestamp], (err, rows) => {
           if (err) {
             db.close();
             reject(new Error(`Failed to find old records: ${err.message}`));
@@ -517,6 +540,9 @@ class ConceptMapDatabase {
             }
           };
 
+          /**
+           * @param {Error} err
+           */
           const deleteError = (err) => {
             if (!hasError) {
               hasError = true;
@@ -551,10 +577,10 @@ class ConceptMapDatabase {
 
   /**
    * Get statistics about the database
-   * @returns {Promise<Object>} Statistics object
+   * @returns {Promise<Record<string, any>>} Statistics object
    */
   async getStatistics() {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: Record<string, any>) => void} */ resolve, reject) => {
       const db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY, (err) => {
         if (err) {
           reject(new Error(`Failed to open database for statistics: ${err.message}`));
@@ -567,6 +593,7 @@ class ConceptMapDatabase {
           'SELECT COUNT(DISTINCT system) as systems FROM conceptmap_systems'
         ];
 
+        /** @type {Record<string, any>} */
         const results = {};
         let completed = 0;
 
@@ -619,14 +646,17 @@ class ConceptMapDatabase {
 
   /**
    * Build SQL query for search parameters
-   * @param {Array<{name: string, value: string}>} searchParams - Search parameters
-   * @param {Array<string>|null} elements - If provided, select only these columns (optimization)
-   * @returns {{query: string, params: Array}} Query and parameters
+   * @param {Array<SearchParam>} searchParams - Search parameters
+   * @param {Array<string>|null} [elements] - If provided, select only these columns (optimization)
+   * @returns {SearchQuery} Query and parameters
    * @private
    */
   _buildSearchQuery(searchParams, elements = null) {
+    /** @type {string[]} */
     const conditions = [];
+    /** @type {any[]} */
     const params = [];
+    /** @type {Set<string>} */
     const joins = new Set();
 
     for (const param of searchParams) {
@@ -724,6 +754,10 @@ class ConceptMapDatabase {
     return { query, params };
   }
 
+  /**
+   * @param {any} ids
+   * @returns {void}
+   */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
     // nothing - we don't do any assigning.

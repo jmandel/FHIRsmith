@@ -1,6 +1,12 @@
+// @ts-check
+
 const {validateParameter, validateOptionalParameter} = require("./utilities");
 const escape = require('escape-html');
 
+/** @typedef {'Document' | 'Element' | 'Text' | 'Comment' | 'DocType' | 'Instruction'} XhtmlNodeType */
+/** @typedef {{children: XhtmlNode[]}} XhtmlParseFrame */
+
+/** @type {{Document: 'Document', Element: 'Element', Text: 'Text', Comment: 'Comment', DocType: 'DocType', Instruction: 'Instruction'}} */
 const NodeType = {
   Document: 'Document',
   Element: 'Element',
@@ -11,47 +17,96 @@ const NodeType = {
 };
 
 class XhtmlNode {
+  /**
+   * @param {XhtmlNodeType} nodeType
+   * @param {string | null} [name]
+   */
   constructor(nodeType, name = null) {
+    /** @type {XhtmlNodeType} */
     this.nodeType = nodeType;
+    /** @type {string | null} */
     this.name = name;
+    /** @type {Map<string, string>} */
     this.attributes = new Map();
+    /** @type {XhtmlNode[]} */
     this.childNodes = [];
+    /** @type {string | null} */
     this.content = null; // for text nodes
     this.inPara = false;
     this.inLink = false;
     this.pretty = true;
+    /** @type {string | undefined} */
+    this.lastWord = undefined;
+    /** @type {XhtmlNode[] | undefined} */
+    this.commaItems = undefined;
+    this.commaFirst = true;
+    /** @type {Map<string, XhtmlNode> | null} */
+    this.namedParams = null;
+    /** @type {Map<string, string> | null} */
+    this.namedParamValues = null;
   }
 
   // Attribute methods
+  /**
+   * @param {string} name
+   * @param {unknown} value
+   * @returns {XhtmlNode}
+   */
   setAttribute(name, value) {
     if (value != null) {
-      this.attributes.set(name, value);
+      this.attributes.set(name, String(value));
     }
     return this;
   }
 
+  /**
+   * @param {string} name
+   * @param {unknown} value
+   * @returns {XhtmlNode}
+   */
   attribute(name, value) {
     return this.setAttribute(name, value);
   }
 
+  /**
+   * @param {string} name
+   * @param {unknown} value
+   * @returns {XhtmlNode}
+   */
   attr(name, value) {
     return this.setAttribute(name, value);
   }
 
+  /**
+   * @param {string} name
+   * @returns {string | null}
+   */
   getAttribute(name) {
     return this.attributes.get(name) || null;
   }
 
+  /**
+   * @param {string} name
+   * @returns {boolean}
+   */
   hasAttribute(name) {
     return this.attributes.has(name);
   }
 
+  /**
+   * @param {string} name
+   * @returns {XhtmlNode}
+   */
   removeAttribute(name) {
     this.attributes.delete(name);
     return this;
   }
 
   // Class helpers
+  /**
+   * @param {string | null | undefined} className
+   * @returns {XhtmlNode}
+   */
   clss(className) {
     if (className) {
       const existing = this.attributes.get('class');
@@ -64,6 +119,10 @@ class XhtmlNode {
     return this;
   }
 
+  /**
+   * @param {string | null | undefined} style
+   * @returns {XhtmlNode}
+   */
   style(style) {
     if (style) {
       this.attributes.set('style', style);
@@ -71,6 +130,10 @@ class XhtmlNode {
     return this;
   }
 
+  /**
+   * @param {string | null | undefined} id
+   * @returns {XhtmlNode}
+   */
   id(id) {
     if (id) {
       this.attributes.set('id', id);
@@ -78,6 +141,10 @@ class XhtmlNode {
     return this;
   }
 
+  /**
+   * @param {string | null | undefined} title
+   * @returns {XhtmlNode}
+   */
   title(title) {
     if (title) {
       this.attributes.set('title', title);
@@ -86,23 +153,33 @@ class XhtmlNode {
   }
 
   // Child node management
+  /**
+   * @param {string | null} name
+   * @returns {XhtmlNode}
+   */
   #makeTag(name) {
     const node = new XhtmlNode(NodeType.Element, name);
-    if (this.inPara || name === 'p') {
+    const tagName = name || '';
+    if (this.inPara || tagName === 'p') {
       node.inPara = true;
     }
-    if (this.inLink || name === 'a') {
+    if (this.inLink || tagName === 'a') {
       node.inLink = true;
     }
     const inlineElements = ['b', 'big', 'i', 'small', 'tt', 'abbr', 'acronym', 'cite', 'code',
       'dfn', 'em', 'kbd', 'strong', 'samp', 'var', 'a', 'bdo', 'br', 'img', 'map', 'object',
       'q', 'script', 'span', 'sub', 'sup', 'button', 'input', 'label', 'select', 'textarea'];
-    if (inlineElements.includes(name)) {
+    if (inlineElements.includes(tagName)) {
       node.pretty = false;
     }
     return node;
   }
 
+  /**
+   * @param {string | number} nameOrIndex
+   * @param {string | null} [name]
+   * @returns {XhtmlNode}
+   */
   addTag(nameOrIndex, name = null) {
     if (typeof nameOrIndex === 'number') {
       const node = this.#makeTag(name);
@@ -115,6 +192,10 @@ class XhtmlNode {
     }
   }
 
+  /**
+   * @param {unknown} content
+   * @returns {XhtmlNode | null}
+   */
   addText(content) {
     if (content != null) {
       const node = new XhtmlNode(NodeType.Text);
@@ -125,6 +206,10 @@ class XhtmlNode {
     return null;
   }
 
+  /**
+   * @param {string | null | undefined} content
+   * @returns {XhtmlNode | null}
+   */
   addComment(content) {
     if (content != null) {
       const node = new XhtmlNode(NodeType.Comment);
@@ -135,6 +220,10 @@ class XhtmlNode {
     return null;
   }
 
+  /**
+   * @param {Iterable<XhtmlNode> | null | undefined} nodes
+   * @returns {XhtmlNode}
+   */
   addChildren(nodes) {
     if (nodes) {
       for (const node of nodes) {
@@ -144,6 +233,10 @@ class XhtmlNode {
     return this;
   }
 
+  /**
+   * @param {XhtmlNode | null | undefined} node
+   * @returns {XhtmlNode}
+   */
   addChild(node) {
     if (node) {
       this.childNodes.push(node);
@@ -151,19 +244,32 @@ class XhtmlNode {
     return this;
   }
 
+  /**
+   * @returns {XhtmlNode}
+   */
   clear() {
     this.childNodes = [];
     return this;
   }
 
+  /**
+   * @param {XhtmlNode} node
+   * @returns {number}
+   */
   indexOf(node) {
     return this.childNodes.indexOf(node);
   }
 
+  /**
+   * @returns {boolean}
+   */
   hasChildren() {
     return this.childNodes.length > 0;
   }
 
+  /**
+   * @returns {XhtmlNode | null}
+   */
   getFirstElement() {
     for (const child of this.childNodes) {
       if (child.nodeType === NodeType.Element) {
@@ -174,15 +280,27 @@ class XhtmlNode {
   }
 
   // Text content helpers
+  /**
+   * @param {unknown} content
+   * @returns {XhtmlNode | null}
+   */
   tx(content) {
     return this.addText(content);
   }
 
+  /**
+   * @param {unknown} content
+   * @returns {XhtmlNode}
+   */
   txN(content) {
     this.addText(content);
     return this;
   }
 
+  /**
+   * @param {unknown} content
+   * @returns {XhtmlNode}
+   */
   stx(content) {
     if (content) {
       this.addText(' ' + content);
@@ -191,6 +309,11 @@ class XhtmlNode {
   }
 
   // Fluent element creation methods
+  /**
+   * @param {number} level
+   * @param {string | null} [id]
+   * @returns {XhtmlNode}
+   */
   h(level, id = null) {
     if (level < 1 || level > 6) {
       throw new Error('Illegal Header level ' + level);
@@ -209,6 +332,10 @@ class XhtmlNode {
   h5() { return this.addTag('h5'); }
   h6() { return this.addTag('h6'); }
 
+  /**
+   * @param {string | null} [style]
+   * @returns {XhtmlNode}
+   */
   div(style = null) {
     const node = this.addTag('div');
     if (style) {
@@ -217,6 +344,11 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {string | null} [style]
+   * @param {string | null} [title]
+   * @returns {XhtmlNode}
+   */
   span(style = null, title = null) {
     const node = this.addTag('span');
     if (style) {
@@ -228,6 +360,10 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {string | null | undefined} className
+   * @returns {XhtmlNode}
+   */
   spanClss(className) {
     const node = this.addTag('span');
     if (className) {
@@ -239,6 +375,10 @@ class XhtmlNode {
   para() { return this.addTag('p'); }
   p() { return this.addTag('p'); }
 
+  /**
+   * @param {string | null} [clss]
+   * @returns {XhtmlNode}
+   */
   pre(clss = null) {
     const node = this.addTag('pre');
     if (clss) {
@@ -255,6 +395,11 @@ class XhtmlNode {
   li() { return this.addTag('li'); }
 
   // Tables
+  /**
+   * @param {string | null} [clss]
+   * @param {boolean} [forPresentation]
+   * @returns {XhtmlNode}
+   */
   table(clss = null, forPresentation = false) {
     const node = this.addTag('table');
     if (clss) {
@@ -266,6 +411,10 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {XhtmlNode | null} [afterRow]
+   * @returns {XhtmlNode}
+   */
   tr(afterRow = null) {
     if (afterRow) {
       const index = this.indexOf(afterRow);
@@ -274,6 +423,10 @@ class XhtmlNode {
     return this.addTag('tr');
   }
 
+  /**
+   * @param {number | null} [index]
+   * @returns {XhtmlNode}
+   */
   th(index = null) {
     if (index !== null) {
       return this.addTag(index, 'th');
@@ -281,6 +434,10 @@ class XhtmlNode {
     return this.addTag('th');
   }
 
+  /**
+   * @param {string | null} [clss]
+   * @returns {XhtmlNode}
+   */
   td(clss = null) {
     const node = this.addTag('td');
     if (clss) {
@@ -302,6 +459,10 @@ class XhtmlNode {
   sub() { return this.addTag('sub'); }
   sup() { return this.addTag('sup'); }
 
+  /**
+   * @param {unknown} [text]
+   * @returns {XhtmlNode}
+   */
   code(text = null) {
     const node = this.addTag('code');
     if (text) {
@@ -310,6 +471,12 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {unknown} preText
+   * @param {unknown} text
+   * @param {unknown} postText
+   * @returns {XhtmlNode}
+   */
   codeWithText(preText, text, postText) {
     this.tx(preText);
     const code = this.addTag('code');
@@ -330,6 +497,11 @@ class XhtmlNode {
   }
 
   // Links
+  /**
+   * @param {string | null | undefined} href
+   * @param {string | null} [title]
+   * @returns {XhtmlNode}
+   */
   ah(href, title = null) {
     if (href == null) {
       return this.addTag('span');
@@ -341,6 +513,14 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {unknown} preText
+   * @param {string} href
+   * @param {string | null | undefined} title
+   * @param {unknown} text
+   * @param {unknown} postText
+   * @returns {XhtmlNode}
+   */
   ahWithText(preText, href, title, text, postText) {
     this.tx(preText);
     const a = this.addTag('a').setAttribute('href', href);
@@ -352,6 +532,11 @@ class XhtmlNode {
     return a;
   }
 
+  /**
+   * @param {string | null | undefined} href
+   * @param {string | null} [title]
+   * @returns {XhtmlNode}
+   */
   ahOrCode(href, title = null) {
     if (href != null) {
       return this.ah(href, title);
@@ -362,6 +547,11 @@ class XhtmlNode {
     }
   }
 
+  /**
+   * @param {string} name
+   * @param {unknown} [text]
+   * @returns {XhtmlNode}
+   */
   an(name, text = ' ') {
     const a = this.addTag('a').setAttribute('name', name);
     a.tx(text);
@@ -369,6 +559,12 @@ class XhtmlNode {
   }
 
   // Images
+  /**
+   * @param {string} src
+   * @param {string | null | undefined} alt
+   * @param {string | null} [title]
+   * @returns {XhtmlNode}
+   */
   img(src, alt, title = null) {
     const node = this.addTag('img')
       .setAttribute('src', src)
@@ -379,11 +575,22 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {string} src
+   * @param {string} alt
+   * @returns {XhtmlNode}
+   */
   imgT(src, alt) {
     return this.img(src, alt, alt);
   }
 
   // Forms
+  /**
+   * @param {string} type
+   * @param {string} name
+   * @param {unknown} [value]
+   * @returns {XhtmlNode}
+   */
   input(type, name, value = null) {
     const node = this.addTag('input')
       .setAttribute('type', type)
@@ -394,16 +601,30 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {unknown} text
+   * @returns {XhtmlNode}
+   */
   button(text) {
     const node = this.addTag('button');
     node.tx(text);
     return node;
   }
 
+  /**
+   * @param {string} name
+   * @returns {XhtmlNode}
+   */
   select(name) {
     return this.addTag('select').setAttribute('name', name);
   }
 
+  /**
+   * @param {string} value
+   * @param {unknown} text
+   * @param {boolean} [selected]
+   * @returns {XhtmlNode}
+   */
   option(value, text, selected = false) {
     const node = this.addTag('option').setAttribute('value', value);
     node.tx(text);
@@ -413,6 +634,12 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {string} name
+   * @param {number | null} [rows]
+   * @param {number | null} [cols]
+   * @returns {XhtmlNode}
+   */
   textarea(name, rows = null, cols = null) {
     const node = this.addTag('textarea').setAttribute('name', name);
     if (rows != null) {
@@ -424,15 +651,27 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {string} forId
+   * @returns {XhtmlNode}
+   */
   label(forId) {
     return this.addTag('label').setAttribute('for', forId);
   }
 
+  /**
+   * @param {number | string} width
+   * @returns {XhtmlNode}
+   */
   colspan(width) {
     return this.attr("colspan", String(width));
   }
 
   // Conditional
+  /**
+   * @param {boolean} test
+   * @returns {XhtmlNode}
+   */
   iff(test) {
     if (test) {
       return this;
@@ -442,6 +681,10 @@ class XhtmlNode {
   }
 
   // Separator helper
+  /**
+   * @param {unknown} text
+   * @returns {XhtmlNode}
+   */
   sep(text) {
     if (this.hasChildren()) {
       this.addText(text);
@@ -450,11 +693,17 @@ class XhtmlNode {
   }
 
   // Rendering
+  /**
+   * @returns {XhtmlNode}
+   */
   notPretty() {
     this.pretty = false;
     return this;
   }
 
+  /**
+   * @returns {string}
+   */
   allText() {
     let result = '';
     for (const child of this.childNodes) {
@@ -467,6 +716,9 @@ class XhtmlNode {
     return result;
   }
 
+  /**
+   * @param {string} lastWord
+   */
   startCommaList(lastWord) {
     validateParameter(lastWord, 'lastWord', String);
     if (this.lastWord) {
@@ -477,12 +729,19 @@ class XhtmlNode {
     this.commaFirst = true;
   }
 
+  /**
+   * @param {string} text
+   * @param {string | null | undefined} link
+   */
   commaItem(text, link) {
     validateParameter(text, 'text', String);
     validateOptionalParameter(link, 'link', String);
 
     if (!this.commaFirst) {
-      this.commaItems.push(this.tx(", "));
+      const comma = this.tx(", ");
+      if (comma) {
+        this.commaItems?.push(comma);
+      }
     }
     this.commaFirst = false;
     if (link) {
@@ -492,6 +751,9 @@ class XhtmlNode {
     }
   }
 
+  /**
+   * @returns {void}
+   */
   stopCommaList() {
     if (this.commaItems && this.commaItems.length > 0) {
       this.commaItems[this.commaItems.length-1].content = " "+this.lastWord+" ";
@@ -502,6 +764,9 @@ class XhtmlNode {
 
 // Script execution methods
 
+  /**
+   * @param {string} name
+   */
   startScript(name) {
     if (this.namedParams) {
       throw new Error(`Sequence Error - script is already open @ ${name}`);
@@ -510,6 +775,10 @@ class XhtmlNode {
     this.namedParamValues = new Map();
   }
 
+  /**
+   * @param {string} name
+   * @returns {XhtmlNode}
+   */
   param(name) {
     if (!this.namedParams) {
       throw new Error('Sequence Error - script is not already open');
@@ -521,6 +790,10 @@ class XhtmlNode {
     return node;
   }
 
+  /**
+   * @param {string} name
+   * @param {unknown} value
+   */
   paramValue(name, value) {
     if (!this.namedParamValues) {
       throw new Error('Sequence Error - script is not already open');
@@ -528,16 +801,28 @@ class XhtmlNode {
     this.namedParamValues.set(name, String(value));
   }
 
+  /**
+   * @param {string} structure
+   */
   execScript(structure) {
     const scriptNodes = this.#parseFragment(`<div>${structure}</div>`);
     this.#parseNodes(scriptNodes, this.childNodes);
   }
 
+  /**
+   * @param {XhtmlNode[]} source
+   * @param {XhtmlNode[]} dest
+   */
   #parseNodes(source, dest) {
+    const namedParams = this.namedParams;
+    const namedParamValues = this.namedParamValues;
+    if (!namedParams || !namedParamValues) {
+      throw new Error('Sequence Error - script is not already open');
+    }
     for (const n of source) {
       if (n.name === 'param') {
         const paramName = n.getAttribute('name');
-        const node = this.namedParams.get(paramName);
+        const node = paramName ? namedParams.get(paramName) : null;
         if (node) {
           this.#parseNodes(node.childNodes, dest);
         }
@@ -552,7 +837,14 @@ class XhtmlNode {
     }
   }
 
+  /**
+   * @param {string | null} test
+   * @returns {boolean}
+   */
   #passesTest(test) {
+    if (!test || !this.namedParamValues) {
+      return false;
+    }
     const parts = test.trim().split(/\s+/);
     if (parts.length !== 3) {
       return false;
@@ -565,6 +857,9 @@ class XhtmlNode {
     }
 
     const paramValue = this.namedParamValues.get(paramName);
+    if (paramValue === undefined) {
+      return false;
+    }
 
     switch (operator) {
       case '=':
@@ -588,12 +883,22 @@ class XhtmlNode {
     }
   }
 
+  /**
+   * @param {string} str
+   * @returns {boolean}
+   */
   #isInteger(str) {
     return /^-?\d+$/.test(str);
   }
 
+  /**
+   * @param {string} html
+   * @returns {XhtmlNode[]}
+   */
   #parseFragment(html) {
+    /** @type {XhtmlNode[]} */
     const nodes = [];
+    /** @type {XhtmlParseFrame[]} */
     const stack = [{ children: nodes }];
     let current = stack[0];
     let i = 0;
@@ -656,6 +961,9 @@ class XhtmlNode {
     return nodes.length > 0 && nodes[0].childNodes ? nodes[0].childNodes : nodes;
   }
 
+  /**
+   * @returns {void}
+   */
   closeScript() {
     if (!this.namedParams) {
       throw new Error('Sequence Error - script is not already open');
@@ -674,7 +982,7 @@ class XhtmlNode {
       return this;
     }
 
-    const commonmark = require('commonmark');
+    const commonmark = /** @type {any} */ (require('commonmark'));
     const reader = new commonmark.Parser();
     const writer = new commonmark.HtmlRenderer({ safe: true });
 
@@ -701,7 +1009,7 @@ class XhtmlNode {
       return this;
     }
 
-    const commonmark = require('commonmark');
+    const commonmark = /** @type {any} */ (require('commonmark'));
     const reader = new commonmark.Parser();
     const writer = new commonmark.HtmlRenderer({ safe: true });
 
@@ -723,6 +1031,11 @@ class XhtmlNode {
     return this;
   }
 
+  /**
+   * @param {number} [indent]
+   * @param {boolean} [pretty]
+   * @returns {string}
+   */
   render(indent = 0, pretty = true) {
     const effectivePretty = pretty && this.pretty;
     const indentStr = effectivePretty ? '  '.repeat(indent) : '';
@@ -739,7 +1052,8 @@ class XhtmlNode {
     if (this.nodeType === NodeType.Element) {
       const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
         'link', 'meta', 'param', 'source', 'track', 'wbr'];
-      const isVoid = voidElements.includes(this.name);
+      const elementName = this.name || '';
+      const isVoid = voidElements.includes(elementName);
 
       let attrs = '';
       for (const [key, value] of this.attributes) {
@@ -747,11 +1061,11 @@ class XhtmlNode {
       }
 
       if (isVoid) {
-        return `${indentStr}<${this.name}${attrs}/>${newline}`;
+        return `${indentStr}<${elementName}${attrs}/>${newline}`;
       }
 
       if (this.childNodes.length === 0) {
-        return `${indentStr}<${this.name}${attrs}></${this.name}>${newline}`;
+        return `${indentStr}<${elementName}${attrs}></${elementName}>${newline}`;
       }
 
       // Check if all children are text/inline
@@ -764,19 +1078,23 @@ class XhtmlNode {
         for (const child of this.childNodes) {
           content += child.render(0, false);
         }
-        return `${indentStr}<${this.name}${attrs}>${content}</${this.name}>${newline}`;
+        return `${indentStr}<${elementName}${attrs}>${content}</${elementName}>${newline}`;
       } else {
         let content = '';
         for (const child of this.childNodes) {
           content += child.render(indent + 1, true);
         }
-        return `${indentStr}<${this.name}${attrs}>${newline}${content}${indentStr}</${this.name}>${newline}`;
+        return `${indentStr}<${elementName}${attrs}>${newline}${content}${indentStr}</${elementName}>${newline}`;
       }
     }
 
     return '';
   }
 
+  /**
+   * @param {unknown} text
+   * @returns {string}
+   */
   #escapeAttr(text) {
     return String(text)
       .replace(/&/g, '&amp;')
@@ -799,6 +1117,10 @@ class XhtmlNode {
 }
 
 // Factory functions
+/**
+ * @param {string | null} [style]
+ * @returns {XhtmlNode}
+ */
 function div(style = null) {
   const node = new XhtmlNode(NodeType.Element, 'div');
   node.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
@@ -808,16 +1130,28 @@ function div(style = null) {
   return node;
 }
 
+/**
+ * @param {string} name
+ * @returns {XhtmlNode}
+ */
 function element(name) {
   return new XhtmlNode(NodeType.Element, name);
 }
 
+/**
+ * @param {unknown} content
+ * @returns {XhtmlNode}
+ */
 function text(content) {
   const node = new XhtmlNode(NodeType.Text);
-  node.content = content;
+  node.content = String(content);
   return node;
 }
 
+/**
+ * @param {string} content
+ * @returns {XhtmlNode}
+ */
 function comment(content) {
   const node = new XhtmlNode(NodeType.Comment);
   node.content = content;

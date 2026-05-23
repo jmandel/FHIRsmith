@@ -1,17 +1,40 @@
+// @ts-check
+
 const { CodeSystem}  = require("../library/codesystem");
-const { CodeSystemFactoryProvider, FilterExecutionContext }  = require( "./cs-api");
+const csApi = require("./cs-api");
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
+const FilterExecutionContext = /** @type {any} */ (csApi.FilterExecutionContext);
 const { VersionUtilities }  = require("../../library/version-utilities");
 const { Language }  = require ("../../library/languages");
 const { validateOptionalParameter, getValuePrimitive, validateArrayParameter} = require("../../library/utilities");
 const {Issue} = require("../library/operation-outcome");
 const {Extensions} = require("../library/extensions");
-const {BaseCSServices} = require("./cs-base");
+const csBase = require("./cs-base");
+const BaseCSServices = /** @type {any} */ (csBase.BaseCSServices);
 const regexUtilities = require("../../library/regex-utilities");
+
+/** @typedef {import('../../types/fhirsmith').FhirParameterPart} FhirParameterPart */
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+/** @typedef {{system?: string, code?: string, display?: string}} FhirCodingLike */
+/** @typedef {{url?: string, valueCode?: string, valueString?: string, valueDecimal?: number, [key: string]: any}} FhirExtensionLike */
+/** @typedef {{code?: string, uri?: string, valueCode?: string, valueString?: string, valueInteger?: number, valueBoolean?: boolean, valueDateTime?: string, valueDecimal?: number, valueCoding?: FhirCodingLike, value?: unknown, definition?: any, [key: string]: any}} FhirPropertyLike */
+/** @typedef {{language?: string, use?: any, value: string, extension?: FhirExtensionLike[], [key: string]: any}} FhirDesignationLike */
+/** @typedef {{code: string, display?: string, definition?: string, designation?: FhirDesignationLike[], property?: FhirPropertyLike[], extension?: FhirExtensionLike[], concept?: FhirConceptLike[], [key: string]: any}} FhirConceptLike */
+/** @typedef {{code: string, [key: string]: any}} FhirPropertyDefinitionLike */
+/** @typedef {{resourceType?: string, url?: string, version?: string, valueSet?: string, name?: string, title?: string, description?: string, status?: string, content?: string, property?: FhirPropertyDefinitionLike[], extension?: FhirExtensionLike[], experimental?: boolean, versionNeeded?: boolean, [key: string]: any}} FhirCodeSystemResourceLike */
+/** @typedef {string | FhirCodeSystemProviderContext | null | undefined} FhirCodeSystemContextInput */
+/** @typedef {{context: FhirCodeSystemProviderContext | null, message?: string | null}} FhirCodeSystemLocateResult */
+/** @typedef {{type: string, codes: string[], current: number, total: number, parentCode?: string}} FhirCodeSystemIterator */
+/** @typedef {{concept: FhirConceptLike, rating: number}} FhirCodeSystemFilterItem */
 
 /**
  * Context class for FHIR CodeSystem provider concepts
  */
 class FhirCodeSystemProviderContext {
+  /**
+   * @param {string} code - Concept code
+   * @param {FhirConceptLike} concept - FHIR CodeSystem concept
+   */
   constructor(code, concept) {
     this.code = code;
     this.concept = concept;
@@ -23,6 +46,7 @@ class FhirCodeSystemProviderContext {
  */
 class FhirCodeSystemProviderFilterContext {
   constructor() {
+    /** @type {FhirCodeSystemFilterItem[]} */
     this.concepts = []; // Array of {concept, rating} objects
     this.currentIndex = -1;
     this.include = true; // Whether this is an include or exclude filter
@@ -30,7 +54,7 @@ class FhirCodeSystemProviderFilterContext {
 
   /**
    * Add a concept to the filter results
-   * @param {Object} concept - The concept object
+   * @param {FhirConceptLike} concept - The concept object
    * @param {number} rating - Search relevance rating (higher = more relevant)
    */
   add(concept, rating = 0) {
@@ -62,7 +86,7 @@ class FhirCodeSystemProviderFilterContext {
 
   /**
    * Move to next concept and return it
-   * @returns {Object|null} Next concept or null if exhausted
+   * @returns {FhirConceptLike|null} Next concept or null if exhausted
    */
   next() {
     if (this.hasMore()) {
@@ -82,7 +106,7 @@ class FhirCodeSystemProviderFilterContext {
   /**
    * Find a concept by code in the filter results
    * @param {string} code - The code to find
-   * @returns {Object|null} The concept if found, null otherwise
+   * @returns {FhirConceptLike|null} The concept if found, null otherwise
    */
   findConceptByCode(code) {
     for (const item of this.concepts) {
@@ -95,7 +119,7 @@ class FhirCodeSystemProviderFilterContext {
 
   /**
    * Check if a concept is in the filter results
-   * @param {Object} concept - The concept to check
+   * @param {FhirConceptLike} concept - The concept to check
    * @returns {boolean} True if concept is in results
    */
   containsConcept(concept) {
@@ -105,14 +129,16 @@ class FhirCodeSystemProviderFilterContext {
 
 class FhirCodeSystemProvider extends BaseCSServices {
   /**
+   * @param {any} opContext - Operation context
    * @param {CodeSystem} codeSystem - The primary CodeSystem
-   * @param {CodeSystem[]} supplements - Array of supplement CodeSystems
+   * @param {CodeSystem[] | null | undefined} supplements - Array of supplement CodeSystems
    */
   constructor(opContext, codeSystem, supplements) {
     super(opContext, supplements);
     if (codeSystem.content == 'supplements') {
       throw new Issue('error', 'invalid', null, 'CODESYSTEM_CS_NO_SUPPLEMENT', opContext.i18n.translate('CODESYSTEM_CS_NO_SUPPLEMENT', opContext.langs, codeSystem.vurl));
     }
+    /** @type {any} */
     this.codeSystem = codeSystem;
     this.hasHierarchyFlag = codeSystem.hasHierarchy();
 
@@ -186,14 +212,14 @@ class FhirCodeSystemProvider extends BaseCSServices {
   }
 
   /**
-   * @returns {Object[]|null} Defined properties for the code system
+   * @returns {FhirPropertyDefinitionLike[]|null} Defined properties for the code system
    */
   propertyDefinitions() {
     return this.codeSystem.jsonObj.property || null;
   }
 
   /**
-   * @param {Languages} languages - Language specification
+   * @param {any} languages - Language specification
    * @returns {boolean} Whether any displays are available for the languages
    */
   hasAnyDisplays(languages) {
@@ -254,7 +280,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   }
 
   /**
-   * @returns {{status: string, standardsStatus: string, experimental: boolean}|null} Status information
+   * @returns {{status?: string, standardsStatus?: string, experimental?: boolean}} Status information
    */
   status() {
     const cs = this.codeSystem.jsonObj;
@@ -262,7 +288,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     return {
       status: cs.status,
-      standardsStatus: cs.extension?.find(ext =>
+      standardsStatus: cs.extension?.find((/** @type {FhirExtensionLike} */ ext) =>
         ext.url === 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'
       )?.valueCode || '',
       experimental: cs.experimental || false
@@ -270,7 +296,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   }
 
   /**
-   * @param {string|FhirCodeSystemProviderContext} context - Code or context
+   * @param {FhirCodeSystemContextInput} context - Code or context
    * @returns {Promise<string|null>} The correct code for the concept
    */
   async code(context) {
@@ -281,7 +307,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * @param {string} code - The code to locate
-   * @returns {Promise<{context: FhirCodeSystemProviderContext|null, message: string|null}>} Locate result
+   * @returns {Promise<FhirCodeSystemLocateResult>} Locate result
    */
   async locate(code) {
     
@@ -290,7 +316,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
       return { context: null, message: 'Empty or invalid code' };
     }
 
-    const concept = this.codeSystem.getConceptByCode(code);
+    const concept = /** @type {FhirConceptLike | undefined} */ (this.codeSystem.getConceptByCode(code));
     if (concept) {
       return {
         context: new FhirCodeSystemProviderContext(concept.code, concept),
@@ -306,9 +332,8 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * Helper method to ensure we have a proper context object
-   * @param {string|FhirCodeSystemProviderContext} context - Code or context
+   * @param {FhirCodeSystemContextInput} context - Code or context
    * @returns {Promise<FhirCodeSystemProviderContext|null>} Resolved context
-   * @private
    */
   async #ensureContext(context) {
     if (!context) {
@@ -403,7 +428,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     // Check for abstract property
     if (ctxt.concept.property && Array.isArray(ctxt.concept.property)) {
-      const abstractProp = ctxt.concept.property.find(p =>
+      const abstractProp = ctxt.concept.property.find((/** @type {FhirPropertyLike} */ p) =>
         p.code === 'abstract' ||
         p.code === 'not-selectable' ||
         p.code === 'notSelectable' ||
@@ -450,7 +475,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     // Check standards-status extension for withdrawn
     if (ctxt.concept.extension && Array.isArray(ctxt.concept.extension)) {
-      const standardsStatus = ctxt.concept.extension.find(e =>
+      const standardsStatus = ctxt.concept.extension.find((/** @type {FhirExtensionLike} */ e) =>
         e.url === 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'
       );
       if (standardsStatus) {
@@ -476,7 +501,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     // Check for deprecated property or status
     if (ctxt.concept.property && Array.isArray(ctxt.concept.property)) {
-      const deprecatedProp = ctxt.concept.property.find(p =>
+      const deprecatedProp = ctxt.concept.property.find((/** @type {FhirPropertyLike} */ p) =>
         p.code === 'deprecated' ||
         p.uri === 'http://hl7.org/fhir/concept-properties#deprecated'
       );
@@ -485,7 +510,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
       }
 
       // Check status property
-      const statusProp = ctxt.concept.property.find(p =>
+      const statusProp = ctxt.concept.property.find((/** @type {FhirPropertyLike} */ p) =>
         p.code === 'status' ||
         p.uri === 'http://hl7.org/fhir/concept-properties#status'
       );
@@ -510,7 +535,8 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     for (let cp of ctxt.concept.property || []) {
       if (cp.code === 'status' || cp.uri === 'http://hl7.org/fhir/concept-properties#status') {
-        return getValuePrimitive(cp);
+        const primitive = getValuePrimitive(cp);
+        return primitive == null ? null : String(primitive);
       }
     }
 
@@ -533,7 +559,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
       }
     }
     const ext = (ctxt.concept.extension || []).find(
-      e => e.url === 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'
+      (/** @type {FhirExtensionLike} */ e) => e.url === 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'
     );
     if (ext) {
       return ext.valueCode || ext.valueString || '';
@@ -544,7 +570,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * @param {string|FhirCodeSystemProviderContext} context - Code or context
-   * @returns {Promise<string|null>} Assigned itemWeight - if there is one
+   * @returns {Promise<string|number|null>} Assigned itemWeight - if there is one
    */
   async itemWeight(context) {
     
@@ -555,7 +581,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     // Check for itemWeight extension
     if (ctxt.concept.extension && Array.isArray(ctxt.concept.extension)) {
-      const itemWeightExt = ctxt.concept.extension.find(ext =>
+      const itemWeightExt = ctxt.concept.extension.find((/** @type {FhirExtensionLike} */ ext) =>
         ext.url === 'http://hl7.org/fhir/StructureDefinition/itemWeight'
       );
       if (itemWeightExt && itemWeightExt.valueDecimal !== undefined) {
@@ -568,7 +594,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
       for (const supplement of this.supplements) {
         const supplementConcept = supplement.getConceptByCode(ctxt.code);
         if (supplementConcept && supplementConcept.extension && Array.isArray(supplementConcept.extension)) {
-          const itemWeightExt = supplementConcept.extension.find(ext =>
+          const itemWeightExt = supplementConcept.extension.find((/** @type {FhirExtensionLike} */ ext) =>
             ext.url === 'http://hl7.org/fhir/StructureDefinition/itemWeight'
           );
           if (itemWeightExt && itemWeightExt.valueDecimal !== undefined) {
@@ -582,9 +608,9 @@ class FhirCodeSystemProvider extends BaseCSServices {
   }
 
   /**
-   * @param {string|FhirCodeSystemProviderContext} context - Code or context
-   * @param {ConceptDesignations} designation list
-   * @returns {Promise<Designation[]|null>} Whatever designations exist (in all languages)
+   * @param {FhirCodeSystemContextInput} context - Code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<void | null>} Whatever designations exist (in all languages)
    */
   async designations(context, displays) {
     
@@ -602,12 +628,12 @@ class FhirCodeSystemProvider extends BaseCSServices {
     // Add concept designations
     if (ctxt.concept.designation && Array.isArray(ctxt.concept.designation)) {
       for (const designation of ctxt.concept.designation) {
-        let status = Extensions.readString(designation, "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status");
+        let status = Extensions.readString(/** @type {any} */ (designation), "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status");
         displays.addDesignation(false, status || 'active',
           designation.language || '',
           designation.use || null,
           designation.value,
-          designation.extension?.length > 0 ? designation.extension : []
+          designation.extension && designation.extension.length > 0 ? designation.extension : []
         );
       }
     }
@@ -647,6 +673,11 @@ class FhirCodeSystemProvider extends BaseCSServices {
     return extensions.length > 0 ? extensions : null;
   }
 
+  /**
+   * @param {FhirCodeSystemResourceLike} cs - CodeSystem JSON
+   * @param {string} code - Property code
+   * @returns {FhirPropertyDefinitionLike | undefined} Property definition
+   */
   getPropertyDefinition(cs, code) {
     for (let p of cs.property || []) {
       if (code == p.code) {
@@ -658,7 +689,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * @param {string|FhirCodeSystemProviderContext} context - Code or context
-   * @returns {Promise<Object[]|null>} Properties, if any
+   * @returns {Promise<FhirPropertyLike[]>} Properties, if any
    */
   async properties(context) {
     
@@ -667,11 +698,12 @@ class FhirCodeSystemProvider extends BaseCSServices {
       return [];
     }
 
+    /** @type {FhirPropertyLike[]} */
     const properties = [];
 
     // Add properties from main concept
     for (let p of ctxt.concept.property || []) {
-      let pd = this.getPropertyDefinition(this.codeSystem.jsonObj, p.code);
+      let pd = this.getPropertyDefinition(this.codeSystem.jsonObj, p.code || '');
       properties.push({ ...p, definition: pd });
     }
 
@@ -681,7 +713,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
         const supplementConcept = supplement.getConceptByCode(ctxt.code);
         if (supplementConcept) {
           for (let p of supplementConcept.property || []) {
-            let pd = this.getPropertyDefinition(supplement.jsonObj, p.code);
+            let pd = this.getPropertyDefinition(supplement.jsonObj, p.code || '');
             properties.push({...p, definition: pd});
           }
         }
@@ -729,7 +761,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
    * @param {string} code - The code to locate
    * @param {string} parent - The parent code
    * @param {boolean} disallowSelf - Whether to disallow the code being the same as parent
-   * @returns {Promise<{context: FhirCodeSystemProviderContext|null, message: string|null}>} Locate result
+   * @returns {Promise<FhirCodeSystemLocateResult>} Locate result
    */
   async locateIsA(code, parent, disallowSelf = false) {
     
@@ -823,7 +855,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * @param {string|FhirCodeSystemProviderContext} context - Code or context to iterate from
-   * @returns {Promise<Object|null>} A handle that can be passed to nextContext (or null if can't be iterated)
+   * @returns {Promise<FhirCodeSystemIterator | null>} A handle that can be passed to nextContext
    */
   async iterator(context) {
 
@@ -868,7 +900,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   }
 
   /**
-   * @param {Object} iteratorContext - Iterator context from iterator()
+   * @param {FhirCodeSystemIterator | null | undefined} iteratorContext - Iterator context from iterator()
    * @returns {Promise<FhirCodeSystemProviderContext|null>} The next concept, or null
    */
   async nextContext(iteratorContext) {
@@ -882,7 +914,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     iteratorContext.current++;
 
     // Get the concept for this code
-    const concept = this.codeSystem.getConceptByCode(code);
+    const concept = /** @type {FhirConceptLike | undefined} */ (this.codeSystem.getConceptByCode(code));
     if (!concept) {
       return null;
     }
@@ -893,7 +925,8 @@ class FhirCodeSystemProvider extends BaseCSServices {
   /**
    * @param {FhirCodeSystemProviderContext} ctxt - The context to add properties for
    * @param {string[]} props - The properties requested
-   * @param {Object} params - The parameters response to add to
+   * @param {any[]} params - The parameters response to add to
+   * @returns {Promise<void>}
    */
   async extendLookup(ctxt, props, params) {
     validateArrayParameter(props, 'props', String);
@@ -909,6 +942,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
       const properties = await this.properties(ctxt);
       if (properties) {
         for (const property of properties) {
+          /** @type {any[]} */
           let parts = [];
           parts.push({ name: 'code', valueCode: property.code });
 
@@ -937,6 +971,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     if (this._hasProp(props, 'parent', true)) {
       const parentCode = await this.parent(ctxt);
       if (parentCode) {
+        /** @type {any[]} */
         let parts = [];
         parts.push({ name: 'code', valueCode: 'parent' });
         parts.push({ name: 'value', valueCode: parentCode });
@@ -950,6 +985,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
       const children = this.codeSystem.getChildren(ctxt.code);
       if (children.length > 0) {
         for (const childCode of children) {
+          /** @type {any[]} */
           let parts = [];
           parts.push({ name: 'code', valueCode: 'child' });
           parts.push({ name: 'value', valueCode: childCode });
@@ -962,7 +998,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * @param {boolean} iterate - True if results will be iterated
-   * @returns {FilterExecutionContext} Filter context
+   * @returns {Promise<any>} Filter context
    */
   async getPrepContext(iterate) {
     
@@ -971,7 +1007,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * @param {FilterExecutionContext} filterContext - Filter context
-   * @returns {boolean} True if filters are not closed (infinite results possible)
+   * @returns {Promise<boolean>} True if filters are not closed (infinite results possible)
    */
   // eslint-disable-next-line no-unused-vars
   async filtersNotClosed(filterContext) {
@@ -1023,7 +1059,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   /**
    * Execute filter preparation - returns array of filter contexts
    * @param {FilterExecutionContext} filterContext - Filter context
-   * @returns {Promise<Array>} Array of filter result sets
+   * @returns {Promise<FhirCodeSystemProviderFilterContext[]>} Array of filter result sets
    */
   async executeFilters(filterContext) {
     
@@ -1074,7 +1110,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
    * @param {FilterExecutionContext} filterContext - Filter context
    * @param {FhirCodeSystemProviderFilterContext} set - Filter result set
    * @param {string} code - Code to find
-   * @returns {Promise<FhirCodeSystemProviderContext|string>} Context if found, error message if not
+   * @returns {Promise<FhirCodeSystemProviderContext|string|null>} Context if found, error message if not
    */
   async filterLocate(filterContext, set, code) {
     
@@ -1115,7 +1151,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     
     // Clear any cached data
     if (filterContext.filters) {
-      filterContext.filters.forEach(filter => {
+      filterContext.filters.forEach((/** @type {any} */ filter) => {
         if (filter.reset) {
           filter.reset();
         }
@@ -1126,7 +1162,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   /**
    * Execute text-based search filter
    * @param {FilterExecutionContext} filterContext - Filter context
-   * @param {string} filter - Search text
+   * @param {{filter: string}} filter - Search text
    * @param {boolean} sort - Whether to sort results by relevance
    * @returns {Promise<FhirCodeSystemProviderFilterContext>} Filter results
    */
@@ -1161,7 +1197,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * Calculate search relevance rating for a concept
-   * @param {Object} concept - The concept to rate
+   * @param {FhirConceptLike} concept - The concept to rate
    * @param {string} searchTerm - The search term (lowercase)
    * @returns {number} Rating (0 = no match, higher = better match)
    * @private
@@ -1212,6 +1248,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   /**
    * Execute a value set filter
    * @param {FilterExecutionContext} filterContext - Filter context
+   * @param {boolean} forIteration - Whether this filter is for iteration
    * @param {string} prop - Property name to filter on
    * @param {string} op - Filter operator
    * @param {string} value - Filter value
@@ -1263,6 +1300,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   /**
    * Handle concept/code filters (is-a, descendent-of, etc.)
    * @param {FilterExecutionContext} filterContext - Filter context
+   * @param {string} prop - Filter property
    * @param {string} op - Filter operator
    * @param {string} value - Filter value (code)
    * @returns {Promise<FhirCodeSystemProviderFilterContext>} Filter results
@@ -1324,7 +1362,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
           }
         }
       } catch (error) {
-        throw new Issue('error', 'exception', null, 'INVALID_REGEX', this.opContext.i18n.translate('INVALID_REGEX', this.opContext.langs, [value, error.message]), 'vs-invalid', 422);
+        throw new Issue('error', 'exception', null, 'INVALID_REGEX', this.opContext.i18n.translate('INVALID_REGEX', this.opContext.langs, [value, error instanceof Error ? error.message : String(error)]), 'vs-invalid', 422);
       }
     } else {
       throw new Issue('error', 'exception', null, 'FILTER_NOT_UNDERSTOOD',
@@ -1362,7 +1400,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   /**
    * Add immediate children of a code to the results
    * @param {FhirCodeSystemProviderFilterContext} results - Results to add to
-   * @param {string} ancestorCode - The parent code
+   * @param {string} parentCode - The parent code
    * @private
    */
   async _addChildren(results, parentCode) {
@@ -1408,7 +1446,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
   /**
    * Handle property-based filter
    * @param {FilterExecutionContext} filterContext - Filter context
-   * @param {Object} propertyDef - Property definition
+   * @param {FhirPropertyDefinitionLike} propertyDef - Property definition
    * @param {string} op - Filter operator
    * @param {string} value - Filter value
    * @returns {Promise<FhirCodeSystemProviderFilterContext>} Filter results
@@ -1429,8 +1467,8 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * Check if concept matches property filter
-   * @param {Object} concept - The concept to check
-   * @param {Object} propertyDef - Property definition
+   * @param {FhirConceptLike} concept - The concept to check
+   * @param {FhirPropertyDefinitionLike} propertyDef - Property definition
    * @param {string} op - Filter operator
    * @param {string} value - Filter value
    * @returns {boolean} True if concept matches filter
@@ -1468,7 +1506,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
   /**
    * Get property value as string
-   * @param {Object} property - The property object
+   * @param {FhirPropertyLike} property - The property object
    * @returns {string} Property value
    * @private
    */
@@ -1501,8 +1539,8 @@ class FhirCodeSystemProvider extends BaseCSServices {
       let matches = false;
 
       if (prop === 'notSelectable') {
-        const abstractProp = (concept.property || []).find(p => p.code === 'abstract' || p.code === 'notSelectable' || p.uri === 'http://hl7.org/fhir/concept-properties#notSelectable');
-        let vv = abstractProp ? String(getValuePrimitive(abstractProp)) : null;
+        const abstractProp = (concept.property || []).find((/** @type {FhirPropertyLike} */ p) => p.code === 'abstract' || p.code === 'notSelectable' || p.uri === 'http://hl7.org/fhir/concept-properties#notSelectable');
+        let vv = abstractProp ? String(getValuePrimitive(abstractProp)) : '';
         if (op === '=') {
           matches = (vv === value);
         } else if (op === 'in') {
@@ -1519,10 +1557,10 @@ class FhirCodeSystemProvider extends BaseCSServices {
           matches = (status === value);
         } else if (op === 'in') {
           const values = value.split(',').map(v => v.trim());
-          matches = values.includes(status);
+          matches = status !== null && values.includes(status);
         } else if (op === 'not-in') {
           const values = value.split(',').map(v => v.trim());
-          matches = !values.includes(status);
+          matches = status === null || !values.includes(status);
         }
       }
       else if (prop === 'inactive') {
@@ -1559,6 +1597,9 @@ class FhirCodeSystemProvider extends BaseCSServices {
 }
 
 class FhirCodeSystemFactory extends CodeSystemFactoryProvider {
+  /**
+   * @param {any} i18n - Translation support
+   */
   constructor(i18n) {
     super(i18n);
   }
@@ -1569,8 +1610,9 @@ class FhirCodeSystemFactory extends CodeSystemFactoryProvider {
 
   /**
    * Build a FHIR CodeSystem provider
+   * @param {any} opContext - Operation context
+   * @param {CodeSystem[] | null | undefined} supplements - Array of supplement CodeSystems
    * @param {CodeSystem} codeSystem - The FHIR CodeSystem to wrap
-   * @param {CodeSystem[]} supplements - Array of supplement CodeSystems
    * @returns {FhirCodeSystemProvider} New provider instance
    */
   build(opContext, supplements, codeSystem) {
@@ -1601,6 +1643,11 @@ class FhirCodeSystemFactory extends CodeSystemFactoryProvider {
     return new FhirCodeSystemProvider(opContext, codeSystem, supplements);
   }
 
+  /**
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - Requested version
+   * @returns {Promise<null>} No known value sets
+   */
   // eslint-disable-next-line no-unused-vars
   async buildKnownValueSet(url, version) {
     return null;

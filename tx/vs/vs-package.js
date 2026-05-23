@@ -1,9 +1,13 @@
+// @ts-check
+
 const path = require('path');
 const { AbstractValueSetProvider } = require('./vs-api');
 const { PackageContentLoader } = require('../../library/package-manager');
 const { ValueSetDatabase } = require('./vs-database');
 const { VersionUtilities } = require('../../library/version-utilities');
 const {validateParameter} = require("../../library/utilities");
+
+/** @typedef {{name: string, value: string}} SearchParam */
 
 /**
  * Package-based ValueSet provider using shared database layer
@@ -20,12 +24,16 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
     this.packageLoader = packageLoader;
     this.dbPath = path.join(packageLoader.packageFolder, '.valuesets.db');
     this.database = new ValueSetDatabase(this.dbPath);
+    /** @type {Map<string, any>} */
     this.valueSetMap = new Map();
     this.initialized = false;
     this.count = 0;
     this.sourcePackageCode = packageLoader.id();
   }
 
+  /**
+   * @returns {string | undefined}
+   */
   sourcePackage() {
     return this.sourcePackageCode;
   }
@@ -67,6 +75,7 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
       return; // No value sets in this package
     }
 
+    /** @type {any[]} */
     const valueSets = [];
     for (const entry of valueSetEntries) {
       const valueSet = await this.packageLoader.loadFile(entry);
@@ -83,7 +92,7 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Insert multiple ValueSets in a batch operation
-   * @param {Array<Object>} valueSets - Array of ValueSet resources
+   * @param {any[]} valueSets - Array of ValueSet resources
    * @returns {Promise<void>}
    */
   async batchUpsertValueSets(valueSets) {
@@ -101,8 +110,8 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
   /**
    * Fetches a value set by URL and version
    * @param {string} url - The canonical URL of the value set
-   * @param {string} version - The version of the value set
-   * @returns {Promise<Object>} The requested value set
+   * @param {string | null | undefined} version - The version of the value set
+   * @returns {Promise<any>} The requested value set
    */
   async fetchValueSet(url, version) {
     await this.initialize();
@@ -139,8 +148,9 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Searches for value sets based on criteria
-   * @param {Array<{name: string, value: string}>} searchParams - Search criteria
-   * @returns {Promise<Array<Object>>} List of matching value sets
+   * @param {SearchParam[]} searchParams - Search criteria
+   * @param {any} [elements]
+   * @returns {Promise<any[]>} List of matching value sets
    */
   async searchValueSets(searchParams, elements = null) {
     await this.initialize();
@@ -149,10 +159,12 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
     if (this.USE_DATABASE_SEARCH) {
       return await this.database.search(this.spaceId, this.valueSetMap, searchParams, elements);
     } else {
+      /** @type {any[]} */
       const matches = [];
       const seen = new Set(); // Track by URL to avoid duplicates from versioned keys
 
       // Convert array format to object for easier access
+      /** @type {Record<string, string>} */
       const params = {};
       for (const {name, value} of searchParams) {
         params[name] = value.toLowerCase();
@@ -230,6 +242,9 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Check if a value matches the search term (partial, case-insensitive)
+   * @param {unknown} propValue
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchValue(propValue, searchValue) {
     if (propValue === undefined || propValue === null) {
@@ -241,6 +256,9 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Check if a value matches the search term (partial, case-insensitive)
+   * @param {unknown} propValue
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchValueFull(propValue, searchValue) {
     if (propValue === undefined || propValue === null) {
@@ -252,6 +270,9 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Check if system matches any compose.include[].system
+   * @param {any} json
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchSystem(json, searchValue) {
     if (!json.compose?.include || !Array.isArray(json.compose.include)) {
@@ -267,6 +288,9 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Check if jurisdiction matches - jurisdiction is an array of CodeableConcept
+   * @param {any} jurisdictions
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchJurisdiction(jurisdictions, searchValue) {
     if (!jurisdictions || !Array.isArray(jurisdictions)) {
@@ -292,6 +316,9 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Check if identifier matches
+   * @param {any} identifiers
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchIdentifier(identifiers, searchValue) {
     if (!identifiers) {
@@ -311,7 +338,7 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Get statistics about the loaded value sets
-   * @returns {Promise<Object>} Statistics object
+   * @returns {Promise<any>} Statistics object
    */
   async getStatistics() {
     await this.initialize();
@@ -332,10 +359,18 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
     return uniqueUrls.size;
   }
 
+  /**
+   * @param {string} id
+   * @returns {Promise<any>}
+   */
   async fetchValueSetById(id) {
     return this.valueSetMap.get(id);
   }
 
+  /**
+   * @param {Set<string>} ids
+   * @returns {void}
+   */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
     if (!this.spaceId) {
@@ -368,10 +403,16 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
     }
   }
 
+  /**
+   * @returns {number}
+   */
   vsCount() {
     return this.database.vsCount;
   }
 
+  /**
+   * @returns {Promise<any[]>}
+   */
   async listAllValueSets() {
     return await this.database.listAllValueSets();
   }

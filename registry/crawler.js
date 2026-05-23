@@ -1,7 +1,8 @@
 // registry/crawler.js
 // Crawler for gathering server information from terminology servers
+// @ts-check
 
-const axios = require('axios');
+const axios = /** @type {any} */ (require('axios'));
 const { 
   ServerRegistries, 
   ServerRegistry, 
@@ -13,9 +14,22 @@ const {debugLog} = require("../tx/operation-context");
 
 const MASTER_URL = 'https://fhir.github.io/ig-registry/tx-servers.json';
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 class RegistryCrawler {
+  /** @type {any} */
   log;
 
+  /**
+   * @param {any} [config]
+   * @param {any} [stats]
+   */
   constructor(config = {}, stats) {
     this.config = {
       timeout: config.timeout || 30000, // 30 seconds default
@@ -27,14 +41,22 @@ class RegistryCrawler {
     this.stats = stats;
 
     this.currentData = new ServerRegistries();
+    /** @type {ReturnType<typeof setInterval> | null} */
     this.crawlTimer = null;
     this.isCrawling = false;
+    /** @type {any[]} */
     this.errors = [];
     this.totalBytes = 0;
     this.log = console;
+    /** @type {AbortController | null} */
     this.abortController = null;
+    /** @type {any[] | undefined} */
+    this.logs = undefined;
   }
 
+  /**
+   * @param {any} logv
+   */
   useLog(logv) {
     this.log = logv;
   }
@@ -42,7 +64,7 @@ class RegistryCrawler {
 
   /**
    * Main entry point - crawl the registry starting from the master URL
-   * @param {string} masterUrl - Optional override for the master URL
+   * @param {string | null} masterUrl - Optional override for the master URL
    * @returns {Promise<ServerRegistries>} The populated registry data
    */
   async crawl(masterUrl = null) {
@@ -92,10 +114,10 @@ class RegistryCrawler {
     } catch (error) {
       debugLog(error);
       this.addLogEntry('error', 'Exception Scanning:', error);
-      this.currentData.outcome = `Error: ${error.message}`;
+      this.currentData.outcome = `Error: ${errorMessage(error)}`;
       this.errors.push({
         source: url,
-        error: error.message,
+        error: errorMessage(error),
         timestamp: new Date()
       });
     } finally {
@@ -107,6 +129,8 @@ class RegistryCrawler {
 
   /**
    * Process a single registry
+   * @param {any} registryConfig
+   * @returns {Promise<ServerRegistry>}
    */
   async processRegistry(registryConfig) {
     const registry = new ServerRegistry();
@@ -147,8 +171,8 @@ class RegistryCrawler {
       
     } catch (error) {
       debugLog(error);
-      registry.error = error.message;
-      this.addLogEntry('error', `Exception processing registry ${registry.name}: ${error.message}`, registry.address);
+      registry.error = errorMessage(error);
+      this.addLogEntry('error', `Exception processing registry ${registry.name}: ${errorMessage(error)}`, registry.address);
     }
     
     return registry;
@@ -156,6 +180,9 @@ class RegistryCrawler {
 
   /**
    * Process a single server
+   * @param {any} serverConfig
+   * @param {string} source
+   * @returns {Promise<ServerInformation>}
    */
   async processServer(serverConfig, source) {
     const server = new ServerInformation();
@@ -194,6 +221,10 @@ class RegistryCrawler {
 
   /**
    * Process a single server version
+   * @param {any} versionConfig
+   * @param {ServerInformation} server
+   * @param {any} exclusions
+   * @returns {Promise<ServerVersionInformation>}
    */
   async processServerVersion(versionConfig, server, exclusions) {
     const version = new ServerVersionInformation();
@@ -239,8 +270,8 @@ class RegistryCrawler {
     } catch (error) {
       debugLog(error);
       const elapsed = Date.now() - startTime;
-      this.addLogEntry('error', `Server ${version.address}: Error after ${elapsed}ms: ${error.message}`);
-      version.error = error.message;
+      this.addLogEntry('error', `Server ${version.address}: Error after ${elapsed}ms: ${errorMessage(error)}`);
+      version.error = errorMessage(error);
       version.lastTat = `${elapsed}ms`;
     }
     
@@ -249,6 +280,9 @@ class RegistryCrawler {
 
   /**
    * Process an R3 server
+   * @param {ServerVersionInformation} version
+   * @param {ServerInformation} server
+   * @param {any} exclusions
    */
   async processServerVersionR3(version, server, exclusions) {
     // Get capability statement
@@ -264,14 +298,14 @@ class RegistryCrawler {
       const termCap = await this.fetchJson(termCapUrl, server.name);
       
       if (termCap.parameter) {
-        termCap.parameter.forEach(param => {
+        termCap.parameter.forEach((/** @type {any} */ param) => {
           if (param.name === 'system') {
             const uri = param.valueUri || param.valueString;
             if (uri && !this.isExcluded(uri, exclusions)) {
               version.codeSystems.push(uri);
               // Look for version parts
               if (param.part) {
-                param.part.forEach(part => {
+                param.part.forEach((/** @type {any} */ part) => {
                   if (part.name === 'version' && part.valueString && !this.isExcluded(uri+'|'+part.valueString, exclusions)) {
                     version.codeSystems.push(`${uri}|${part.valueString}`);
                   }
@@ -283,7 +317,7 @@ class RegistryCrawler {
       }
     } catch (error) {
       debugLog(error);
-      this.addLogEntry('error', `Could not fetch terminology capabilities from ${version.address}: ${error.message}`);
+      this.addLogEntry('error', `Could not fetch terminology capabilities from ${version.address}: ${errorMessage(error)}`);
     }
 
     if (this.abortController?.signal.aborted) return;
@@ -293,6 +327,10 @@ class RegistryCrawler {
 
   /**
    * Process an R4 server
+   * @param {ServerVersionInformation} version
+   * @param {ServerInformation} server
+   * @param {string} defVersion
+   * @param {any} exclusions
    */
   async processServerVersionR4or5(version, server, defVersion, exclusions) {
     // Get capability statement
@@ -302,6 +340,7 @@ class RegistryCrawler {
     version.version = capability.fhirVersion || defVersion;
     version.software = capability.software ? capability.software.name : "unknown";
 
+    /** @type {Set<string>} */
     let set = new Set();
 
     // Get terminology capabilities
@@ -310,7 +349,7 @@ class RegistryCrawler {
       const termCap = await this.fetchJson(termCapUrl, server.code);
       
       if (termCap.codeSystem) {
-        termCap.codeSystem.forEach(cs => {
+        termCap.codeSystem.forEach((/** @type {any} */ cs) => {
           let content = cs.content || Extensions.readString(cs, "http://hl7.org/fhir/5.0/StructureDefinition/extension-TerminologyCapabilities.codeSystem.content");
           if (cs.uri && !this.isExcluded(cs.uri, exclusions)) {
             if (!set.has(cs.uri)) {
@@ -318,7 +357,7 @@ class RegistryCrawler {
               version.codeSystems.push(this.addContent({uri: cs.uri}, content));
             }
             if (cs.version) {
-              cs.version.forEach(v => {
+              cs.version.forEach((/** @type {any} */ v) => {
                 if (v.code && !this.isExcluded(cs.uri+"|"+v.code, exclusions)) {
                   if (!set.has(cs.uri+"|"+v.code)) {
                     version.codeSystems.push(this.addContent({uri: cs.uri, version: v.code}, content));
@@ -332,7 +371,7 @@ class RegistryCrawler {
       }
     } catch (error) {
       debugLog(error);
-      this.addLogEntry('error', `Could not fetch terminology capabilities from ${version.address}: ${error.message}`);
+      this.addLogEntry('error', `Could not fetch terminology capabilities from ${version.address}: ${errorMessage(error)}`);
     }
     
     // Search for value sets
@@ -344,15 +383,18 @@ class RegistryCrawler {
    */
   /**
    * Fetch value sets with pagination support
-   * @param {Object} version - The server version information
-   * @param {Object} server - The server information
+   * @param {ServerVersionInformation} version - The server version information
+   * @param {ServerInformation} server - The server information
+   * @param {any} exclusions
    */
   async fetchValueSets(version, server, exclusions) {
     // Initial search URL
     let count = 0;
+    /** @type {string | null} */
     let searchUrl = `${version.address}/ValueSet?_elements=url,version`+(version.address.includes("fhir.org") ? "&_count=200" : "");
     try {
       // Set of URLs to avoid duplicates
+      /** @type {Set<string>} */
       const valueSetUrls = new Set();
 
       // Continue fetching while we have a URL
@@ -368,7 +410,7 @@ class RegistryCrawler {
 
         // Process entries in this page
         if (bundle.entry) {
-          bundle.entry.forEach(entry => {
+          bundle.entry.forEach((/** @type {any} */ entry) => {
             if (entry.resource) {
               const vs = entry.resource;
               if (vs.url && !this.isExcluded(vs.url, exclusions)) {
@@ -384,7 +426,7 @@ class RegistryCrawler {
         // Look for next link
         searchUrl = null;
         if (bundle.link) {
-          const nextLink = bundle.link.find(link => link.relation === 'next');
+          const nextLink = bundle.link.find((/** @type {any} */ link) => link.relation === 'next');
           if (nextLink && nextLink.url) {
             searchUrl = this.resolveUrl(nextLink.url, version.address);
           }
@@ -396,10 +438,14 @@ class RegistryCrawler {
 
     } catch (error) {
       debugLog(error);
-      this.addLogEntry('error', `Could not fetch value sets: ${error.message} from ${searchUrl}`);
+      this.addLogEntry('error', `Could not fetch value sets: ${errorMessage(error)} from ${searchUrl}`);
     }
   }
 
+  /**
+   * @param {string} url
+   * @param {string} baseUrl
+   */
   resolveUrl(url, baseUrl) {
     // Check if the URL is already absolute
     if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -432,6 +478,9 @@ class RegistryCrawler {
 
   /**
    * Fetch JSON from a URL
+   * @param {string} url
+   * @param {string} serverName
+   * @returns {Promise<any>}
    */
   async fetchJson(url, serverName) {
     try {
@@ -442,6 +491,7 @@ class RegistryCrawler {
       
       // Get API key if configured
       const apiKey = this.getApiKey(serverName);
+      /** @type {Record<string, string>} */
       const headers = {
         'Accept': 'application/json, application/fhir+json',
         'User-Agent': this.config.userAgent
@@ -455,7 +505,7 @@ class RegistryCrawler {
         timeout: this.config.timeout,
         headers: headers,
         signal: this.abortController?.signal,
-        validateStatus: (status) => status < 500 // Don't throw on 4xx
+        validateStatus: (/** @type {number} */ status) => status < 500 // Don't throw on 4xx
       });
       
       if (response.status >= 400) {
@@ -474,10 +524,11 @@ class RegistryCrawler {
       
     } catch (error) {
       debugLog(error);
-      if (error.response) {
-        throw new Error(`HTTP ${error.response.status}: ${error.response.statusText}`);
-      } else if (error.request) {
-        throw new Error(`No response from server: ${error.message}`);
+      const axiosError = /** @type {{response?: any, request?: any, message?: string}} */ (error);
+      if (axiosError.response) {
+        throw new Error(`HTTP ${axiosError.response.status}: ${axiosError.response.statusText}`);
+      } else if (axiosError.request) {
+        throw new Error(`No response from server: ${axiosError.message || String(error)}`);
       } else {
         throw error;
       }
@@ -486,6 +537,7 @@ class RegistryCrawler {
 
   /**
    * Get API key for a given URL
+   * @param {string} name
    */
   getApiKey(name) {
     // Check for exact URL match
@@ -504,6 +556,9 @@ class RegistryCrawler {
    * - R3, R4, R4B, R5
    * - r3, r4, r4b, r5
    */
+  /**
+   * @param {any} versionString
+   */
    getMajorVersion(versionString) {
     if (!versionString) return 0;
 
@@ -513,13 +568,13 @@ class RegistryCrawler {
     // Case 1: Check for R followed by a digit (e.g., R3, R4, R4B)
     const rMatch = version.match(/^R(\d+)/);
     if (rMatch) {
-      return parseInt(rMatch[1]);
+      return parseInt(rMatch[1] || '0');
     }
 
     // Case 2: Check for digits at the start, possibly followed by period
     const numMatch = version.match(/^(\d+)(?:\.|\b)/);
     if (numMatch) {
-      return parseInt(numMatch[1]);
+      return parseInt(numMatch[1] || '0');
     }
 
     // No valid version found
@@ -528,6 +583,7 @@ class RegistryCrawler {
 
   /**
    * Format bytes for display
+   * @param {number} bytes
    */
   formatBytes(bytes) {
     if (bytes < 1024) return `${bytes} bytes`;
@@ -557,6 +613,7 @@ class RegistryCrawler {
 
   /**
    * Load data from JSON
+   * @param {any} json
    */
   loadData(json) {
     this.currentData = ServerRegistries.fromJSON(json);
@@ -573,7 +630,7 @@ class RegistryCrawler {
     * Add log entry to the crawler's log history
   * @param {string} level - Log level (info, error, warn, debug)
   * @param {string} message - Log message
-  * @param {string} source - Source of the log
+  * @param {any} source - Source of the log
   */
   addLogEntry(level, message, source = '') {
     // Create log entry
@@ -614,8 +671,8 @@ class RegistryCrawler {
   /**
    * Get the log history
    * @param {number} limit - Maximum number of entries to return
-   * @param {string} level - Filter by log level
-   * @returns {Array} Array of log entries
+   * @param {string | null} level - Filter by log level
+   * @returns {any[]} Array of log entries
    */
   getLogs(limit = 100, level = null)
   {
@@ -624,12 +681,16 @@ class RegistryCrawler {
     }
 
     // Filter by level if specified
-    let filteredLogs = level ? this.logs.filter(entry => entry.level === level) : this.logs;
+    let filteredLogs = level ? this.logs.filter((/** @type {any} */ entry) => entry.level === level) : this.logs;
 
     // Get the latest entries up to the limit
     return filteredLogs.slice(-limit);
   }
 
+  /**
+   * @param {any} param
+   * @param {any} content
+   */
   addContent(param, content) {
     if (content) {
       param.content = content;
@@ -637,6 +698,10 @@ class RegistryCrawler {
     return param;
   }
 
+  /**
+   * @param {any} a
+   * @param {any} b
+   */
   compareCS(a, b) {
     if (a.version || b.version) {
       let s = (a.uri+'|'+a.version) || '';
@@ -646,6 +711,10 @@ class RegistryCrawler {
     }
   }
 
+  /**
+   * @param {string} url
+   * @param {any} exclusions
+   */
   isExcluded(url, exclusions) {
     for (let exclusion of exclusions || []) {
       let match = false;

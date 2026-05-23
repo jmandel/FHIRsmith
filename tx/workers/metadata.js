@@ -5,6 +5,7 @@
 // GET /metadata?mode=terminology - Returns TerminologyCapabilities
 // GET /$versions - Returns supported FHIR versions
 //
+// @ts-check
 
 const {CapabilityStatement} = require("../library/capabilitystatement");
 const {TerminologyCapabilities} = require("../library/terminologycapabilities");
@@ -17,17 +18,19 @@ class MetadataHandler {
   host;
 
   /**
-   * @param {Object} config - Server configuration
+   * @param {any} config - Server configuration
    */
   constructor(config = {}) {
+    /** @type {any} */
     this.config = config;
     this.host = config.host;
+    this.logInfo = '';
   }
 
   /**
    * Handle GET /metadata request
-   * @param {express.Request} req - Express request (with txEndpoint and txProvider attached)
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request (with txEndpoint and txProvider attached)
+   * @param {any} res - Express response
    */
   async handle(req, res) {
     const mode = req.query.mode;
@@ -42,14 +45,14 @@ class MetadataHandler {
     this.logInfo = 'metadata';
 
     // Default: return CapabilityStatement
-    const cs = new CapabilityStatement(this.buildCapabilityStatement(endpoint, provider));
+    const cs = new CapabilityStatement(this.buildCapabilityStatement(endpoint));
     return res.json(cs.jsonObj);
   }
 
   /**
    * Handle GET /$versions request
-   * @param {express.Request} req - Express request (with txEndpoint attached)
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request (with txEndpoint attached)
+   * @param {any} res - Express response
    */
   handleVersions(req, res) {
     const endpoint = req.txEndpoint;
@@ -102,9 +105,8 @@ class MetadataHandler {
 
   /**
    * Build CapabilityStatement for an endpoint
-   * @param {Object} endpoint - Endpoint info {path, fhirVersion, context}
-   * @param {Object} provider - Provider for code systems and resources
-   * @returns {Object} CapabilityStatement resource
+   * @param {any} endpoint - Endpoint info {path, fhirVersion, context}
+   * @returns {any} CapabilityStatement resource
    */
   buildCapabilityStatement(endpoint) {
 
@@ -276,9 +278,9 @@ class MetadataHandler {
 
   /**
    * Build TerminologyCapabilities resource
-   * @param {Object} endpoint - Endpoint info
-   * @param {Object} provider - Provider for code systems and resources
-   * @returns {Object} TerminologyCapabilities resource
+   * @param {any} endpoint - Endpoint info
+   * @param {any} provider - Provider for code systems and resources
+   * @returns {Promise<any>} TerminologyCapabilities resource
    */
   async buildTerminologyCapabilities(endpoint, provider) {
     const now = new Date().toISOString();
@@ -317,10 +319,11 @@ class MetadataHandler {
 
   /**
    * Build codeSystem entries from provider
-   * @param {Object} provider - Provider with codeSystems and codeSystemFactories
-   * @returns {Object[]} Array of codeSystem entries
+   * @param {any} provider - Provider with codeSystems and codeSystemFactories
+   * @returns {Promise<any[] | undefined>} Array of codeSystem entries
    */
   async buildCodeSystemEntries(provider) {
+    /** @type {Map<string, any>} */
     const seenSystems = new Map(); // url -> entry for deduplication
 
     // Process provider.codeSystems (direct CodeSystem resources)
@@ -357,13 +360,15 @@ class MetadataHandler {
 
   /**
    * Add or update a code system entry
-   * @param {Map} seenSystems - Map of URL to entry
+   * @param {Map<string, any>} seenSystems - Map of URL to entry
    * @param {string} url - Code system URL
-   * @param {string} version - Code system version (may be null)
+   * @param {string | null | undefined} version - Code system version (may be null)
+   * @param {any} content
    */
   addCodeSystemEntry(seenSystems, url, version, content) {
     if (!seenSystems.has(url)) {
       // Create new entry
+      /** @type {Record<string, any>} */
       const entry = { uri: url };
       if (version) {
         entry.version = [{ code: version }];
@@ -382,7 +387,7 @@ class MetadataHandler {
         entry.content = content;
       }
       // Check if version already exists
-      if (!entry.version.some(v => v.code === version)) {
+      if (!entry.version.some((/** @type {any} */ v) => v.code === version)) {
         entry.version.push({ code: version });
       }
     }
@@ -463,6 +468,7 @@ class MetadataHandler {
    * @returns {string} Full version (e.g., '4.0.1')
    */
   mapFhirVersion(version) {
+    /** @type {Record<string, string>} */
     const versionMap = {
       '3.0': '3.0.2',
       '4.0': '4.0.1',

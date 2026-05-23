@@ -1,6 +1,8 @@
+// @ts-check
+
 const express = require('express');
 const path = require('path');
-const Database = require('better-sqlite3');
+const Database = /** @type {any} */ (require('better-sqlite3'));
 const htmlServer = require('../library/html-server');
 const escape = require('escape-html');
 const packageJson = require('../package.json');
@@ -8,12 +10,22 @@ const packageJson = require('../package.json');
 const TEMPLATE_NAME = 'ext-tracker';
 
 class ExtensionTrackerModule {
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.stats = stats;
+    /** @type {any} */
     this.db = null;
     this.urlBase = '/ext-tracker';
+    /** @type {any} */
+    this.stmts = null;
   }
 
+  /**
+   * @param {any} config
+   * @param {any} app
+   */
   initialize(config, app) {
     const dbPath = config.database || path.join(config.folder || '.', 'extension-tracker.db');
     this.db = new Database(dbPath);
@@ -31,18 +43,18 @@ class ExtensionTrackerModule {
     const router = express.Router();
 
     // POST - submit extension data
-    router.post(this.urlBase, express.json({ limit: '5mb' }), (req, res) => {
+    router.post(this.urlBase, express.json({ limit: '5mb' }), (/** @type {any} */ req, /** @type {any} */ res) => {
       this.handleSubmission(req, res);
     });
 
     // GET - HTML views
-    router.get(this.urlBase, (req, res) => this.handleHome(req, res));
-    router.get(this.urlBase + '/extensions', (req, res) => this.handleExtensions(req, res));
-    router.get(this.urlBase + '/extensions/packages', (req, res) => this.handleExtensionsByPackage(req, res));
-    router.get(this.urlBase + '/profiles', (req, res) => this.handleProfiles(req, res));
-    router.get(this.urlBase + '/usage', (req, res) => this.handleUsage(req, res));
-    router.get(this.urlBase + '/usage/packages', (req, res) => this.handleUsageByPackage(req, res));
-    router.get(this.urlBase + '/package/:pkg', (req, res) => this.handlePackageDetail(req, res));
+    router.get(this.urlBase, (/** @type {any} */ req, /** @type {any} */ res) => this.handleHome(req, res));
+    router.get(this.urlBase + '/extensions', (/** @type {any} */ req, /** @type {any} */ res) => this.handleExtensions(req, res));
+    router.get(this.urlBase + '/extensions/packages', (/** @type {any} */ req, /** @type {any} */ res) => this.handleExtensionsByPackage(req, res));
+    router.get(this.urlBase + '/profiles', (/** @type {any} */ req, /** @type {any} */ res) => this.handleProfiles(req, res));
+    router.get(this.urlBase + '/usage', (/** @type {any} */ req, /** @type {any} */ res) => this.handleUsage(req, res));
+    router.get(this.urlBase + '/usage/packages', (/** @type {any} */ req, /** @type {any} */ res) => this.handleUsageByPackage(req, res));
+    router.get(this.urlBase + '/package/:pkg', (/** @type {any} */ req, /** @type {any} */ res) => this.handlePackageDetail(req, res));
 
     app.use('/', router);
     const count = this.db.prepare('SELECT COUNT(*) as count FROM packages').get().count;
@@ -126,11 +138,11 @@ class ExtensionTrackerModule {
    * Build a script block that adds filter inputs to each column header of a table.
    * Filters combine (AND) and persist in cookies.
    * @param {string} tableId - the id attribute of the table
-   * @param {Array} columns - array of { type: 'text'|'select', options?: string[] }
+   * @param {any[]} columns - array of { type: 'text'|'select', options?: string[] }
    * @param {string} cookiePrefix - cookie name prefix for persistence
    */
   buildColumnFilters(tableId, columns, cookiePrefix) {
-    const colsJson = JSON.stringify(columns.map(c => ({
+    const colsJson = JSON.stringify(columns.map((/** @type {any} */ c) => ({
       type: c.type || 'text',
       options: c.options || []
     })));
@@ -220,6 +232,11 @@ class ExtensionTrackerModule {
 
   // ---- Template rendering ----
 
+  /**
+   * @param {string} title
+   * @param {string} content
+   * @param {number} processingTime
+   */
   renderPage(title, content, processingTime) {
     if (!htmlServer.hasTemplate(TEMPLATE_NAME)) {
       const templatePath = path.join(__dirname, 'extension-tracker-template.html');
@@ -234,6 +251,12 @@ class ExtensionTrackerModule {
     return htmlServer.renderPage(TEMPLATE_NAME, title, content, stats);
   }
 
+  /**
+   * @param {any} res
+   * @param {string} title
+   * @param {string} content
+   * @param {number} startTime
+   */
   sendHtmlResponse(res, title, content, startTime) {
     const html = this.renderPage(title, content, Date.now() - startTime);
     res.setHeader('Content-Type', 'text/html');
@@ -242,6 +265,10 @@ class ExtensionTrackerModule {
 
   // ---- POST handler ----
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handleSubmission(req, res) {
     const startTime = Date.now();
     const data = req.body;
@@ -255,11 +282,14 @@ class ExtensionTrackerModule {
       this.stats.countRequest('handleSubmission', Date.now() - startTime);
       return res.status(200).json({ status: 'ok', package: data.package, version: data.version });
     } catch (err) {
-      console.log(`Extension tracker: error ingesting ${data.package}: ${err.message}`);
+      console.log(`Extension tracker: error ingesting ${data.package}: ${err instanceof Error ? err.message : String(err)}`);
       return res.status(500).json({ error: 'Failed to process submission' });
     }
   }
 
+  /**
+   * @param {any} data
+   */
   ingestData(data) {
     const ingest = this.db.transaction(() => {
       // delete any existing entry for this package (cascade cleans children)
@@ -319,6 +349,10 @@ class ExtensionTrackerModule {
 
   // ---- GET handlers ----
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handleHome(req, res) {
     const startTime = Date.now();
     try {
@@ -367,10 +401,14 @@ class ExtensionTrackerModule {
       this.sendHtmlResponse(res, 'Extension Tracker', content, startTime);
     } catch (error) {
       console.log('Extension tracker: error rendering home:', error);
-      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error);
+      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error instanceof Error ? error : String(error));
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handleExtensions(req, res) {
     const startTime = Date.now();
     try {
@@ -406,10 +444,14 @@ class ExtensionTrackerModule {
       this.sendHtmlResponse(res, 'Extensions', content, startTime);
     } catch (error) {
       console.log('Extension tracker: error rendering extensions:', error);
-      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error);
+      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error instanceof Error ? error : String(error));
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handleExtensionsByPackage(req, res) {
     const startTime = Date.now();
     try {
@@ -422,6 +464,7 @@ class ExtensionTrackerModule {
         JOIN packages p ON p.id = e.package_id
         LEFT JOIN extension_types et ON et.extension_id = e.id
       `;
+      /** @type {any[]} */
       const params = [];
       if (filterUrl) {
         query += ' WHERE e.url = ?';
@@ -456,10 +499,14 @@ class ExtensionTrackerModule {
       this.sendHtmlResponse(res, 'Extensions by Package', content, startTime);
     } catch (error) {
       console.log('Extension tracker: error rendering extensions by package:', error);
-      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error);
+      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error instanceof Error ? error : String(error));
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handleProfiles(req, res) {
     const startTime = Date.now();
     try {
@@ -473,7 +520,7 @@ class ExtensionTrackerModule {
       // get distinct resource types for the select filter
       const resourceTypes = this.db.prepare(
         'SELECT DISTINCT resource_type FROM profiles ORDER BY resource_type'
-      ).all().map(r => r.resource_type);
+      ).all().map((/** @type {any} */ r) => r.resource_type);
 
       let content = `<p><span id="prof-table-count">${rows.length}</span> profiles</p>`;
       content += '<table class="grid" id="prof-table"><tr><th>Resource</th><th>Profile</th><th>Title</th><th>Package</th></tr>';
@@ -498,10 +545,14 @@ class ExtensionTrackerModule {
       this.sendHtmlResponse(res, 'Profiles', content, startTime);
     } catch (error) {
       console.log('Extension tracker: error rendering profiles:', error);
-      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error);
+      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error instanceof Error ? error : String(error));
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handleUsage(req, res) {
     const startTime = Date.now();
     try {
@@ -532,10 +583,14 @@ class ExtensionTrackerModule {
       this.sendHtmlResponse(res, 'Extension Usage', content, startTime);
     } catch (error) {
       console.log('Extension tracker: error rendering usage:', error);
-      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error);
+      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error instanceof Error ? error : String(error));
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handleUsageByPackage(req, res) {
     const startTime = Date.now();
     try {
@@ -547,7 +602,9 @@ class ExtensionTrackerModule {
         FROM usages u
         JOIN packages p ON p.id = u.package_id
       `;
+      /** @type {string[]} */
       const conditions = [];
+      /** @type {any[]} */
       const params = [];
       if (filterUrl) {
         conditions.push('u.extension_url = ?');
@@ -566,6 +623,7 @@ class ExtensionTrackerModule {
 
       let content = '<p><a href="' + this.urlBase + '/usage">&laquo; Back to aggregated usage</a></p>';
       if (filterUrl || filterLocation) {
+        /** @type {string[]} */
         const parts = [];
         if (filterUrl) parts.push(`extension: <b>${escape(filterUrl)}</b>`);
         if (filterLocation) parts.push(`location: <b>${escape(filterLocation)}</b>`);
@@ -591,10 +649,14 @@ class ExtensionTrackerModule {
       this.sendHtmlResponse(res, 'Usage by Package', content, startTime);
     } catch (error) {
       console.log('Extension tracker: error rendering usage by package:', error);
-      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error);
+      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error instanceof Error ? error : String(error));
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   */
   handlePackageDetail(req, res) {
     const startTime = Date.now();
     try {
@@ -670,7 +732,7 @@ class ExtensionTrackerModule {
       this.sendHtmlResponse(res, `${escape(pkgName)}#${escape(pkg.version)}`, content, startTime);
     } catch (error) {
       console.log('Extension tracker: error rendering package detail:', error);
-      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error);
+      htmlServer.sendErrorResponse(res, TEMPLATE_NAME, error instanceof Error ? error : String(error));
     }
   }
 

@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Terminology Errors
  * 
@@ -8,6 +10,13 @@
  * Error thrown when an operation exceeds time or resource limits
  */
 class TooCostlyError extends Error {
+  /** @type {string} */
+  diagnostics;
+  /** @type {number} */
+  statusCode;
+  /** @type {string} */
+  issueCode;
+
   /**
    * @param {string} message - Error message
    * @param {string} diagnostics - Additional diagnostic information
@@ -25,6 +34,11 @@ class TooCostlyError extends Error {
  * Error thrown for terminology operation failures
  */
 class TerminologyError extends Error {
+  /** @type {string} */
+  issueCode;
+  /** @type {number} */
+  statusCode;
+
   /**
    * @param {string} message - Error message
    * @param {string} issueCode - FHIR issue code (default: 'processing')
@@ -42,6 +56,9 @@ class TerminologyError extends Error {
  * Error thrown when a required resource is not found
  */
 class NotFoundError extends TerminologyError {
+  /**
+   * @param {string} message - Error message
+   */
   constructor(message) {
     super(message, 'not-found', 404);
     this.name = 'NotFoundError';
@@ -52,6 +69,9 @@ class NotFoundError extends TerminologyError {
  * Error thrown for invalid input
  */
 class InvalidError extends TerminologyError {
+  /**
+   * @param {string} message - Error message
+   */
   constructor(message) {
     super(message, 'invalid', 400);
     this.name = 'InvalidError';
@@ -62,6 +82,9 @@ class InvalidError extends TerminologyError {
  * Error thrown when an operation is not supported
  */
 class NotSupportedError extends TerminologyError {
+  /**
+   * @param {string} message - Error message
+   */
   constructor(message) {
     super(message, 'not-supported', 400);
     this.name = 'NotSupportedError';

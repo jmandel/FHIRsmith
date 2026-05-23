@@ -1,10 +1,16 @@
+// @ts-check
+
 const {VersionUtilities} = require("../../library/version-utilities");
 
 /**
+ * @typedef {Record<string, any>} FhirJson
+ */
+
+/**
  * Converts input CodeSystem to R5 format (modifies input object for performance)
- * @param {Object} jsonObj - The input CodeSystem object
+ * @param {FhirJson} jsonObj - The input CodeSystem object
  * @param {string} version - Source FHIR version
- * @returns {Object} The same object, potentially modified to R5 format
+ * @returns {FhirJson} The same object, potentially modified to R5 format
  * @private
  */
 
@@ -31,9 +37,9 @@ function codeSystemToR5(jsonObj, version) {
 
 /**
  * Converts R5 CodeSystem to target version format (clones object first)
- * @param {Object} r5Obj - The R5 format CodeSystem object
+ * @param {FhirJson} r5Obj - The R5 format CodeSystem object
  * @param {string} targetVersion - Target FHIR version
- * @returns {Object} New object in target version format
+ * @returns {FhirJson} New object in target version format
  * @private
  */
 function codeSystemFromR5(r5Obj, targetVersion) {
@@ -55,8 +61,8 @@ function codeSystemFromR5(r5Obj, targetVersion) {
 
 /**
  * Converts R5 CodeSystem to R4 format
- * @param {Object} r5Obj - Cloned R5 CodeSystem object
- * @returns {Object} R4 format CodeSystem
+ * @param {FhirJson} r5Obj - Cloned R5 CodeSystem object
+ * @returns {FhirJson} R4 format CodeSystem
  * @private
  */
 function codeSystemR5ToR4(r5Obj) {
@@ -73,7 +79,7 @@ function codeSystemR5ToR4(r5Obj) {
     r5Obj.filter = r5Obj.filter.map(filter => {
       if (filter.operator && Array.isArray(filter.operator)) {
         // Remove R5-only operators like 'generalizes'
-        filter.operator = filter.operator.filter(op =>
+        filter.operator = filter.operator.filter(/** @param {string} op */ op =>
           !isR5OnlyFilterOperator(op)
         );
       }
@@ -89,8 +95,8 @@ function codeSystemR5ToR4(r5Obj) {
 
 /**
  * Converts R5 CodeSystem to R3 format
- * @param {Object} r5Obj - Cloned R5 CodeSystem object
- * @returns {Object} R3 format CodeSystem
+ * @param {FhirJson} r5Obj - Cloned R5 CodeSystem object
+ * @returns {FhirJson} R3 format CodeSystem
  * @private
  */
 function codeSystemR5ToR3(r5Obj) {
@@ -118,7 +124,7 @@ function codeSystemR5ToR3(r5Obj) {
     r4Obj.filter = r4Obj.filter.map(filter => {
       if (filter.operator && Array.isArray(filter.operator)) {
         // Keep only R3-compatible operators
-        filter.operator = filter.operator.filter(op =>
+        filter.operator = filter.operator.filter(/** @param {string} op */ op =>
           isR3CompatibleFilterOperator(op)
         );
       }

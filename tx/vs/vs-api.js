@@ -1,13 +1,22 @@
+// @ts-check
+
+/** @typedef {any} ValueSet */
+/** @typedef {{name: string, value: string}} SearchParam */
+
 /**
  * Abstract base class for value set providers
  * Defines the interface that all value set providers must implement
  */
 class AbstractValueSetProvider {
   /**
-   * {int} Unique number assigned to this provider
+   * Unique number assigned to this provider
+   * @type {number | undefined}
    */
   spaceId;
 
+  /**
+   * @returns {string}
+   */
   code() {
     throw new Error('code must be implemented by AbstractValueSetProvider subclass');
   }
@@ -15,7 +24,7 @@ class AbstractValueSetProvider {
    * ensure that the ids on the value sets are unique, if they are
    * in the global namespace
    *
-   * @param {Set<String>} ids
+   * @param {Set<string>} ids
    */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
@@ -49,7 +58,8 @@ class AbstractValueSetProvider {
 
   /**
    * Searches for value sets based on provided criteria
-   * @param {Array<{name: string, value: string}>} searchParams - List of name/value pairs for search criteria
+   * @param {SearchParam[]} searchParams - List of name/value pairs for search criteria
+   * @param {string[] | null} [elements] - Optional elements to return
    * @returns {Promise<Array<ValueSet>>} List of matching value sets
    * @throws {Error} Must be implemented by subclasses
    */
@@ -68,7 +78,7 @@ class AbstractValueSetProvider {
 
   /**
    * Validates search parameters
-   * @param {Array<{name: string, value: string}>} searchParams - Search parameters to validate
+   * @param {SearchParam[]} searchParams - Search parameters to validate
    * @protected
    */
   _validateSearchParams(searchParams) {
@@ -89,7 +99,7 @@ class AbstractValueSetProvider {
   /**
    * Validates URL and version parameters
    * @param {string} url - URL to validate
-   * @param {string} version - Version to validate
+   * @param {string | null | undefined} version - Version to validate
    * @protected
    */
   _validateFetchParams(url, version) {
@@ -101,10 +111,16 @@ class AbstractValueSetProvider {
     }
   }
 
+  /**
+   * @returns {Promise<any[]>}
+   */
   async listAllValueSets() {
     return [];
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async close() {
 
   }

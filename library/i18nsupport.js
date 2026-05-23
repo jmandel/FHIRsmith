@@ -1,3 +1,5 @@
+// @ts-check
+
 const path = require("path");
 const fs = require("fs");
 const { getProperties } = require("properties-file");
@@ -5,9 +7,27 @@ const {validateParameter} = require("./utilities");
 const {LanguageDefinitions} = require("./languages");
 
 /**
+ * @typedef {import('./languages').Languages} Languages
+ * @typedef {Record<string, string>} MessageBundle
+ */
+
+/**
  * Internationalization support for loading Java properties files
  */
 class I18nSupport {
+  /** @type {string} */
+  translationsPath;
+  /** @type {LanguageDefinitions} */
+  languageDefinitions;
+  /** @type {Map<string, MessageBundle>} */
+  bundles;
+  /** @type {Map<string, MessageBundle>} */
+  phrases;
+
+  /**
+   * @param {string} translationsPath
+   * @param {LanguageDefinitions} languageDefinitions
+   */
   constructor(translationsPath, languageDefinitions) {
     validateParameter(translationsPath, "translationsPath", String);
     validateParameter(languageDefinitions, "languageDefinitions", LanguageDefinitions);
@@ -25,6 +45,11 @@ class I18nSupport {
     await this._loadResourceBundle(this.phrases, 'rendering-phrases');
   }
 
+  /**
+   * @param {Map<string, MessageBundle>} bundles
+   * @param {string} name
+   * @returns {Promise<void>}
+   */
   async _loadResourceBundle(bundles, name) {
     // Load default Messages.properties first
     await this._loadBundle(bundles, 'en', name+'.properties');
@@ -39,18 +64,23 @@ class I18nSupport {
       for (const file of messageFiles) {
         // Extract language code from filename: Messages_fr_FR.properties -> fr-FR
         const langCode = file
-          .substring(name+'_'.length, file.length - '.properties'.length)
+          .substring((name+'_').length, file.length - '.properties'.length)
           .replace(/_/g, '-');
 
         await this._loadBundle(bundles, langCode, file);
       }
     } catch (error) {
-      throw new Error(`Failed to scan translations directory: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to scan translations directory: ${message}`);
     }
   }
 
   /**
    * Load a specific message bundle file
+   * @param {Map<string, MessageBundle>} bundles
+   * @param {string} langCode
+   * @param {string} filename
+   * @returns {Promise<void>}
    */
   async _loadBundle(bundles, langCode, filename) {
     try {
@@ -61,35 +91,49 @@ class I18nSupport {
       bundles.set(langCode, properties);
     } catch (error) {
       // Don't throw for missing files - just skip them
-      console.warn(`Warning: Could not load ${filename}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Warning: Could not load ${filename}: ${message}`);
     }
   }
 
   /**
    * Format a message with parameter substitution
-   * @param {Languages} languages - Languages object with preference order
    * @param {string} messageId - Message key from properties file
-   * @param {Array} parameters - Parameters for {0}, {1}, etc. substitution
+   * @param {Languages} languages - Languages object with preference order
+   * @param {string[]} parameters - Parameters for {0}, {1}, etc. substitution
    * @returns {string} Formatted message
    */
   formatMessage(languages, messageId, parameters = []) {
     return this._formatMessageFromBundle(this.bundles, languages, messageId, parameters);
   }
 
+  /**
+   * @param {string} messageId
+   * @param {Languages} languages
+   * @param {string[]} [parameters]
+   * @returns {string}
+   */
   translate(messageId, languages, parameters = []) {
     return this.formatMessage(languages, messageId, parameters);
   }
 
+  /**
+   * @param {number} count
+   * @param {string} messageId
+   * @param {Languages} languages
+   * @param {string[]} [parameters]
+   * @returns {string}
+   */
   translatePlural(count, messageId, languages, parameters = []) {
     return this.formatMessagePlural(languages, messageId, count, parameters);
   }
 
   /**
    * Format a message with pluralization support
-   * @param {Languages} languages - Languages object with preference order
    * @param {string} messageId - Base message key from properties file
+   * @param {Languages} languages - Languages object with preference order
    * @param {number} count - Count for pluralization (becomes {0} in final message)
-   * @param {Array} parameters - Additional parameters for {1}, {2}, etc. substitution
+   * @param {string[]} parameters - Additional parameters for {1}, {2}, etc. substitution
    * @returns {string} Formatted message
    */
   formatMessagePlural(languages, messageId, count, parameters = []) {
@@ -98,35 +142,55 @@ class I18nSupport {
 
   /**
    * Format a message with parameter substitution
-   * @param {Languages} languages - Languages object with preference order
    * @param {string} messageId - Message key from properties file
-   * @param {Array} parameters - Parameters for {0}, {1}, etc. substitution
+   * @param {Languages} languages - Languages object with preference order
+   * @param {string[]} parameters - Parameters for {0}, {1}, etc. substitution
    * @returns {string} Formatted message
    */
   formatPhrase(messageId, languages, parameters = []) {
     return this._formatMessageFromBundle(this.phrases, languages, messageId, parameters);
   }
 
+  /**
+   * @param {string} messageId
+   * @param {Languages} languages
+   * @param {string[]} [parameters]
+   * @returns {string}
+   */
   translatePhrase(messageId, languages, parameters = []) {
-    return this.formatPhrase(languages, messageId, parameters);
+    return this.formatPhrase(messageId, languages, parameters);
   }
 
+  /**
+   * @param {number} count
+   * @param {string} messageId
+   * @param {Languages} languages
+   * @param {string[]} [parameters]
+   * @returns {string}
+   */
   translatePhrasePlural(count, messageId, languages, parameters = []) {
-    return this.formatPhrasePlural(languages, messageId, count, parameters);
+    return this.formatPhrasePlural(messageId, languages, count, parameters);
   }
 
   /**
    * Format a message with pluralization support
-   * @param {Languages} languages - Languages object with preference order
    * @param {string} messageId - Base message key from properties file
+   * @param {Languages} languages - Languages object with preference order
    * @param {number} count - Count for pluralization (becomes {0} in final message)
-   * @param {Array} parameters - Additional parameters for {1}, {2}, etc. substitution
+   * @param {string[]} parameters - Additional parameters for {1}, {2}, etc. substitution
    * @returns {string} Formatted message
    */
   formatPhrasePlural(messageId, languages, count, parameters = []) {
     return this._formatMessagePluralFromBundle(this.phrases, languages, messageId, count, parameters);
   }
 
+  /**
+   * @param {Map<string, MessageBundle>} bundles
+   * @param {Languages} languages
+   * @param {string} messageId
+   * @param {string[]} [parameters]
+   * @returns {string}
+   */
   _formatMessageFromBundle(bundles, languages, messageId, parameters = []) {
     // Find the best language bundle that has this message
     const message = this._findMessage(bundles, languages, messageId);
@@ -139,6 +203,14 @@ class I18nSupport {
     return this._substituteParameters(message.trim(), parameters).replaceAll("''", "'");
   }
 
+  /**
+   * @param {Map<string, MessageBundle>} bundles
+   * @param {Languages} languages
+   * @param {string} messageId
+   * @param {number} count
+   * @param {string[]} [parameters]
+   * @returns {string}
+   */
   _formatMessagePluralFromBundle(bundles, languages, messageId, count, parameters = []) {
     // Determine plural form suffix
     const pluralSuffix = count === 1 ? '_one' : '_other';
@@ -165,6 +237,10 @@ class I18nSupport {
 
   /**
    * Find message in language bundles with fallback logic
+   * @param {Map<string, MessageBundle>} bundles
+   * @param {Languages | null | undefined} languages
+   * @param {string} messageId
+   * @returns {string | null}
    */
   _findMessage(bundles, languages, messageId) {
     // Try each language in preference order
@@ -191,6 +267,10 @@ class I18nSupport {
 
   /**
    * Get message for specific language code
+   * @param {Map<string, MessageBundle>} bundles
+   * @param {string} langCode
+   * @param {string} messageId
+   * @returns {string | null}
    */
   _getMessageForLanguage(bundles, langCode, messageId) {
     const bundle = bundles.get(langCode);
@@ -200,6 +280,9 @@ class I18nSupport {
   /**
    * Substitute parameters in message string
    * Replaces {0}, {1}, etc. with provided parameters
+   * @param {string} message
+   * @param {string[]} parameters
+   * @returns {string}
    */
   _substituteParameters(message, parameters) {
     if (!parameters || parameters.length === 0) {
@@ -214,6 +297,7 @@ class I18nSupport {
 
   /**
    * Get all available language codes
+   * @returns {string[]}
    */
   getAvailableLanguages() {
     return Array.from(this.bundles.keys());
@@ -221,6 +305,8 @@ class I18nSupport {
 
   /**
    * Check if a message exists for any language
+   * @param {string} messageId
+   * @returns {boolean}
    */
   hasMessage(messageId) {
     for (const bundle of this.bundles.values()) {
@@ -233,6 +319,8 @@ class I18nSupport {
 
   /**
    * Check if a message exists for any language
+   * @param {string} messageId
+   * @returns {boolean}
    */
   hasPhrase(messageId) {
     for (const bundle of this.phrases.values()) {
@@ -245,6 +333,7 @@ class I18nSupport {
 
   /**
    * Create a linked copy of this I18nSupport instance
+   * @returns {I18nSupport}
    */
   link() {
     const copy = new I18nSupport(this.translationsPath, this.languageDefinitions);

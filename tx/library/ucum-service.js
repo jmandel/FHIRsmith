@@ -3,6 +3,7 @@
  * BSD 3-Clause License
  * Copyright (c) 2006+, Health Intersections Pty Ltd
  */
+// @ts-check
 
 const {
   UcumException, Pair, Registry, UcumVersionDetails
@@ -13,13 +14,20 @@ const {
   UcumEssenceParser, Search, Converter, UcumValidator
 } = require('./ucum-parsers.js');
 
+/** @typedef {any} Decimal */
+/** @typedef {any} ConceptKind */
+
 // UCUM Service - main service class for UCUM operations
 class UcumService {
   constructor() {
+    /** @type {any} */
     this.model = null;
     this.handlers = new Registry();
   }
 
+  /**
+   * @param {string} xmlContent
+   */
   init(xmlContent) {
     const parser = new UcumEssenceParser();
     this.model = parser.parse(xmlContent);
@@ -65,8 +73,9 @@ class UcumService {
       const convertedTerm = new Converter(this.model, this.handlers).convert(term);
       return new ExpressionComposer().compose(convertedTerm, false);
     } catch (e) {
-      e.message = `Error processing ${unit}: ${e.message}`;
-      throw e;
+      const error = /** @type {Error} */ (e);
+      error.message = `Error processing ${unit}: ${error.message}`;
+      throw error;
     }
   }
 
@@ -87,16 +96,17 @@ class UcumService {
       const u2 = this.getCanonicalUnits(units2);
       return u1 === u2;
     } catch (e) {
-      console.error('Error message:', e.message);
-      console.error('Stack trace:', e.stack);
+      const error = /** @type {Error} */ (e);
+      console.error('Error message:', error.message);
+      console.error('Stack trace:', error.stack);
       return false;
     }
   }
 
   /**
-   * Divide one quantity by another
-   * @param {Pair} dividend the base
-   * @param {Pair} divisor the multiplier (not that order matters)
+   * Multiply one quantity by another
+   * @param {Pair} o1 the base
+   * @param {Pair} o2 the multiplier
    * @return {Pair} the result
    * @throws {UcumException}
    */
@@ -194,7 +204,7 @@ class UcumService {
   /**
    * Validate a unit expression
    * @param {string} unit the unit to validate
-   * @return {string} null if valid, error message if invalid
+   * @return {string | null} null if valid, error message if invalid
    */
   validate(unit) {
     if (!unit) {
@@ -209,7 +219,7 @@ class UcumService {
       new ExpressionParser(this.model).parse(unit);
       return null;
     } catch (e) {
-      return e.message;
+      return e instanceof Error ? e.message : String(e);
     }
   }
 
@@ -287,6 +297,7 @@ class UcumService {
       throw new UcumException("UCUM service not initialized - call init() first");
     }
 
+    /** @type {Set<string>} */
     const result = new Set();
     for (const unit of this.model.getDefinedUnits()) {
       if (unit.property) {
@@ -298,7 +309,7 @@ class UcumService {
 
   /**
    * Get all prefixes
-   * @return {Array} array of prefixes
+   * @return {any[]} array of prefixes
    */
   getPrefixes() {
     if (!this.model) {
@@ -310,7 +321,7 @@ class UcumService {
 
   /**
    * Get all base units
-   * @return {Array} array of base units
+   * @return {any[]} array of base units
    */
   getBaseUnits() {
     if (!this.model) {
@@ -322,7 +333,7 @@ class UcumService {
 
   /**
    * Get all defined units
-   * @return {Array} array of defined units
+   * @return {any[]} array of defined units
    */
   getDefinedUnits() {
     if (!this.model) {
@@ -334,7 +345,7 @@ class UcumService {
 
   /**
    * Get the UCUM model
-   * @return {UcumModel} the loaded model
+   * @return {any} the loaded model
    */
   getModel() {
     return this.model;
@@ -350,10 +361,10 @@ class UcumService {
 
   /**
    * Search for concepts in the model
-   * @param {ConceptKind} kind - type of concept to search for (optional)
+   * @param {ConceptKind | null} [kind] - type of concept to search for (optional)
    * @param {string} text - text to search for
    * @param {boolean} isRegex - whether text is a regex pattern
-   * @return {Array} array of matching concepts
+   * @return {any[]} array of matching concepts
    */
   search(kind = null, text = '', isRegex = false) {
     if (!this.model) {

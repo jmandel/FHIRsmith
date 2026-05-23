@@ -1,10 +1,21 @@
-const { CodeSystemProvider, FilterExecutionContext, CodeSystemFactoryProvider} = require('./cs-api');
+// @ts-check
+
+const csApi = require('./cs-api');
+const CodeSystemProvider = /** @type {any} */ (csApi.CodeSystemProvider);
+const FilterExecutionContext = /** @type {any} */ (csApi.FilterExecutionContext);
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
 const { Language } = require('../../library/languages');
 const { CodeSystem } = require("../library/codesystem");
 const assert = require('assert');
 
+/** @typedef {import('../../library/languages').LanguageDefinitions} LanguageDefinitions */
+/** @typedef {'language' | 'ext-lang' | 'script' | 'region' | 'variant' | 'extension' | 'private-use'} LanguageComponentCode */
+/** @typedef {string | Language | null | undefined} LanguageContextInput */
+/** @typedef {{context: Language | null, message?: string | null}} LanguageLocateResult */
+
 /**
  * Language component types for filtering
+ * @type {Record<string, LanguageComponentCode>}
  */
 const LanguageComponent = {
   LANG: 'language',
@@ -16,12 +27,17 @@ const LanguageComponent = {
   PRIVATE_USE: 'private-use'
 };
 
+/** @type {LanguageComponentCode[]} */
 const CODES_LanguageComponent = Object.values(LanguageComponent);
 
 /**
  * Filter context for language component filters
  */
 class IETFLanguageCodeFilter {
+  /**
+   * @param {LanguageComponentCode} component - Language component to test
+   * @param {boolean} status - True if the component must exist
+   */
   constructor(component, status) {
     this.component = component; // LanguageComponent
     this.status = status; // boolean - true if component must exist, false if must not exist
@@ -33,8 +49,13 @@ class IETFLanguageCodeFilter {
  * Provides validation and lookup for BCP 47 language tags
  */
 class IETFLanguageCodeProvider extends CodeSystemProvider {
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   */
   constructor(opContext, supplements) {
     super(opContext, supplements);
+    /** @type {LanguageDefinitions} */
     this.languageDefinitions = opContext.i18n.languageDefinitions;
   }
 
@@ -60,14 +81,20 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     return -1; // Unbounded - grammar-based system
   }
 
+  /**
+   * @returns {boolean} Whether the code system has parent relationships
+   */
   hasParents() {
     return false; // No hierarchy in language codes
   }
 
   contentMode() {
-    return 'complete'
+    return 'complete';
   }
 
+  /**
+   * @returns {void}
+   */
   listFeatures() {
     // not sure about this?
 
@@ -78,6 +105,10 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     // }));
   }
 
+  /**
+   * @param {any} languages - Requested languages
+   * @returns {boolean} Whether displays are available
+   */
   hasAnyDisplays(languages) {
     const langs = this._ensureLanguages(languages);
     if (this._hasAnySupplementDisplays(langs)) {
@@ -88,6 +119,10 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
 
   // ========== Code Information Methods ==========
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @returns {Promise<string>} Language code
+   */
   async code(code) {
 
     const ctxt = await this.#ensureContext(code);
@@ -97,6 +132,10 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     throw new Error('Invalid context type');
   }
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @returns {Promise<string | null>} Display string
+   */
   async display(code) {
 
     const ctxt = await this.#ensureContext(code);
@@ -126,29 +165,50 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     return this.languageDefinitions.present(ctxt).trim();
   }
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @returns {Promise<null>} Definition, if any
+   */
   async definition(code) {
     await this.#ensureContext(code);
     return null; // No definitions for language codes
   }
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @returns {Promise<boolean>} Whether the concept is abstract
+   */
   async isAbstract(code) {
     await this.#ensureContext(code);
     return false; // Language codes are not abstract
   }
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @returns {Promise<boolean>} Whether the concept is inactive
+   */
   async isInactive(code) {
     await this.#ensureContext(code);
     return false; // We don't track inactive language codes
   }
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @returns {Promise<boolean>} Whether the concept is deprecated
+   */
   async isDeprecated(code) {
     await this.#ensureContext(code);
     return false; // We don't track deprecated language codes
   }
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<any[]>} Added designations
+   */
   async designations(code, displays) {
     const ctxt = await this.#ensureContext(code);
-    const designations = [];
+    const designations = /** @type {any[]} */ ([]);
     if (ctxt != null) {
       const primaryDisplay = this.languageDefinitions.present(ctxt).trim();
       displays.addDesignation(true, 'active', 'en', CodeSystem.makeUseForDisplay(), primaryDisplay);
@@ -211,6 +271,10 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
   }
 
 
+  /**
+   * @param {LanguageContextInput} code - Language code or context
+   * @returns {Promise<Language | null | undefined>}
+   */
   async #ensureContext(code) {
     if (code == null) {
       return code;
@@ -231,6 +295,10 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
 
   // ========== Lookup Methods ==========
 
+  /**
+   * @param {string | null | undefined} code - Language code
+   * @returns {Promise<LanguageLocateResult>} Located language and status message
+   */
   async locate(code) {
 
     assert(!code || typeof code === 'string', 'code must be string');
@@ -246,6 +314,12 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
 
   // ========== Filter Methods ==========
 
+  /**
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<boolean>} Whether this filter is supported
+   */
   async doesFilter(prop, op, value) {
 
     assert(prop != null && typeof prop === 'string', 'prop must be a non-null string');
@@ -254,11 +328,19 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
 
     // Support exists filters for language components
     if (op === 'exists' && (value === 'true' || value === 'false')) {
-      return CODES_LanguageComponent.includes(prop);
+      return CODES_LanguageComponent.includes(/** @type {LanguageComponentCode} */ (prop));
     }
     return false;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {boolean} forIteration - Whether the filter is for iteration
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<void>}
+   */
   async filter(filterContext, forIteration, prop, op, value) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -274,7 +356,7 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
       throw new Error(`Invalid exists value: ${value}, must be 'true' or 'false'`);
     }
 
-    const componentIndex = CODES_LanguageComponent.indexOf(prop);
+    const componentIndex = CODES_LanguageComponent.indexOf(/** @type {LanguageComponentCode} */ (prop));
     if (componentIndex < 0) {
       throw new Error(`Unsupported filter property: ${prop}`);
     }
@@ -285,12 +367,21 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     filterContext.filters.push(new IETFLanguageCodeFilter(component, status));
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @returns {Promise<IETFLanguageCodeFilter[]>} Filters to execute
+   */
   async executeFilters(filterContext) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
     return filterContext.filters;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {IETFLanguageCodeFilter} set - Filter set
+   * @returns {Promise<never>}
+   */
   async filterSize(filterContext, set) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -299,12 +390,21 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     throw new Error('Language valuesets cannot be expanded as they are based on a grammar');
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @returns {Promise<boolean>} Whether filters leave the set open
+   */
   async filtersNotClosed(filterContext) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
     return true; // Grammar-based system is not closed
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {IETFLanguageCodeFilter} set - Filter set
+   * @returns {Promise<never>}
+   */
   async filterMore(filterContext, set) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -312,6 +412,11 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     throw new Error('Language valuesets cannot be expanded as they are based on a grammar');
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {IETFLanguageCodeFilter} set - Filter set
+   * @returns {Promise<never>}
+   */
   async filterConcept(filterContext, set) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -319,6 +424,12 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     throw new Error('Language valuesets cannot be expanded as they are based on a grammar');
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {IETFLanguageCodeFilter} set - Filter set
+   * @param {string} code - Language code
+   * @returns {Promise<Language | string>} Matching language or rejection message
+   */
   async filterLocate(filterContext, set, code) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -368,11 +479,17 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     }
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {IETFLanguageCodeFilter} set - Filter set
+   * @param {LanguageContextInput} concept - Language code or context
+   * @returns {Promise<boolean | string>} Whether the concept passes the filter
+   */
   async filterCheck(filterContext, set, concept) {
 
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
     assert(set && set instanceof IETFLanguageCodeFilter, 'set must be a IETFLanguageCodeFilter');
-    const ctxt = await this.#ensureContext(concept);
+    const ctxt = /** @type {Language} */ (await this.#ensureContext(concept));
 
 
     const filter = set;
@@ -413,6 +530,11 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
 
   // ========== Additional Methods ==========
 
+  /**
+   * @param {LanguageContextInput} a - First language code or context
+   * @param {LanguageContextInput} b - Second language code or context
+   * @returns {Promise<boolean>} Whether both refer to the same concept
+   */
   async sameConcept(a, b) {
 
     const codeA = await this.code(a);
@@ -420,6 +542,11 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     return codeA === codeB;
   }
 
+  /**
+   * @param {LanguageContextInput} codeA - First language code or context
+   * @param {LanguageContextInput} codeB - Second language code or context
+   * @returns {Promise<string>} Subsumption outcome
+   */
   async subsumesTest(codeA, codeB) {
     await this.#ensureContext(codeA);
     await this.#ensureContext(codeB);
@@ -439,6 +566,9 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
  * Factory for creating IETF Language CodeSystem providers
  */
 class IETFLanguageCodeFactory extends CodeSystemFactoryProvider  {
+  /**
+   * @param {any} i18n - Translation support
+   */
   constructor(i18n) {
     super(i18n);
     this.uses = 0;
@@ -456,6 +586,11 @@ class IETFLanguageCodeFactory extends CodeSystemFactoryProvider  {
     return null; // No specific version for BCP 47. Could be date?
   }
 
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @returns {IETFLanguageCodeProvider} New provider
+   */
   build(opContext, supplements) {
     this.recordUse();
     return new IETFLanguageCodeProvider(opContext, supplements);
@@ -474,14 +609,18 @@ class IETFLanguageCodeFactory extends CodeSystemFactoryProvider  {
     return 'IETF Lang (BCP 47)';
   }
 
-
+  /**
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - ValueSet version
+   * @returns {Promise<null>}
+   */
   // eslint-disable-next-line no-unused-vars
   async buildKnownValueSet(url, version) {
     return null;
   }
 
   id() {
-    return "languages";
+    return 'languages';
   }
 }
 

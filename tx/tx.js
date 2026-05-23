@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // TX Module - FHIR Terminology Server
 //
@@ -7,36 +9,60 @@
 
 const express = require('express');
 const path = require('path');
-const Logger = require('../library/logger');
-const { Library } = require('./library');
-const { OperationContext, ResourceCache, ExpansionCache, debugLog} = require('./operation-context');
-const { LanguageDefinitions } = require('../library/languages');
-const { I18nSupport } = require('../library/i18nsupport');
-const { CodeSystemXML } = require('./xml/codesystem-xml');
+const Logger = /** @type {any} */ (require('../library/logger'));
+const libraryModule = require('./library');
+const Library = /** @type {any} */ (libraryModule.Library);
+const operationContextModule = require('./operation-context');
+const OperationContext = /** @type {any} */ (operationContextModule.OperationContext);
+const ResourceCache = /** @type {any} */ (operationContextModule.ResourceCache);
+const ExpansionCache = /** @type {any} */ (operationContextModule.ExpansionCache);
+const debugLog = /** @type {any} */ (operationContextModule.debugLog);
+const languageModule = require('../library/languages');
+const LanguageDefinitions = /** @type {any} */ (languageModule.LanguageDefinitions);
+const i18nModule = require('../library/i18nsupport');
+const I18nSupport = /** @type {any} */ (i18nModule.I18nSupport);
+const codeSystemXmlModule = require('./xml/codesystem-xml');
+const CodeSystemXML = /** @type {any} */ (codeSystemXmlModule.CodeSystemXML);
 const txHtml = require('./tx-html');
 const { Liquid } = require('liquidjs');
 const packageJson = require("../package.json");
 
 // Import workers
-const ReadWorker = require('./workers/read');
-const SearchWorker = require('./workers/search');
-const { ExpandWorker, INTERNAL_DEFAULT_LIMIT, EXTERNAL_TEST_DEFAULT_LIMIT} = require('./workers/expand');
-const { ValidateWorker } = require('./workers/validate');
-const TranslateWorker = require('./workers/translate');
-const LookupWorker = require('./workers/lookup');
-const SubsumesWorker = require('./workers/subsumes');
-const { MetadataHandler } = require('./workers/metadata');
-const { BatchValidateWorker } = require('./workers/batch-validate');
-const {CapabilityStatementXML} = require("./xml/capabilitystatement-xml");
-const {TerminologyCapabilitiesXML} = require("./xml/terminologycapabilities-xml");
-const {ParametersXML} = require("./xml/parameters-xml");
-const {OperationOutcomeXML} = require("./xml/operationoutcome-xml");
-const {ValueSetXML} = require("./xml/valueset-xml");
-const {ConceptMapXML} = require("./xml/conceptmap-xml");
-const {TxHtmlRenderer} = require("./tx-html");
-const {Renderer} = require("./library/renderer");
-const {OperationsWorker} = require("./workers/operations");
-const {RelatedWorker} = require("./workers/related");
+const ReadWorker = /** @type {any} */ (require('./workers/read'));
+const SearchWorker = /** @type {any} */ (require('./workers/search'));
+const expandModule = require('./workers/expand');
+const ExpandWorker = /** @type {any} */ (expandModule.ExpandWorker);
+const INTERNAL_DEFAULT_LIMIT = /** @type {number} */ (expandModule.INTERNAL_DEFAULT_LIMIT);
+const EXTERNAL_TEST_DEFAULT_LIMIT = /** @type {number} */ (expandModule.EXTERNAL_TEST_DEFAULT_LIMIT);
+const validateModule = require('./workers/validate');
+const ValidateWorker = /** @type {any} */ (validateModule.ValidateWorker);
+const TranslateWorker = /** @type {any} */ (require('./workers/translate'));
+const LookupWorker = /** @type {any} */ (require('./workers/lookup'));
+const SubsumesWorker = /** @type {any} */ (require('./workers/subsumes'));
+const metadataModule = require('./workers/metadata');
+const MetadataHandler = /** @type {any} */ (metadataModule.MetadataHandler);
+const batchValidateModule = require('./workers/batch-validate');
+const BatchValidateWorker = /** @type {any} */ (batchValidateModule.BatchValidateWorker);
+const capabilityXmlModule = require("./xml/capabilitystatement-xml");
+const CapabilityStatementXML = /** @type {any} */ (capabilityXmlModule.CapabilityStatementXML);
+const terminologyCapabilitiesXmlModule = require("./xml/terminologycapabilities-xml");
+const TerminologyCapabilitiesXML = /** @type {any} */ (terminologyCapabilitiesXmlModule.TerminologyCapabilitiesXML);
+const parametersXmlModule = require("./xml/parameters-xml");
+const ParametersXML = /** @type {any} */ (parametersXmlModule.ParametersXML);
+const operationOutcomeXmlModule = require("./xml/operationoutcome-xml");
+const OperationOutcomeXML = /** @type {any} */ (operationOutcomeXmlModule.OperationOutcomeXML);
+const valueSetXmlModule = require("./xml/valueset-xml");
+const ValueSetXML = /** @type {any} */ (valueSetXmlModule.ValueSetXML);
+const conceptMapXmlModule = require("./xml/conceptmap-xml");
+const ConceptMapXML = /** @type {any} */ (conceptMapXmlModule.ConceptMapXML);
+const txHtmlModule = require("./tx-html");
+const TxHtmlRenderer = /** @type {any} */ (txHtmlModule.TxHtmlRenderer);
+const rendererModule = require("./library/renderer");
+const Renderer = /** @type {any} */ (rendererModule.Renderer);
+const operationsModule = require("./workers/operations");
+const OperationsWorker = /** @type {any} */ (operationsModule.OperationsWorker);
+const relatedModule = require("./workers/related");
+const RelatedWorker = /** @type {any} */ (relatedModule.RelatedWorker);
 const {codeSystemFromR5} = require("./xversion/xv-codesystem");
 const {operationOutcomeFromR5} = require("./xversion/xv-operationoutcome");
 const {parametersFromR5} = require("./xversion/xv-parameters");
@@ -46,29 +72,53 @@ const {terminologyCapabilitiesFromR5} = require("./xversion/xv-terminologyCapabi
 const {capabilityStatementFromR5} = require("./xversion/xv-capabiliityStatement");
 const {bundleFromR5} = require("./xversion/xv-bundle");
 const {convertResourceToR5} = require("./xversion/xv-resource");
-const ClosureWorker = require("./workers/closure");
-const {BundleXML} = require("./xml/bundle-xml");
-const ConceptUsageTracker = require("./usage-tracker");
-const ProblemFinder = require("./problems");
+const ClosureWorker = /** @type {any} */ (require("./workers/closure"));
+const bundleXmlModule = require("./xml/bundle-xml");
+const BundleXML = /** @type {any} */ (bundleXmlModule.BundleXML);
+const ConceptUsageTracker = /** @type {any} */ (require("./usage-tracker"));
+const ProblemFinder = /** @type {any} */ (require("./problems"));
 // const {writeFileSync} = require("fs");
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 class TXModule {
+  /** @type {NodeJS.Timeout[]} */
   timers = [];
 
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
+    /** @type {any} */
     this.config = null;
+    /** @type {any} */
     this.library = null;
+    /** @type {any[]} */
     this.endpoints = [];
+    /** @type {Map<string, any>} */
     this.routers = new Map(); // path -> router
     this.requestIdCounter = 0; // Thread-safe request ID counter
+    /** @type {any} */
     this.languages = null; // LanguageDefinitions
+    /** @type {any} */
     this.i18n = null; // I18nSupport
+    /** @type {any} */
     this.metadataHandler = null; // MetadataHandler
     this.liquid = new Liquid({
       root: path.join(__dirname, 'html'),  // optional: where to look for templates
       extname: '.liquid'    // optional: default extension
     });
     this.stats = stats;
+    /** @type {any} */
+    this.log = console;
+    /** @type {any} */
+    this.usageTracker = null;
     if (stats) {
       stats.cachingModules.push(this);
     }
@@ -83,6 +133,10 @@ class TXModule {
     return `tx-${this.requestIdCounter}`;
   }
 
+  /**
+   * @param {any} req
+   * @returns {string | null}
+   */
   acceptsXml(req) {
     let _fmt = req.query._format || req.query.format || req.body?._format;
     if (_fmt && typeof _fmt !== 'string') {
@@ -105,6 +159,10 @@ class TXModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @returns {string}
+   */
   acceptsJson(req) {
     let _fmt = req.query._format || req.query.format || req.body?._format;
     if (_fmt && typeof _fmt !== 'string') {
@@ -129,8 +187,8 @@ class TXModule {
 
   /**
    * Initialize the TX module
-   * @param {Object} config - Module configuration
-   * @param {express.Application} app - Express application for registering endpoints
+   * @param {Record<string, any>} config - Module configuration
+   * @param {any} app - Express application for registering endpoints
    */
   async initialize(config, app) {
     this.config = config;
@@ -204,8 +262,8 @@ class TXModule {
 
   /**
    * Set up a single endpoint
-   * @param {Object} endpoint - Endpoint configuration {path, fhirVersion, context}
-   * @param {express.Application} app - Express application
+   * @param {Record<string, any>} endpoint - Endpoint configuration {path, fhirVersion, context}
+   * @param {any} app - Express application
    */
   async setupEndpoint(endpoint, app) {
     const { path: endpointPath, context } = endpoint;
@@ -234,6 +292,7 @@ class TXModule {
     const expansionCacheMemoryThreshold = this.config.expansionCacheMemoryThreshold || 0;
 
     // Store endpoint info for provider creation
+    /** @type {Record<string, any>} */
     const endpointInfo = {
       path: endpointPath,
       fhirVersion,
@@ -255,7 +314,7 @@ class TXModule {
       try {
         await endpointInfo.provider.updateCodeSystemList();
       } catch (error) {
-        this.log.error(`Error updating CodeSystem list for ${endpointPath}: ${error.message}`);
+        this.log.error(`Error updating CodeSystem list for ${endpointPath}: ${errorMessage(error)}`);
       }
     }, 60 * 1000));
     this.log.info(`CodeSystem list update scheduled for ${endpointPath}`);
@@ -280,7 +339,7 @@ class TXModule {
     }
 
     // Middleware to attach provider, context, and timing to request, and wrap res.json for HTML
-    router.use((req, res, next) => {
+    router.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       // Increment request count
       endpointInfo.provider.requestCount++;
 
@@ -311,8 +370,8 @@ class TXModule {
       // for both events to fire. Listeners are sync; the close itself
       // runs fire-and-forget on the event loop.
       const releaseProviders = () => {
-        opContext.closeProviders().catch((err) => {
-          try { this.log.warn(`closeProviders failed: ${err && err.message}`); } catch (_) { /* ignore */ }
+        opContext.closeProviders().catch((/** @type {unknown} */ err) => {
+          try { this.log.warn(`closeProviders failed: ${errorMessage(err)}`); } catch (_) { /* ignore */ }
         });
       };
       res.on('finish', releaseProviders);
@@ -324,8 +383,8 @@ class TXModule {
       // Wrap res.json to intercept and convert to HTML if browser requests it, and log the request
       const originalJson = res.json.bind(res);
 
-      let txhtml = new TxHtmlRenderer(new Renderer(opContext, endpointInfo.provider), this.liquid, this.languages, this.i18n, endpointInfo.path);
-      res.json = async (data) => {
+      let txhtml = new TxHtmlRenderer(new Renderer(opContext, endpointInfo.provider), this.liquid, this.languages, this.i18n, endpointInfo.path, endpointInfo.fhirVersion);
+      res.json = async (/** @type {any} */ data) => {
         try {
           const duration = Date.now() - req.txStartTime;
           const isHtml = txhtml.acceptsHtml(req);
@@ -345,14 +404,14 @@ class TXModule {
             result = res.send(html);
           } else if (xmlFmt) {
             try {
-              const xml = this.convertResourceToXml(data);
+              const xml = this.convertResourceToXml(data, endpointInfo.fhirVersion);
               responseSize = Buffer.byteLength(xml, 'utf8');
               res.setHeader('Content-Type', xmlFmt);
               result = res.send(xml);
             } catch (err) {
               console.error(err);
               // Fall back to JSON if XML conversion not supported
-              this.log.warn(`XML conversion failed for ${data.resourceType}: ${err.message}, falling back to JSON`);
+              this.log.warn(`XML conversion failed for ${data.resourceType}: ${errorMessage(err)}, falling back to JSON`);
               res.setHeader('Content-Type', jsonFmt);
               const jsonStr = JSON.stringify(data);
               responseSize = Buffer.byteLength(jsonStr, 'utf8');
@@ -373,7 +432,7 @@ class TXModule {
 
           return result;
         } catch (err) {
-          this.log.error(`Error rendering response: ${err.message}`);
+          this.log.error(`Error rendering response: ${errorMessage(err)}`);
           console.error(err);
           res.status(500).send('Internal Server Error');
         }
@@ -383,7 +442,7 @@ class TXModule {
     });
 
     // CORS headers
-    router.use((req, res, next) => {
+    router.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
       res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -395,7 +454,7 @@ class TXModule {
 
     // JSON body parsing - accept both application/json and application/fhir+json
     // Handle body that may already be read as a Buffer by app-level middleware
-    router.use((req, res, next) => {
+    router.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       const contentType = req.get('Content-Type') || '';
 
       // Only process POST/PUT
@@ -415,13 +474,13 @@ class TXModule {
               req.body = JSON.parse(bodyStr);
             }
           } catch (e) {
-            this.log.error(`JSON parse error: ${e.message}`);
+            this.log.error(`JSON parse error: ${errorMessage(e)}`);
             return res.status(400).json({
               resourceType: 'OperationOutcome',
               issue: [{
                 severity: 'error',
                 code: 'invalid',
-                diagnostics: `Invalid JSON: ${e.message}`
+                diagnostics: `Invalid JSON: ${errorMessage(e)}`
               }]
             });
           }
@@ -443,13 +502,13 @@ class TXModule {
           try {
             req.body = this.convertXmlToResource(xmlStr);
           } catch (e) {
-            this.log.error(`XML parse error: ${e.message}`);
+            this.log.error(`XML parse error: ${errorMessage(e)}`);
             return res.status(400).json({
               resourceType: 'OperationOutcome',
               issue: [{
                 severity: 'error',
                 code: 'invalid',
-                diagnostics: `Invalid XML: ${e.message}`
+                diagnostics: `Invalid XML: ${errorMessage(e)}`
               }]
             });
           }
@@ -477,7 +536,7 @@ class TXModule {
     this.setupRoutes(router);
 
     // Redirect /r5 → /r5/
-    app.use((req, res, next) => {
+    app.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       if (req.path === endpointPath) {
         return res.redirect(301, endpointPath + '/');
       }
@@ -494,7 +553,7 @@ class TXModule {
 
   /**
    * Set up routes for an endpoint
-   * @param {express.Router} router - Express router
+   * @param {any} router - Express router
    */
   setupRoutes(router) {
     const resourceTypes = ['CodeSystem', 'ValueSet', 'ConceptMap'];
@@ -503,7 +562,7 @@ class TXModule {
 
 
     // CodeSystem/$lookup (GET and POST)
-    router.get('/CodeSystem/\\$lookup', async (req, res) => {
+    router.get('/CodeSystem/\\$lookup', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -512,7 +571,7 @@ class TXModule {
         this.countRequest('$lookup', Date.now() - start);
       }
     });
-    router.post('/CodeSystem/\\$lookup', async (req, res) => {
+    router.post('/CodeSystem/\\$lookup', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -523,7 +582,7 @@ class TXModule {
     });
 
     // CodeSystem/$subsumes (GET and POST)
-    router.get('/CodeSystem/\\$subsumes', async (req, res) => {
+    router.get('/CodeSystem/\\$subsumes', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new SubsumesWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -532,7 +591,7 @@ class TXModule {
         this.countRequest('$subsumes', Date.now() - start);
       }
     });
-    router.post('/CodeSystem/\\$subsumes', async (req, res) => {
+    router.post('/CodeSystem/\\$subsumes', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new SubsumesWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -543,7 +602,7 @@ class TXModule {
     });
 
     // CodeSystem/$validate-code (GET and POST)
-    router.get('/CodeSystem/\\$validate-code', async (req, res) => {
+    router.get('/CodeSystem/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -552,7 +611,7 @@ class TXModule {
         this.countRequest('$validate', Date.now() - start);
       }
     });
-    router.post('/CodeSystem/\\$validate-code', async (req, res) => {
+    router.post('/CodeSystem/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -563,7 +622,7 @@ class TXModule {
     });
 
     // CodeSystem/$batch-validate-code (GET and POST)
-    router.get('/CodeSystem/\\$batch-validate-code', async (req, res) => {
+    router.get('/CodeSystem/\\$batch-validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new BatchValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -572,7 +631,7 @@ class TXModule {
         this.countRequest('$batch', Date.now() - start);
       }
     });
-    router.post('/CodeSystem/\\$batch-validate-code', async (req, res) => {
+    router.post('/CodeSystem/\\$batch-validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new BatchValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -582,7 +641,7 @@ class TXModule {
       }
     });
     // ValueSet/$validate-code (GET and POST)
-    router.get('/ValueSet/\\$validate-code', async (req, res) => {
+    router.get('/ValueSet/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -591,7 +650,7 @@ class TXModule {
         this.countRequest('$validate', Date.now() - start);
       }
     });
-    router.post('/ValueSet/\\$validate-code', async (req, res) => {
+    router.post('/ValueSet/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -602,7 +661,7 @@ class TXModule {
     });
 
     // ValueSet/$related(GET and POST)
-    router.get('/ValueSet/\\$related', async (req, res) => {
+    router.get('/ValueSet/\\$related', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -611,7 +670,7 @@ class TXModule {
         this.countRequest('$related', Date.now() - start);
       }
     });
-    router.post('/ValueSet/\\$related', async (req, res) => {
+    router.post('/ValueSet/\\$related', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -622,7 +681,7 @@ class TXModule {
     });
 
     // ValueSet/$batch-validate-code (GET and POST)
-    router.get('/ValueSet/\\$batch-validate-code', async (req, res) => {
+    router.get('/ValueSet/\\$batch-validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new BatchValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -631,7 +690,7 @@ class TXModule {
         this.countRequest('$batch', Date.now() - start);
       }
     });
-    router.post('/ValueSet/\\$batch-validate-code', async (req, res) => {
+    router.post('/ValueSet/\\$batch-validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new BatchValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -642,60 +701,60 @@ class TXModule {
     });
 
     // ValueSet/$expand (GET and POST)
-    router.get('/ValueSet/\\$expand', async (req, res) => {
+    router.get('/ValueSet/\\$expand', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
-        await worker.handle(req, res, this.log);
+        await worker.handle(req, res);
       } finally {
         this.countRequest('$expand', Date.now() - start);
       }
     });
-    router.post('/ValueSet/\\$expand', async (req, res) => {
+    router.post('/ValueSet/\\$expand', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
-        await worker.handle(req, res, this.log);
+        await worker.handle(req, res);
       } finally {
         this.countRequest('$expand', Date.now() - start);
       }
     });
 
     // ConceptMap/$translate (GET and POST)
-    router.get('/ConceptMap/\\$translate', async (req, res) => {
+    router.get('/ConceptMap/\\$translate', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new TranslateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handle(req, res, this.log);
+        await worker.handle(req, res);
       } finally {
         this.countRequest('$translate', Date.now() - start);
       }
     });
-    router.post('/ConceptMap/\\$translate', async (req, res) => {
+    router.post('/ConceptMap/\\$translate', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new TranslateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handle(req, res, this.log);
+        await worker.handle(req, res);
       } finally {
         this.countRequest('$translate', Date.now() - start);
       }
     });
 
     // ConceptMap/$closure (GET and POST)
-    router.get('/ConceptMap/\\$closure', async (req, res) => {
+    router.get('/ConceptMap/\\$closure', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ClosureWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handle(req, res, this.log);
+        await worker.handle(req, res);
       } finally {
         this.countRequest('$closure', Date.now() - start);
       }
     });
-    router.post('/ConceptMap/\\$closure', async (req, res) => {
+    router.post('/ConceptMap/\\$closure', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ClosureWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handle(req, res, this.log);
+        await worker.handle(req, res);
       } finally {
         this.countRequest('$closure', Date.now() - start);
       }
@@ -704,7 +763,7 @@ class TXModule {
     // ===== Instance operations =====
 
     // CodeSystem/[id]/$lookup
-    router.get('/CodeSystem/:id/\\$lookup', async (req, res) => {
+    router.get('/CodeSystem/:id/\\$lookup', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -713,7 +772,7 @@ class TXModule {
         this.countRequest('$lookup', Date.now() - start);
       }
     });
-    router.post('/CodeSystem/:id/\\$lookup', async (req, res) => {
+    router.post('/CodeSystem/:id/\\$lookup', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new LookupWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -724,7 +783,7 @@ class TXModule {
     });
 
     // CodeSystem/[id]/$subsumes
-    router.get('/CodeSystem/:id/\\$subsumes', async (req, res) => {
+    router.get('/CodeSystem/:id/\\$subsumes', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new SubsumesWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -733,7 +792,7 @@ class TXModule {
         this.countRequest('$subsumes', Date.now() - start);
       }
     });
-    router.post('/CodeSystem/:id/\\$subsumes', async (req, res) => {
+    router.post('/CodeSystem/:id/\\$subsumes', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new SubsumesWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -744,20 +803,20 @@ class TXModule {
     });
 
     // CodeSystem/[id]/$validate-code
-    router.get('/CodeSystem/:id/\\$validate-code', async (req, res) => {
+    router.get('/CodeSystem/:id/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleCodeSystemInstance(req, res, this.log);
+        await worker.handleCodeSystemInstance(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
       }
     });
-    router.post('/CodeSystem/:id/\\$validate-code', async (req, res) => {
+    router.post('/CodeSystem/:id/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleCodeSystemInstance(req, res, this.log);
+        await worker.handleCodeSystemInstance(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
       }
@@ -765,20 +824,20 @@ class TXModule {
     });
 
     // ValueSet/[id]/$validate-code
-    router.get('/ValueSet/:id/\\$validate-code', async (req, res) => {
+    router.get('/ValueSet/:id/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleValueSetInstance(req, res, this.log);
+        await worker.handleValueSetInstance(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
       }
     });
-    router.post('/ValueSet/:id/\\$validate-code', async (req, res) => {
+    router.post('/ValueSet/:id/\\$validate-code', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ValidateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleValueSetInstance(req, res, this.log);
+        await worker.handleValueSetInstance(req, res);
       } finally {
         this.countRequest('$validate', Date.now() - start);
       }
@@ -786,60 +845,60 @@ class TXModule {
 
 
     // ValueSet/[id]/$related
-    router.get('/ValueSet/:id/\\$related', async (req, res) => {
+    router.get('/ValueSet/:id/\\$related', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleInstance(req, res, this.log);
+        await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$related', Date.now() - start);
       }
     });
-    router.post('/ValueSet/:id/\\$related', async (req, res) => {
+    router.post('/ValueSet/:id/\\$related', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleInstance(req, res, this.log);
+        await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$related', Date.now() - start);
       }
     });
 
     // ValueSet/[id]/$expand
-    router.get('/ValueSet/:id/\\$expand', async (req, res) => {
+    router.get('/ValueSet/:id/\\$expand', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
-        await worker.handleInstance(req, res, this.log);
+        await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$expand', Date.now() - start);
       }
     });
-    router.post('/ValueSet/:id/\\$expand', async (req, res) => {
+    router.post('/ValueSet/:id/\\$expand', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new ExpandWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n, this.internalLimit(req), this.externalLimit(req));
-        await worker.handleInstance(req, res, this.log);
+        await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$expand', Date.now() - start);
       }
     });
 
     // ConceptMap/[id]/$translate
-    router.get('/ConceptMap/:id/\\$translate', async (req, res) => {
+    router.get('/ConceptMap/:id/\\$translate', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new TranslateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleInstance(req, res, this.log);
+        await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$translate', Date.now() - start);
       }
     });
-    router.post('/ConceptMap/:id/\\$translate', async (req, res) => {
+    router.post('/ConceptMap/:id/\\$translate', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new TranslateWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
-        await worker.handleInstance(req, res, this.log);
+        await worker.handleInstance(req, res);
       } finally {
         this.countRequest('$translate', Date.now() - start);
       }
@@ -849,7 +908,7 @@ class TXModule {
 
     // Read: GET /[type]/[id]
     for (const resourceType of resourceTypes) {
-      router.get(`/${resourceType}/:id`, async (req, res) => {
+      router.get(`/${resourceType}/:id`, async (/** @type {any} */ req, /** @type {any} */ res) => {
         const start = Date.now();
         try {
           // Skip if id starts with $ (it's an operation)
@@ -870,7 +929,7 @@ class TXModule {
 
     // Search: GET /[type]
     for (const resourceType of resourceTypes) {
-      router.get(`/${resourceType}`, async (req, res) => {
+      router.get(`/${resourceType}`, async (/** @type {any} */ req, /** @type {any} */ res) => {
         const start = Date.now();
         try {
           let worker = new SearchWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -879,7 +938,7 @@ class TXModule {
           this.countRequest('search', Date.now() - start);
         }
       });
-      router.post(`/${resourceType}/_search`, async (req, res) => {
+      router.post(`/${resourceType}/_search`, async (/** @type {any} */ req, /** @type {any} */ res) => {
         const start = Date.now();
         try {
           let worker = new SearchWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -892,7 +951,7 @@ class TXModule {
 
     // Unsupported methods
     for (const resourceType of resourceTypes) {
-      router.all(`/${resourceType}/:id`, (req, res) => {
+      router.all(`/${resourceType}/:id`, (/** @type {any} */ req, /** @type {any} */ res) => {
         const start = Date.now();
         try {
           if (['PUT', 'POST', 'DELETE', 'PATCH'].includes(req.method)) {
@@ -908,7 +967,7 @@ class TXModule {
       });
     }
 
-    router.get('/op.html',  async(req, res) => {
+    router.get('/op.html',  async(/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         let worker = new OperationsWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
@@ -918,10 +977,10 @@ class TXModule {
       }
     });
 
-    router.get('/problems.html', async (req, res) => {
+    router.get('/problems.html', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
-        let txhtml = new TxHtmlRenderer(new Renderer(req.txOpContext, req.txProvider), this.liquid, this.languages, this.i18n, req.txEndpoint.path);
+        let txhtml = new TxHtmlRenderer(new Renderer(req.txOpContext, req.txProvider), this.liquid, this.languages, this.i18n, req.txEndpoint.path, req.txEndpoint.fhirVersion);
         const problemFinder = new ProblemFinder();
         const content = await problemFinder.scanValueSets(req.txProvider);
         const html = await txhtml.renderPage('Problems', '<h3>ValueSet dependencies on unknown CodeSystem/Versions</h3>'+content, req.txEndpoint, req.txStartTime);
@@ -933,14 +992,14 @@ class TXModule {
     });
 
     // Metadata / CapabilityStatement
-    router.get('/metadata', async (req, res) => {
+    router.get('/metadata', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         try {
           await this.metadataHandler.handle(req, res);
         } catch (error) {
-          this.log.error(`Error in /metadata: ${error.message}`);
-          res.status(500).json(this.operationOutcome('error', 'exception', error.message));
+          this.log.error(`Error in /metadata: ${errorMessage(error)}`);
+          res.status(500).json(this.operationOutcome('error', 'exception', errorMessage(error)));
         }
       } finally {
         this.countRequest('metadata', Date.now() - start);
@@ -948,14 +1007,14 @@ class TXModule {
     });
 
     // $versions operation
-    router.get('/\\$versions', async (req, res) => {
+    router.get('/\\$versions', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         try {
           await this.metadataHandler.handleVersions(req, res);
         } catch (error) {
-          this.log.error(`Error in $versions: ${error.message}`);
-          res.status(500).json(this.operationOutcome('error', 'exception', error.message));
+          this.log.error(`Error in $versions: ${errorMessage(error)}`);
+          res.status(500).json(this.operationOutcome('error', 'exception', errorMessage(error)));
         }
       } finally {
         this.countRequest('$versions', Date.now() - start);
@@ -963,7 +1022,7 @@ class TXModule {
     });
 
     // Root endpoint info
-    router.get('/', async (req, res) => {
+    router.get('/', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         await res.json({
@@ -980,22 +1039,22 @@ class TXModule {
     });
 
     // External source info pages
-    router.get('/info/:id', async (req, res) => {
+    router.get('/info/:id', async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
-        const source = req.txEndpoint.provider.externalSources.find(s => s.id() === req.params.id);
+        const source = req.txEndpoint.provider.externalSources.find((/** @type {any} */ s) => s.id() === req.params.id);
         if (!source) {
           res.status(404).send('Not found');
           return;
         }
-        let txhtml = new TxHtmlRenderer(new Renderer(req.txOpContext, req.txEndpoint.provider), this.liquid, this.languages, this.i18n, req.txEndpoint.path);
+        let txhtml = new TxHtmlRenderer(new Renderer(req.txOpContext, req.txEndpoint.provider), this.liquid, this.languages, this.i18n, req.txEndpoint.path, req.txEndpoint.fhirVersion);
         const content = await txhtml.buildInfoPage(source, req);
         const html = await txhtml.renderPage(source.name(), content, req.txEndpoint, start);
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
       } catch (error) {
         debugLog(error);
-        this.log.error(`Error rendering info page for ${req.params.id}: ${error.message}`);
+        this.log.error(`Error rendering info page for ${req.params.id}: ${errorMessage(error)}`);
         res.status(500).send('Internal server error');
       } finally {
         this.countRequest('info', Date.now() - start);
@@ -1014,25 +1073,25 @@ class TXModule {
       const label = `${endpointInfo.path} (FHIR v${endpointInfo.fhirVersion})`;
 
       // Build a minimal mock req/res that captures what metadataHandler.handle() produces
-      const makeMockReqRes = (mode) => {
-        const captured = { data: null, status: 200 };
+      const makeMockReqRes = (/** @type {string | undefined} */ mode) => {
+        const captured = /** @type {{data: any, status: number}} */ ({ data: null, status: 200 });
 
         const req = {
           method: 'GET',
           query: { mode },
           headers: {},
           // eslint-disable-next-line no-unused-vars
-          get: (name) => null,
+          get: (/** @type {string} */ name) => null,
           txEndpoint: endpointInfo,
           txProvider: endpointInfo.provider,
         };
 
         const res = {
           statusCode: 200,
-          status(code) { captured.status = code; return this; },
+          status(/** @type {number} */ code) { captured.status = code; return this; },
           setHeader() { return this; },
-          json(data) { captured.data = data; return this; },
-          send(data) { captured.data = data; return this; },
+          json(/** @type {any} */ data) { captured.data = data; return this; },
+          send(/** @type {any} */ data) { captured.data = data; return this; },
         };
 
         return { req, res, captured };
@@ -1051,8 +1110,8 @@ class TXModule {
         }
         this.log.info(`  [OK] CapabilityStatement for ${label}`);
       } catch (err) {
-        this.log.error(`  [FAIL] CapabilityStatement for ${label}: ${err.message}`);
-        throw new Error(`Startup self-test failed (CapabilityStatement, ${label}): ${err.message}`);
+        this.log.error(`  [FAIL] CapabilityStatement for ${label}: ${errorMessage(err)}`);
+        throw new Error(`Startup self-test failed (CapabilityStatement, ${label}): ${errorMessage(err)}`);
       }
 
       // Test 2: TerminologyCapabilities  (/metadata?mode=terminology)
@@ -1068,8 +1127,8 @@ class TXModule {
         }
         this.log.info(`  [OK] TerminologyCapabilities for ${label}`);
       } catch (err) {
-        this.log.error(`  [FAIL] TerminologyCapabilities for ${label}: ${err.message}`);
-        throw new Error(`Startup self-test failed (TerminologyCapabilities, ${label}): ${err.message}`);
+        this.log.error(`  [FAIL] TerminologyCapabilities for ${label}: ${errorMessage(err)}`);
+        throw new Error(`Startup self-test failed (TerminologyCapabilities, ${label}): ${errorMessage(err)}`);
       }
     }
 
@@ -1078,6 +1137,12 @@ class TXModule {
 
   /**
    * Build an OperationOutcome for errors
+   */
+  /**
+   * @param {string} severity
+   * @param {string} code
+   * @param {string} message
+   * @returns {Record<string, any>}
    */
   operationOutcome(severity, code, message) {
     return {
@@ -1119,29 +1184,42 @@ class TXModule {
     this.log.info('TX module shut down');
   }
 
+  /**
+   * @param {any} params
+   * @returns {any}
+   */
   trimParameters(params) {
     if (!params || !params.parameter) {
       return params;
     }
 
-    params.parameter = params.parameter.filter(p => p.name !== 'tx-resource');
+    params.parameter = params.parameter.filter((/** @type {any} */ p) => p.name !== 'tx-resource');
 
     return params;
   }
 
-  convertResourceToXml(res) {
+  /**
+   * @param {Record<string, any>} res
+   * @param {string} fhirVersion
+   * @returns {string}
+   */
+  convertResourceToXml(res, fhirVersion) {
     switch (res.resourceType) {
       case "CodeSystem" : return CodeSystemXML._jsonToXml(res);
       case "ValueSet" : return ValueSetXML.toXml(res);
-      case "Bundle" : return BundleXML.toXml(res, this.fhirVersion);
+      case "Bundle" : return BundleXML.toXml(res, fhirVersion);
       case "CapabilityStatement" : return CapabilityStatementXML.toXml(res, "R5");
       case "TerminologyCapabilities" : return TerminologyCapabilitiesXML.toXml(res, "R5");
-      case "Parameters": return ParametersXML.toXml(res, this.fhirVersion);
-      case "OperationOutcome": return OperationOutcomeXML.toXml(res, this.fhirVersion);
+      case "Parameters": return ParametersXML.toXml(res, fhirVersion);
+      case "OperationOutcome": return OperationOutcomeXML.toXml(res, fhirVersion);
     }
     throw new Error(`Resource type ${res.resourceType} not supported in XML`);
   }
 
+  /**
+   * @param {string} xml
+   * @returns {any}
+   */
   convertXmlToResource(xml) {
     // Detect resource type from root element
     const rootMatch = xml.match(/<([A-Za-z]+)\s/);
@@ -1172,6 +1250,10 @@ class TXModule {
     return data;
   }
 
+  /**
+   * @param {string} name
+   * @param {number} tat
+   */
   countRequest(name, tat) {
     if (this.stats) {
       this.stats.countRequest(name, tat);
@@ -1180,7 +1262,7 @@ class TXModule {
 
   cacheCount() {
     let count = 0;
-    for (let ep of this.endpoints) {
+    for (const ep of this.endpoints) {
       count = count + ep.resourceCache.size() + ep.expansionCache.size();
     }
     return count;
@@ -1188,7 +1270,11 @@ class TXModule {
 
   ec = 0;
 
-  checkProperJson() { // jsonStr) {
+  /**
+   * @param {string} _jsonStr
+   */
+  checkProperJson(_jsonStr) {
+    void _jsonStr;
     //   const errors = [];
     //   if (jsonStr.includes("[]")) errors.push("Found [] in json");
     //   if (jsonStr.includes('""')) errors.push('Found "" in json');
@@ -1201,6 +1287,11 @@ class TXModule {
     //   }
   }
 
+  /**
+   * @param {Record<string, any>} data
+   * @param {string} fhirVersion
+   * @returns {any}
+   */
   transformResourceForVersion(data, fhirVersion) {
     if (fhirVersion == "5.0" || !data.resourceType) {
       return data;
@@ -1218,11 +1309,19 @@ class TXModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @returns {number}
+   */
   internalLimit(req) {
     let isTest = req.header("User-Agent") == 'Tools/Java';
     if (this.config.internalLimit && !isTest) return this.config.internalLimit; else return INTERNAL_DEFAULT_LIMIT;
   }
 
+  /**
+   * @param {any} req
+   * @returns {number}
+   */
   externalLimit(req) {
     let hdr = req.headers["x-too-costly-threshold"];
     if (hdr) {

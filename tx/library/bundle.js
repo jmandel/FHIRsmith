@@ -1,4 +1,6 @@
 
+// @ts-check
+
 class Bundle {
 }
 

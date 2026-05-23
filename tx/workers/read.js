@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Read Worker - Handles resource read operations
 //
@@ -9,11 +11,11 @@ const {debugLog} = require("../operation-context");
 
 class ReadWorker extends TerminologyWorker {
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -28,10 +30,10 @@ class ReadWorker extends TerminologyWorker {
   }
   /**
    * Handle a read request
-   * @param {express.Request} req - Express request (with txProvider attached)
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request (with txProvider attached)
+   * @param {{json: (body: any) => any, status: (code: number) => {json: (body: any) => any}}} res - Express response
    * @param {string} resourceType - The resource type (CodeSystem, ValueSet, ConceptMap)
-   * @param {Object} log - Logger instance
+   * @returns {Promise<any>}
    */
   async handle(req, res, resourceType) {
     const { id } = req.params;
@@ -62,13 +64,14 @@ class ReadWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
+      const readError = /** @type {{msgId?: string, message?: string}} */ (error);
+      req.logInfo = this.usedSources.join("|")+" - error"+(readError.msgId  ? " "+readError.msgId : "");
       return res.status(500).json({
         resourceType: 'OperationOutcome',
         issue: [{
           severity: 'error',
           code: 'exception',
-          diagnostics: error.message
+          diagnostics: readError.message || String(error)
         }]
       });
     }
@@ -76,6 +79,10 @@ class ReadWorker extends TerminologyWorker {
 
   /**
    * Handle CodeSystem read
+   * @param {any} req
+   * @param {{json: (body: any) => any, status: (code: number) => {json: (body: any) => any}}} res
+   * @param {string} id
+   * @returns {Promise<any>}
    */
   async handleCodeSystem(req, res, id) {
     let cs = this.provider.getCodeSystemById(this.opContext, id);
@@ -87,6 +94,7 @@ class ReadWorker extends TerminologyWorker {
     if (id.startsWith("x-")) {
       cs = this.provider.getCodeSystemFactoryById(this.opContext, id.substring(2));
       if (cs != null) {
+        /** @type {any} */
         let json = {
           resourceType: "CodeSystem",
           id: "x-" + cs.id(),
@@ -110,6 +118,7 @@ class ReadWorker extends TerminologyWorker {
           let iter = await csp.iteratorAll();
           let c = await csp.nextContext(iter);
           while (c) {
+            /** @type {any} */
             let cc = {
               code: await csp.code(c),
               display: await csp.display(c)
@@ -139,6 +148,10 @@ class ReadWorker extends TerminologyWorker {
 
   /**
    * Handle ValueSet read
+   * @param {any} req
+   * @param {{json: (body: any) => any, status: (code: number) => {json: (body: any) => any}}} res
+   * @param {string} id
+   * @returns {Promise<any>}
    */
   async handleValueSet(req, res, id) {
     // Iterate through valueSetProviders in order
@@ -162,6 +175,10 @@ class ReadWorker extends TerminologyWorker {
   }
   /**
    * Handle ConceptMap read
+   * @param {any} req
+   * @param {{json: (body: any) => any, status: (code: number) => {json: (body: any) => any}}} res
+   * @param {string} id
+   * @returns {Promise<any>}
    */
   async handleConceptMap(req, res, id) {
     // Iterate through valueSetProviders in order

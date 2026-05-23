@@ -3,22 +3,59 @@
 //
 // Licensed under BSD-3: https://opensource.org/license/bsd-3-clause
 //
+// @ts-check
 
-const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const cron = require('node-cron');
+const express = /** @type {any} */ (require('express'));
+const sqlite3 = /** @type {any} */ (require('sqlite3')).verbose();
+const cron = /** @type {any} */ (require('node-cron'));
 const path = require('path');
 const fs = require('fs');
-const PackageCrawler = require('./package-crawler.js');
-const htmlServer = require('../library/html-server');
-const folders = require('../library/folder-setup');
+const PackageCrawler = /** @type {any} */ (require('./package-crawler.js'));
+const htmlServer = /** @type {any} */ (require('../library/html-server'));
+const folders = /** @type {any} */ (require('../library/folder-setup'));
 const escape = require('escape-html');
-const Logger = require('../library/logger');
-const {validateParameter} = require("../library/utilities");
-const {describeCron} = require("../library/cron-utilities");
+const Logger = /** @type {any} */ (require('../library/logger'));
+const {validateParameter} = /** @type {any} */ (require("../library/utilities"));
+const {describeCron} = /** @type {any} */ (require("../library/cron-utilities"));
 const pckLog = Logger.getInstance().child({ module: 'packages' });
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 class PackagesModule {
+  /** @type {any} */
+  router;
+  /** @type {any} */
+  config;
+  /** @type {any} */
+  db;
+  /** @type {any} */
+  crawlerJob;
+  /** @type {any} */
+  crawler;
+  /** @type {any} */
+  lastRunTime;
+  /** @type {number} */
+  totalRuns = 0;
+  /** @type {any} */
+  lastCrawlerLog = {};
+  /** @type {boolean} */
+  crawlerRunning = false;
+  /** @type {any} */
+  stats;
+  /** @type {any} */
+  crawlerLog;
+  /** @type {number} */
+  totalBytes = 0;
+
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.router = express.Router();
     this.config = null;
@@ -36,7 +73,7 @@ class PackagesModule {
 
   setupSecurityMiddleware() {
     // Security headers middleware
-    this.router.use((req, res, next) => {
+    this.router.use(/** @param {any} req @param {any} res @param {any} next */ (req, res, next) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -56,10 +93,13 @@ class PackagesModule {
   }
 
   // Parameter validation middleware
+    /** @param {any} allowedParams */
   validateQueryParams(allowedParams = {}) {
-    return (req, res, next) => {
+    return /** @param {any} req @param {any} res @param {any} next */ (req, res, next) => {
       try {
         // Check for parameter pollution (arrays) and validate
+        /** @type {any} */
+        /** @type {any} */
         const normalized = {};
 
         for (const [key, value] of Object.entries(req.query)) {
@@ -126,11 +166,13 @@ class PackagesModule {
     };
   }
 
+  /** @param {any} baseQuery @param {any} conditions */
   buildSecureQuery(baseQuery, conditions = []) {
     let query = baseQuery;
+    /** @type {any[]} */
     const params = [];
 
-    conditions.forEach(condition => {
+    conditions.forEach(/** @param {any} condition */ condition => {
       if (condition.operator === 'LIKE') {
         query += ` AND ${condition.column} LIKE ?`;
         params.push(`%${condition.value}%`);
@@ -149,6 +191,7 @@ class PackagesModule {
     return { query, params };
   }
 
+  /** @param {any} params @param {any} req @param {any} secure */
   async searchPackages(params, req = null, secure = false) {
     const {
       name = '',
@@ -160,9 +203,10 @@ class PackagesModule {
       sort = ''
     } = params;
 
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       try {
         let baseQuery;
+        /** @type {any[]} */
         const conditions = [];
         let versioned = false;
 
@@ -254,13 +298,14 @@ class PackagesModule {
 
         const { query, params: queryParams } = this.buildSecureQuery(baseQuery, conditions);
 
-        this.db.all(query + ' ORDER BY PubDate', queryParams, (err, rows) => {
+        this.db.all(query + ' ORDER BY PubDate', queryParams, /** @param {any} err @param {any} rows */ (err, rows) => {
           if (err) {
             reject(err);
             return;
           }
 
-          const results = rows.map(row => {
+          const results = rows.map(/** @param {any} row */ row => {
+            /** @type {any} */
             const packageInfo = {
               name: row.Id,
               version: row.Version,
@@ -296,6 +341,7 @@ class PackagesModule {
   }
 
   // URL validation for external requests
+  /** @param {any} url */
   validateExternalUrl(url) {
     try {
       const parsed = new URL(url);
@@ -317,20 +363,21 @@ class PackagesModule {
 
       return parsed;
     } catch (error) {
-      throw new Error(`Invalid URL: ${error.message}`);
+      throw new Error(`Invalid URL: ${errorMessage(error)}`);
     }
   }
 
   // Safe HTTP request function
+  /** @param {any} url @param {any} options */
   async safeHttpRequest(url, options = {}) {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       try {
         const validatedUrl = this.validateExternalUrl(url);
         const { maxSize = 50 * 1024 * 1024, timeout = 30000 } = options;
 
         const protocol = validatedUrl.protocol === 'https:' ? require('https') : require('http');
 
-        const request = protocol.get(validatedUrl, (response) => {
+        const request = protocol.get(validatedUrl, /** @param {any} response */ (response) => {
           // Check content length
           const contentLength = parseInt(response.headers['content-length'] || '0');
           if (contentLength > maxSize) {
@@ -365,7 +412,7 @@ class PackagesModule {
           }
 
           let data = Buffer.alloc(0);
-          response.on('data', (chunk) => {
+          response.on('data', /** @param {any} chunk */ (chunk) => {
             data = Buffer.concat([data, chunk]);
             if (data.length > maxSize) {
               request.destroy();
@@ -418,7 +465,7 @@ class PackagesModule {
       };
 
     } catch (error) {
-      pckLog.error(`Error gathering package statistics: ${error.message}`);
+      pckLog.error(`Error gathering package statistics: ${errorMessage(error)}`);
 
       return {
         downloadDate: 'Error',
@@ -445,7 +492,7 @@ class PackagesModule {
     const stats = fs.statSync(this.config.database);
     const lastModified = stats.mtime;
     const now = new Date();
-    const ageInDays = Math.floor((now - lastModified) / (1000 * 60 * 60 * 24));
+    const ageInDays = Math.floor((now.getTime() - lastModified.getTime()) / (1000 * 60 * 60 * 24));
 
     return {
       lastModified: lastModified,
@@ -457,17 +504,18 @@ class PackagesModule {
   }
 
   async getDatabaseTableCounts() {
-    return new Promise((resolve) => {
+    return new Promise(/** @param {any} resolve */ (resolve) => {
       if (!this.db) {
         resolve({packages: 0, packageVersions: 0});
         return;
       }
 
+      /** @type {any} */
       const counts = {};
       let completedQueries = 0;
       const totalQueries = 2;
 
-      this.db.get('SELECT COUNT(*) as count FROM Packages', [], (err, row) => {
+      this.db.get('SELECT COUNT(*) as count FROM Packages', [], /** @param {any} err @param {any} row */ (err, row) => {
         if (err) {
           counts.packages = 0;
         } else {
@@ -480,7 +528,7 @@ class PackagesModule {
         }
       });
 
-      this.db.get('SELECT COUNT(*) as count FROM PackageVersions', [], (err, row) => {
+      this.db.get('SELECT COUNT(*) as count FROM PackageVersions', [], /** @param {any} err @param {any} row */ (err, row) => {
         if (err) {
           counts.packageVersions = 0;
         } else {
@@ -537,6 +585,7 @@ class PackagesModule {
     return content;
   }
 
+  /** @param {any} config */
   async initialize(config) {
     this.config = config;
 
@@ -584,7 +633,7 @@ class PackagesModule {
           this.lastCrawlerLog = this.crawler.crawlerLog;
           this.lastCrawlerLog.runNumber = this.totalRuns;
         }
-        pckLog.error('Package crawler failed:', error.message);
+        pckLog.error('Package crawler failed:', errorMessage(error));
         throw error;
       }
     } finally {
@@ -593,7 +642,7 @@ class PackagesModule {
   }
 
   async initializeDatabase() {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       // Use config path if absolute, otherwise resolve relative to data dir
       const dbPath = path.isAbsolute(this.config.database) ? this.config.database : folders.filePath('packages', this.config.database);
 
@@ -605,7 +654,7 @@ class PackagesModule {
 
       const dbExists = fs.existsSync(dbPath);
 
-      this.db = new sqlite3.Database(dbPath, (err) => {
+      this.db = new sqlite3.Database(dbPath, /** @param {any} err */ (err) => {
         if (err) {
           pckLog.error('Error opening packages database:', err.message);
           reject(err);
@@ -621,7 +670,7 @@ class PackagesModule {
             this.db.run(`CREATE TABLE IF NOT EXISTS FeedPages (
               Url TEXT PRIMARY KEY,
               VisitedAt TEXT NOT NULL
-            )`, (err) => {
+            )`, /** @param {any} err */ (err) => {
               if (err) pckLog.error('Failed to create FeedPages table:', err.message);
             });
             resolve();
@@ -634,7 +683,7 @@ class PackagesModule {
   }
 
   async createTables() {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       const tables = [
         // Packages table
         `CREATE TABLE Packages
@@ -748,14 +797,14 @@ class PackagesModule {
           }
         };
 
-        const handleIndexError = (err) => {
+        const handleIndexError = /** @param {any} err */ (err) => {
           pckLog.error('Error creating packages database index:', err);
           reject(err);
         };
 
         // Create indexes
-        indexes.forEach(sql => {
-          this.db.run(sql, (err) => {
+        indexes.forEach(/** @param {any} sql */ sql => {
+          this.db.run(sql, /** @param {any} err */ (err) => {
             if (err) {
               handleIndexError(err);
             } else {
@@ -765,14 +814,14 @@ class PackagesModule {
         });
       };
 
-      const handleTableError = (err) => {
+      const handleTableError = /** @param {any} err */ (err) => {
         pckLog.error('Error creating packages database table:', err);
         reject(err);
       };
 
       // Create tables first
-      tables.forEach(sql => {
-        this.db.run(sql, (err) => {
+      tables.forEach(/** @param {any} sql */ sql => {
+        this.db.run(sql, /** @param {any} err */ (err) => {
           if (err) {
             handleTableError(err);
           } else {
@@ -808,7 +857,7 @@ class PackagesModule {
           await this.runCrawler();
           pckLog.info('Scheduled package crawler completed successfully');
         } catch (error) {
-          pckLog.error('Scheduled package crawler failed:', error.message);
+          pckLog.error('Scheduled package crawler failed:', errorMessage(error));
         }
       });
       pckLog.info(`Package crawler scheduled job started: ${this.config.crawler.schedule}`);
@@ -841,7 +890,7 @@ class PackagesModule {
 
     try {
       // Fetch the master JSON file
-      const masterResponse = await this.fetchJson(this.config.masterUrl);
+          const masterResponse = await /** @type {any} */ (this).fetchJson(this.config.masterUrl);
 
       if (!masterResponse.feeds || !Array.isArray(masterResponse.feeds)) {
         throw new Error('Invalid master JSON: missing feeds array');
@@ -858,14 +907,14 @@ class PackagesModule {
         }
 
         try {
-          await this.updateTheFeed(
-            this.fixUrl(feedConfig.url),
+          await /** @type {any} */ (this).updateTheFeed(
+            /** @type {any} */ (this).fixUrl(feedConfig.url),
             this.config.masterUrl,
             feedConfig.errors ? feedConfig.errors.replace(/\|/g, '@').replace(/_/g, '.') : '',
             packageRestrictions
           );
         } catch (feedError) {
-          pckLog.error(`Failed to process feed ${feedConfig.url}:`, feedError.message);
+          pckLog.error(`Failed to process feed ${feedConfig.url}:`, errorMessage(feedError));
           // Continue with next feed even if this one fails
         }
       }
@@ -882,7 +931,7 @@ class PackagesModule {
     } catch (error) {
       const runTime = Date.now() - startTime;
       this.crawlerLog.runTime = `${runTime}ms`;
-      this.crawlerLog.fatalException = error.message;
+      this.crawlerLog.fatalException = errorMessage(error);
       this.crawlerLog.endTime = new Date().toISOString();
       this.lastRunTime = new Date().toISOString();
 
@@ -901,7 +950,7 @@ class PackagesModule {
           await this.runCrawler();
           pckLog.info('Initial package crawler completed successfully');
         } catch (error) {
-          pckLog.error('Initial package crawler failed:', error.message);
+          pckLog.error('Initial package crawler failed:', errorMessage(error));
         }
       });
     }
@@ -909,6 +958,7 @@ class PackagesModule {
 
   setupRoutes() {
     // Parameter validation configs
+    /** @type {any} */
     const searchParams = {
       name: { maxLength: 100, pattern: /^[a-zA-Z0-9._#-]*$/ },
       dependson: { maxLength: 100, pattern: /^[a-zA-Z0-9._#-]*$/ },
@@ -920,6 +970,7 @@ class PackagesModule {
       objWrapper: { maxLength: 10, pattern: /^(true|false)?$/ }
     };
 
+    /** @type {any} */
     const updatesParams = {
       dateType: { maxLength: 10, pattern: /^(relative|absolute)?$/, default: 'relative' },
       daysValue: { maxLength: 3, pattern: /^\d{1,3}$/, default: '10' },
@@ -927,7 +978,7 @@ class PackagesModule {
     };
 
     // GET /packages/catalog - Search packages or get updates
-    this.router.get('/catalog', this.validateQueryParams(searchParams), async (req, res) => {
+    this.router.get('/catalog', this.validateQueryParams(searchParams), /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -943,7 +994,7 @@ class PackagesModule {
     });
 
     // GET /packages/-/v1/search - Search packages (v1 API)
-    this.router.get('/-/v1/search', this.validateQueryParams(searchParams), async (req, res) => {
+    this.router.get('/-/v1/search', this.validateQueryParams(searchParams), /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -960,7 +1011,7 @@ class PackagesModule {
     });
 
     // GET /packages/updates
-    this.router.get('/updates', this.validateQueryParams(updatesParams), async (req, res) => {
+    this.router.get('/updates', this.validateQueryParams(updatesParams), /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -979,7 +1030,7 @@ class PackagesModule {
       }
     });
 
-    this.router.get('/log', async (req, res) => {
+    this.router.get('/log', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -999,10 +1050,10 @@ class PackagesModule {
             // Add summary statistics
             summary = {
               totalFeeds: this.lastCrawlerLog.feeds.length,
-              successfulFeeds: this.lastCrawlerLog.feeds.filter(f => !f.exception && !f.rateLimited).length,
-              failedFeeds: this.lastCrawlerLog.feeds.filter(f => f.exception && !f.rateLimited).length,
-              rateLimitedFeeds: this.lastCrawlerLog.feeds.filter(f => f.rateLimited).length,
-              totalItems: this.lastCrawlerLog.feeds.reduce((sum, f) => sum + (f.items ? f.items.length : 0), 0)
+              successfulFeeds: this.lastCrawlerLog.feeds.filter(/** @param {any} f */ f => !f.exception && !f.rateLimited).length,
+              failedFeeds: this.lastCrawlerLog.feeds.filter(/** @param {any} f */ f => f.exception && !f.rateLimited).length,
+              rateLimitedFeeds: this.lastCrawlerLog.feeds.filter(/** @param {any} f */ f => f.rateLimited).length,
+              totalItems: this.lastCrawlerLog.feeds.reduce(/** @param {any} sum @param {any} f */ (sum, f) => sum + (f.items ? f.items.length : 0), 0)
             };
           } else {
             status = 'No crawler runs have completed yet';
@@ -1019,6 +1070,7 @@ class PackagesModule {
             }
 
             const content = this.buildLogPageContent(status, logData, summary);
+            /** @type {any} */
             const stats = await this.gatherPackageStatistics();
             stats.processingTime = Date.now() - startTime;
 
@@ -1027,6 +1079,7 @@ class PackagesModule {
             res.send(html);
           } else {
             // Return JSON response
+            /** @type {any} */
             const response = {
               status: status,
               crawlerRunning: this.crawlerRunning,
@@ -1046,7 +1099,7 @@ class PackagesModule {
           if (req.headers.accept && req.headers.accept.includes('text/html')) {
             htmlServer.sendErrorResponse(res, 'packages', error);
           } else {
-            res.status(500).json({error: 'Failed to get crawler log', message: error.message});
+            res.status(500).json({error: 'Failed to get crawler log', message: errorMessage(error)});
           }
         }
       } finally {
@@ -1057,7 +1110,7 @@ class PackagesModule {
     // GET /packages/broken
     this.router.get('/broken', this.validateQueryParams({
       filter: { maxLength: 100, pattern: /^[a-zA-Z0-9._-]*$/ }
-    }), async (req, res) => {
+    }), /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -1074,7 +1127,7 @@ class PackagesModule {
     });
 
     // GET /packages/:id/:version
-    this.router.get('/:id/:version', (req, res, next) => {
+    this.router.get('/:id/:version', /** @param {any} req @param {any} res @param {any} next */ (req, res, next) => {
       const start = Date.now();
       try {
 
@@ -1096,7 +1149,7 @@ class PackagesModule {
       } finally {
         this.stats.countRequest('version', Date.now() - start);
       }
-    }, async (req, res) => {
+    }, /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -1113,7 +1166,7 @@ class PackagesModule {
     });
 
     // GET /packages/:page.html
-    this.router.get('/:page.html', (req, res, next) => {
+    this.router.get('/:page.html', /** @param {any} req @param {any} res @param {any} next */ (req, res, next) => {
       const start = Date.now();
       try {
 
@@ -1128,7 +1181,7 @@ class PackagesModule {
       } finally {
         this.stats.countRequest('page', Date.now() - start);
       }
-    }, async (req, res) => {
+    }, /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -1145,7 +1198,7 @@ class PackagesModule {
     });
 
     // GET /packages/:id - Get package versions
-    this.router.get('/:id', async (req, res) => {
+    this.router.get('/:id', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
 
@@ -1171,7 +1224,7 @@ class PackagesModule {
     });
 
     // Main packages endpoint
-    this.router.get('/', this.validateQueryParams(searchParams), async (req, res) => {
+    this.router.get('/', this.validateQueryParams(searchParams), /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
 
@@ -1189,7 +1242,7 @@ class PackagesModule {
     });
 
     // Module status endpoint (existing)
-    this.router.get('/status', (req, res) => {
+    this.router.get('/status', /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         const status = this.getStatus();
@@ -1201,7 +1254,7 @@ class PackagesModule {
     });
 
     // Manual crawler trigger (existing)
-    this.router.post('/crawl', async (req, res) => {
+    this.router.post('/crawl', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -1215,7 +1268,7 @@ class PackagesModule {
           pckLog.error('Manual crawler failed:', error);
           res.status(500).json({
             error: 'Crawler failed',
-            message: error.message
+            message: errorMessage(error)
           });
         }
       } finally {
@@ -1224,7 +1277,7 @@ class PackagesModule {
     });
 
     // Crawler statistics endpoint (existing)
-    this.router.get('/stats', async (req, res) => {
+    this.router.get('/stats', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         try {
@@ -1240,6 +1293,7 @@ class PackagesModule {
             }
 
             const content = await this.buildStatsPageContent();
+            /** @type {any} */
             const stats = await this.gatherPackageStatistics();
             stats.processingTime = Date.now() - startTime;
 
@@ -1277,7 +1331,7 @@ class PackagesModule {
           if (req.headers.accept && req.headers.accept.includes('text/html')) {
             htmlServer.sendErrorResponse(res, 'packages', error);
           } else {
-            res.status(500).json({error: 'Failed to generate stats', message: error.message});
+            res.status(500).json({error: 'Failed to generate stats', message: errorMessage(error)});
           }
         }
       } finally {
@@ -1286,7 +1340,7 @@ class PackagesModule {
     });
 
     // Search endpoint (existing)
-    this.router.get('/search', async (req, res) => {
+    this.router.get('/search', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
 
@@ -1303,6 +1357,7 @@ class PackagesModule {
             }
 
             const content = '<div class="alert alert-info"><h4>Search Coming Soon</h4><p>Package search functionality will be implemented here.</p></div>';
+            /** @type {any} */
             const stats = await this.gatherPackageStatistics();
             stats.processingTime = Date.now() - startTime;
 
@@ -1321,7 +1376,7 @@ class PackagesModule {
     });
 
     // Catch-all for unsupported operations (place this last)
-    this.router.all('{*splat}', (req, res) => {
+    this.router.all('{*splat}', /** @param {any} req @param {any} res */ (req, res) => {
       const start = Date.now();
       try {
         res.status(404).json({
@@ -1334,6 +1389,7 @@ class PackagesModule {
   }
 
   // serveUpdates implementation with HTML support and form
+  /** @param {any} secure @param {any} res @param {any} req @param {any} dt @param {any} days @param {any} date */
   async serveUpdates(secure, res, req, dt, days, date) {
     try {
       let queryDate;
@@ -1350,7 +1406,7 @@ class PackagesModule {
 
       const updates = await this.getPackageUpdatesSince(queryDate);
 
-      const jsonArray = updates.map(row => ({
+      const jsonArray = updates.map(/** @param {any} row */ row => ({
         name: row.Id,
         date: new Date(row.PubDate).toISOString(),
         version: row.Version,
@@ -1385,11 +1441,12 @@ class PackagesModule {
       pckLog.error('Error in serveUpdates:', error);
       res.status(500).json({
         error: 'Failed to get package updates',
-        message: error.message
+        message: errorMessage(error)
       });
     }
   }
 
+  /** @param {any} req @param {any} res @param {any} fromDate @param {any} updates @param {any} secure @param {any} formData */
   async returnUpdatesHtml(req, res, fromDate, updates, secure, formData) {
     try {
       const startTime = Date.now();
@@ -1401,6 +1458,7 @@ class PackagesModule {
       }
 
       // Build template variables
+      /** @type {any} */
       const vars = {
         fromDate: fromDate.split('T')[0], // Just the date part
         fromDateTime: fromDate,
@@ -1414,6 +1472,7 @@ class PackagesModule {
 
       // Generate updates page content
       const content = this.buildUpdatesPageContent(vars, fromDate, updates);
+      /** @type {any} */
       const stats = await this.gatherPackageStatistics();
       stats.processingTime = Date.now() - startTime;
 
@@ -1427,7 +1486,9 @@ class PackagesModule {
     }
   }
 
-  generateUpdatesTable(updates) {
+  /** @param {any} updates @param {any} secure */
+  generateUpdatesTable(updates, secure = false) {
+    void secure;
     if (updates.length === 0) {
       return '<div class="alert alert-info">No package updates found for the specified time period.</div>';
     }
@@ -1457,6 +1518,7 @@ class PackagesModule {
     return table;
   }
 
+  /** @param {any} vars @param {any} fromDate @param {any} updates */
   buildUpdatesPageContent(vars, fromDate, updates) {
     const formData = vars.formData;
 
@@ -1494,14 +1556,15 @@ class PackagesModule {
     return content;
   }
 
+  /** @param {any} date */
   async getPackageUpdatesSince(date) {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       const sql = `SELECT Id, Version, PubDate, FhirVersions, Kind, Canonical, Description
                    FROM PackageVersions
                    WHERE PubDate >= ?
                    ORDER BY PubDate DESC`;
 
-      this.db.all(sql, [date], (err, rows) => {
+      this.db.all(sql, [date], /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -1511,6 +1574,7 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} secure @param {any} id @param {any} version @param {any} res */
   async serveDownload(secure, id, version, res) {
     try {
       // First try exact version match
@@ -1542,10 +1606,11 @@ class PackagesModule {
 
     } catch (error) {
       pckLog.error('Error in serveDownload:', error);
-      res.status(500).json({error: 'Download failed', message: error.message});
+      res.status(500).json({error: 'Download failed', message: errorMessage(error)});
     }
   }
 
+  /** @param {any} secure */
   getBucketUrl(secure) {
     let bucketUrl = secure
       ? this.config.bucketPath.replace('http:', 'https:')
@@ -1556,8 +1621,9 @@ class PackagesModule {
     return bucketUrl;
   }
 
+  /** @param {any} id @param {any} version @param {any} exactMatch */
   async findPackageVersion(id, version, exactMatch) {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       let sql;
       if (exactMatch) {
         sql = `SELECT PackageVersionKey, Content
@@ -1576,7 +1642,7 @@ class PackagesModule {
         ? [id, version]
         : [id, `${version}-%`];
 
-      this.db.get(sql, params, (err, row) => {
+      this.db.get(sql, params, /** @param {any} err @param {any} row */ (err, row) => {
         if (err) {
           reject(err);
         } else {
@@ -1586,6 +1652,7 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} packageData @param {any} id @param {any} version @param {any} res */
   async servePackageContent(packageData, id, version, res) {
     try {
       // Set response headers for file download
@@ -1617,14 +1684,15 @@ class PackagesModule {
     }
   }
 
+  /** @param {any} packageVersionKey @param {any} packageId */
   async incrementDownloadCounts(packageVersionKey, packageId) {
     try {
       // Update PackageVersions download count
-      await new Promise((resolve, reject) => {
+      await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
         this.db.run(
           'UPDATE PackageVersions SET DownloadCount = DownloadCount + 1 WHERE PackageVersionKey = ?',
           [packageVersionKey],
-          (err) => {
+          /** @param {any} err */ (err) => {
             if (err) reject(err);
             else resolve();
           }
@@ -1632,11 +1700,11 @@ class PackagesModule {
       });
 
       // Update Packages download count
-      await new Promise((resolve, reject) => {
+      await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
         this.db.run(
           'UPDATE Packages SET DownloadCount = DownloadCount + 1 WHERE Id = ?',
           [packageId],
-          (err) => {
+          /** @param {any} err */ (err) => {
             if (err) reject(err);
             else resolve();
           }
@@ -1649,7 +1717,9 @@ class PackagesModule {
     }
   }
 
-  async servePage(page, req, res) {
+  /** @param {any} page @param {any} req @param {any} res @param {any} secure */
+  async servePage(page, req, res, secure = false) {
+    void secure;
     // TODO: Implement page serving functionality
     res.json({
       message: 'Page serving not implemented yet',
@@ -1657,6 +1727,7 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} id @param {any} sort @param {any} secure @param {any} req @param {any} res */
   async serveVersions(id, sort, secure, req, res) {
     try {
       const packageVersions = await this.getPackageVersions(id);
@@ -1681,12 +1752,13 @@ class PackagesModule {
       }
     } catch (error) {
       pckLog.error('Error in serveVersions:', error);
-      res.status(500).json({error: 'Failed to get package versions', message: error.message});
+      res.status(500).json({error: 'Failed to get package versions', message: errorMessage(error)});
     }
   }
 
+  /** @param {any} id */
   async getPackageVersions(id) {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       const sql = `SELECT PackageVersionKey,
                           Version,
                           PubDate,
@@ -1704,7 +1776,7 @@ class PackagesModule {
                    WHERE Id = ?
                    ORDER BY PubDate DESC`;  // Changed from ASC to DESC for most recent first
 
-      this.db.all(sql, [id], (err, rows) => {
+      this.db.all(sql, [id], /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -1714,20 +1786,22 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} packageVersionKeys */
   async getPackageDependencies(packageVersionKeys) {
     if (packageVersionKeys.length === 0) return {};
 
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       const placeholders = packageVersionKeys.map(() => '?').join(',');
       const sql = `SELECT PackageVersionKey, Dependency
                    FROM PackageDependencies
                    WHERE PackageVersionKey IN (${placeholders})`;
 
-      this.db.all(sql, packageVersionKeys, (err, rows) => {
+      this.db.all(sql, packageVersionKeys, /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) {
           reject(err);
         } else {
           // Group dependencies by PackageVersionKey
+          /** @type {any} */
           const deps = {};
           for (const row of rows) {
             if (!deps[row.PackageVersionKey]) {
@@ -1748,11 +1822,13 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} id @param {any} packageVersions @param {any} secure @param {any} req */
   async buildRegistryResponse(id, packageVersions, secure, req) {
     // Get all package version keys for dependency lookup
-    const packageVersionKeys = packageVersions.map(pv => pv.PackageVersionKey);
+    const packageVersionKeys = packageVersions.map(/** @param {any} pv */ pv => pv.PackageVersionKey);
     const dependencies = await this.getPackageDependencies(packageVersionKeys);
 
+    /** @type {any} */
     const registry = {
       _id: id,
       name: id,
@@ -1776,6 +1852,7 @@ class PackagesModule {
           : pv.Description;
       }
 
+      /** @type {any} */
       const versionObj = {
         name: id,
         _id: `${id}@${this.interpretVersion(pv.FhirVersions)}`,
@@ -1826,6 +1903,7 @@ class PackagesModule {
     return registry;
   }
 
+  /** @param {any} id @param {any} version @param {any} secure @param {any} req */
   buildTarballUrl(id, version, secure, req) {
     if (this.config.bucketPath) {
       let bucketUrl = this.getBucketUrl(secure);
@@ -1838,6 +1916,7 @@ class PackagesModule {
     }
   }
 
+  /** @param {any} req @param {any} res @param {any} id @param {any} packageVersions @param {any} registryResponse @param {any} secure @param {any} sort */
   async returnVersionsHtml(req, res, id, packageVersions, registryResponse, secure, sort) {
     try {
       const startTime = Date.now();
@@ -1850,9 +1929,10 @@ class PackagesModule {
 
       // Get package counts
       const versionCount = packageVersions.length;
-      const totalDownloads = packageVersions.reduce((sum, pv) => sum + (pv.DownloadCount || 0), 0);
+      const totalDownloads = packageVersions.reduce(/** @param {any} sum @param {any} pv */ (sum, pv) => sum + (pv.DownloadCount || 0), 0);
 
       // Build template variables
+      /** @type {any} */
       const vars = {
         name: id,
         desc: this.formatTextToHTML(registryResponse.description || ''),
@@ -1866,6 +1946,7 @@ class PackagesModule {
 
       // Generate versions page content
       const content = this.buildVersionsPageContent(vars, id);
+      /** @type {any} */
       const stats = await this.gatherPackageStatistics();
       stats.processingTime = Date.now() - startTime;
 
@@ -1878,6 +1959,7 @@ class PackagesModule {
     }
   }
 
+  /** @param {any} packageVersions @param {any} id @param {any} secure @param {any} sort */
   generateVersionsTable(packageVersions, id, secure, sort) {
     if (packageVersions.length === 0) {
       return '<div class="alert alert-info">No versions found for this package.</div>';
@@ -1911,13 +1993,14 @@ class PackagesModule {
     return table;
   }
 
+  /** @param {any} versions @param {any} sort */
   applySortingToVersions(versions, sort) {
     if (!sort) return versions;
 
     const descending = sort.startsWith('-');
     const sortField = descending ? sort.substring(1) : sort;
 
-    return [...versions].sort((a, b) => {
+    return [...versions].sort(/** @param {any} a @param {any} b */ (a, b) => {
       let comparison = 0;
 
       switch (sortField) {
@@ -1931,7 +2014,7 @@ class PackagesModule {
           comparison = this.codeForKind(a.Kind).localeCompare(this.codeForKind(b.Kind));
           break;
         case 'date':
-          comparison = new Date(a.PubDate) - new Date(b.PubDate);
+          comparison = new Date(a.PubDate).getTime() - new Date(b.PubDate).getTime();
           break;
         case 'count':
           comparison = (a.DownloadCount || 0) - (b.DownloadCount || 0);
@@ -1944,6 +2027,7 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} vars @param {any} id */
   buildVersionsPageContent(vars, id) {
     let content = '<div class="row mb-4">';
     content += '<div class="col-12">';
@@ -1965,12 +2049,14 @@ class PackagesModule {
     return content;
   }
 
+  /** @param {any} text */
   formatTextToHTML(text) {
     if (!text) return '';
     // Basic text to HTML formatting - convert newlines to <br>
     return escape(text).replace(/\n/g, '<br>');
   }
 
+  /** @param {any} req @param {any} res */
   async serveSearch(req, res) {
     const {
       name = '',
@@ -2016,7 +2102,7 @@ class PackagesModule {
         if (objWrapper) {
           // V1 API format with object wrapper
           responseData = {
-            objects: results.map(pkg => ({package: pkg}))
+            objects: results.map(/** @param {any} pkg */ pkg => ({package: pkg}))
           };
         } else {
           responseData = results;
@@ -2027,10 +2113,11 @@ class PackagesModule {
       }
     } catch (error) {
       pckLog.error('Error in search:', error);
-      res.status(500).json({error: 'Search failed', message: error.message});
+      res.status(500).json({error: 'Search failed', message: errorMessage(error)});
     }
   }
 
+  /** @param {any} req @param {any} res @param {any} searchParams @param {any} results @param {any} secure */
   async returnSearchHtml(req, res, searchParams, results, secure) {
     try {
       const startTime = Date.now();
@@ -2046,6 +2133,7 @@ class PackagesModule {
       const downloadCount = await this.getTotalDownloadCount();
 
       // Build template variables
+      /** @type {any} */
       const vars = {
         name: searchParams.name || '',
         dependson: searchParams.dependson || '',
@@ -2067,6 +2155,7 @@ class PackagesModule {
 
       // Generate search page content
       const content = this.buildSearchPageContent(vars, results);
+      /** @type {any} */
       const stats = await this.gatherPackageStatistics();
       stats.processingTime = Date.now() - startTime;
 
@@ -2080,8 +2169,8 @@ class PackagesModule {
   }
 
   async getTotalPackageCount() {
-    return new Promise((resolve, reject) => {
-      this.db.get('SELECT COUNT(*) as count FROM PackageVersions', [], (err, row) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      this.db.get('SELECT COUNT(*) as count FROM PackageVersions', [], /** @param {any} err @param {any} row */ (err, row) => {
         if (err) {
           reject(err);
         } else {
@@ -2092,8 +2181,8 @@ class PackagesModule {
   }
 
   async getTotalDownloadCount() {
-    return new Promise((resolve, reject) => {
-      this.db.get('SELECT SUM(DownloadCount) as total FROM PackageVersions', [], (err, row) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      this.db.get('SELECT SUM(DownloadCount) as total FROM PackageVersions', [], /** @param {any} err @param {any} row */ (err, row) => {
         if (err) {
           reject(err);
         } else {
@@ -2103,16 +2192,20 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} secure */
   getAbsoluteUrl(secure) {
     const protocol = secure ? 'https:' : 'http:';
     return this.config.baseUrl || `${protocol}//localhost:${this.config.port || 3000}`;
   }
 
+  /** @param {any} value @param {any} current */
   getSelected(value, current) {
     return value === current ? 'selected' : '';
   }
 
-  generateResultsTable(results, searchParams) {
+  /** @param {any} results @param {any} searchParams @param {any} secure */
+  generateResultsTable(results, searchParams, secure = false) {
+    void secure;
     if (results.length === 0) {
       return '<div class="alert alert-info">No packages found matching your search criteria.</div>';
     }
@@ -2155,6 +2248,7 @@ class PackagesModule {
     return table;
   }
 
+  /** @param {any} title @param {any} field @param {any} baseUrl @param {any} currentSort */
   generateSortHeader(title, field, baseUrl, currentSort) {
     const isCurrentField = currentSort === field || currentSort === `-${field}`;
     const isDescending = currentSort === `-${field}`;
@@ -2188,6 +2282,7 @@ class PackagesModule {
     return header;
   }
 
+  /** @param {any} vars @param {any} results */
   buildSearchPageContent(vars, results) {
     let content = '<div class="row mb-4">';
     content += '<div class="col-12">';
@@ -2244,13 +2339,16 @@ class PackagesModule {
     return content;
   }
 
+  /** @param {any} str */
   escapeSql(str) {
     if (!str) return '';
     return str.replace(/'/g, "''");
   }
 
+  /** @param {any} fhirVersion */
   getVersion(fhirVersion) {
     // Map common FHIR version aliases to actual versions
+    /** @type {any} */
     const versionMap = {
       'R2': '1.0.2',
       'R3': '3.0.2',
@@ -2261,17 +2359,20 @@ class PackagesModule {
     return versionMap[fhirVersion] || fhirVersion;
   }
 
+  /** @param {any} fhirVersions */
   interpretVersion(fhirVersions) {
     if (!fhirVersions) return '';
 
     // Handle comma-separated versions
-    const versions = fhirVersions.split(',').map(v => v.trim());
+    const versions = fhirVersions.split(',').map(/** @param {any} v */ v => v.trim());
 
     // Return the primary version or join multiple versions
     return versions.length === 1 ? versions[0] : versions.join(', ');
   }
 
+  /** @param {any} kind */
   codeForKind(kind) {
+    /** @type {any} */
     const kindMap = {
       0: 'fhir.core',
       1: 'fhir.ig',
@@ -2281,6 +2382,7 @@ class PackagesModule {
     return kindMap[kind] || 'fhir.ig';
   }
 
+  /** @param {any} id @param {any} version @param {any} secure @param {any} req */
   buildPackageUrl(id, version, secure = false, req = null) {
     if (this.config.bucketPath) {
       let bucketUrl = this.getBucketUrl(secure);
@@ -2299,13 +2401,14 @@ class PackagesModule {
     }
   }
 
+  /** @param {any} results @param {any} sort */
   applySorting(results, sort) {
     if (!sort) return results;
 
     const descending = sort.startsWith('-');
     const sortField = descending ? sort.substring(1) : sort;
 
-    return results.sort((a, b) => {
+    return results.sort(/** @param {any} a @param {any} b */ (a, b) => {
       let comparison = 0;
 
       switch (sortField) {
@@ -2316,7 +2419,7 @@ class PackagesModule {
           comparison = this.compareVersions(a.version, b.version);
           break;
         case 'date':
-          comparison = new Date(a.date || 0) - new Date(b.date || 0);
+          comparison = new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
           break;
         case 'count':
           comparison = (a.count || 0) - (b.count || 0);
@@ -2329,6 +2432,7 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} a @param {any} b */
   compareVersions(a, b) {
     const aParts = a.split('.').map(Number);
     const bParts = b.split('.').map(Number);
@@ -2345,6 +2449,7 @@ class PackagesModule {
     return 0;
   }
 
+  /** @param {any} req @param {any} results @param {any} params */
   generateSearchHtml(req, results, params) {
     // Simplified HTML generation - you'd want to use a proper template engine
     const {name, dependson, canonicalPkg, canonicalUrl, fhirVersion} = params;
@@ -2383,7 +2488,7 @@ class PackagesModule {
       
       <div class="results">
         <h2>Results (${results.length} packages found)</h2>
-        ${results.map(pkg => `
+        ${results.map(/** @param {any} pkg */ pkg => `
           <div class="package">
             <div class="package-name">
               <a href="${pkg.url}">${escape(pkg.name)}</a> v${escape(pkg.version)}
@@ -2411,8 +2516,8 @@ class PackagesModule {
 
     // Close database connection
     if (this.db) {
-      return new Promise((resolve) => {
-        this.db.close((err) => {
+      return new Promise(/** @param {any} resolve */ (resolve) => {
+        this.db.close(/** @param {any} err */ (err) => {
           if (err) {
             pckLog.error('Error closing packages database:', err.message);
           } else {
@@ -2426,6 +2531,7 @@ class PackagesModule {
     pckLog.info('Packages module shut down');
   }
 
+  /** @param {any} req @param {any} res @param {any} filter */
   async serveBroken(req, res, filter) {
     try {
       // Build list of valid package references (Id#MajorMinorVersion)
@@ -2441,6 +2547,7 @@ class PackagesModule {
         await this.returnBrokenHtml(req, res, brokenDependencies, filter);
       } else {
         // Return JSON response
+        /** @type {any} */
         const jsonResponse = {
           ...brokenDependencies,
           date: new Date().toISOString()
@@ -2455,16 +2562,16 @@ class PackagesModule {
       pckLog.error('Error in serveBroken:', error);
       res.status(500).json({
         error: 'Failed to generate broken dependencies report',
-        message: error.message
+        message: errorMessage(error)
       });
     }
   }
 
   async getValidPackageReferences() {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       const sql = 'SELECT Id, Version FROM PackageVersions';
 
-      this.db.all(sql, [], (err, rows) => {
+      this.db.all(sql, [], /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -2483,18 +2590,20 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} validPackages @param {any} filter */
   async findBrokenDependencies(validPackages, filter) {
-    return new Promise((resolve, reject) => {
+    return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
       const sql = `SELECT PackageVersions.Id || '#' || PackageVersions.Version as Source,
                           PackageDependencies.Dependency
                    FROM PackageDependencies,
                         PackageVersions
                    WHERE PackageDependencies.PackageVersionKey = PackageVersions.PackageVersionKey`;
 
-      this.db.all(sql, [], (err, rows) => {
+      this.db.all(sql, [], /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) {
           reject(err);
         } else {
+          /** @type {any} */
           const brokenDeps = {};
 
           for (const row of rows) {
@@ -2531,6 +2640,7 @@ class PackagesModule {
     });
   }
 
+  /** @param {any} version */
   getMajorMinorVersion(version) {
     // Extract major.minor from version string (e.g., "1.0.0" -> "1.0", "2.1.3-beta" -> "2.1")
     if (!version) return version;
@@ -2545,6 +2655,7 @@ class PackagesModule {
     return version;
   }
 
+  /** @param {any} req @param {any} res @param {any} brokenDependencies @param {any} filter */
   async returnBrokenHtml(req, res, brokenDependencies, filter) {
     try {
       const startTime = Date.now();
@@ -2556,6 +2667,7 @@ class PackagesModule {
       }
 
       // Build template variables
+      /** @type {any} */
       const vars = {
         prefix: this.getAbsoluteUrl(false),
         ver: '4.0.1',
@@ -2566,6 +2678,7 @@ class PackagesModule {
 
       // Generate broken dependencies page content
       const content = this.buildBrokenPageContent(vars, brokenDependencies, filter);
+      /** @type {any} */
       const stats = await this.gatherPackageStatistics();
       stats.processingTime = Date.now() - startTime;
 
@@ -2579,6 +2692,7 @@ class PackagesModule {
     }
   }
 
+  /** @param {any} brokenDependencies */
   generateBrokenTable(brokenDependencies) {
     const sourcePackages = Object.keys(brokenDependencies).sort();
 
@@ -2610,9 +2724,11 @@ class PackagesModule {
     return table;
   }
 
-  buildBrokenPageContent(vars, brokenDependencies) {
+  /** @param {any} vars @param {any} brokenDependencies @param {any} filter */
+  buildBrokenPageContent(vars, brokenDependencies, filter = '') {
+    void filter;
     const affectedCount = Object.keys(brokenDependencies).length;
-    const totalBrokenDeps = Object.values(brokenDependencies).reduce((sum, deps) => sum + deps.length, 0);
+    const totalBrokenDeps = Object.values(brokenDependencies).reduce(/** @param {any} sum @param {any} deps */ (sum, deps) => sum + deps.length, 0);
 
     let content = '<div class="row mb-4">';
     content += '<div class="col-12">';
@@ -2652,6 +2768,7 @@ class PackagesModule {
     return content;
   }
 
+  /** @param {any} status @param {any} logData @param {any} summary */
   buildLogPageContent(status, logData, summary) {
     let content = '<div class="row mb-4">';
     content += '<div class="col-12">';
@@ -2718,6 +2835,7 @@ class PackagesModule {
   }
 
 // Add this new method to format the crawler log as readable text
+  /** @param {any} logData */
   formatCrawlerLog(logData) {
     let output = '';
 
@@ -2832,6 +2950,7 @@ class PackagesModule {
     return content;
   }
 
+  /** @param {any} id */
   fixPrefix(id) {
     if (id && id.startsWith("@") && id.includes("/")) {
       return id.replace("@", "$$").replace("/", "$");

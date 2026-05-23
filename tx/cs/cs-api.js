@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+// @ts-check
 
 const assert = require('assert');
 const {CodeSystem, CodeSystemContentMode} = require("../library/codesystem");
@@ -9,13 +10,35 @@ const {validateParameter, validateArrayParameter} = require("../../library/utili
 const {I18nSupport} = require("../../library/i18nsupport");
 const {VersionUtilities} = require("../../library/version-utilities");
 
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+/** @typedef {import('../../types/fhirsmith').FhirElement} FhirElement */
+/** @typedef {any} CodeSystemProviderContext */
+/** @typedef {any} CodeSystemIterator */
+/** @typedef {any} FilterConceptSet */
+/** @typedef {any} ValueSetFilterOperator */
+/** @typedef {any} TxParameters */
+/** @typedef {any} Parameters */
+/** @typedef {any} ConceptMap */
+/** @typedef {any} Coding */
+/** @typedef {any} CodeTranslation */
+/** @typedef {any} ValueSet */
+/** @typedef {{feature: string, value: string}} Feature */
+/** @typedef {{status?: string, standardsStatus?: string, experimental?: boolean}} CodeSystemStatus */
+/** @typedef {{context: CodeSystemProviderContext | null, message: string | null}} LocateResult */
+/** @typedef {{code?: string, display?: string, designation?: any[], [key: string]: any}} CodeSystemConceptLike */
+
 /**
  * For documentation, see cs-api.md
  */
 class FilterExecutionContext {
+  /** @type {FilterConceptSet[]} */
   filters = [];
+  /** @type {boolean} */
   forIterate = false;
 
+  /**
+   * @param {boolean} forIterate - Whether the filters will be iterated
+   */
   constructor(forIterate) {
     this.forIterate = forIterate;
   }
@@ -24,15 +47,31 @@ class FilterExecutionContext {
 class CodeSystemProvider {
 
   /**
-   * {OperationContext} The context in which this is executing
+   * The context in which this is executing
+   * @type {OperationContext}
    */
   opContext;
 
   /**
-   * @type {CodeSystem[]}
+   * @type {CodeSystem[] | null}
    */
   supplements;
 
+  /**
+   * Optional language definitions used by _ensureLanguages when provided by subclasses.
+   * @type {LanguageDefinitions | null | undefined}
+   */
+  languageDefinitions = undefined;
+
+  /**
+   * @type {Map<string, object> | null | undefined}
+   */
+  usagesObj = undefined;
+
+  /**
+   * @param {OperationContext} opContext - Operation context
+   * @param {CodeSystem[] | null} supplements - Supplement CodeSystems
+   */
   constructor(opContext, supplements = null) {
     this.opContext = opContext;
     this.supplements = supplements;
@@ -40,6 +79,10 @@ class CodeSystemProvider {
     this._validateSupplements();
   }
 
+  /**
+   * @param {OperationContext} opContext - Operation context
+   * @returns {void}
+   */
   _ensureOpContext(opContext) {
     assert(opContext && opContext instanceof OperationContext, "opContext is not an instance of OperationContext");
   }
@@ -69,7 +112,7 @@ class CodeSystemProvider {
   /**
    * @returns {string} uri for the code system
    */
-  name() { return this.system() + (this.version() ? "|"+this.version() : "") }
+  name() { return this.system() + (this.version() ? "|"+this.version() : ""); }
 
   /**
    * @returns {string} uri for the code system
@@ -77,10 +120,13 @@ class CodeSystemProvider {
   system() { throw new Error("Must override"); }
 
   /**
-   * @returns {string} version for the code system
+   * @returns {string | null} version for the code system
    */
   version() { throw new Error("Must override"); }
 
+  /**
+   * @returns {string} Versioned system URL
+   */
   vurl() {
     if (this.version()) {
       return this.system()+ "|"+ this.version();
@@ -91,15 +137,15 @@ class CodeSystemProvider {
   /**
    * @returns {string} default language for the code system
    */
-  defLang() { return 'en' }
+  defLang() { return 'en'; }
 
   /**
-   * @returns {CodeSystemContentMode} content mode for the CodeSystem
+   * @returns {string} content mode for the CodeSystem
    */
   contentMode() { return CodeSystemContentMode.Complete; }
 
   /**
-   * @returns {integer} agreed limitation of expansions (see CPT). 0 means no limitation
+   * @returns {number} agreed limitation of expansions (see CPT). 0 means no limitation
    */
   expandLimitation() { return 0; }
 
@@ -109,17 +155,17 @@ class CodeSystemProvider {
   description() { throw new Error("Must override"); }
 
   /**
-   * @returns {string} source package for the code system, if known
+   * @returns {string | null} source package for the code system, if known
    */
   sourcePackage() { return null; }
 
   /**
-   * @returns {integer} total number of concepts in the code system
+   * @returns {number | Promise<number>} total number of concepts in the code system
    */
   totalCount() { throw new Error("Must override"); }
 
   /**
-   * @returns {CodeSystem.property[]} defined properties for the code system
+   * @returns {any[] | null} defined properties for the code system
    */
   propertyDefinitions() { return null; }
 
@@ -150,6 +196,12 @@ class CodeSystemProvider {
     return langs.isEnglishOrNothing();
   }
 
+  /**
+   * @param {FhirResource} resource - FHIR resource with optional language
+   * @param {Languages} languages - Requested languages
+   * @param {boolean} ifNoLang - Value to return when the resource has no language
+   * @returns {boolean} Whether the resource language matches
+   */
   resourceLanguageMatches(resource, languages, ifNoLang = false) {
     if (resource.language) {
       const resourceLang = new Language(resource.language);
@@ -158,11 +210,16 @@ class CodeSystemProvider {
           return true;
         }
       }
+      return false;
     } else {
       return ifNoLang;
     }
   }
 
+  /**
+   * @param {Languages} languages - Requested languages
+   * @returns {boolean} Whether any supplement provides displays
+   */
   _hasAnySupplementDisplays(languages) {
     // Check if any supplements have displays in the requested languages
     if (this.supplements) {
@@ -171,7 +228,7 @@ class CodeSystemProvider {
         // Check if supplement language matches and has displays
         if (this.resourceLanguageMatches(supplement.jsonObj, languages, false)) {
           // Check if any concept has a display
-          const allConcepts = supplement.getAllConcepts();
+          const allConcepts = /** @type {CodeSystemConceptLike[]} */ (supplement.getAllConcepts());
           if (allConcepts.some(c => c.display)) {
             return true;
           }
@@ -179,7 +236,7 @@ class CodeSystemProvider {
       }
       // Check concept designations for display uses
       for (const supplement of this.supplements) {
-        const allConcepts = supplement.getAllConcepts();
+        const allConcepts = /** @type {CodeSystemConceptLike[]} */ (supplement.getAllConcepts());
         for (const concept of allConcepts) {
           if (concept.designation) {
             for (const designation of concept.designation) {
@@ -207,7 +264,7 @@ class CodeSystemProvider {
   hasParents() { return false; }
 
   /**
-   * @returns {string} true if the code system nominates an enumeration to use in place of iterating (UCUM)
+   * @returns {string | null} true if the code system nominates an enumeration to use in place of iterating (UCUM)
    */
   specialEnumeration() { return null; }
 
@@ -225,11 +282,11 @@ class CodeSystemProvider {
    * @returns {string[]} all supplements in scope
    */
   listSupplements(langPacks) {
-    return this.supplements ? this.supplements.filter(s => langPacks || !s.isLangPack()).map(s => s.vurl) : [];
+    return this.supplements ? this.supplements.filter(s => langPacks || !s.isLangPack()).map(s => String(s.vurl)) : [];
   }
 
   /**
-   * @returns {Feature[]} applicable Features
+   * @returns {Feature[] | null} applicable Features
    */
   listFeatures() { return null; }
 
@@ -243,7 +300,7 @@ class CodeSystemProvider {
   }
 
   /**
-   * @returns { {status, standardsStatus : String, experimental : boolean} } applicable Features
+   * @returns {CodeSystemStatus} status information
    */
   status() { return {}; }
 
@@ -252,14 +309,14 @@ class CodeSystemProvider {
    */
 
   /**
-   * @param {String | CodeSystemProviderContext} code
-   * @returns {string} the correct code for the concept specified
+   * @param {string | CodeSystemProviderContext} code
+   * @returns {Promise<string | null>} the correct code for the concept specified
    */
   async code(code) {throw new Error("Must override"); }
 
   /**
-   * @param {String | CodeSystemProviderContext} code
-   * @returns {string} the best display given the languages in the operation context
+   * @param {string | CodeSystemProviderContext} code
+   * @returns {Promise<string | null>} the best display given the languages in the operation context
    */
   async display(code) {
     throw new Error("Must override");
@@ -269,8 +326,8 @@ class CodeSystemProvider {
    * Protected!
    *
    
-   * @param {String} code
-   * @returns {string} the best display given the languages in the operation context
+   * @param {string} code
+   * @returns {string | null} the best display given the languages in the operation context
    */
   _displayFromSupplements(code) {
     assert(typeof code === 'string', 'code must be string');
@@ -281,7 +338,7 @@ class CodeSystemProvider {
         // Check if supplement language matches and has displays
         if (this.resourceLanguageMatches(supplement.jsonObj, this.opContext.langs, false)) {
           // Check if any concept has a display
-          const concept= supplement.getConceptByCode(code);
+          const concept = /** @type {CodeSystemConceptLike | null} */ (supplement.getConceptByCode(code));
           if (concept) {
             if (concept.display) {
               return concept.display;
@@ -291,10 +348,17 @@ class CodeSystemProvider {
         }
       }
       // Check concept designations for display uses
-      for (const concept in concepts) {
+      for (const concept of concepts) {
         if (concept.designation) {
           for (const designation of concept.designation) {
-            if (CodeSystem.isUseADisplay(designation.use) && this.opContext.langs.hasMatch(designation.language)) {
+            if (CodeSystem.isUseADisplay(designation.use) && designation.language) {
+              const designationLang = new Language(designation.language);
+              for (const requestedLang of this.opContext.langs) {
+                if (designationLang.matchesForDisplay(requestedLang)) {
+                  return designation.value;
+                }
+              }
+            } else if (CodeSystem.isUseADisplay(designation.use)) {
               return designation.value;
             }
           }
@@ -303,7 +367,7 @@ class CodeSystemProvider {
       // still here? try again, for any non-language display
       for (const supplement of this.supplements) {
         if (!supplement.jsonObj.language) {
-          const concept= supplement.getConceptByCode(code);
+          const concept = /** @type {CodeSystemConceptLike | null} */ (supplement.getConceptByCode(code));
           if (concept && concept.display) {
             return concept.display;
           }
@@ -316,55 +380,55 @@ class CodeSystemProvider {
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {string} the definition for the concept (if available)
+   * @returns {Promise<string | null>} the definition for the concept (if available)
    */
   async definition(code) {throw new Error("Must override"); }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {boolean} if the concept is abstract
+   * @returns {Promise<boolean>} if the concept is abstract
    */
   async isAbstract(code) { return false; }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {boolean} if the concept is inactive
+   * @returns {Promise<boolean>} if the concept is inactive
    */
   async isInactive(code) { return false; }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {boolean} if the concept is inactive
+   * @returns {Promise<boolean>} if the concept is deprecated
    */
   async isDeprecated(code) { return false; }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {string} status
+   * @returns {Promise<string | null>} status
    */
   async getStatus(code) { return null; }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {string} assigned itemWeight - if there is one
+   * @returns {Promise<string | null>} assigned itemWeight - if there is one
    */
   async itemWeight(code) { return null; }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {string} parent, if there is one
+   * @returns {Promise<string | null>} parent, if there is one
    */
   async parent(code) { return null; }
 
   /**
    * This is calleed if the designation is not marked with a usual use code indicating that it is considered as a display
-   * @param designation
+   * @param {any} designation - Candidate designation
    * @returns {boolean}
    */
   isDisplay(designation) {
@@ -373,17 +437,22 @@ class CodeSystemProvider {
 
   /**
    * @param {string | CodeSystemProviderContext} code
-   * @param {ConceptDesignations} designation list
-   * @returns {Designation[]} whatever designations exist (in all languages)
+   * @param {any} displays - Designation collector
+   * @returns {Promise<any[] | null>} whatever designations exist (in all languages)
    */
   async designations(code, displays) { return null; }
 
+  /**
+   * @param {string} code - Concept code
+   * @param {any} displays - Designation collector
+   * @returns {void}
+   */
   _listSupplementDesignations(code, displays) {
     assert(typeof code === 'string', 'code must be string');
 
     if (this.supplements) {
       for (const supplement of this.supplements) {
-        const concept= supplement.getConceptByCode(code);
+        const concept = /** @type {CodeSystemConceptLike | null} */ (supplement.getConceptByCode(code));
         if (concept) {
           if (concept.display) {
             // sometimes the display is just repeated from the base code system
@@ -393,7 +462,7 @@ class CodeSystemProvider {
           }
           if (concept.designation) {
             for (const d of concept.designation) {
-              let status = Extensions.readString(d, "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status");
+              const status = Extensions.readString(d, "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status");
               displays.addDesignation(false, status || 'active', d.language, d.use, d.value, d.extension?.length > 0 ? d.extension : []).supplement = supplement;
             }
           }
@@ -405,21 +474,21 @@ class CodeSystemProvider {
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {Extension[]} extensions, if any
+   * @returns {Promise<any[] | null>} extensions, if any
    */
   async extensions(code) { return null; }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {CodeSystem.concept.property[]} list of properties (may be empty)
+   * @returns {Promise<any[]>} list of properties (may be empty)
    */
   async properties(code) { return []; }
 
   /**
    
    * @param {string | CodeSystemProviderContext} code
-   * @returns {string} information about incomplete validation on the concept, if there is any information (SCT)
+   * @returns {Promise<string | null>} information about incomplete validation on the concept, if there is any information (SCT)
    */
   async incompleteValidationMessage(code) { return null; }
 
@@ -427,7 +496,7 @@ class CodeSystemProvider {
    
    * @param {string | CodeSystemProviderContext} a
    * @param {string | CodeSystemProviderContext} b
-   * @returns {boolean} true if they're the same
+   * @returns {Promise<boolean>} true if they're the same
    */
   async sameConcept(a, b) { return false; }
 
@@ -438,32 +507,31 @@ class CodeSystemProvider {
   /**
    
    * @param {string } code
-   * @returns {{context : CodeSystemProviderContext, message : String} the result of looking for the code
+   * @returns {Promise<LocateResult>} the result of looking for the code
    */
   async locate(code) { throw new Error("Must override"); }
 
   /**
    
    * @param {string} code
-   * @param {string} parent
+   * @param {string | null} parent
    * @param {boolean} disallowParent
-   * @returns {{context : CodeSystemProviderContext, message : String} the result of looking for the code in the context of the parent
+   * @returns {Promise<LocateResult>} the result of looking for the code in the context of the parent
    */
-  async locateIsA(code) {
-    if (this.hasParents()) throw new Error("Must override"); else return { context : null, message: "The CodeSystem "+this.name()+" does not have parents"}
+  async locateIsA(code, parent = null, disallowParent = false) {
+    if (this.hasParents()) throw new Error("Must override"); else return { context : null, message: "The CodeSystem "+this.name()+" does not have parents"};
   }
 
   /**
    iterate all the root concepts
    * @param {string | CodeSystemProviderContext} code
-   * @returns {CodeSystemIterator} a handle that can be passed to nextConcept (or null, if it can't be iterated)
+   * @returns {Promise<CodeSystemIterator | null>} a handle that can be passed to nextConcept (or null, if it can't be iterated)
    */
-  async iterator(code) { return null }
+  async iterator(code) { return null; }
 
   /**
    iterate all the concepts
-   * @param {string | CodeSystemProviderContext} code
-   * @returns {CodeSystemIterator} a handle that can be passed to nextConcept (or null, if it can't be iterated)
+   * @returns {Promise<CodeSystemIterator | null>} a handle that can be passed to nextConcept (or null, if it can't be iterated)
    */
   async iteratorAll() {
     if (this.hasParents()) throw new Error("Must override"); else return await this.iterator(null);
@@ -472,7 +540,7 @@ class CodeSystemProvider {
   /**
    
    * @param {CodeSystemIterator} context
-   * @returns {CodeSystemProviderContext} the next concept, or null
+   * @returns {Promise<CodeSystemProviderContext | null>} the next concept, or null
    */
   async nextContext(context) { return null; }
 
@@ -480,7 +548,7 @@ class CodeSystemProvider {
    
    * @param {string | CodeSystemProviderContext} codeA
    * @param {string | CodeSystemProviderContext} codeB
-   * @returns {string} one of: equivalent, subsumes, subsumed-by, and not-subsumed
+   * @returns {Promise<string>} one of: equivalent, subsumes, subsumed-by, and not-subsumed
    */
   async subsumesTest(codeA, codeB) { return 'not-subsumed'; }
 
@@ -489,6 +557,7 @@ class CodeSystemProvider {
    * @param {CodeSystemProviderContext} ctxt the context to add properties for
    * @param {string[]} props the properties requested
    * @param {Parameters} params the parameters response to add to
+   * @returns {Promise<void>}
    */
 
   async extendLookup(ctxt, props, params) { }
@@ -519,8 +588,8 @@ class CodeSystemProvider {
    * @param {Object[]} includes - a list of includes from the code system. Each include may contain just the system(+version), concepts and/or filters (but won't contain value sets)
    * @param {Object[]} excludes - a list of excludes from the code system. Each include may contain just the system(+version), concepts and/or filters (but won't contain value sets)
    * @param {boolean} excludeInactive: whether the server will use inactive codes or not
-   * @param {int} offset if handlesOffset() and !iterate, and if the value set is a simple one that only uses this provider, then this is the applicable offset. -1 if not applicable
-   * @param {int} count if handlesOffset() and !iterate, and if the value set is a simple one that only uses this provider, then this is the applicable count. -1 if not applicable
+   * @param {number} offset if handlesOffset() and !iterate, and if the value set is a simple one that only uses this provider, then this is the applicable offset. -1 if not applicable
+   * @param {number} count if handlesOffset() and !iterate, and if the value set is a simple one that only uses this provider, then this is the applicable count. -1 if not applicable
    * @returns {FilterConceptSet[]} filter sets. In general, it wouldn't make sense to return more than one, but providers can do if they want to. See futher comments on executeFilters
    */
   processSelection(params, includes, excludes, excludeInactive, offset, count) {
@@ -531,10 +600,10 @@ class CodeSystemProvider {
   /**
    * returns true if a filter is supported
    *
-   * @param {String} prop
+   * @param {string} prop
    * @param {ValueSetFilterOperator} op
-   * @param {String} prop
-   * @returns {boolean} true if suppoted
+   * @param {string} value
+   * @returns {Promise<boolean>} true if supported
    * */
   async doesFilter(prop, op, value) { return false; }
 
@@ -543,7 +612,7 @@ class CodeSystemProvider {
    * it's only use is to be passed back to the CodeSystem provider so it can make use of it to organise the filter process
    *
    * @param {boolean} iterate true if the conceptSets that result from this will be iterated, and false if they'll be used to locate a single code
-   * @returns {FilterExecutionContext} filter
+   * @returns {Promise<FilterExecutionContext>} filter
    *
    **/
   async getPrepContext(iterate) { return new FilterExecutionContext(iterate); }
@@ -555,8 +624,9 @@ class CodeSystemProvider {
    * throws an exception if the search filter can't be handled
    *
    * @param {FilterExecutionContext} filterContext filtering context
-   * @param {String} filter user entered text search
+   * @param {string} filter user entered text search
    * @param {boolean} sort ?
+   * @returns {Promise<FilterConceptSet>}
    **/
   async searchFilter(filterContext, filter, sort) { throw new Error("Text Search is not supported"); } // ? must override?
 
@@ -566,6 +636,7 @@ class CodeSystemProvider {
    * throws an exception if the search filter can't be handled
    * @param {FilterExecutionContext} filterContext filtering context
    * @param {boolean} sort ?
+   * @returns {Promise<void>}
    **/
   async specialFilter(filterContext, sort) {
     if (this.specialEnumeration()) {
@@ -580,9 +651,10 @@ class CodeSystemProvider {
    *
    * @param {FilterExecutionContext} filterContext filtering context
    * @param {boolean} forIteration - whether this filter is going to be iterated
-   * @param {String} prop
+   * @param {string} prop
    * @param {ValueSetFilterOperator} op
-   * @param {String} prop
+   * @param {string} value
+   * @returns {Promise<void>}
    **/
   async filter(filterContext, forIteration, prop, op, value) { throw new Error("Must override"); } // well, only if any filters are actually supported
 
@@ -596,7 +668,7 @@ class CodeSystemProvider {
    * FilterConceptSets are used for filterCheck();
    *
    * @param {FilterExecutionContext} filterContext filtering context
-   * @returns {FilterConceptSet[]} filter sets
+   * @returns {Promise<FilterConceptSet[]>} filter sets
    **/
   async executeFilters(filterContext) { throw new Error("Must override"); } // well, only if any filters are actually supported
 
@@ -604,7 +676,7 @@ class CodeSystemProvider {
    * return how many concepts are in the filter set
    @param {FilterExecutionContext} filterContext filtering context
    @param {FilterConceptSet} set of interest
-   @returns {int} number of concepts in the set
+   @returns {Promise<number>} number of concepts in the set
    */
   async filterSize(filterContext, set) {throw new Error("Must override"); }
 
@@ -614,7 +686,7 @@ class CodeSystemProvider {
    * This is true if the code system defines a grammar
    *
    @param {FilterExecutionContext} filterContext filtering context
-   @returns {boolean} true if not closed
+   @returns {Promise<boolean>} true if not closed
    */
   async filtersNotClosed(filterContext) { return false; }
 
@@ -624,7 +696,7 @@ class CodeSystemProvider {
    *
    @param {FilterExecutionContext} filterContext filtering context
    @param {FilterConceptSet} set of interest
-   @returns {boolean} if there is a concept
+   @returns {Promise<boolean>} if there is a concept
    */
   async filterMore(filterContext, set) {throw new Error("Must override"); }
 
@@ -633,7 +705,7 @@ class CodeSystemProvider {
    *
    @param {FilterExecutionContext} filterContext filtering context
    @param {FilterConceptSet} set of interest
-   @returns {CodeSystemProviderContext} if there is a concept
+   @returns {Promise<CodeSystemProviderContext | null>} if there is a concept
    */
   async filterConcept(filterContext, set) {throw new Error("Must override"); }
 
@@ -643,7 +715,7 @@ class CodeSystemProvider {
    @param {FilterExecutionContext} filterContext filtering context
    @param {FilterConceptSet} set of interest
    @param {string} code the code to find
-   @returns {string | CodeSystemProviderContext} an error explaining why it isn't in the set, or a handle to the concept
+   @returns {Promise<string | CodeSystemProviderContext>} an error explaining why it isn't in the set, or a handle to the concept
    */
    async filterLocate(filterContext, set, code) {throw new Error("Must override"); }
 
@@ -653,7 +725,7 @@ class CodeSystemProvider {
    @param {FilterExecutionContext} filterContext filtering context
    @param {FilterConceptSet} set of interest
    @param {CodeSystemProviderContext} concept the code to find
-   @returns {string | boolean } an error explaining why it isn't in the set, or true if it is
+   @returns {Promise<string | boolean>} an error explaining why it isn't in the set, or true if it is
    */
    async filterCheck(filterContext, set, concept) {throw new Error("Must override"); }
 
@@ -661,6 +733,7 @@ class CodeSystemProvider {
    * filterFinish - opportunity for the provider to close up and recover resources etc
    *
    @param {FilterExecutionContext} filterContext filtering context
+   @returns {Promise<void>}
    */
   async filterFinish(filterContext) {
 
@@ -669,7 +742,8 @@ class CodeSystemProvider {
   /**
    * register the concept maps that are implicitly defined as part of the code system
    *
-   * @param {ConceptMap[]} conceptMaps
+   * @param {ConceptMap[]} list - Concept maps to register
+   * @returns {void}
    *
    */
   registerConceptMaps(list) {}
@@ -682,11 +756,15 @@ class CodeSystemProvider {
    * @param {Coding} coding the coding to translate
    * @param {String} target the target code system
    * @param {boolean} reverse - if the translation is being run backwards
-   * @returns {CodeTranslation[]} the list of translations, each CodeTranslation has map, code, system, version, display, and relationship
+   * @returns {Promise<CodeTranslation[] | null>} the list of translations, each CodeTranslation has map, code, system, version, display, and relationship
    */
   async getTranslations(map, coding, target, reverse) { return null;}
 
   // ==== Parameter checking methods =========
+  /**
+   * @param {string | Languages | string[]} param - Language input
+   * @returns {Languages} Normalized language collection
+   */
   _ensureLanguages(param) {
     assert(
       typeof param === 'string' ||
@@ -696,7 +774,7 @@ class CodeSystemProvider {
     );
 
     if (typeof param === 'string') {
-      return Languages.fromAcceptLanguage(param, this.languageDefinitions, false);
+      return Languages.fromAcceptLanguage(param, this.languageDefinitions || undefined, false);
     } else if (Array.isArray(param)) {
       const languages = new Languages();
       for (const str of param) {
@@ -710,7 +788,7 @@ class CodeSystemProvider {
   }
 
   /**
-   * @returns {String} the version algorithm for this version of the code system
+   * @returns {string | null} the version algorithm for this version of the code system
    */
   versionAlgorithm() {
     return null;
@@ -720,12 +798,15 @@ class CodeSystemProvider {
     return false;
   }
 
+  /**
+   * @returns {boolean} Whether this code system has multiple hierarchies
+   */
   hasMultiHierarchy() {
     return false;
   }
   /**
    *
-   * @returns {string} valueset for the code system
+   * @returns {string | null} valueset for the code system
    */
   valueSet() {
     return null;
@@ -738,25 +819,29 @@ class CodeSystemProvider {
    *
    * Only populated when expanding, and read-only to the CS Provider
    *
-   * @type {Map<String, Object>}
+   * @returns {Map<string, object> | null | undefined} Observed usage map
    */
   usages() {
     if (this.usagesObj == undefined) {
-      this.usagesObj = this.opContext.usageTracker ? this.opContext.usageTracker.usages(this.system()) : null;
+      const usageTracker = /** @type {{usages(system: string): Map<string, object>} | null | undefined} */ (/** @type {any} */ (this.opContext).usageTracker);
+      this.usagesObj = usageTracker ? usageTracker.usages(this.system()) : null;
     }
     return this.usagesObj;
   }
-  usagesObj = undefined;
 }
 
 class CodeSystemFactoryProvider {
+  /** @type {number} */
   uses = 0;
 
   /**
-   * {I18nSupport}
+   * @type {I18nSupport}
    */
   i18n;
 
+  /**
+   * @param {I18nSupport} i18n - Translation support
+   */
   constructor(i18n) {
     validateParameter(i18n, "i18n", I18nSupport);
 
@@ -765,17 +850,21 @@ class CodeSystemFactoryProvider {
 
 
   /**
-   * @returns {String} the latest version, if known
+   * @returns {string | null} the latest version, if known
    */
   defaultVersion() { throw new Error("Must override"); }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async load() {
     // nothing here
   }
 
   /**
    
-   * @param {CodeSystem[]} supplements any supplements that are in scope
+   * @param {OperationContext} opContext operation context
+   * @param {CodeSystem[] | null} supplements any supplements that are in scope
    * @returns {CodeSystemProvider} a built provider - or an exception
    */
   build(opContext, supplements) { throw new Error("Must override Factory"); }
@@ -802,14 +891,20 @@ class CodeSystemFactoryProvider {
   }
 
   /**
-   * @returns {string} version for the code system
+   * @returns {string | null} version for the code system
    */
   version() { throw new Error("Must override"); }
 
+  /**
+   * @returns {string} content mode
+   */
   content() {
     return "complete";
   }
 
+  /**
+   * @returns {string | null} Major/minor version where applicable
+   */
   getPartialVersion() {
     let ver = this.version();
     if (ver && VersionUtilities.isSemVer(ver)) {
@@ -821,17 +916,21 @@ class CodeSystemFactoryProvider {
   /**
    * the version parameter might not be the same as version() once
    * all matching rules are done
-   * @param version
+   * @param {string} version - Version to describe
+   * @returns {string} Human-readable version
    */
   describeVersion(version) {
     return "v"+version;
   }
 
-/**
+  /**
    * @returns {number} how many times the factory has been asked to construct a provider
    */
-  useCount() {return this.uses}
+  useCount() {return this.uses;}
 
+  /**
+   * @returns {void}
+   */
   recordUse() {
     this.uses++;
   }
@@ -839,9 +938,9 @@ class CodeSystemFactoryProvider {
   /**
    * build and return a known value set from the URL, if there is one.
    *
-   * @param url
-   * @param version
-   * @returns {ValueSet}
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - ValueSet version
+   * @returns {Promise<ValueSet | null>}
    */
   async buildKnownValueSet(url, version) {
     return null;
@@ -857,7 +956,7 @@ class CodeSystemFactoryProvider {
    * then the server will use fillOutSupplement to ask for the details to be populated
    * if a client has done something that means the server needs it (mostly, it doesn't)
    *
-   * @returns {CodeSystem[]}
+   * @returns {Promise<CodeSystem[]>}
    */
   async registerSupplements() {
     return [];
@@ -865,10 +964,10 @@ class CodeSystemFactoryProvider {
 
   /**
    *
-   * @param supplements - the list of supplements to populate - fill with any supplements matching url(+version)
-   * @param url - url of code system
-   * @param version - version of codesystem
-   * @param {Map} statedSupplements - return language packs and supplements that are listed in stated supplements, by versioned URL
+   * @param {CodeSystem[]} supplements - the list of supplements to populate - fill with any supplements matching url(+version)
+   * @param {string} url - url of code system
+   * @param {string | null | undefined} version - version of codesystem
+   * @param {Map<string, CodeSystem[]>} statedSupplements - return language packs and supplements that are listed in stated supplements, by versioned URL
    * @returns {Promise<void>}
    */
   async listSupplements(supplements, url, version, statedSupplements) {
@@ -878,7 +977,7 @@ class CodeSystemFactoryProvider {
    * see comments for registerSupplements()
    *
    * @param {CodeSystem} supplement - the supplement to flesh out
-   * @returns void
+   * @returns {Promise<void>}
    */
   async fillOutSupplement(supplement) {
     // nothing
@@ -889,9 +988,10 @@ class CodeSystemFactoryProvider {
    *
    * the conceptmap is never visible to a user; if it has an implicitSource, then
    * provider.getTranslations will be called when it's actually used
-   * @param url
-   * @param version
-   * @returns {ConceptMap}
+   * @param {ConceptMap[]} conceptMaps - ConceptMap accumulator
+   * @param {string} source - Source system
+   * @param {string} dest - Destination system
+   * @returns {Promise<ConceptMap | null>}
    */
   async findImplicitConceptMaps(conceptMaps, source, dest) {
     return null;
@@ -900,34 +1000,47 @@ class CodeSystemFactoryProvider {
   /**
    * build and return a known concept map from the URL, if there is one.
    *
-   * @param url
-   * @param version
-   * @returns {ConceptMap}
+   * @param {string} url - ConceptMap URL
+   * @param {string | null | undefined} version - ConceptMap version
+   * @returns {Promise<ConceptMap | null>}
    */
   async findImplicitConceptMap(url, version) {
     return null;
   }
 
+  /**
+   * @returns {string} Provider id
+   */
   id() {
     throw new Error("Must override");
   }
 
+  /**
+   * @param {string} code - Code
+   * @returns {string | undefined} Documentation URL for the code
+   */
   codeLink(code) {
     return undefined;
   }
 
+  /**
+   * @returns {boolean} Whether this provider can be iterated
+   */
   iteratable() {
     return false;
   }
 
   // nothing here - might be overriden
+  /**
+   * @returns {Promise<void>}
+   */
   async close() {
 
   }
 
   /**
    * if known, the right place to point to on the web for the code system
-   * @returns {String}
+   * @returns {string | undefined}
    */
   webSource() {
     return undefined;

@@ -1,12 +1,18 @@
+// @ts-check
+
 const {VersionUtilities} = require("../../library/version-utilities");
 const {getValueName} = require("../../library/utilities");
 const {Extensions} = require("../library/extensions");
 
 /**
+ * @typedef {Record<string, any>} FhirJson
+ */
+
+/**
  * Converts input ValueSet to R5 format (modifies input object for performance)
- * @param {Object} jsonObj - The input ValueSet object
- * @param {string} version - Source FHIR version
- * @returns {Object} The same object, potentially modified to R5 format
+ * @param {FhirJson} jsonObj - The input ValueSet object
+ * @param {string} sourceVersion - Source FHIR version
+ * @returns {FhirJson} The same object, potentially modified to R5 format
  * @private
  */
 
@@ -33,6 +39,10 @@ function valueSetToR5(jsonObj, sourceVersion) {
   throw new Error(`Unsupported FHIR version: ${sourceVersion}`);
 }
 
+/**
+ * @param {FhirJson} inc
+ * @returns {void}
+ */
 function valueSetIncludeToR5(inc) {
   for (const filter of inc.filter || []) {
     if (filter._op) {
@@ -48,9 +58,9 @@ function valueSetIncludeToR5(inc) {
 
 /**
  * Converts R5 ValueSet to target version format (clones object first)
- * @param {Object} r5Obj - The R5 format ValueSet object
+ * @param {FhirJson} r5Obj - The R5 format ValueSet object
  * @param {string} targetVersion - Target FHIR version
- * @returns {Object} New object in target version format
+ * @returns {FhirJson} New object in target version format
  * @private
  */
 function valueSetFromR5(r5Obj, targetVersion) {
@@ -72,8 +82,8 @@ function valueSetFromR5(r5Obj, targetVersion) {
 
 /**
  * Converts R5 ValueSet to R4 format
- * @param {Object} r5Obj - Cloned R5 ValueSet object
- * @returns {Object} R4 format ValueSet
+ * @param {FhirJson} r5Obj - Cloned R5 ValueSet object
+ * @returns {FhirJson} R4 format ValueSet
  * @private
  */
 function valueSetR5ToR4(r5Obj) {
@@ -86,30 +96,30 @@ function valueSetR5ToR4(r5Obj) {
 
   // Filter out R5-only filter operators in compose
   if (r5Obj.compose && r5Obj.compose.include) {
-    r5Obj.compose.include = r5Obj.compose.include.map(include => {
+    r5Obj.compose.include = r5Obj.compose.include.map(/** @param {FhirJson} include */ include => {
       if (include.filter && Array.isArray(include.filter)) {
-        include.filter = include.filter.map(filter => {
+        include.filter = include.filter.map(/** @param {FhirJson} filter */ filter => {
           if (filter.op && isR5OnlyFilterOperator(filter.op)) {
             filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
             delete filter.op;
           }
           return filter;
-        }).filter(filter => filter !== null);
+        }).filter(/** @param {FhirJson | null} filter */ filter => filter !== null);
       }
       return include;
     });
   }
 
   if (r5Obj.compose && r5Obj.compose.exclude) {
-    r5Obj.compose.exclude = r5Obj.compose.exclude.map(exclude => {
+    r5Obj.compose.exclude = r5Obj.compose.exclude.map(/** @param {FhirJson} exclude */ exclude => {
       if (exclude.filter && Array.isArray(exclude.filter)) {
-        exclude.filter = exclude.filter.map(filter => {
+        exclude.filter = exclude.filter.map(/** @param {FhirJson} filter */ filter => {
           if (filter.op && isR5OnlyFilterOperator(filter.op)) {
             filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
             delete filter.op;
           }
           return filter;
-        }).filter(filter => filter !== null);
+        }).filter(/** @param {FhirJson | null} filter */ filter => filter !== null);
       }
       return exclude;
     });
@@ -141,8 +151,8 @@ function valueSetR5ToR4(r5Obj) {
 
 /**
  * Converts R5 ValueSet to R3 format
- * @param {Object} r5Obj - Cloned R5 ValueSet object
- * @returns {Object} R3 format ValueSet
+ * @param {FhirJson} r5Obj - Cloned R5 ValueSet object
+ * @returns {FhirJson} R3 format ValueSet
  * @private
  */
 function valueSetR5ToR3(r5Obj) {
@@ -151,30 +161,30 @@ function valueSetR5ToR3(r5Obj) {
 
   // R3 has more limited filter operator support
   if (r4Obj.compose && r4Obj.compose.include) {
-    r4Obj.compose.include = r4Obj.compose.include.map(include => {
+    r4Obj.compose.include = r4Obj.compose.include.map(/** @param {FhirJson} include */ include => {
       if (include.filter && Array.isArray(include.filter)) {
-        include.filter = include.filter.map(filter => {
+        include.filter = include.filter.map(/** @param {FhirJson} filter */ filter => {
           if (filter.op && !isR3CompatibleFilterOperator(filter.op)) {
             filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
             delete filter.op;
           }
           return filter;
-        }).filter(filter => filter !== null);
+        }).filter(/** @param {FhirJson | null} filter */ filter => filter !== null);
       }
       return include;
     });
   }
 
   if (r4Obj.compose && r4Obj.compose.exclude) {
-    r4Obj.compose.exclude = r4Obj.compose.exclude.map(exclude => {
+    r4Obj.compose.exclude = r4Obj.compose.exclude.map(/** @param {FhirJson} exclude */ exclude => {
       if (exclude.filter && Array.isArray(exclude.filter)) {
-        exclude.filter = exclude.filter.map(filter => {
+        exclude.filter = exclude.filter.map(/** @param {FhirJson} filter */ filter => {
           if (filter.op && !isR3CompatibleFilterOperator(filter.op)) {
             filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
             delete filter.op;
           }
           return filter;
-        }).filter(filter => filter !== null);
+        }).filter(/** @param {FhirJson | null} filter */ filter => filter !== null);
       }
       return exclude;
     });
@@ -185,6 +195,10 @@ function valueSetR5ToR3(r5Obj) {
 
 
 // Recursive function to convert contains.property
+/**
+ * @param {FhirJson[] | null | undefined} containsList
+ * @returns {void}
+ */
 function convertContainsPropertyR5ToR4(containsList) {
   if (!containsList) return;
 
@@ -192,16 +206,18 @@ function convertContainsPropertyR5ToR4(containsList) {
     if (item.property && item.property.length > 0) {
       item.extension = item.extension || [];
       for (let prop of item.property) {
-        let ext = {
+        let ext = /** @type {FhirJson} */ ({
           url: "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
           extension: [
             { url: "code", valueCode: prop.code }
           ]
-        };
+        });
         let pn = getValueName(prop);
-        let subExt = { url: "value" };
-        subExt[pn] = prop[pn];
-        ext.extension.push(subExt);
+        if (pn) {
+          let subExt = /** @type {FhirJson} */ ({ url: "value" });
+          subExt[pn] = prop[pn];
+          ext.extension.push(subExt);
+        }
         item.extension.push(ext);
       }
       delete item.property;
@@ -250,4 +266,3 @@ function isR3CompatibleFilterOperator(operator) {
 
 
 module.exports = { valueSetToR5, valueSetFromR5 };
-

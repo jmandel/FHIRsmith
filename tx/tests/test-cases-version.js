@@ -1,3 +1,5 @@
+// @ts-check
+
 // AUTO-GENERATED FILE - DO NOT EDIT
 // Generated from test-cases.json
 // Regenerate with: node generate-tests.js

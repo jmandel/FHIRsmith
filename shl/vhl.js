@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Copyright 2025, Health Intersections Pty Ltd (http://www.healthintersections.com.au)
 //
@@ -16,13 +18,14 @@
  *
  * @param {string} host - The host from the request (e.g., "localhost:3000")
  * @param {string} uuid - The SHL entry UUID
- * @param {object} standardResponse - The standard JSON response that would be returned
- * @returns {object} The modified JSON response for VHL entries
+ * @param {{files: Array<{location: string, contentType: string}>}} standardResponse - The standard JSON response that would be returned
+ * @returns {{resourceType: string, type: string, link: Array<{relation: string, url: string}>, entry: Array<Record<string, any>>}} The modified JSON response for VHL entries
  */
 function processVHL(host, uuid, standardResponse) {
   // TODO: Implement your complex VHL processing logic here
 
   // Example structure - modify as needed:
+  /** @type {{resourceType: string, type: string, link: Array<{relation: string, url: string}>, entry: Array<Record<string, any>>}} */
   const vhlResponse = {
     "resourceType": "Bundle",
     "type": "searchSet",
@@ -34,8 +37,8 @@ function processVHL(host, uuid, standardResponse) {
   };
 
   for (const file of standardResponse.files) {
-    var uuid2 = tail(file.location);
-    var e = {
+    const uuid2 = tail(file.location);
+    const e = {
       "fullUrl": file.location,
       "resource": {
         "resourceType": "DocumentReference",
@@ -49,13 +52,17 @@ function processVHL(host, uuid, standardResponse) {
           "contentType": file.contentType
         }]
       }
-    }
+    };
     vhlResponse.entry.push(e);
   }
 
   return vhlResponse;
 }
 
+/**
+ * @param {string} url
+ * @returns {string}
+ */
 function tail(url) {
   if (url.includes("/")) {
     return url.substring(url.lastIndexOf("/") + 1);

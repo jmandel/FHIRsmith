@@ -1,2 +1,3 @@
-﻿module.exports = require('./cache-paths.cjs');
+// @ts-check
 
+module.exports = require('./cache-paths.cjs');

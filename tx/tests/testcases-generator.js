@@ -1,3 +1,5 @@
+// @ts-check
+
 const fs = require('fs');
 const path = require('path');
 const { PackageManager} = require("../../library/package-manager");
@@ -12,9 +14,14 @@ const OUTPUT_FILE2 = path.join(__dirname, 'test-cases-version.js');
 // stay in the java validator. We actually execute the test cases by loading
 // the java validator in server mode, and then using it to actually execute
 // the tests
+/** @type {any} */
 let npm;
+/** @type {any} */
 let testCases;
 
+/**
+ * @returns {Promise<void>}
+ */
 async function load() {
     const packageServers = ['https://packages2.fhir.org/packages'];
     const cacheFolder = folders.ensureFolder('terminology-cache');
@@ -25,6 +32,9 @@ async function load() {
     testCases = JSON.parse(fs.readFileSync(path.join(fullPackagePath, "package", "tests", "test-cases.json"), 'utf8'));
 }
 
+/**
+ * @returns {void}
+ */
 function generate() {
     const modes = txTestModeSet();
 
@@ -92,6 +102,9 @@ describe('Tx Tests', () => {
   console.log(`Generated ${OUTPUT_FILE2}`);
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function generateTestCases() {
   await load();
   generate();

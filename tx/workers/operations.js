@@ -1,4 +1,6 @@
 
+// @ts-check
+
 const {TerminologyWorker} = require("./worker");
 
 /**
@@ -6,11 +8,11 @@ const {TerminologyWorker} = require("./worker");
  */
 class OperationsWorker extends TerminologyWorker {
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -24,7 +26,14 @@ class OperationsWorker extends TerminologyWorker {
     return 'search';
   }
 
+  /**
+   * @param {any} req
+   * @param {{json: (body: any) => any}} res
+   * @returns {Promise<any>}
+   */
   async handle(req, res) {
+    void req;
+    /** @type {{resourceType: string, valueSets?: any}} */
     const formData = { resourceType : "Operations" };
     formData.valueSets = await this.provider.listAllValueSets();
     return res.json(formData);

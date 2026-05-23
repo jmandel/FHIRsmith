@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * PackageManager - FHIR Package management with caching
  * Fetches and caches FHIR packages from package servers
@@ -10,8 +12,25 @@ const http = require('http');
 const { URL } = require('url');
 const zlib = require('zlib');
 const tar = require('tar');
-const axios = require('axios');
+const axios = /** @type {any} */ (require('axios'));
 const { VersionUtilities } = require('../library/version-utilities');
+
+/** @typedef {{url?: string, repo?: string, date?: string, 'package-id'?: string}} CIBuildInfo */
+/** @typedef {{date?: string | (() => string)}} NpmPackageLike */
+/** @typedef {{stream: Buffer, url: string, version: string}} LoadedPackageResult */
+/** @typedef {{name?: string, version?: string, fhirVersions?: string[], 'fhir-version-list'?: string[]}} PackageManifest */
+/** @typedef {{filename?: string, resourceType?: string, id?: string, url?: string, version?: string, [key: string]: any}} PackageIndexEntry */
+/** @typedef {{files: PackageIndexEntry[], 'index-version'?: string, [key: string]: any}} PackageIndex */
+/** @typedef {{resourceType?: string, id?: string, url?: string, version?: string}} PackageReference */
+/** @typedef {{totalResources: number, indexVersion?: string, resourceTypes: Record<string, number>}} PackageStatistics */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+}
 
 const DEFAULT_ROOT_URL = 'https://build.fhir.org';
 const DEFAULT_CI_QUERY_INTERVAL = 1000 * 60 * 60; // 1 hour
@@ -25,9 +44,11 @@ class CIBuildClient {
         this.rootUrl = rootUrl;
         this.ciQueryInterval = ciQueryInterval;
         this.ciLastQueriedTimeStamp = 0;
+        /** @type {CIBuildInfo[] | null} */
         this.ciBuildInfo = null;
 
         // key = packageId, value = url of built package on build.fhir.org/ig/
+        /** @type {Map<string, string>} */
         this.ciPackageUrls = new Map();
     }
 
@@ -47,14 +68,14 @@ class CIBuildClient {
             // First pass: exact match
             for (const o of this.ciBuildInfo) {
                 if (canonical === o.url) {
-                    return o['package-id'];
+                    return o['package-id'] || null;
                 }
             }
 
             // Second pass: starts with canonical + /ImplementationGuide/
             for (const o of this.ciBuildInfo) {
                 if (o.url && o.url.startsWith(canonical + '/ImplementationGuide/')) {
-                    return o['package-id'];
+                    return o['package-id'] || null;
                 }
             }
         }
@@ -72,7 +93,7 @@ class CIBuildClient {
 
         for (const o of this.ciBuildInfo || []) {
             if (packageId === o['package-id']) {
-                return o.url;
+                return o.url || null;
             }
         }
 
@@ -82,7 +103,7 @@ class CIBuildClient {
     /**
      * Check if local package is current with CI build
      * @param {string} id - Package ID
-     * @param {Object} npmPackage - Local npm package with date() method
+     * @param {NpmPackageLike} npmPackage - Local npm package with date() method
      * @returns {Promise<boolean>} True if current
      */
     async isCurrent(id, npmPackage) {
@@ -104,14 +125,14 @@ class CIBuildClient {
     /**
      * Load package from CI build
      * @param {string} id - Package ID
-     * @param {string} branch - Branch name (optional)
-     * @returns {Promise<{stream: Buffer, url: string, version: string}>}
+     * @param {string | null} branch - Branch name (optional)
+     * @returns {Promise<LoadedPackageResult>}
      */
     async loadFromCIBuild(id, branch = null) {
         await this.checkCIServerQueried();
 
-        if (this.ciPackageUrls.has(id)) {
-            const packageBaseUrl = this.ciPackageUrls.get(id);
+        const packageBaseUrl = this.ciPackageUrls.get(id);
+        if (packageBaseUrl) {
 
             if (!branch) {
                 let stream;
@@ -173,28 +194,29 @@ class CIBuildClient {
      * Fetch content from URL
      * @param {string} source - URL to fetch
      * @returns {Promise<Buffer>}
-     * @private
      */
     async fetchFromUrlSpecific(source) {
         return new Promise((resolve, reject) => {
             const protocol = source.startsWith('https') ? https : http;
 
             const request = protocol.get(source, (response) => {
+                const statusCode = response.statusCode || 0;
                 // Handle redirects
-                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                if (statusCode >= 300 && statusCode < 400 && response.headers.location) {
                     this.fetchFromUrlSpecific(response.headers.location)
                       .then(resolve)
                       .catch(reject);
                     return;
                 }
 
-                if (response.statusCode !== 200) {
-                    reject(new Error(`Unable to fetch ${source}: HTTP ${response.statusCode}`));
+                if (statusCode !== 200) {
+                    reject(new Error(`Unable to fetch ${source}: HTTP ${statusCode}`));
                     return;
                 }
 
+                /** @type {Buffer[]} */
                 const chunks = [];
-                response.on('data', (chunk) => chunks.push(chunk));
+                response.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
                 response.on('end', () => resolve(Buffer.concat(chunks)));
                 response.on('error', reject);
             });
@@ -210,7 +232,7 @@ class CIBuildClient {
     /**
      * Fetch JSON from URL
      * @param {string} url - URL to fetch
-     * @returns {Promise<Object>}
+     * @returns {Promise<Record<string, any>>}
      * @private
      */
     async fetchJson(url) {
@@ -232,7 +254,7 @@ class CIBuildClient {
                 try {
                     await this.updateFromCIServer();
                 } catch (e2) {
-                    console.debug(`Error connecting to build server - running without build (${e2.message})`);
+                    console.debug(`Error connecting to build server - running without build (${errorMessage(e2)})`);
                 }
             }
         }
@@ -246,11 +268,12 @@ class CIBuildClient {
         try {
             const url = `${this.rootUrl}/ig/qas.json?nocache=${Date.now()}`;
             const buffer = await this.fetchFromUrlSpecific(url);
-            this.ciBuildInfo = JSON.parse(buffer.toString('utf8'));
+            this.ciBuildInfo = /** @type {CIBuildInfo[]} */ (JSON.parse(buffer.toString('utf8')));
 
+            /** @type {{url: string, packageId: string, repo: string, date: Date}[]} */
             const builds = [];
 
-            for (const j of this.ciBuildInfo) {
+            for (const j of this.ciBuildInfo || []) {
                 if (j.url && j['package-id'] && j['package-id'].includes('.')) {
                     let packageUrl = j.url;
                     if (packageUrl.includes('/ImplementationGuide/')) {
@@ -280,7 +303,7 @@ class CIBuildClient {
 
     /**
      * Extract repo path from full path
-     * @param {string} path - Full path
+     * @param {string | null | undefined} path - Full path
      * @returns {string} Repo path (org/repo)
      * @private
      */
@@ -292,7 +315,7 @@ class CIBuildClient {
 
     /**
      * Parse date string from CI server
-     * @param {string} s - Date string in format "EEE, dd MMM, yyyy HH:mm:ss Z"
+     * @param {string | null | undefined} s - Date string in format "EEE, dd MMM, yyyy HH:mm:ss Z"
      * @returns {Date}
      * @private
      */
@@ -350,10 +373,11 @@ class CIBuildClient {
 
 
 class PackageManager {
+    /** @type {number} */
     totalDownloaded = 0;
 
     /**
-     * @param {string[]} packageServers - Ordered list of package server URLs
+     * @param {string[] | null | undefined} packageServers - Ordered list of package server URLs
      * @param {string} cacheFolder - Local folder for cached content
      */
     constructor(packageServers, cacheFolder) {
@@ -367,7 +391,7 @@ class PackageManager {
     /**
      * Fetch a package, either from cache or from servers
      * @param {string} packageId - Package identifier (e.g., 'hl7.fhir.us.core')
-     * @param {string} version - Version string (may contain wildcards)
+     * @param {string | null | undefined} version - Version string (may contain wildcards)
      * @returns {Promise<string>} Path to extracted package folder
      */
     async fetch(packageId, version) {
@@ -393,12 +417,12 @@ class PackageManager {
     /**
      * Resolve version with wildcards to a specific version
      * @param {string} packageId - Package identifier
-     * @param {string} version - Version string (may contain wildcards)
+     * @param {string | null | undefined} version - Version string (may contain wildcards)
      * @returns {Promise<string>} Resolved specific version
      */
     async resolveVersion(packageId, version) {
         // If no wildcards, return as-is
-        if (!VersionUtilities.versionHasWildcards(version) && version != null) {
+        if (version != null && !VersionUtilities.versionHasWildcards(version)) {
             return version;
         }
 
@@ -412,12 +436,39 @@ class PackageManager {
                 }
             } catch (error) {
                 // Try next server
-                console.info("Error looking for "+packageId+" on "+server+": "+error);
+                console.info("Error looking for "+packageId+" on "+server+": "+errorMessage(error));
                 continue;
             }
         }
 
+        const cachedVersion = await this.resolveCachedVersion(packageId, version);
+        if (cachedVersion) {
+            return cachedVersion;
+        }
+
         throw new Error(`Could not resolve version ${version} for package ${packageId}`);
+    }
+
+    /**
+     * Resolve a wildcard or unspecified version from the local cache when package servers are unavailable.
+     * @param {string} packageId - Package identifier
+     * @param {string | null | undefined} version - Version criteria
+     * @returns {Promise<string|null>} Cached version, if one matches
+     */
+    async resolveCachedVersion(packageId, version) {
+        let entries;
+        try {
+            entries = await fs.readdir(this.cacheFolder, { withFileTypes: true });
+        } catch (error) {
+            return null;
+        }
+
+        const prefix = `${packageId}#`;
+        const versions = entries
+          .filter(entry => entry.isDirectory() && entry.name.startsWith(prefix))
+          .map(entry => entry.name.substring(prefix.length));
+
+        return this.selectBestVersion(versions, version);
     }
 
     /**
@@ -456,7 +507,7 @@ class PackageManager {
                         const versions = Object.keys(json.versions || {});
                         resolve(versions);
                     } catch (error) {
-                        reject(new Error(`Invalid JSON from ${server}: ${error.message}`));
+                        reject(new Error(`Invalid JSON from ${server}: ${errorMessage(error)}`));
                     }
                 });
             });
@@ -469,7 +520,7 @@ class PackageManager {
     /**
      * Select the best matching version from available versions
      * @param {string[]} availableVersions - List of available versions
-     * @param {string} criteria - Version criteria (may contain wildcards)
+     * @param {string | null | undefined} criteria - Version criteria (may contain wildcards)
      * @returns {string|null} Best matching version or null if none match
      */
     selectBestVersion(availableVersions, criteria) {
@@ -538,6 +589,7 @@ class PackageManager {
      * @returns {Promise<Buffer>} Package tar.gz data
      */
     async fetchFromServers(packageId, version) {
+        /** @type {Error | null} */
         let lastError = null;
 
         if (version == "current") {
@@ -549,7 +601,7 @@ class PackageManager {
                 const packageData = await this.fetchFromServer(server, packageId, version);
                 return packageData;
             } catch (error) {
-                lastError = error;
+                lastError = error instanceof Error ? error : new Error(String(error));
                 // Try next server
                 continue;
             }
@@ -579,10 +631,11 @@ class PackageManager {
 
             return Buffer.from(response.data);
         } catch (error) {
-            if (error.response?.status === 404) {
+            const axiosError = /** @type {{response?: {status?: number}, message?: string}} */ (error);
+            if (axiosError.response?.status === 404) {
                 throw new Error(`Package ${packageId}#${version} not found on ${server}`);
             }
-            throw new Error(`HTTP ${error.response?.status || 'error'} from ${server}: ${error.message}`);
+            throw new Error(`HTTP ${axiosError.response?.status || 'error'} from ${server}: ${axiosError.message || errorMessage(error)}`);
         }
     }
 
@@ -621,7 +674,7 @@ class PackageManager {
                 await fs.rm(tempFullPath, { recursive: true, force: true });
                 throw new Error(`Package ${finalName} already exists in cache. Check library config for duplicates (url: ${url})`);
             } catch (e) {
-                if (e.message.includes('already exists')) throw e;
+                if (errorMessage(e).includes('already exists')) throw e;
                 // Doesn't exist yet, rename temp to final
                 await fs.rename(tempFullPath, finalPath);
             }
@@ -629,7 +682,7 @@ class PackageManager {
             this.totalDownloaded = this.totalDownloaded + packageData.length;
             return finalName;
         } catch (error) {
-            console.error(`Error fetching package from URL ${url}: ${error.message}`);
+            console.error(`Error fetching package from URL ${url}: ${errorMessage(error)}`);
             throw error;
         }
     }
@@ -683,8 +736,13 @@ class PackageContentLoader {
         this.packageFolder = packageFolder;
         this.packageSubfolder = path.join(packageFolder, 'package');
         this.indexPath = path.join(this.packageSubfolder, '.index.json');
+        /** @type {PackageIndex | null} */
         this.index = null;
+        /** @type {PackageManifest | null} */
+        this.package = null;
+        /** @type {Map<string, PackageIndexEntry>} */
         this.indexByTypeAndId = new Map();
+        /** @type {Map<string, PackageIndexEntry>} */
         this.indexByCanonical = new Map();
         this.loaded = false;
     }
@@ -700,11 +758,11 @@ class PackageContentLoader {
 
         const packageSource = path.join(this.packageFolder, 'package', 'package.json');
         const packageContent = await fs.readFile(packageSource, 'utf8');
-        this.package = JSON.parse(packageContent);
+        this.package = /** @type {PackageManifest} */ (JSON.parse(packageContent));
 
         try {
             const indexContent = await fs.readFile(this.indexPath, 'utf8');
-            this.index = JSON.parse(indexContent);
+            this.index = /** @type {PackageIndex} */ (JSON.parse(indexContent));
 
             if (!this.index.files || !Array.isArray(this.index.files)) {
                 throw new Error('Invalid index file: missing or invalid files array');
@@ -714,15 +772,36 @@ class PackageContentLoader {
             this.buildIndexes();
             this.loaded = true;
         } catch (error) {
-            throw new Error(`Failed to load package index from ${this.indexPath}: ${error.message}`);
+            throw new Error(`Failed to load package index from ${this.indexPath}: ${errorMessage(error)}`);
         }
+    }
+
+    /**
+     * @returns {PackageIndex}
+     */
+    requireIndex() {
+        if (!this.index) {
+            throw new Error('Package index is not loaded');
+        }
+        return this.index;
+    }
+
+    /**
+     * @returns {PackageManifest}
+     */
+    requirePackage() {
+        if (!this.package) {
+            throw new Error('Package manifest is not loaded');
+        }
+        return this.package;
     }
 
     /**
      * Build internal indexes for efficient lookups
      */
     buildIndexes() {
-        for (const entry of this.index.files) {
+        const index = this.requireIndex();
+        for (const entry of index.files) {
             // Index by resourceType and id
             if (entry.resourceType && entry.id) {
                 const key = `${entry.resourceType}/${entry.id}`;
@@ -745,12 +824,8 @@ class PackageContentLoader {
 
     /**
      * Load a resource by reference
-     * @param {Object} reference - Reference object
-     * @param {string} [reference.resourceType] - Resource type
-     * @param {string} [reference.id] - Resource id
-     * @param {string} [reference.url] - Canonical URL
-     * @param {string} [reference.version] - Version (optional)
-     * @returns {Promise<Object|null>} Loaded resource or null if not found
+     * @param {PackageReference} reference - Reference object
+     * @returns {Promise<Record<string, any>|null>} Loaded resource or null if not found
      */
     async loadByReference(reference) {
         await this.initialize();
@@ -787,23 +862,23 @@ class PackageContentLoader {
     /**
      * Get a list of resources of a given type
      * @param {string} resourceType - The resource type to filter by
-     * @returns {Promise<Array>} Array of index entries for the given type
+     * @returns {Promise<PackageIndexEntry[]>} Array of index entries for the given type
      */
     async getResourcesByType(resourceType) {
         await this.initialize();
 
-        return this.index.files.filter(entry => entry.resourceType === resourceType);
+        return this.requireIndex().files.filter(entry => entry.resourceType === resourceType);
     }
 
     /**
      * Load all files that pass a given filter
-     * @param {Function} filterFn - Filter function that takes an index entry and returns boolean
-     * @returns {Promise<Array>} Array of loaded resources that pass the filter
+     * @param {(entry: PackageIndexEntry) => boolean} filterFn - Filter function that takes an index entry and returns boolean
+     * @returns {Promise<Record<string, any>[]>} Array of loaded resources that pass the filter
      */
     async loadByFilter(filterFn) {
         await this.initialize();
 
-        const filteredEntries = this.index.files.filter(filterFn);
+        const filteredEntries = this.requireIndex().files.filter(filterFn);
         const loadPromises = filteredEntries.map(entry => this.loadFile(entry));
 
         return await Promise.all(loadPromises);
@@ -811,8 +886,8 @@ class PackageContentLoader {
 
     /**
      * Load a single file based on its index entry
-     * @param {Object} entry - Index entry
-     * @returns {Promise<Object>} Loaded resource
+     * @param {PackageIndexEntry} entry - Index entry
+     * @returns {Promise<Record<string, any>>} Loaded resource
      */
     async loadFile(entry) {
         if (!entry.filename) {
@@ -825,31 +900,31 @@ class PackageContentLoader {
             const content = await fs.readFile(filePath, 'utf8');
             return JSON.parse(content);
         } catch (error) {
-            throw new Error(`Failed to load file ${entry.filename}: ${error.message}`);
+            throw new Error(`Failed to load file ${entry.filename}: ${errorMessage(error)}`);
         }
     }
 
     /**
      * Get the raw index data
-     * @returns {Promise<Object>} The index object
+     * @returns {Promise<PackageIndex>} The index object
      */
     async getIndex() {
         await this.initialize();
-        return this.index;
+        return this.requireIndex();
     }
 
     /**
      * Get all resources (index entries only, not loaded)
-     * @returns {Promise<Array>} All index entries
+     * @returns {Promise<PackageIndexEntry[]>} All index entries
      */
     async getAllResources() {
         await this.initialize();
-        return this.index.files;
+        return this.requireIndex().files;
     }
 
     /**
      * Check if a resource exists by reference
-     * @param {Object} reference - Reference object (same as loadByReference)
+     * @param {PackageReference} reference - Reference object (same as loadByReference)
      * @returns {Promise<boolean>} True if resource exists
      */
     async exists(reference) {
@@ -882,18 +957,20 @@ class PackageContentLoader {
 
     /**
      * Get statistics about the package content
-     * @returns {Promise<Object>} Statistics object
+     * @returns {Promise<PackageStatistics>} Statistics object
      */
     async getStatistics() {
         await this.initialize();
+        const index = this.requireIndex();
 
+        /** @type {PackageStatistics} */
         const stats = {
-            totalResources: this.index.files.length,
-            indexVersion: this.index['index-version'],
+            totalResources: index.files.length,
+            indexVersion: index['index-version'],
             resourceTypes: {}
         };
 
-        for (const entry of this.index.files) {
+        for (const entry of index.files) {
             if (entry.resourceType) {
                 stats.resourceTypes[entry.resourceType] =
                     (stats.resourceTypes[entry.resourceType] || 0) + 1;
@@ -903,20 +980,33 @@ class PackageContentLoader {
         return stats;
     }
 
+    /**
+     * @returns {string | undefined}
+     */
     fhirVersion() {
+        const pkg = this.requirePackage();
         // Handle both modern 'fhirVersions' and older 'fhir-version-list' formats
-        const versions = this.package.fhirVersions || this.package['fhir-version-list'];
+        const versions = pkg.fhirVersions || pkg['fhir-version-list'];
         return versions ? versions[0] : undefined;
     }
 
+    /**
+     * @returns {string | undefined}
+     */
     id() {
         return this.package?.name;
     }
 
+    /**
+     * @returns {string | undefined}
+     */
     version() {
-        return this.package.version;
+        return this.requirePackage().version;
     }
 
+    /**
+     * @returns {string}
+     */
     pid() {
         return this.id()+"#"+this.version();
     }

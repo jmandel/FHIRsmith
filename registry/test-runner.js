@@ -1,3 +1,5 @@
+// @ts-check
+
 // test-runner.js
 // Quick test runner to verify the fixes
 
@@ -6,11 +8,14 @@ const {
   ServerRegistry, 
   ServerInformation, 
   ServerVersionInformation
-} = require('./registry-model');
-const RegistryCrawler = require('./registry/crawler');
-const RegistryAPI = require('./registry-api');
+} = require('./model');
+const RegistryCrawler = require('./crawler');
+const RegistryAPI = require('./api');
 
 // Create sample test data
+/**
+ * @returns {ServerRegistries}
+ */
 function createSampleData() {
   const data = new ServerRegistries();
   data.address = 'https://registry.example.org';
@@ -158,6 +163,9 @@ function createSampleData() {
 }
 
 // Run specific tests
+/**
+ * @returns {void}
+ */
 function runTests() {
   const crawler = new RegistryCrawler();
   crawler.loadData(createSampleData().toJSON());
@@ -167,6 +175,7 @@ function runTests() {
   
   // Test 1: should return all servers when no filter specified
   console.log('Test 1: should return all servers when no filter specified');
+  /** @type {any[]} */
   const rows1 = api.buildRowsForCodeSystem({});
   console.log(`  Expected: 4 working versions`);
   console.log(`  Received: ${rows1.length} versions`);
@@ -175,6 +184,7 @@ function runTests() {
   
   // Test 2: should handle wildcard value set matching
   console.log('Test 2: should handle wildcard value set matching');
+  /** @type {any[]} */
   const rows2 = api.buildRowsForValueSet({
     valueSet: 'http://hl7.org/fhir/ValueSet/loinc-diagnostic-report-codes'
   });
@@ -195,6 +205,7 @@ function runTests() {
   const testServer = data.registries[1].servers[0];
   testServer.authCSList = ['http://test.org/*'];
   
+  /** @type {any[]} */
   const rows3 = api.buildRowsForCodeSystem({
     codeSystem: 'http://test.org/cs'
   });

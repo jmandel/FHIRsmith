@@ -1,10 +1,16 @@
+// @ts-check
+
 const {VersionUtilities} = require("../../library/version-utilities");
 
 /**
+ * @typedef {Record<string, any>} FhirJson
+ */
+
+/**
  * Converts input NamingSystem to R5 format (modifies input object for performance)
- * @param {Object} jsonObj - The input NamingSystem object
- * @param {string} version - Source FHIR version
- * @returns {Object} The same object, potentially modified to R5 format
+ * @param {FhirJson} jsonObj - The input NamingSystem object
+ * @param {string} sourceVersion - Source FHIR version
+ * @returns {FhirJson} The same object, potentially modified to R5 format
  * @private
  */
 
@@ -30,9 +36,9 @@ function namingSystemToR5(jsonObj, sourceVersion) {
 
 /**
  * Converts R5 NamingSystem to target version format (clones object first)
- * @param {Object} r5Obj - The R5 format NamingSystem object
+ * @param {FhirJson} r5Obj - The R5 format NamingSystem object
  * @param {string} targetVersion - Target FHIR version
- * @returns {Object} New object in target version format
+ * @returns {FhirJson} New object in target version format
  * @private
  */
 function namingSystemFromR5(r5Obj, targetVersion) {
@@ -54,8 +60,8 @@ function namingSystemFromR5(r5Obj, targetVersion) {
 
 /**
  * Converts R5 NamingSystem to R4 format
- * @param {Object} r5Obj - Cloned R5 NamingSystem object
- * @returns {Object} R4 format NamingSystem
+ * @param {FhirJson} r5Obj - Cloned R5 NamingSystem object
+ * @returns {FhirJson} R4 format NamingSystem
  * @private
  */
 function namingSystemR5ToR4(r5Obj) {
@@ -71,8 +77,8 @@ function namingSystemR5ToR4(r5Obj) {
 
 /**
  * Converts R5 NamingSystem to R3 format
- * @param {Object} r5Obj - Cloned R5 NamingSystem object
- * @returns {Object} R3 format NamingSystem
+ * @param {FhirJson} r5Obj - Cloned R5 NamingSystem object
+ * @returns {FhirJson} R3 format NamingSystem
  * @private
  */
 function namingSystemR5ToR3(r5Obj) {
@@ -85,4 +91,3 @@ function namingSystemR5ToR3(r5Obj) {
 }
 
 module.exports = { namingSystemToR5, namingSystemFromR5 };
-

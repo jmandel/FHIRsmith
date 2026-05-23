@@ -1,7 +1,11 @@
+// @ts-check
+
 const { CodeSystem } = require("./library/codesystem");
 const {VersionUtilities} = require("../library/version-utilities");
 const { FhirCodeSystemProvider} = require("./cs/cs-cs");
-const {OperationContext, TerminologyError} = require("./operation-context");
+const operationContextModule = /** @type {any} */ (require("./operation-context"));
+const {OperationContext} = operationContextModule;
+const TerminologyError = operationContextModule.TerminologyError || Error;
 const {validateParameter, validateOptionalParameter, validateArrayParameter} = require("../library/utilities");
 const path = require("path");
 const {PackageContentLoader} = require("../library/package-manager");
@@ -21,42 +25,56 @@ const {PackageConceptMapProvider} = require("./cm/cm-package");
  *
  */
 class Provider {
+  /** @type {any} */
   i18n;
-  fhirVersion;
+  /** @type {number} */
+  fhirVersion = /** @type {any} */ (undefined);
+  /** @type {any} */
   context;
 
   /**
    * {Map<String, CodeSystemFactoryProvider>} A list of code system factories that contains all the preloaded native code systems
+   * @type {Map<string, any>}
    */
-  codeSystemFactories;
+  codeSystemFactories = /** @type {any} */ (undefined);
 
   /**
    * {Map<String, CodeSystem>} A list of preloaded FHIR code systems
+   * @type {Map<string, any>}
    */
-  codeSystems;
+  codeSystems = /** @type {any} */ (undefined);
 
   /**
    * {List<AbstractCodeSystemProvider>} code system providers, for maintaing the code system list
+   * @type {any[]}
    */
-  codeSystemProviders
+  codeSystemProviders = /** @type {any} */ (undefined);
 
   /**
    * {List<AbstractValueSetProvider>} A list of value set providers that know how to provide value sets by request
+   * @type {any[]}
    */
-  valueSetProviders;
+  valueSetProviders = /** @type {any} */ (undefined);
   /**
    * {List<AbstractConceptMapProvider>} A list of value set providers that know how to provide value sets by request
+   * @type {any[]}
    */
-  conceptMapProviders;
+  conceptMapProviders = /** @type {any} */ (undefined);
 
-  packageSources;
-  externalSources;
+  /** @type {any[]} */
+  packageSources = /** @type {any} */ (undefined);
+  /** @type {any[]} */
+  externalSources = /** @type {any} */ (undefined);
 
+  /** @type {string | null} */
   baseUrl = null;
-  path;
+  /** @type {string} */
+  path = /** @type {any} */ (undefined);
+  /** @type {string | null} */
   cacheFolder = null;
   startTime = Date.now();
   startMemory = process.memoryUsage();
+  /** @type {number | null} */
   lastTime = null;
   requestCount = 0;
   totalDownloaded = 0;
@@ -64,11 +82,11 @@ class Provider {
   /**
    * get a code system provider for a known code system
    *
-   * @param {OperationContext} opContext - The code system resource
+   * @param {any} opContext - The code system resource
    * @param {String} system - The URL - might include a |version
-   * @param {String} version - The version, if seperate from the system
-   * @param {String[]} supplements - Applicable supplements
-   * @returns {CodeSystemProvider} Provider instance
+   * @param {String | null} version - The version, if seperate from the system
+   * @param {any[]} supplements - Applicable supplements
+   * @returns {Promise<any>} Provider instance
    */
   async getCodeSystemProvider(opContext, system, version, supplements) {
     validateParameter(opContext, "opContext", OperationContext);
@@ -107,7 +125,14 @@ class Provider {
     return null;
   }
 
+  /**
+   * @param {string} url
+   * @param {string | null | undefined} version
+   * @param {any} statedSupplements
+   * @returns {any[]}
+   */
   loadSupplements(url, version, statedSupplements) {
+    /** @type {Map<string, any>} */
     let supplements = new Map();
     for (let csp of this.codeSystemFactories.values()) {
       csp.listSupplements(supplements, url, version, statedSupplements);
@@ -122,6 +147,10 @@ class Provider {
     return [...supplements.values()];
   }
 
+  /**
+   * @param {any} cs
+   * @param {any} statedSupplements
+   */
   isStatedSupplement(cs, statedSupplements) {
     if (statedSupplements == null) {
       return false;
@@ -139,10 +168,10 @@ class Provider {
   }
   /**
    * Create a code system provider from a CodeSystem resource
-   * @param {OperationContext} opContext - The code system resource
+   * @param {any} opContext - The code system resource
    * @param {CodeSystem} codeSystem - The code system resource
    * @param {CodeSystem[]} supplements - The code system resource
-   * @returns {CodeSystemProvider} Provider instance
+   * @returns {Promise<any>} Provider instance
    */
   async createCodeSystemProvider(opContext, codeSystem, supplements) {
     validateParameter(opContext, "opContext", OperationContext);
@@ -150,8 +179,14 @@ class Provider {
     validateArrayParameter(supplements, "supplements", CodeSystem);
     return new FhirCodeSystemProvider(opContext, codeSystem, supplements);
   }
-
-
+  /**
+   * @param {any} packageManager
+   * @param {string} cacheFolder
+   * @param {string} details
+   * @param {boolean} isDefault
+   * @param {string} mode
+   */
+  // eslint-disable-next-line no-unused-vars
   async loadNpm(packageManager, cacheFolder,  details, isDefault, mode) {
     // Parse packageId and version from details (e.g., "hl7.terminology.r4#6.0.2")
     let packageId = details;
@@ -171,7 +206,7 @@ class Provider {
 
     const resources = await contentLoader.getResourcesByType("CodeSystem");
     for (const resource of resources) {
-      const cs = new CodeSystem(await contentLoader.loadFile(resource, contentLoader.fhirVersion()));
+      const cs = /** @type {any} */ (new CodeSystem(await contentLoader.loadFile(resource)));
       cs.sourcePackage = contentLoader.pid();
       const existing = this.codeSystems.get(cs.url);
       if (!existing || cs.isMoreRecent(existing)) {
@@ -189,6 +224,10 @@ class Provider {
     this.conceptMapProviders.push(cm);
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} id
+   */
   getCodeSystemById(opContext, id) {
 
     // Search through codeSystems map for matching id
@@ -201,6 +240,11 @@ class Provider {
     return undefined;
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} id
+   */
+  // eslint-disable-next-line no-unused-vars
   getCodeSystemFactoryById(opContext, id) {
     // Search through codeSystems map for matching id
     for (const cs of this.codeSystemFactories.values()) {
@@ -211,6 +255,10 @@ class Provider {
     return undefined;
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} id
+   */
   async getValueSetById(opContext, id) {
     for (const vp of this.valueSetProviders) {
       if (opContext) opContext.deadCheck('getValueSetById');
@@ -222,6 +270,11 @@ class Provider {
     return null;
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} url
+   * @param {string | null | undefined} version
+   */
   async findValueSet(opContext, url, version) {
     for (const vp of this.valueSetProviders) {
       if (opContext) opContext.deadCheck('findValueSet');
@@ -234,6 +287,10 @@ class Provider {
     return vs;
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} id
+   */
   async getConceptMapById(opContext, id) {
     for (const cmp of this.conceptMapProviders) {
       if (opContext) opContext.deadCheck('getConceptMapById');
@@ -245,6 +302,11 @@ class Provider {
     return null;
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} url
+   * @param {string | null | undefined} version
+   */
   async findConceptMap(opContext, url, version) {
     for (const cmp of this.conceptMapProviders) {
       if (opContext) opContext.deadCheck('findConceptMap');
@@ -267,15 +329,20 @@ class Provider {
   }
 
   listValueSetSourceCodes() {
+    /** @type {string[]} */
     let result = [];
     for (let vsp of this.valueSetProviders) {
       result.push(vsp.sourcePackage());
     }
-    result.sort((a, b) => {a.localeCompare(b)});
+    result.sort((a, b) => a.localeCompare(b));
     return result;
   }
 
+  /**
+   * @param {string} url
+   */
   async listCodeSystemVersions(url) {
+    /** @type {Set<string>} */
     let result = new Set();
     for (let cs of this.codeSystems.values()) {
       if (cs.url == url && cs.version) {
@@ -290,6 +357,10 @@ class Provider {
     return result;
   }
 
+  /**
+   * @param {string} url
+   * @param {string | null | undefined} version
+   */
   async findKnownValueSet(url, version) {
     for (let csp of this.codeSystemFactories.values()) {
       let vs = await csp.buildKnownValueSet(url, version);
@@ -299,9 +370,15 @@ class Provider {
     }
     return null;
   }
-
-
-
+  /**
+   * @param {any} opContext
+   * @param {any} conceptMaps
+   * @param {string | null | undefined} sourceSystem
+   * @param {any} sourceScope
+   * @param {any} targetScope
+   * @param {string | null | undefined} targetSystem
+   * @param {string | null} [sourceCode]
+   */
   async findConceptMapForTranslation(opContext, conceptMaps, sourceSystem, sourceScope, targetScope, targetSystem, sourceCode = null) {
     for (let cmp of this.conceptMapProviders) {
       await cmp.findConceptMapForTranslation(opContext, conceptMaps, sourceSystem, sourceScope, targetScope, targetSystem, sourceCode);
@@ -327,6 +404,7 @@ class Provider {
   }
 
   async listAllValueSets() {
+    /** @type {any[]} */
     let result = [];
     for (let vsp of this.valueSetProviders) {
       result.push(... await vsp.listAllValueSets());
@@ -335,6 +413,11 @@ class Provider {
 
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} system
+   * @param {string | null | undefined} version
+   */
   async resolveURL(opContext, system, version) {
     validateParameter(opContext, "opContext", OperationContext);
     validateParameter(system, "system", String);
@@ -393,6 +476,12 @@ class Provider {
     return null;
   }
 
+  /**
+   * @param {any} opContext
+   * @param {string} system
+   * @param {string | null | undefined} version
+   * @param {string} code
+   */
   async resolveCode(opContext, system, version, code) {
     validateParameter(opContext, "opContext", OperationContext);
     validateParameter(system, "system", String);
@@ -426,14 +515,14 @@ class Provider {
           return {
             link: this.path + "/CodeSystem/x-" + factory.id(),
             description: csp.display(c)
-          }
+          };
         } else {
            const link = factory.codeLink(c);
            if (link) {
              return {
                link: link,
                description: csp.display(c)
-             }
+             };
            }
         }
       }
@@ -454,6 +543,10 @@ class Provider {
     return null;
   }
 
+  /**
+   * @param {string} system
+   * @param {string | null | undefined} version
+   */
   async hasCsVersion(system, version) {
     for (let cs of this.codeSystems.values()) {
       if (cs.url == system && cs.version == version) {
@@ -466,7 +559,10 @@ class Provider {
       }
     }
     return false;
-  }x
+  }
+
+  /** @type {any} */
+  x;
 
   async updateCodeSystemList() {
     for (let csp of this.codeSystemProviders) {
@@ -485,6 +581,9 @@ class Provider {
     }
   }
 
+  /**
+   * @param {any} cs
+   */
   addCodeSystem(cs) {
     const existing = this.codeSystems.get(cs.url);
     if (!existing || cs.isMoreRecent(existing)) {
@@ -495,9 +594,13 @@ class Provider {
     }
   }
 
+  /**
+   * @param {any} cs
+   */
   deleteCodeSystem(cs) {
     this.codeSystems.delete(cs.vurl);
     this.codeSystems.delete(cs.url);
+    /** @type {any} */
     let existing = null;
     for (let t of this.codeSystems.values()) {
       if (!existing || t.isMoreRecent(existing)) {

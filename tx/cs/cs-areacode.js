@@ -1,8 +1,22 @@
-const { CodeSystemProvider, FilterExecutionContext, CodeSystemFactoryProvider} = require('./cs-api');
+// @ts-check
+
+const csApi = require('./cs-api');
+const CodeSystemProvider = /** @type {any} */ (csApi.CodeSystemProvider);
+const FilterExecutionContext = /** @type {any} */ (csApi.FilterExecutionContext);
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
 const assert = require('assert');
 const { CodeSystem } = require("../library/codesystem");
 
+/** @typedef {string | AreaCodeConcept | null | undefined} AreaCodeContextInput */
+/** @typedef {{index: number, total: number}} IteratorContext */
+
 class AreaCodeConcept {
+  /**
+   * @param {string} code - Area code
+   * @param {string} display - Display name
+   * @param {string} abbrev - Abbreviation
+   * @param {string} class_ - Code class
+   */
   constructor(code, display, abbrev, class_) {
     this.code = code;
     this.display = abbrev ? `${display} (${abbrev})` : display;
@@ -12,12 +26,19 @@ class AreaCodeConcept {
 
 class AreaCodeConceptFilter {
   constructor() {
+    /** @type {AreaCodeConcept[]} */
     this.list = [];
     this.cursor = -1;
   }
 }
 
 class AreaCodeServices extends CodeSystemProvider {
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @param {AreaCodeConcept[] | null | undefined} codes - Loaded concepts
+   * @param {Map<string, AreaCodeConcept> | null | undefined} codeMap - Concept lookup by code
+   */
   constructor(opContext, supplements, codes, codeMap) {
     super(opContext, supplements);
     this.codes = codes || [];
@@ -49,6 +70,10 @@ class AreaCodeServices extends CodeSystemProvider {
     return false; // No hierarchical relationships
   }
 
+  /**
+   * @param {any} languages - Requested languages
+   * @returns {boolean} Whether displays are available
+   */
   hasAnyDisplays(languages) {
     const langs = this._ensureLanguages(languages);
     if (this._hasAnySupplementDisplays(langs)) {
@@ -58,11 +83,19 @@ class AreaCodeServices extends CodeSystemProvider {
   }
 
   // Core concept methods
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<string | null>} Area code
+   */
   async code(code) {
     const ctxt = await this.#ensureContext(code);
     return ctxt ? ctxt.code : null;
   }
 
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<string | null>} Display string
+   */
   async display(code) {
     const ctxt = await this.#ensureContext(code);
     if (!ctxt) {
@@ -78,27 +111,48 @@ class AreaCodeServices extends CodeSystemProvider {
     return ctxt.display;
   }
 
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<null>} No default definitions
+   */
   async definition(code) {
     await this.#ensureContext(code);
     return null; // No definitions provided in original
   }
 
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<boolean>} Whether the concept is abstract
+   */
   async isAbstract(code) {
     await this.#ensureContext(code);
     return false; // No abstract concepts
   }
 
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<boolean>} Whether the concept is inactive
+   */
   async isInactive(code) {
     await this.#ensureContext(code);
     return false; // No inactive concepts
   }
 
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<boolean>} Whether the concept is deprecated
+   */
   async isDeprecated(code) {
     await this.#ensureContext(code);
     return false; // No deprecated concepts
   }
 
 
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<void>}
+   */
   async designations(code, displays) {
     const ctxt = await this.#ensureContext(code);
     if (ctxt != null) {
@@ -107,14 +161,18 @@ class AreaCodeServices extends CodeSystemProvider {
     }
   }
 
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<AreaCodeConcept | null>} Area code context
+   */
   async #ensureContext(code) {
     if (!code) {
-      return code;
+      return null;
     }
     if (typeof code === 'string') {
       const ctxt = await this.locate(code);
       if (!ctxt.context) {
-        throw new Error(ctxt.message);
+        throw new Error(ctxt.message ?? `Area Code '${code}' not found`);
       } else {
         return ctxt.context;
       }
@@ -122,10 +180,14 @@ class AreaCodeServices extends CodeSystemProvider {
     if (code instanceof AreaCodeConcept) {
       return code;
     }
-    throw "Unknown Type at #ensureContext: "+ (typeof code);
+    throw new Error("Unknown Type at #ensureContext: "+ (typeof code));
   }
 
   // Lookup methods
+  /**
+   * @param {string | null | undefined} code - Area code
+   * @returns {Promise<{context: AreaCodeConcept | null, message: string | null | undefined}>} Locate result
+   */
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
@@ -139,6 +201,10 @@ class AreaCodeServices extends CodeSystemProvider {
   }
 
   // Iterator methods
+  /**
+   * @param {AreaCodeContextInput} code - Area code or context
+   * @returns {Promise<IteratorContext | null>} Iterator context
+   */
   async iterator(code) {
     
     const ctxt = await this.#ensureContext(code);
@@ -148,6 +214,10 @@ class AreaCodeServices extends CodeSystemProvider {
     return null; // No child iteration
   }
 
+  /**
+   * @param {IteratorContext} iteratorContext - Iterator state
+   * @returns {Promise<AreaCodeConcept | null>} Next concept
+   */
   async nextContext(iteratorContext) {
     
     assert(iteratorContext, 'iteratorContext must be provided');
@@ -160,6 +230,12 @@ class AreaCodeServices extends CodeSystemProvider {
   }
 
   // Filtering methods
+  /**
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<boolean>} Whether the filter is supported
+   */
   async doesFilter(prop, op, value) {
     
     assert(prop != null && typeof prop === 'string', 'prop must be a non-null string');
@@ -169,7 +245,16 @@ class AreaCodeServices extends CodeSystemProvider {
     return (prop === 'type' || prop === 'class') && op === '=';
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {boolean} forIteration - Whether filter is for iteration
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<void>}
+   */
   async filter(filterContext, forIteration, prop, op, value) {
+    void forIteration;
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
     assert(prop != null && typeof prop === 'string', 'prop must be a non-null string');
@@ -190,12 +275,21 @@ class AreaCodeServices extends CodeSystemProvider {
     }
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @returns {Promise<AreaCodeConceptFilter[]>} Filter sets
+   */
   async executeFilters(filterContext) {
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
     return filterContext.filters;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {AreaCodeConceptFilter} set - Filter set
+   * @returns {Promise<number>} Filter size
+   */
   async filterSize(filterContext, set) {
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -203,12 +297,21 @@ class AreaCodeServices extends CodeSystemProvider {
     return set.list.length;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @returns {Promise<boolean>} Whether filters are open-ended
+   */
   async filtersNotClosed(filterContext) {
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
     return false; // Finite set
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {AreaCodeConceptFilter} set - Filter set
+   * @returns {Promise<boolean>} Whether another concept is available
+   */
   async filterMore(filterContext, set) {
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -217,6 +320,11 @@ class AreaCodeServices extends CodeSystemProvider {
     return set.cursor < set.list.length;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {AreaCodeConceptFilter} set - Filter set
+   * @returns {Promise<AreaCodeConcept | null>} Current filter concept
+   */
   async filterConcept(filterContext, set) {
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -227,6 +335,12 @@ class AreaCodeServices extends CodeSystemProvider {
     return null;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {AreaCodeConceptFilter} set - Filter set
+   * @param {string} code - Concept code
+   * @returns {Promise<AreaCodeConcept | string>} Concept or not-found message
+   */
   async filterLocate(filterContext, set, code) {
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
@@ -241,15 +355,26 @@ class AreaCodeServices extends CodeSystemProvider {
     return `Code '${code}' not found in filter set`;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {AreaCodeConceptFilter} set - Filter set
+   * @param {AreaCodeContextInput} concept - Concept to check
+   * @returns {Promise<boolean>} Whether the concept is in the filter set
+   */
   async filterCheck(filterContext, set, concept) {
     
     assert(filterContext && filterContext instanceof FilterExecutionContext, 'filterContext must be a FilterExecutionContext');
     assert(set && set instanceof AreaCodeConceptFilter, 'set must be a AreaCodeConceptFilter');
     const ctxt = await this.#ensureContext(concept);
-    return set.list.includes(ctxt);
+    return ctxt !== null && set.list.includes(ctxt);
   }
 
   // Subsumption
+  /**
+   * @param {AreaCodeContextInput} codeA - First area code or context
+   * @param {AreaCodeContextInput} codeB - Second area code or context
+   * @returns {Promise<'not-subsumed'>} Subsumption result
+   */
   async subsumesTest(codeA, codeB) {
     await this.#ensureContext(codeA);
     await this.#ensureContext(codeB);
@@ -263,10 +388,15 @@ class AreaCodeServices extends CodeSystemProvider {
 }
 
 class AreaCodeFactoryProvider extends CodeSystemFactoryProvider {
+  /**
+   * @param {any} i18n - I18n support
+   */
   constructor(i18n) {
     super(i18n);
     this.uses = 0;
+    /** @type {AreaCodeConcept[] | null} */
     this.codes = null;
+    /** @type {Map<string, AreaCodeConcept> | null} */
     this.codeMap = null;
   }
 
@@ -282,6 +412,11 @@ class AreaCodeFactoryProvider extends CodeSystemFactoryProvider {
     return null; // No version specified
   }
 
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @returns {AreaCodeServices} Area code services
+   */
   build(opContext, supplements) {
     this.uses++;
 
@@ -297,7 +432,14 @@ class AreaCodeFactoryProvider extends CodeSystemFactoryProvider {
   }
 
   // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - ValueSet version
+   * @returns {Promise<null>} No known ValueSet
+   */
   async buildKnownValueSet(url, version) {
+    void url;
+    void version;
     return null;
   }
 
@@ -305,6 +447,7 @@ class AreaCodeFactoryProvider extends CodeSystemFactoryProvider {
     this.codes = [];
     this.codeMap = new Map();
 
+    /** @type {Array<[string, string, string, string]>} */
     const data = [
       // Countries
       ['004', 'Afghanistan', 'AFG', 'country'],

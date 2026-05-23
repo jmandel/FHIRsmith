@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Convert a cron expression to a human-readable summary
  * Supports standard 5-field cron: minute hour day-of-month month day-of-week
@@ -12,8 +14,11 @@ function describeCron(cron) {
 
   const [minute, hour, dom, month, dow] = parts;
 
+  /** @param {string} f */
   const allStar = (f) => f === '*';
+  /** @param {string} f */
   const isStep = (f) => f.includes('/');
+  /** @param {string} f */
   const stepVal = (f) => parseInt(f.split('/')[1]);
 
   // Every minute: * * * * *
@@ -73,6 +78,11 @@ function describeCron(cron) {
   return describeFallback(minute, hour, dom, month, dow);
 }
 
+/**
+ * @param {string} hour
+ * @param {string} minute
+ * @returns {string}
+ */
 function formatTime(hour, minute) {
   const h = parseInt(hour);
   const m = parseInt(minute);
@@ -81,6 +91,10 @@ function formatTime(hour, minute) {
   return m === 0 ? `${h12}${period}` : `${h12}:${String(m).padStart(2, '0')}${period}`;
 }
 
+/**
+ * @param {number} n
+ * @returns {string}
+ */
 function ordinal(n) {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
@@ -91,6 +105,10 @@ const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 const MONTH_NAMES = ['', 'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
+/**
+ * @param {string} field
+ * @returns {string}
+ */
 function parseDow(field) {
   const indices = expandField(field, 0, 7).map(d => d % 7);
   if (indices.length === 5 && !indices.includes(0) && !indices.includes(6)) return 'Weekdays';
@@ -98,11 +116,21 @@ function parseDow(field) {
   return 'Every ' + indices.map(i => DOW_NAMES[i]).join(', ');
 }
 
+/**
+ * @param {string} field
+ * @returns {string}
+ */
 function parseMonth(field) {
   const indices = expandField(field, 1, 12);
   return indices.map(i => MONTH_NAMES[i]).join(', ');
 }
 
+/**
+ * @param {string} field
+ * @param {number} min
+ * @param {number} max
+ * @returns {number[]}
+ */
 function expandField(field, min, max) {
   const results = new Set();
   for (const part of field.split(',')) {
@@ -123,6 +151,14 @@ function expandField(field, min, max) {
   return [...results].sort((a, b) => a - b);
 }
 
+/**
+ * @param {string} minute
+ * @param {string} hour
+ * @param {string} dom
+ * @param {string} month
+ * @param {string} dow
+ * @returns {string}
+ */
 function describeFallback(minute, hour, dom, month, dow) {
   const parts = [];
   if (minute !== '*') parts.push(`minute ${minute}`);

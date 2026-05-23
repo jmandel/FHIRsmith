@@ -1,8 +1,12 @@
+// @ts-check
+
 const assert = require("assert");
 const inspector = require("inspector");
 const crypto = require("crypto");
 const {Languages} = require("../library/languages");
 const {Issue} = require("./library/operation-outcome");
+
+class TerminologyError extends Error {}
 
 /**
  * Check if running under a debugger
@@ -19,6 +23,10 @@ function isDebugging() {
   );
 }
 
+/**
+ * @param {any} error
+ * @param {any} [message]
+ */
 function debugLog(error, message) {
   if (isDebugging()) {
     console.log(error, message);
@@ -29,9 +37,13 @@ function debugLog(error, message) {
 class TimeTracker {
   constructor() {
     this.startTime = performance.now();
+    /** @type {string[]} */
     this.steps = [];
   }
 
+  /**
+   * @param {string} note
+   */
   step(note) {
     const elapsed = Math.round(performance.now() - this.startTime);
     this.steps.push(`${elapsed}ms ${note}`);
@@ -55,16 +67,21 @@ class TimeTracker {
  * Stores resources by cache-id for reuse across requests
  */
 class ResourceCache {
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.stats = stats;
+    /** @type {Map<string, {resources: any[], lastUsed: number}>} */
     this.cache = new Map();
+    /** @type {Map<string, any>} */
     this.locks = new Map(); // For thread-safety with async operations
   }
 
   /**
    * Get resources for a cache-id
    * @param {string} cacheId - The cache identifier
-   * @returns {Array} Array of resources, or empty array if not found
+   * @returns {any[]} Array of resources, or empty array if not found
    */
   get(cacheId) {
     const entry = this.cache.get(cacheId);
@@ -87,7 +104,7 @@ class ResourceCache {
   /**
    * Add resources to a cache-id (merges with existing)
    * @param {string} cacheId - The cache identifier
-   * @param {Array} resources - Resources to add
+   * @param {any[]} resources - Resources to add
    */
   add(cacheId, resources) {
     if (!resources || resources.length === 0) return;
@@ -97,7 +114,7 @@ class ResourceCache {
     // Merge resources, avoiding duplicates by url+version
     for (const resource of resources) {
       const key = this._resourceKey(resource);
-      const existingIndex = entry.resources.findIndex(r => this._resourceKey(r) === key);
+      const existingIndex = entry.resources.findIndex((/** @type {any} */ r) => this._resourceKey(r) === key);
       if (existingIndex >= 0) {
         // Replace existing
         entry.resources[existingIndex] = resource;
@@ -113,7 +130,7 @@ class ResourceCache {
   /**
    * Set resources for a cache-id (replaces existing)
    * @param {string} cacheId - The cache identifier
-   * @param {Array} resources - Resources to set
+   * @param {any[]} resources - Resources to set
    */
   set(cacheId, resources) {
     this.cache.set(cacheId, {
@@ -168,7 +185,7 @@ class ResourceCache {
 
   /**
    * Generate a key for a resource based on url and version
-   * @param {Object} resource - The resource
+   * @param {any} resource - The resource
    * @returns {string}
    */
   _resourceKey(resource) {
@@ -196,11 +213,13 @@ class ExpansionCache {
   static DEFAULT_MAX_SIZE = 1000;
 
   /**
+   * @param {any} stats
    * @param {number} maxSize - Maximum number of entries to keep (default 1000)
    * @param {number} memoryThresholdMB - Heap usage in MB that triggers dropping oldest half (0 = disabled)
    */
   constructor(stats, maxSize = ExpansionCache.DEFAULT_MAX_SIZE, memoryThresholdMB = 0) {
     this.stats = stats;
+    /** @type {Map<string, {expansion: any, createdAt: number, lastUsed: number, durationMs: number, hitCount: number}>} */
     this.cache = new Map();
     this.maxSize = maxSize;
     this.memoryThresholdBytes = memoryThresholdMB * 1024 * 1024;
@@ -211,9 +230,9 @@ class ExpansionCache {
    * This must hash the actual content of resources, not just their identity,
    * because clients can submit variations on the same ValueSet/CodeSystem.
    *
-   * @param {Object|ValueSet} valueSet - The ValueSet to expand (wrapper or JSON)
-   * @param {Object} params - Parameters resource (tx-resource and valueSet params excluded)
-   * @param {Array} additionalResources - Additional resources in scope (CodeSystem/ValueSet wrappers)
+   * @param {any} valueSet - The ValueSet to expand (wrapper or JSON)
+   * @param {any} params - Parameters resource (tx-resource and valueSet params excluded)
+   * @param {any[]} additionalResources - Additional resources in scope (CodeSystem/ValueSet wrappers)
    * @returns {string} Hash key
    */
   computeKey(valueSet, params, additionalResources) {
@@ -233,7 +252,7 @@ class ExpansionCache {
     // Resources are now CodeSystem/ValueSet wrappers, not raw JSON
     if (additionalResources && additionalResources.length > 0) {
       const resourceHashes = additionalResources
-          .map(r => {
+          .map((/** @type {any} */ r) => {
             // Get the JSON object from wrapper or use directly
             const json = r.jsonObj || r;
             // Create a content hash for this resource
@@ -255,7 +274,7 @@ class ExpansionCache {
   /**
    * Get a cached expansion
    * @param {string} key - Hash key from computeKey()
-   * @returns {Object|null} Cached expanded ValueSet or null
+   * @returns {any} Cached expanded ValueSet or null
    */
   get(key) {
     const entry = this.cache.get(key);
@@ -279,7 +298,7 @@ class ExpansionCache {
   /**
    * Store an expansion in the cache (only if duration exceeds minimum)
    * @param {string} key - Hash key from computeKey()
-   * @param {Object} expansion - The expanded ValueSet
+   * @param {any} expansion - The expanded ValueSet
    * @param {number} durationMs - How long the expansion took
    * @returns {boolean} True if cached, false if duration too short
    */
@@ -339,7 +358,7 @@ class ExpansionCache {
    */
   checkMemoryPressure() {
     if (this.stats) {
-      this.stats.task('Expansion Cache', 'Checking Memory Pressure');
+      /** @type {any} */ (this.stats).task('Expansion Cache', 'Checking Memory Pressure');
     }
     if (this.memoryThresholdBytes <= 0) return false;
 
@@ -347,12 +366,12 @@ class ExpansionCache {
     if (heapUsed > this.memoryThresholdBytes) {
       const i = this.evictOldestHalf();
       if (this.stats) {
-        this.stats.taskDone('Expansion Cache', `Checked Memory Pressure: evicted half (${i} entries)`);
+        /** @type {any} */ (this.stats).taskDone('Expansion Cache', `Checked Memory Pressure: evicted half (${i} entries)`);
       }
       return true;
     }
     if (this.stats) {
-      this.stats.taskDone('Expansion Cache', `Checked Memory Pressure - OK (${this.cache.size} entries)`);
+      /** @type {any} */ (this.stats).taskDone('Expansion Cache', `Checked Memory Pressure - OK (${this.cache.size} entries)`);
     }
     return false;
   }
@@ -360,7 +379,7 @@ class ExpansionCache {
   /**
    * Force-store an expansion regardless of duration (for testing)
    * @param {string} key - Hash key
-   * @param {Object} expansion - The expanded ValueSet
+   * @param {any} expansion - The expanded ValueSet
    */
   forceSet(key, expansion) {
     this.cache.set(key, {
@@ -389,7 +408,7 @@ class ExpansionCache {
 
   /**
    * Get cache statistics
-   * @returns {Object} Stats object
+   * @returns {any} Stats object
    */
   stats() {
     let totalHits = 0;
@@ -436,27 +455,45 @@ class OperationContext {
   // Shared counter across all instances — only check RSS every CHECK_FREQUENCY calls
   static _checkCounter = 0;
 
+  /**
+   * @param {string | Languages} langs
+   * @param {any} [i18n]
+   * @param {string | null} [id]
+   * @param {number} [timeLimit]
+   * @param {ResourceCache | null} [resourceCache]
+   * @param {ExpansionCache | null} [expansionCache]
+   */
   constructor(langs, i18n = null, id = null, timeLimit = 30, resourceCache = null, expansionCache = null) {
+    /** @type {any} */
     this.i18n = i18n;
     this.langs = this._ensureLanguages(langs);
     this.id = id || this._generateId();
     this.startTime = performance.now();
+    /** @type {string[]} */
     this.contexts = [];
     this.timeLimit = timeLimit * 1000; // Convert to milliseconds
     this.timeTracker = new TimeTracker();
+    /** @type {string[]} */
     this.logEntries = [];
     this.resourceCache = resourceCache;
     this.expansionCache = expansionCache;
     this.debugging = isDebugging();
+    /** @type {any} */
+    this.usageTracker = undefined;
     // Providers opened during this operation that need their underlying
     // resources (sqlite connections, etc.) released when the operation ends.
     // Shared by reference with copy()'d contexts so a sub-operation's
     // providers are cleaned up by the parent request's closeProviders().
+    /** @type {any[]} */
     this._openProviders = [];
 
     this.timeTracker.step('tx-op');
   }
 
+  /**
+   * @param {string | Languages} param
+   * @returns {Languages}
+   */
   _ensureLanguages(param) {
     assert(typeof param === 'string' || param instanceof Languages, 'Parameter must be string or Languages object');
     return typeof param === 'string' ? Languages.fromAcceptLanguage(param, this.i18n.languageDefinitions, false) : param;
@@ -519,7 +556,7 @@ class OperationContext {
     if (elapsed > this.timeLimit) {
       const timeInSeconds = Math.round(this.timeLimit / 1000);
       this.log(`Operation took too long @ ${place} (${this.constructor.name})`);
-      const error = new Issue("error", "too-costly", null,
+      const error = new Issue("error", "too-costly", null, null,
           `Operation exceeded time limit of ${timeInSeconds} seconds at ${place}`);
       error.diagnostics = this.diagnostics();
       throw error;
@@ -532,7 +569,7 @@ class OperationContext {
         const usedGB = (rss / 1024 / 1024 / 1024).toFixed(1);
         const limitGB = (MEMORY_LIMIT / 1024 / 1024 / 1024).toFixed(1);
         this.log(`Memory Limit: ${usedGB} GB of ${limitGB} GB limit @ ${place}`);
-        const error = new Issue("error", "too-costly", null,
+        const error = new Issue("error", "too-costly", null, null,
             `Operation aborted: server memory usage (${usedGB} GB) exceeds safe threshold (${MEMORY_FRACTION * 100}% of ${limitGB} GB limit) at ${place}`);
         error.diagnostics = this.diagnostics();
         throw error;
@@ -578,7 +615,7 @@ class OperationContext {
 
   /**
    * Add a note specific to a value set
-   * @param {Object} vs - Value set object (should have vurl property)
+   * @param {any} vs - Value set object (should have vurl property)
    * @param {string} note - Note to add
    */
   addNote(vs, note) {
@@ -600,9 +637,9 @@ class OperationContext {
   /**
    * Execute and time an async operation, logging if it exceeds threshold
    * @param {string} name - Operation name for logging
-   * @param {Function} fn - Async function to execute
+   * @param {() => any | Promise<any>} fn - Async function to execute
    * @param {number} warnThreshold - Log warning if operation exceeds this ms (default 50)
-   * @returns {*} Result of the function
+   * @returns {Promise<any>} Result of the function
    */
   async timed(name, fn, warnThreshold = 50) {
     const start = performance.now();
@@ -636,7 +673,7 @@ class OperationContext {
    * Register a code-system provider whose resources (typically a sqlite
    * connection opened by factory.build()) should be released when the
    * operation ends. Providers without a close() method are ignored.
-   * @param {Object} provider - The provider returned from factory.build()
+   * @param {any} provider - The provider returned from factory.build()
    */
   registerProvider(provider) {
     if (provider && typeof provider.close === 'function') {
@@ -680,6 +717,7 @@ const ExpansionParamsVersionRuleMode = {
 
 module.exports = {
   OperationContext,
+  TerminologyError,
   ExpansionParamsVersionRuleMode,
   TimeTracker,
   ResourceCache,
@@ -687,3 +725,5 @@ module.exports = {
   isDebugging,
   debugLog
 };
+    /** @type {any} */
+    this.usageTracker = undefined;

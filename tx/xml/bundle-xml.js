@@ -1,6 +1,11 @@
 //
 // Bundle XML Serialization
 //
+// @ts-check
+
+/** @typedef {import('../../types/fhirsmith').FhirCoding} FhirCoding */
+/** @typedef {import('../../types/fhirsmith').FhirElement} FhirElement */
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
 
 const { FhirXmlBase } = require('./xml-base');
 
@@ -41,7 +46,7 @@ class BundleXML extends FhirXmlBase {
 
   /**
    * Convert Bundle JSON to XML string
-   * @param {Object} json - Bundle as JSON
+   * @param {FhirResource} json - Bundle as JSON
    * @param {number} fhirVersion - FHIR version (3, 4, or 5)
    * @returns {string} XML string
    */
@@ -112,6 +117,10 @@ class BundleXML extends FhirXmlBase {
 
   /**
    * Render a nested resource as XML
+   * @param {FhirResource} resource - Resource to render
+   * @param {number} indentLevel - Indentation level
+   * @param {number} _fhirVersion - FHIR version
+   * @returns {string} XML string
    */
   static renderResource(resource, indentLevel, _fhirVersion) {
     void _fhirVersion; // reserved for future version-specific rendering
@@ -133,6 +142,8 @@ class BundleXML extends FhirXmlBase {
 
   /**
    * Get element order for a resource type
+   * @param {string | undefined} resourceType - FHIR resource type
+   * @returns {string[]} Element order
    */
   static getElementOrderForResource(resourceType) {
     // Common elements that most resources have
@@ -177,6 +188,9 @@ class BundleXML extends FhirXmlBase {
 
   /**
    * Render meta element
+   * @param {FhirElement | undefined} meta - Meta element
+   * @param {number} indentLevel - Indentation level
+   * @returns {string} XML string
    */
   static renderMeta(meta, indentLevel) {
     if (!meta) return '';
@@ -208,6 +222,10 @@ class BundleXML extends FhirXmlBase {
 
   /**
    * Render a Coding element
+   * @param {FhirCoding} coding - Coding element
+   * @param {number} indentLevel - Indentation level
+   * @param {string} elementName - XML element name
+   * @returns {string} XML string
    */
   static renderCoding(coding, indentLevel, elementName) {
     const indent = '  '.repeat(indentLevel);

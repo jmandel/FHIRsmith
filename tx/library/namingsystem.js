@@ -1,4 +1,11 @@
+// @ts-check
+
 const {namingSystemToR5, namingSystemFromR5} = require("../xversion/xv-namingsystem");
+
+/**
+ * @typedef {import('../../types/fhirsmith').FhirNamingSystem} FhirNamingSystem
+ * @typedef {import('../../types/fhirsmith').FhirNamingSystemUniqueId} FhirNamingSystemUniqueId
+ */
 
 /**
  * Represents a FHIR NamingSystem resource with version conversion support
@@ -7,9 +14,9 @@ const {namingSystemToR5, namingSystemFromR5} = require("../xversion/xv-namingsys
 class NamingSystem {
   /**
    * The original JSON object (always stored in R5 format internally)
-   * @type {Object}
+   * @type {FhirNamingSystem}
    */
-  jsonObj = null;
+  jsonObj;
 
   /**
    * FHIR version of the loaded NamingSystem
@@ -29,18 +36,13 @@ class NamingSystem {
 
   /**
    * Creates a new NamingSystem instance
-   * @param {Object} jsonObj - The JSON object containing NamingSystem data
+   * @param {FhirNamingSystem} jsonObj - The JSON object containing NamingSystem data
    * @param {string} [version='R5'] - FHIR version ('R3', 'R4', or 'R5')
-   * @param {string} jsonObj.resourceType - Must be "NamingSystem"
-   * @param {string} jsonObj.name - Name for this naming system
-   * @param {string} jsonObj.status - Publication status (draft|active|retired|unknown)
-   * @param {string} jsonObj.kind - Identifies the purpose of the naming system
-   * @param {Object[]} jsonObj.uniqueId - Unique identifiers used for system
    */
   constructor(jsonObj, version = 'R5') {
     this.version = version;
     // Convert to R5 format internally (modifies input for performance)
-    this.jsonObj = namingSystemToR5(jsonObj, version);
+    this.jsonObj = /** @type {FhirNamingSystem} */ (namingSystemToR5(jsonObj, version));
     this.validate();
   }
 
@@ -126,7 +128,7 @@ class NamingSystem {
   /**
    * Gets unique identifiers of a specific type
    * @param {string} type - Type of identifier ('oid', 'uuid', 'uri', 'other')
-   * @returns {Object[]} Array of uniqueId objects of the specified type
+   * @returns {FhirNamingSystemUniqueId[]} Array of uniqueId objects of the specified type
    */
   getUniqueIdsByType(type) {
     return this.jsonObj.uniqueId.filter(uid => uid.type === type);
@@ -153,7 +155,7 @@ class NamingSystem {
 
   /**
    * Gets the preferred unique identifier (marked as preferred=true)
-   * @returns {Object|undefined} Preferred uniqueId object or undefined if none marked as preferred
+   * @returns {FhirNamingSystemUniqueId|undefined} Preferred uniqueId object or undefined if none marked as preferred
    */
   getPreferredUniqueId() {
     return this.jsonObj.uniqueId.find(uid => uid.preferred === true);
@@ -162,7 +164,7 @@ class NamingSystem {
   /**
    * Gets all unique identifiers, optionally filtered by preferred status
    * @param {boolean} [preferredOnly=false] - If true, return only preferred identifiers
-   * @returns {Object[]} Array of uniqueId objects
+   * @returns {FhirNamingSystemUniqueId[]} Array of uniqueId objects
    */
   getAllUniqueIds(preferredOnly = false) {
     if (preferredOnly) {
@@ -213,7 +215,7 @@ class NamingSystem {
 
   /**
    * Gets basic info about this naming system
-   * @returns {Object} Basic information object
+   * @returns {Record<string, any>} Basic information object
    */
   getInfo() {
     const preferred = this.getPreferredUniqueId();

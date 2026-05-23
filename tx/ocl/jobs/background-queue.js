@@ -1,2 +1,3 @@
-﻿module.exports = require('./background-queue.cjs');
+// @ts-check
 
+module.exports = require('./background-queue.cjs');

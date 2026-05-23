@@ -1,3 +1,5 @@
+// @ts-check
+
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -6,6 +8,15 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 const SAFE_NAME = /^[a-zA-Z0-9._-]+$/;
 const AUTH_FAIL_DELAY_MS = 5000;
 
+/** @typedef {{enabled?: boolean, folder?: string, url?: string, name?: string}} FolderConfig */
+/** @typedef {{folders?: FolderConfig[]}} FolderModuleConfig */
+/** @typedef {{name: string, folder: string, url: string}} ServedFolder */
+/** @typedef {{username: string, password: string}} BasicCredentials */
+
+/**
+ * @param {unknown} str
+ * @returns {string}
+ */
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -16,11 +27,19 @@ function escapeHtml(str) {
 }
 
 class FolderModule {
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
+    /** @type {ServedFolder[]} */
     this.folders = [];
     this.stats = stats;
   }
 
+  /**
+   * @param {FolderModuleConfig} config
+   * @param {any} app
+   */
   initialize(config, app) {
     this.folders = [];
 
@@ -43,17 +62,17 @@ class FolderModule {
       const router = express.Router();
 
       // GET - serve files and directory listings
-      router.get(urlBase + '/{*subpath}', (req, res) => {
+      const getHandler = /** @type {(req: any, res: any) => any} */ ((req, res) => {
         this.handleGet(req, res, rootDir, urlBase);
       });
-      router.get(urlBase, (req, res) => {
-        this.handleGet(req, res, rootDir, urlBase);
-      });
+      router.get(urlBase + '/{*subpath}', getHandler);
+      router.get(urlBase, getHandler);
 
       // PUT - upload with basic auth (express.raw captures body before any global JSON parser)
-      router.put(urlBase + '/{*subpath}', express.raw({ type: '*/*', limit: MAX_UPLOAD_BYTES }), (req, res) => {
+      const putHandler = /** @type {(req: any, res: any) => any} */ ((req, res) => {
         this.handlePut(req, res, rootDir, urlBase);
       });
+      router.put(urlBase + '/{*subpath}', express.raw({ type: '*/*', limit: MAX_UPLOAD_BYTES }), putHandler);
 
       app.use('/', router);
       this.folders.push({ name: fc.name, folder: rootDir, url: urlBase });
@@ -65,6 +84,13 @@ class FolderModule {
     }
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @param {string} rootDir
+   * @param {string} urlBase
+   * @returns {any}
+   */
   handleGet(req, res, rootDir, urlBase) {
     this.stats.countRequest('search', 0);
     const subPath = req.path.substring(urlBase.length) || '/';
@@ -96,6 +122,11 @@ class FolderModule {
     return res.status(404).send('Not found');
   }
 
+  /**
+   * @param {any} res
+   * @param {string} dirPath
+   * @param {string} requestPath
+   */
   sendDirectoryListing(res, dirPath, requestPath) {
     const start = Date.now();
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
@@ -131,6 +162,10 @@ class FolderModule {
     res.type('html').send(html);
   }
 
+  /**
+   * @param {number} bytes
+   * @returns {string}
+   */
   formatSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -138,6 +173,13 @@ class FolderModule {
     return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
   }
 
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @param {string} rootDir
+   * @param {string} urlBase
+   * @returns {any}
+   */
   handlePut(req, res, rootDir, urlBase) {
     this.stats.countRequest('submit', 0);
     const subPath = req.path.substring(urlBase.length);
@@ -219,6 +261,10 @@ class FolderModule {
   }
 
   // get request body as a Buffer, whether or not global middleware already parsed it
+  /**
+   * @param {any} req
+   * @returns {Promise<Buffer>}
+   */
   getBody(req) {
     // if global middleware already parsed it, use that
     if (Buffer.isBuffer(req.body)) {
@@ -232,13 +278,18 @@ class FolderModule {
     }
     // no middleware parsed it — read from stream
     return new Promise((resolve, reject) => {
+      /** @type {Buffer[]} */
       const chunks = [];
-      req.on('data', chunk => chunks.push(chunk));
+      req.on('data', /** @type {(chunk: any) => void} */ ((chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))));
       req.on('end', () => resolve(Buffer.concat(chunks)));
       req.on('error', reject);
     });
   }
 
+  /**
+   * @param {any} req
+   * @returns {BasicCredentials | null}
+   */
   parseBasicAuth(req) {
     const header = req.headers.authorization;
     if (!header || !header.startsWith('Basic ')) {
@@ -256,11 +307,18 @@ class FolderModule {
   }
 
   // walk up from the target directory to rootDir looking for .users.json
+  /**
+   * @param {string} rootDir
+   * @param {string} dir
+   * @param {string} username
+   * @param {string} password
+   * @returns {boolean}
+   */
   checkUser(rootDir, dir, username, password) {
     let current = path.resolve(dir);
     const root = path.resolve(rootDir);
 
-    while (true) {
+    for (;;) {
       const usersPath = path.join(current, USERS_FILE);
       if (fs.existsSync(usersPath)) {
         try {
@@ -287,10 +345,16 @@ class FolderModule {
     return false;
   }
 
+  /**
+   * @returns {void}
+   */
   shutdown() {
     // nothing to clean up
   }
 
+  /**
+   * @returns {{folders: ServedFolder[]}}
+   */
   getStatus() {
     return {
       folders: this.folders.map(f => ({

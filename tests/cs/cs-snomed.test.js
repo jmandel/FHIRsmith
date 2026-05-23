@@ -802,7 +802,7 @@ describe('SNOMED CT Subset Validation', () => {
       const filterTests = [
         {
           property: 'concept',
-          operator: 'equal',
+          operator: '=',
           value: '64572001',
           description: 'Exact match for Disease'
         },
@@ -815,37 +815,32 @@ describe('SNOMED CT Subset Validation', () => {
       ];
 
       for (const test of filterTests) {
-        try {
-          const supports = await provider.doesFilter(test.property, test.operator, test.value);
-          expect(supports).toBe(true);
+        const supports = await provider.doesFilter(test.property, test.operator, test.value);
+        expect(supports).toBe(true);
 
-          const filterContext = await provider.getPrepContext(true);
-          await provider.filter(filterContext, test.property, test.operator, test.value);
+        const filterContext = await provider.getPrepContext(true);
+        await provider.filter(filterContext, true, test.property, test.operator, test.value);
 
-          const filters = await provider.executeFilters(filterContext);
-          const filter = filters[0];
+        const filters = await provider.executeFilters(filterContext);
+        const filter = filters[0];
 
-          const size = await provider.filterSize(filterContext, filter);
-          expect(size).toBeGreaterThan(0);
+        const size = await provider.filterSize(filterContext, filter);
+        expect(size).toBeGreaterThan(0);
 
-          console.log(`✅ Filter "${test.description}": ${size} results`);
+        console.log(`✅ Filter "${test.description}": ${size} results`);
 
-          // Test iteration
-          let count = 0;
-          const maxCheck = Math.min(5, size); // Check first 5 results
+        // Test iteration
+        let count = 0;
+        const maxCheck = Math.min(5, size); // Check first 5 results
 
-          while (await provider.filterMore(filterContext, filter) && count < maxCheck) {
-            const concept = await provider.filterConcept(filterContext, filter);
-            expect(concept.constructor.name).toBe('SnomedExpressionContext');
-            expect(concept.getCode()).toBeDefined();
-            count++;
-          }
-
-          console.log(`  Verified ${count} results`);
-
-        } catch (error) {
-          console.log(`! Filter test failed for ${test.description}: ${error.message}`);
+        while (await provider.filterMore(filterContext, filter) && count < maxCheck) {
+          const concept = await provider.filterConcept(filterContext, filter);
+          expect(concept.constructor.name).toBe('SnomedExpressionContext');
+          expect(concept.getCode()).toBeDefined();
+          count++;
         }
+
+        console.log(`  Verified ${count} results`);
       }
     });
 
@@ -860,34 +855,29 @@ describe('SNOMED CT Subset Validation', () => {
       ];
 
       for (const test of searchTests) {
-        try {
-          const filterContext = await provider.getPrepContext(true);
-          const searchResult = await provider.searchFilter(filterContext, test.term, null);
+        const filterContext = await provider.getPrepContext(true);
+        const searchResult = await provider.searchFilter(filterContext, {filter: test.term}, false);
 
-          expect(searchResult).toBeDefined();
-          expect(searchResult.matches).toBeDefined();
+        expect(searchResult).toBeDefined();
+        expect(searchResult.matches).toBeDefined();
 
-          const foundCodes = searchResult.matches.map(match => {
-            try {
-              const concept = provider.sct.concepts.getConcept(match.index);
-              return concept.identity.toString();
-            } catch (error) {
-              return null;
-            }
-          }).filter(code => code !== null);
-
-          console.log(`✅ Search "${test.term}": ${foundCodes.length} results`);
-
-          // Check if expected codes are found (if any exist in dataset)
-          for (const expectedCode of test.expectedCodes) {
-            const codeExists = await provider.locate(expectedCode);
-            if (codeExists.context && !foundCodes.includes(expectedCode)) {
-              console.log(`  ! Expected code ${expectedCode} not found in search results`);
-            }
+        const foundCodes = searchResult.matches.map(match => {
+          try {
+            const concept = provider.sct.concepts.getConcept(match.index);
+            return concept.identity.toString();
+          } catch (error) {
+            return null;
           }
+        }).filter(code => code !== null);
 
-        } catch (error) {
-          console.log(`! Search test failed for "${test.term}": ${error.message}`);
+        console.log(`✅ Search "${test.term}": ${foundCodes.length} results`);
+
+        // Check if expected codes are found (if any exist in dataset)
+        for (const expectedCode of test.expectedCodes) {
+          const codeExists = await provider.locate(expectedCode);
+          if (codeExists.context && provider.sct.isActive(codeExists.context.getReference())) {
+            expect(foundCodes).toContain(expectedCode);
+          }
         }
       }
     });

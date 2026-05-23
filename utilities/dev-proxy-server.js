@@ -1,7 +1,12 @@
+// @ts-check
+
 import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import crypto from 'crypto';
+
+/** @typedef {{status: number, headers: http.IncomingHttpHeaders, body: Buffer}} ProxyResult */
+/** @typedef {{status?: number, contentType?: string | string[], size?: number, hash?: string, error?: string}} ProxySummary */
 
 const LISTEN_PORT = 3002;
 const PROD_HOST = '127.0.0.1';
@@ -13,15 +18,30 @@ const LOG_LOCATION = '/Users/grahamegrieve/temp/tx-comp-log/log.ndjson'; // 'T:\
 
 const logStream = fs.createWriteStream(LOG_LOCATION, { flags: 'a' });
 
+/**
+ * @param {http.IncomingMessage} req
+ * @returns {Promise<Buffer>}
+ */
 function collectBody(req) {
   return new Promise((resolve, reject) => {
+    /** @type {Buffer[]} */
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    req.on('data', c => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
 
+/**
+ * @param {string} method
+ * @param {string} url
+ * @param {http.IncomingHttpHeaders} headers
+ * @param {Buffer} body
+ * @param {string} host
+ * @param {number} port
+ * @param {boolean} [useHttps]
+ * @returns {Promise<ProxyResult>}
+ */
 function forward(method, url, headers, body, host, port, useHttps = false) {
   return new Promise((resolve, reject) => {
     const mod = useHttps ? https : http;
@@ -33,12 +53,13 @@ function forward(method, url, headers, body, host, port, useHttps = false) {
       headers: { ...headers, host: 'tx.fhir.org' },
       timeout: 600000,
     }, (res) => {
+      /** @type {Buffer[]} */
       const chunks = [];
-      res.on('data', c => chunks.push(c));
+      res.on('data', c => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
       res.on('end', () => {
         const body = Buffer.concat(chunks);
         resolve({
-          status: res.statusCode,
+          status: res.statusCode || 0,
           headers: res.headers,
           body,
         });
@@ -51,13 +72,29 @@ function forward(method, url, headers, body, host, port, useHttps = false) {
   });
 }
 
+/**
+ * @param {string | string[] | undefined} value
+ * @returns {string}
+ */
+function headerString(value) {
+  return Array.isArray(value) ? value.join(',') : value || '';
+}
+
+/**
+ * @param {http.IncomingMessage} req
+ * @returns {boolean}
+ */
 function isJsonRequest(req) {
-  const accept = (req.headers['accept'] || '').toLowerCase();
-  const ct = (req.headers['content-type'] || '').toLowerCase();
+  const accept = headerString(req.headers['accept']).toLowerCase();
+  const ct = headerString(req.headers['content-type']).toLowerCase();
   return accept.includes('json') || accept.includes('fhir') ||
     ct.includes('json') || ct.includes('fhir');
 }
 
+/**
+ * @param {PromiseSettledResult<ProxyResult>} result
+ * @returns {ProxySummary}
+ */
 function summarise(result) {
   if (result.status === 'rejected') {
     return { error: result.reason?.message || 'unknown' };
@@ -73,10 +110,12 @@ function summarise(result) {
 
 http.createServer(async (req, res) => {
   const body = await collectBody(req);
+  const method = req.method || 'GET';
+  const requestUrl = req.url || '/';
 
   if (!isJsonRequest(req)) {
     try {
-      const prod = await forward(req.method, req.url, req.headers, body, PROD_HOST, PROD_PORT);
+      const prod = await forward(method, requestUrl, req.headers, body, PROD_HOST, PROD_PORT);
       res.writeHead(prod.status, prod.headers);
       res.end(prod.body);
     } catch (e) {
@@ -87,19 +126,20 @@ http.createServer(async (req, res) => {
   }
 
   const [prodResult, devResult] = await Promise.allSettled([
-    forward(req.method, req.url, req.headers, body, PROD_HOST, PROD_PORT),
-    forward(req.method, req.url, req.headers, body, DEV_HOST, DEV_PORT, DEV_HTTPS),
+    forward(method, requestUrl, req.headers, body, PROD_HOST, PROD_PORT),
+    forward(method, requestUrl, req.headers, body, DEV_HOST, DEV_PORT, DEV_HTTPS),
   ]);
 
   const prodSummary = summarise(prodResult);
   const devSummary = summarise(devResult);
   const match = prodSummary.hash === devSummary.hash && prodSummary.status === devSummary.status;
 
+  /** @type {Record<string, any>} */
   const logEntry = {
     ts: new Date().toISOString(),
     id: crypto.randomUUID(),
-    method: req.method,
-    url: req.url,
+    method,
+    url: requestUrl,
     match,
     prod: prodSummary,
     dev: devSummary,

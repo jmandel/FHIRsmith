@@ -1,12 +1,33 @@
+// @ts-check
+
 const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
 const { Language, Languages} = require('../../library/languages');
-const { CodeSystemFactoryProvider} = require('./cs-api');
+const csApi = require('./cs-api');
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
 const { validateOptionalParameter, validateArrayParameter} = require("../../library/utilities");
-const {BaseCSServices} = require("./cs-base");
+const csBase = require("./cs-base");
+const BaseCSServices = /** @type {any} */ (csBase.BaseCSServices);
 const {sqlEscapeString} = require("../../xig/xig");
 const regexUtilities = require('../../library/regex-utilities');
+
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {string | LoincProviderContext | null | undefined} LoincContextInput */
+/** @typedef {{context: LoincProviderContext | null, message?: string | null}} LoincLocateResult */
+/** @typedef {{langs: Map<string, number>, codes: Map<string, LoincProviderContext>, codeList: Array<LoincProviderContext | null>, allKeys: number[], relationships: Map<string, string>, propertyList: Map<string, string>, statusKeys: Map<string, string>, statusCodes: Map<string, string>, _version: string, root: string, firstCodeKey: number}} LoincSharedData */
+/** @typedef {{Lang: string, DType?: string, Value: string, dtype?: string, value?: string, lang?: string, IsDisplay?: boolean | number}} LoincDescriptionRow */
+/** @typedef {{Key: number, Description?: string, Value?: string, PropertyValueKey?: number}} LoincKeyRow */
+/** @typedef {{Relationship: string, Code: string, Description?: string, Value?: string}} LoincRelationshipRow */
+/** @typedef {{StatusKey: number | string, Description: string}} LoincStatusRow */
+/** @typedef {{LanguageKey: number, Code: string}} LoincLanguageRow */
+/** @typedef {{RelationshipTypeKey: number | string, Description: string}} LoincRelationshipTypeRow */
+/** @typedef {{PropertyTypeKey: number | string, Description: string}} LoincPropertyTypeRow */
+/** @typedef {{CodeKey: number, Code: string, Type: number, Description: string, Status: string, maxKey?: number}} LoincCodeRow */
+/** @typedef {{SourceKey: number, TargetKey: number}} LoincHierarchyRow */
+/** @typedef {{ConfigKey: number, Value: string}} LoincConfigRow */
+/** @typedef {{Code: string, Description?: string}} LoincAnswerListRow */
+/** @typedef {{resourceType?: string, url: string, version: string | null, status: string, name: string, description: string, date: string, experimental: boolean, compose: {include: Array<{system: string, filter?: Array<{property: string, op: string, value: string}>, concept?: Array<{code: string}>}>}}} LoincValueSetLike */
 
 // Context kinds matching Pascal enum
 const LoincProviderContextKind = {
@@ -16,6 +37,7 @@ const LoincProviderContextKind = {
   ANSWER: 3   // lpckAnswer
 };
 
+/** @type {Record<string, string>} */
 const classTypes = {
   '1': 'Laboratory class',
   '2': 'Clinical class',
@@ -28,6 +50,12 @@ const classTypes = {
 };
 
 class DescriptionCacheEntry {
+  /**
+   * @param {boolean} display - Whether this designation is a display
+   * @param {string} lang - Language code
+   * @param {string} value - Designation value
+   * @param {string} dtype - LOINC description type
+   */
   constructor(display, lang, value, dtype) {
     this.display = display;
     this.lang = lang;
@@ -37,16 +65,29 @@ class DescriptionCacheEntry {
 }
 
 class LoincProviderContext {
+  /**
+   * @param {number} key - LOINC code key
+   * @param {number} kind - Context kind
+   * @param {string} code - LOINC code
+   * @param {string} desc - Display description
+   * @param {string} status - Concept status
+   */
   constructor(key, kind, code, desc, status) {
     this.key = key;
     this.kind = kind;
     this.code = code;
     this.desc = desc;
     this.status = status;
+    /** @type {DescriptionCacheEntry[]} */
     this.displays = []; // Array of DescriptionCacheEntry
+    /** @type {number[] | null} */
     this.children = null; // Will be Set of keys if this has children
   }
 
+  /**
+   * @param {number} key - Child code key
+   * @returns {void}
+   */
   addChild(key) {
     if (!this.children) {
       this.children = [];
@@ -56,6 +97,10 @@ class LoincProviderContext {
 }
 
 class LoincDisplay {
+  /**
+   * @param {string} language - Language code
+   * @param {string} value - Display value
+   */
   constructor(language, value) {
     this.language = language;
     this.value = value;
@@ -63,6 +108,10 @@ class LoincDisplay {
 }
 
 class LoincIteratorContext {
+  /**
+   * @param {LoincProviderContext | null} context - Parent context
+   * @param {number[] | null | undefined} keys - Keys to iterate
+   */
   constructor(context, keys) {
     this.context = context;
     this.keys = keys || [];
@@ -70,10 +119,16 @@ class LoincIteratorContext {
     this.total = this.keys.length;
   }
 
+  /**
+   * @returns {boolean} Whether another context is available
+   */
   more() {
     return this.current < this.total;
   }
 
+  /**
+   * @returns {void}
+   */
   next() {
     this.current++;
   }
@@ -81,11 +136,16 @@ class LoincIteratorContext {
 
 class LoincFilterHolder {
   constructor() {
+    /** @type {number[]} */
     this.keys = [];
     this.cursor = 0;
     this.lsql = '';
   }
 
+  /**
+   * @param {number} key - Code key
+   * @returns {boolean} Whether key is included in this filter
+   */
   hasKey(key) {
     // Binary search since keys should be sorted
     let l = 0;
@@ -105,14 +165,26 @@ class LoincFilterHolder {
 }
 
 class LoincPrep {
-  constructor() {
+  /**
+   * @param {boolean} iterate - Whether filters are used for iteration
+   */
+  constructor(iterate = false) {
+    this.iterate = iterate;
+    /** @type {LoincFilterHolder[]} */
     this.filters = [];
   }
 }
 
 class LoincServices extends BaseCSServices {
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @param {SqliteDatabase | null} db - Open LOINC database
+   * @param {LoincSharedData} sharedData - Shared LOINC data loaded by factory
+   */
   constructor(opContext, supplements, db, sharedData) {
     super(opContext, supplements);
+    /** @type {SqliteDatabase | null} */
     this.db = db;
 
     // Shared data from factory
@@ -161,6 +233,10 @@ class LoincServices extends BaseCSServices {
     return true; // LOINC has hierarchical relationships
   }
 
+  /**
+   * @param {any} languages - Requested languages
+   * @returns {boolean} Whether matching displays are available
+   */
   hasAnyDisplays(languages) {
     const langs = this._ensureLanguages(languages);
 
@@ -183,12 +259,20 @@ class LoincServices extends BaseCSServices {
   }
 
   // Core concept methods
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<string | null>} Concept code
+   */
   async code(context) {
 
     const ctxt = await this.#ensureContext(context);
     return ctxt ? ctxt.code : null;
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<string | null>} Display string
+   */
   async display(context) {
 
     const ctxt = await this.#ensureContext(context);
@@ -231,31 +315,56 @@ class LoincServices extends BaseCSServices {
     return ctxt.desc || '';
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<null>} Definition, if any
+   */
   async definition(context) {
     await this.#ensureContext(context);
     return null; // LOINC doesn't provide definitions
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<boolean>} Whether concept is abstract
+   */
   async isAbstract(context) {
     await this.#ensureContext(context);
     return false; // LOINC codes are not abstract
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<boolean>} Whether concept is inactive
+   */
   async isInactive(context) {
-    await this.#ensureContext(context);
-    return context.status == 'DISCOURAGED'; // Handle via status if needed
+    const ctxt = await this.#ensureContext(context);
+    return ctxt ? ctxt.status == 'DISCOURAGED' : false;
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<string | null>} Concept status
+   */
   async getStatus(context) {
-    await this.#ensureContext(context);
-    return context.status == 'NotStated' ? null : context.status; // Handle via status if needed
+    const ctxt = await this.#ensureContext(context);
+    return !ctxt || ctxt.status == 'NotStated' ? null : ctxt.status;
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<boolean>} Whether concept is deprecated
+   */
   async isDeprecated(context) {
     await this.#ensureContext(context);
     return false; // Handle via status if needed
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<void>}
+   */
   async designations(context, displays) {
     const ctxt = await this.#ensureContext(context);
     if (ctxt) {
@@ -292,6 +401,12 @@ class LoincServices extends BaseCSServices {
 
   }
 
+  /**
+   * @param {LoincContextInput} ctxt - LOINC code or context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async extendLookup(ctxt, props, params) {
     validateArrayParameter(props, 'props', String);
     validateArrayParameter(params, 'params', Object);
@@ -299,7 +414,7 @@ class LoincServices extends BaseCSServices {
     if (typeof ctxt === 'string') {
       const located = await this.locate(ctxt);
       if (!located.context) {
-        throw new Error(located.message);
+        throw new Error(located.message || `LOINC code '${ctxt}' not found`);
       }
       ctxt = located.context;
     }
@@ -317,6 +432,10 @@ class LoincServices extends BaseCSServices {
     ]);
   }
 
+  /**
+   * @param {number} kind - LOINC context kind
+   * @returns {string} Designation use
+   */
   #getDesignationUse(kind) {
     switch (kind) {
       case LoincProviderContextKind.CODE:
@@ -328,7 +447,14 @@ class LoincServices extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async #addRelationshipProperties(ctxt, props, params) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = `
           SELECT RelationshipTypes.Description as Relationship, Codes.Code, Codes.Description as Value
@@ -338,22 +464,29 @@ class LoincServices extends BaseCSServices {
             AND Relationships.TargetKey = Codes.CodeKey
       `;
 
-      this.db.all(sql, [ctxt.key], (err, rows) => {
+      db.all(sql, [ctxt.key], (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
+          for (const row of /** @type {LoincRelationshipRow[]} */ (rows)) {
             if (this._hasProp(props, row.Relationship, true)) {
               this._addCodeProperty(params, 'property', row.Relationship, row.Code);
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async #addConceptProperties(ctxt, props, params) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = `
           SELECT PropertyTypes.Description, PropertyValues.Value
@@ -363,11 +496,11 @@ class LoincServices extends BaseCSServices {
             AND Properties.PropertyValueKey = PropertyValues.PropertyValueKey
       `;
 
-      this.db.all(sql, [ctxt.key], (err, rows) => {
+      db.all(sql, [ctxt.key], (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
+          for (const row of /** @type {Array<{Description: string, Value: string}>} */ (rows)) {
             if (this._hasProp(props, row.Description, true)) {
               if (row.Description == 'CLASSTYPE') {
                 this._addStringProperty(params, 'property', row.Description, classTypes[row.Value])
@@ -377,34 +510,48 @@ class LoincServices extends BaseCSServices {
               }
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async #addStatusProperty(ctxt, props, params) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = 'SELECT StatusKey FROM Codes WHERE CodeKey = ? AND StatusKey != 0';
 
-      this.db.get(sql, [ctxt.key], (err, row) => {
+      db.get(sql, [ctxt.key], (err, row) => {
         if (err) {
           reject(err);
         } else if (row) {
-          const statusDesc = this.statusCodes.get(row.StatusKey.toString());
-          if (row.StatusKey && statusDesc) {
+          const statusRow = /** @type {{StatusKey: number | string}} */ (row);
+          const statusDesc = this.statusCodes.get(statusRow.StatusKey.toString());
+          if (statusRow.StatusKey && statusDesc) {
             if (this._hasProp(props, 'STATUS', true)) {
               this._addStringProperty(params, 'property', 'STATUS', statusDesc);
             }
           }
-          resolve();
+          resolve(undefined);
         } else {
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async #addRelatedNames(ctxt, props, params) {
     const loaded = await this.#loadRelatedNames(ctxt);
     for (let d of loaded) {
@@ -414,11 +561,18 @@ class LoincServices extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async #addAllDesignations(ctxt, props, params) {
     if (!this._hasProp(props, 'designation', true)) {
       return;
     }
 
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = `
           SELECT Languages.Code as Lang, DescriptionTypes.Description as DType, Descriptions.Value
@@ -429,22 +583,28 @@ class LoincServices extends BaseCSServices {
           AND Descriptions.LanguageKey = Languages.LanguageKey
       `;
 
-      this.db.all(sql, [ctxt.key], (err, rows) => {
+      db.all(sql, [ctxt.key], (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
-            this._addProperty(params, 'designation', row.dtype, row.value, row.lang);
+          for (const row of /** @type {LoincDescriptionRow[]} */ (rows)) {
+            this._addProperty(params, 'designation', row.DType || '', row.Value, row.Lang);
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @param {Languages | null | undefined} langs - Requested languages
+   * @returns {Promise<LoincDisplay[]>} Displays
+   */
   async #getDisplaysForContext(ctxt, langs) {
     validateOptionalParameter(langs, "langs", Languages);
     const displays = [new LoincDisplay('en-US', ctxt.desc)];
+    const db = this.#requireDb();
 
     return new Promise((resolve, reject) => {
       const sql = `
@@ -456,11 +616,11 @@ class LoincServices extends BaseCSServices {
           ORDER BY DescriptionTypeKey
       `;
 
-      this.db.all(sql, [ctxt.key], (err, rows) => {
+      db.all(sql, [ctxt.key], (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
+          for (const row of /** @type {LoincDescriptionRow[]} */ (rows)) {
             displays.push(new LoincDisplay(row.Lang, row.Value));
           }
 
@@ -473,6 +633,11 @@ class LoincServices extends BaseCSServices {
     });
   }
 
+  /**
+   * @param {LoincDisplay[]} displays - Display accumulator
+   * @param {string} code - LOINC code
+   * @returns {void}
+   */
   #addSupplementDisplays(displays, code) {
     if (this.supplements) {
       for (const supplement of this.supplements) {
@@ -492,7 +657,12 @@ class LoincServices extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @returns {Promise<DescriptionCacheEntry[]>} Designations
+   */
   async #loadDesignationsForContext(ctxt) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = `
           SELECT Languages.Code as Lang, DescriptionTypes.Description as DType, Descriptions.Value
@@ -503,14 +673,15 @@ class LoincServices extends BaseCSServices {
             AND Descriptions.LanguageKey = Languages.LanguageKey
       `;
 
-      this.db.all(sql, [ctxt.key], (err, rows) => {
+      db.all(sql, [ctxt.key], (err, rows) => {
         if (err) {
           reject(err);
         } else {
+          /** @type {DescriptionCacheEntry[]} */
           const results = [];
-          for (const row of rows) {
+          for (const row of /** @type {LoincDescriptionRow[]} */ (rows)) {
             const isDisplay = row.DType === 'LONG_COMMON_NAME';
-            results.push(new DescriptionCacheEntry(isDisplay, row.Lang, row.Value, row.DType));
+            results.push(new DescriptionCacheEntry(isDisplay, row.Lang, row.Value, row.DType || ''));
           }
           resolve(results);
         }
@@ -518,7 +689,12 @@ class LoincServices extends BaseCSServices {
     });
   }
 
+  /**
+   * @param {LoincProviderContext} ctxt - LOINC context
+   * @returns {Promise<DescriptionCacheEntry[]>} Related names
+   */
   async #loadRelatedNames(ctxt) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = `
           SELECT Languages.Code as Lang, Descriptions.Value
@@ -528,12 +704,13 @@ class LoincServices extends BaseCSServices {
             AND Descriptions.LanguageKey = Languages.LanguageKey
       `;
 
-      this.db.all(sql, [ctxt.key], (err, rows) => {
+      db.all(sql, [ctxt.key], (err, rows) => {
         if (err) {
           reject(err);
         } else {
+          /** @type {DescriptionCacheEntry[]} */
           const results = [];
-          for (const row of rows) {
+          for (const row of /** @type {LoincDescriptionRow[]} */ (rows)) {
             results.push(new DescriptionCacheEntry(false, row.Lang, row.Value, 'RELATEDNAMES2'));
           }
           resolve(results);
@@ -542,6 +719,10 @@ class LoincServices extends BaseCSServices {
     });
   }
 
+  /**
+   * @param {LoincContextInput} context - LOINC code or context
+   * @returns {Promise<LoincProviderContext | null>} Resolved context
+   */
   async #ensureContext(context) {
     if (!context) {
       return null;
@@ -549,7 +730,7 @@ class LoincServices extends BaseCSServices {
     if (typeof context === 'string') {
       const ctxt = await this.locate(context);
       if (!ctxt.context) {
-        throw new Error(ctxt.message);
+        throw new Error(ctxt.message || `LOINC code '${context}' not found`);
       } else {
         return ctxt.context;
       }
@@ -560,7 +741,21 @@ class LoincServices extends BaseCSServices {
     throw new Error("Unknown Type at #ensureContext: " + (typeof context));
   }
 
+  /**
+   * @returns {SqliteDatabase} Open database
+   */
+  #requireDb() {
+    if (!this.db) {
+      throw new Error('LOINC database is closed');
+    }
+    return this.db;
+  }
+
   // Lookup methods
+  /**
+   * @param {string | null | undefined} code - LOINC code
+   * @returns {Promise<LoincLocateResult>} Locate result
+   */
   async locate(code) {
 
     assert(!code || typeof code === 'string', 'code must be string');
@@ -575,6 +770,10 @@ class LoincServices extends BaseCSServices {
   }
 
   // Iterator methods
+  /**
+   * @param {LoincContextInput} context - Parent context
+   * @returns {Promise<LoincIteratorContext>} Iterator context
+   */
   async iterator(context) {
 
 
@@ -583,7 +782,7 @@ class LoincServices extends BaseCSServices {
       return new LoincIteratorContext(null, this.allKeys);
     } else {
       const ctxt = await this.#ensureContext(context);
-      if (ctxt.kind === LoincProviderContextKind.PART && ctxt.children) {
+      if (ctxt && ctxt.kind === LoincProviderContextKind.PART && ctxt.children) {
         return new LoincIteratorContext(ctxt, ctxt.children);
       } else {
         return new LoincIteratorContext(ctxt, []);
@@ -591,6 +790,10 @@ class LoincServices extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {LoincIteratorContext} iteratorContext - Iterator context
+   * @returns {Promise<LoincProviderContext | null>} Next context
+   */
   async nextContext(iteratorContext) {
 
 
@@ -605,6 +808,12 @@ class LoincServices extends BaseCSServices {
   }
 
   // Filter support
+  /**
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<boolean>} Whether this filter is supported
+   */
   async doesFilter(prop, op, value) {
     // Relationship filters
     if (this.relationships.has(prop) && ['=', 'in', 'exists', 'regex'].includes(op)) {
@@ -654,22 +863,47 @@ class LoincServices extends BaseCSServices {
     return false;
   }
 
+  /**
+   * @param {boolean} iterate - Whether filters are for iteration
+   * @returns {Promise<LoincPrep>} Filter preparation context
+   */
   async getPrepContext(iterate) {
     return new LoincPrep(iterate);
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @param {boolean} forIteration - Whether filter is for iteration
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<void>}
+   */
   async filter(filterContext, forIteration, prop, op, value) {
     const filter = new LoincFilterHolder();
     await this.#executeFilterQuery(prop, op, value, filter);
     filterContext.filters.push(filter);
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @param {{filter: string}} filterText - Text filter
+   * @param {boolean} sort - Whether descending sort is requested
+   * @returns {Promise<void>}
+   */
   async searchFilter(filterContext, filterText, sort) {
     const filter = new LoincFilterHolder();
     await this.#executeFilterQuery('$text', (sort ? '>' : '<'), filterText.filter, filter);
     filterContext.filters.push(filter);
   }
 
+  /**
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @param {LoincFilterHolder} filter - Filter holder
+   * @returns {Promise<void>}
+   */
   async #executeFilterQuery(prop, op, value, filter) {
     let sql = '';
     let lsql = '';
@@ -937,18 +1171,27 @@ class LoincServices extends BaseCSServices {
   }
 
 // Helper method for regex matching
+  /**
+   * @param {string} sql - SQL query returning candidate rows
+   * @param {string} pattern - Regex pattern
+   * @param {string} valueColumn - Column to test
+   * @param {string} keyColumn - Column containing returned key
+   * @returns {Promise<number[]>} Matching keys
+   */
   async #findRegexMatches(sql, pattern, valueColumn, keyColumn = 'Key') {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const regex = regexUtilities.compile(pattern);
+      /** @type {number[]} */
       const matchingKeys = [];
 
-      this.db.all(sql, (err, rows) => {
+      db.all(sql, (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
+          for (const row of /** @type {Array<Record<string, any>>} */ (rows)) {
             if (regex.test(row[valueColumn])) {
-              matchingKeys.push(row[keyColumn]);
+              matchingKeys.push(Number(row[keyColumn]));
             }
           }
           resolve(matchingKeys);
@@ -958,6 +1201,10 @@ class LoincServices extends BaseCSServices {
   }
 
 // Helper method for comma-separated code lists
+  /**
+   * @param {string} source - Comma-separated code list
+   * @returns {string} SQL-quoted code list
+   */
   #commaListOfCodes(source) {
     const codes = source.split(',')
       .filter(s => this.codes.has(s.trim()))
@@ -965,38 +1212,69 @@ class LoincServices extends BaseCSServices {
     return codes.join(',');
   }
 
+  /**
+   * @param {string} sql - SQL query
+   * @param {LoincFilterHolder} filter - Filter holder
+   * @returns {Promise<void>}
+   */
   async #executeSQL(sql, filter) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
-      this.db.all(sql, (err, rows) => {
+      db.all(sql, (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          filter.keys = rows.map(row => row.Key).filter(key => key !== 0);
-          resolve();
+          filter.keys = /** @type {LoincKeyRow[]} */ (rows)
+            .map(row => row.Key)
+            .filter(key => key !== 0);
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {string} str - String to quote for SQL
+   * @returns {string} Escaped SQL string
+   */
   #sqlWrapString(str) {
     return str.replace(/'/g, "''");
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @returns {Promise<LoincFilterHolder[]>} Filters
+   */
   async executeFilters(filterContext) {
 
     return filterContext.filters;
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @param {LoincFilterHolder} set - Filter set
+   * @returns {Promise<number>} Number of keys
+   */
   async filterSize(filterContext, set) {
     return set.keys.length;
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @param {LoincFilterHolder} set - Filter set
+   * @returns {Promise<boolean>} Whether another concept is available
+   */
   async filterMore(filterContext, set) {
 
     set.cursor = set.cursor || 0;
     return set.cursor < set.keys.length;
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @param {LoincFilterHolder} set - Filter set
+   * @returns {Promise<LoincProviderContext | null>} Current concept
+   */
   async filterConcept(filterContext, set) {
 
 
@@ -1010,6 +1288,12 @@ class LoincServices extends BaseCSServices {
     return this.codeList[key];
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @param {LoincFilterHolder} set - Filter set
+   * @param {string} code - LOINC code
+   * @returns {Promise<LoincProviderContext | string | null>} Located concept, message, or null
+   */
   async filterLocate(filterContext, set, code) {
     const context = this.codes.get(code);
     if (!context) {
@@ -1028,6 +1312,12 @@ class LoincServices extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {LoincPrep} filterContext - Filter context
+   * @param {LoincFilterHolder} set - Filter set
+   * @param {unknown} concept - Concept to test
+   * @returns {Promise<boolean>} Whether concept is in the filter
+   */
   async filterCheck(filterContext, set, concept) {
     if (!(concept instanceof LoincProviderContext)) {
       return false;
@@ -1037,6 +1327,11 @@ class LoincServices extends BaseCSServices {
   }
 
   // Subsumption testing
+  /**
+   * @param {LoincContextInput} codeA - First code or context
+   * @param {LoincContextInput} codeB - Second code or context
+   * @returns {Promise<string>} Subsumption result
+   */
   async subsumesTest(codeA, codeB) {
     await this.#ensureContext(codeA);
     await this.#ensureContext(codeB);
@@ -1048,17 +1343,26 @@ class LoincServices extends BaseCSServices {
     return 'natural';
   }
 
+  /**
+   * @param {{use?: {code?: string}}} designation - Designation
+   * @returns {boolean} Whether designation is a display
+   */
   isDisplay(designation) {
-    return designation.use.code == "SHORTNAME" || designation.use.code == "LONG_COMMON_NAME" || designation.use.code == "LinguisticVariantDisplayName";
+    return designation.use?.code == "SHORTNAME" || designation.use?.code == "LONG_COMMON_NAME" || designation.use?.code == "LinguisticVariantDisplayName";
   }
 }
 
 class LoincServicesFactory extends CodeSystemFactoryProvider {
+  /**
+   * @param {any} i18n - Translation support
+   * @param {string} dbPath - Path to LOINC SQLite database
+   */
   constructor(i18n, dbPath) {
     super(i18n);
     this.dbPath = dbPath;
     this.uses = 0;
     this._loaded = false;
+    /** @type {LoincSharedData | null} */
     this._sharedData = null;
   }
 
@@ -1067,19 +1371,35 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
   }
 
   version() {
-    return this._sharedData._version;
+    return this.#sharedData()._version;
   }
 
   name() {
     return 'LOINC';
   }
 
+  /**
+   * @returns {LoincSharedData} Loaded shared data
+   */
+  #sharedData() {
+    if (!this._sharedData) {
+      throw new Error('LOINC shared data is not loaded');
+    }
+    return this._sharedData;
+  }
+
+  /**
+   * @returns {Promise<void>}
+   */
   async #ensureLoaded() {
     if (!this._loaded) {
       await this.load();
     }
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async load() {
     const db = new sqlite3.Database(this.dbPath);
 
@@ -1087,7 +1407,7 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
     await this.#optimizeDatabase(db);
 
     try {
-      this._sharedData = {
+      this._sharedData = /** @type {LoincSharedData} */ ({
         langs: new Map(),
         codes: new Map(),
         codeList: [null],
@@ -1099,7 +1419,7 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
         _version: '',
         root: '',
         firstCodeKey: 0
-      };
+      });
 
       // Load small lookup tables in parallel
       // eslint-disable-next-line no-unused-vars
@@ -1126,6 +1446,10 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
     this._loaded = true;
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #optimizeDatabase(db) {
     return new Promise((resolve, reject) => {
       db.serialize(() => {
@@ -1140,89 +1464,114 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
         db.run('CREATE INDEX IF NOT EXISTS idx_relationships_sourcekey ON Relationships(SourceKey)');
         db.run('CREATE INDEX IF NOT EXISTS idx_properties_codekey ON Properties(CodeKey)', (err) => {
           if (err) reject(err);
-          else resolve();
+          else resolve(undefined);
         });
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadLanguages(db) {
+    const sharedData = this.#sharedData();
     return new Promise((resolve, reject) => {
       db.all('SELECT LanguageKey, Code FROM Languages', (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
-            this._sharedData.langs.set(row.Code, row.LanguageKey);
+          for (const row of /** @type {LoincLanguageRow[]} */ (rows)) {
+            sharedData.langs.set(row.Code, row.LanguageKey);
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadStatusCodes(db) {
+    const sharedData = this.#sharedData();
     return new Promise((resolve, reject) => {
       db.all('SELECT StatusKey, Description FROM StatusCodes', (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
-            this._sharedData.statusKeys.set(row.Description, row.StatusKey.toString());
-            this._sharedData.statusCodes.set(row.StatusKey.toString(), row.Description);
+          for (const row of /** @type {LoincStatusRow[]} */ (rows)) {
+            sharedData.statusKeys.set(row.Description, row.StatusKey.toString());
+            sharedData.statusCodes.set(row.StatusKey.toString(), row.Description);
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadRelationshipTypes(db) {
+    const sharedData = this.#sharedData();
     return new Promise((resolve, reject) => {
       db.all('SELECT RelationshipTypeKey, Description FROM RelationshipTypes', (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
-            this._sharedData.relationships.set(row.Description, row.RelationshipTypeKey.toString());
+          for (const row of /** @type {LoincRelationshipTypeRow[]} */ (rows)) {
+            sharedData.relationships.set(row.Description, row.RelationshipTypeKey.toString());
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadPropertyTypes(db) {
+    const sharedData = this.#sharedData();
     return new Promise((resolve, reject) => {
       db.all('SELECT PropertyTypeKey, Description FROM PropertyTypes', (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
-            this._sharedData.propertyList.set(row.Description, row.PropertyTypeKey.toString());
+          for (const row of /** @type {LoincPropertyTypeRow[]} */ (rows)) {
+            sharedData.propertyList.set(row.Description, row.PropertyTypeKey.toString());
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadCodes(db) {
+    const sharedData = this.#sharedData();
     return new Promise((resolve, reject) => {
       // First get the count to pre-allocate array
       db.get('SELECT MAX(CodeKey) as maxKey FROM Codes', (err, row) => {
         if (err) return reject(err);
 
         // Pre-allocate the array to avoid repeated resizing
-        const maxKey = row.maxKey || 0;
-        this._sharedData.codeList = new Array(maxKey + 1).fill(null);
+        const maxKey = row ? (/** @type {{maxKey?: number}} */ (row).maxKey || 0) : 0;
+        sharedData.codeList = new Array(maxKey + 1).fill(null);
 
         // Now load all codes
         db.all('SELECT CodeKey, Code, Type, Codes.Description, StatusCodes.Description as Status FROM Codes, StatusCodes where StatusCodes.StatusKey = Codes.StatusKey order by Type Asc, CodeKey Asc', (err, rows) => {
           if (err) return reject(err);
 
           // Batch process rows
-          for (const row of rows) {
+          for (const row of /** @type {LoincCodeRow[]} */ (rows)) {
             const context = new LoincProviderContext(
               row.CodeKey,
               row.Type - 1,
@@ -1231,21 +1580,26 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
               row.Status
             );
 
-            this._sharedData.codes.set(row.Code, context);
-            this._sharedData.codeList[row.CodeKey] = context;
-            this._sharedData.allKeys.push(row.CodeKey);
+            sharedData.codes.set(row.Code, context);
+            sharedData.codeList[row.CodeKey] = context;
+            sharedData.allKeys.push(row.CodeKey);
 
-            if (this._sharedData.firstCodeKey === 0 && context.kind === LoincProviderContextKind.CODE) {
-              this._sharedData.firstCodeKey = context.key;
+            if (sharedData.firstCodeKey === 0 && context.kind === LoincProviderContextKind.CODE) {
+              sharedData.firstCodeKey = context.key;
             }
           }
-          resolve();
+          resolve(undefined);
         });
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadDesignationsCache(db) {
+    const sharedData = this.#sharedData();
     return new Promise((resolve, reject) => {
       const sql = `
           SELECT
@@ -1265,28 +1619,35 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
         if (err) return reject(err);
 
         // Batch process by CodeKey to reduce lookups
+        /** @type {number | null} */
         let currentKey = null;
+        /** @type {LoincProviderContext | null} */
         let currentContext = null;
 
-        for (const row of rows) {
+        for (const row of /** @type {Array<LoincDescriptionRow & {CodeKey: number}>} */ (rows)) {
           if (row.CodeKey !== currentKey) {
             currentKey = row.CodeKey;
-            currentContext = this._sharedData.codeList[currentKey];
+            currentContext = sharedData.codeList[currentKey];
           }
 
           if (currentContext) {
             currentContext.displays.push(
-              new DescriptionCacheEntry(row.IsDisplay, row.Lang, row.Value, row.DType)
+              new DescriptionCacheEntry(row.IsDisplay === true || row.IsDisplay === 1, row.Lang, row.Value, row.DType || '')
             );
           }
         }
-        resolve();
+        resolve(undefined);
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadHierarchy(db) {
-    const childRelKey = this._sharedData.relationships.get('child');
+    const sharedData = this.#sharedData();
+    const childRelKey = sharedData.relationships.get('child');
     if (!childRelKey) {
       return; // No child relationships defined
     }
@@ -1301,34 +1662,39 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
+          for (const row of /** @type {LoincHierarchyRow[]} */ (rows)) {
             if (row.SourceKey !== 0 && row.TargetKey !== 0) {
-              const parentContext = this._sharedData.codeList[row.SourceKey];
+              const parentContext = sharedData.codeList[row.SourceKey];
               if (parentContext) {
                 parentContext.addChild(row.TargetKey);
               }
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - LOINC database
+   * @returns {Promise<void>}
+   */
   async #loadConfig(db) {
+    const sharedData = this.#sharedData();
     return new Promise((resolve, reject) => {
       db.all('SELECT ConfigKey, Value FROM Config WHERE ConfigKey IN (2, 3)', (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          for (const row of rows) {
+          for (const row of /** @type {LoincConfigRow[]} */ (rows)) {
             if (row.ConfigKey === 2) {
-              this._sharedData._version = row.Value;
+              sharedData._version = row.Value;
             } else if (row.ConfigKey === 3) {
-              this._sharedData.root = row.Value;
+              sharedData.root = row.Value;
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
@@ -1338,6 +1704,11 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
     return this._sharedData?._version || 'unknown';
   }
 
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @returns {Promise<LoincServices>} New provider
+   */
   async build(opContext, supplements) {
     await this.#ensureLoaded();
     this.recordUse();
@@ -1349,19 +1720,20 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
         else resolve(conn);
       });
     });
+    const conn = /** @type {SqliteDatabase} */ (db);
     // Apply performance PRAGMAs to per-request connection
     await new Promise((resolve, reject) => {
-      db.serialize(() => {
-        db.run('PRAGMA cache_size = 10000');
-        db.run('PRAGMA temp_store = MEMORY');
-        db.run('PRAGMA mmap_size = 268435456', (err) => {
+      conn.serialize(() => {
+        conn.run('PRAGMA cache_size = 10000');
+        conn.run('PRAGMA temp_store = MEMORY');
+        conn.run('PRAGMA mmap_size = 268435456', (err) => {
           if (err) reject(err);
-          else resolve();
+          else resolve(undefined);
         });
       });
     });
 
-    return new LoincServices(opContext, supplements, db, this._sharedData);
+    return new LoincServices(opContext, supplements, conn, this.#sharedData());
   }
 
   useCount() {
@@ -1372,6 +1744,11 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
     this.uses++;
   }
 
+  /**
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - Requested version
+   * @returns {Promise<LoincValueSetLike | null>} Known ValueSet or null
+   */
   async buildKnownValueSet(url, version) {
 
     if (version && version != this.version()) {
@@ -1392,7 +1769,7 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
 
     if (url.startsWith('http://loinc.org/vs/')) {
       const code = url.substring(20);
-      const ci = this._sharedData.codes.get(code);
+      const ci = this.#sharedData().codes.get(code);
       if (!ci) {
         return null;
       }
@@ -1426,7 +1803,7 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
   /**
    * Get answer list concepts from database
    * @param {number} sourceKey - Key of the answer list
-   * @returns {Promise<Array>} Array of {code, display} objects
+   * @returns {Promise<Array<{code: string}>>} Array of {code} objects
    */
   async #getAnswerListConcepts(sourceKey) {
     const db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY);
@@ -1446,9 +1823,9 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
         });
       });
 
-      return rows.map(row => ({ code: row.Code }));
+      return /** @type {LoincAnswerListRow[]} */ (rows).map(row => ({ code: row.Code }));
     } finally {
-      await new Promise((resolve) => db.close(() => resolve()));
+      await new Promise((resolve) => db.close(() => resolve(undefined)));
     }
   }
 

@@ -1,13 +1,19 @@
+// @ts-check
+
 import { readdirSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const dir = '/Users/grahamegrieve/temp/tx-comp/';
 
+/**
+ * @param {string} jsonStr
+ * @returns {any | null}
+ */
 function stripDiagnostics(jsonStr) {
   let obj;
   try { obj = JSON.parse(jsonStr); } catch { return null; }
   if (obj.resourceType === 'Parameters' && Array.isArray(obj.parameter)) {
-    obj.parameter = obj.parameter.filter(p => p.name !== 'diagnostics');
+    obj.parameter = (/** @type {Array<Record<string, any>>} */ (obj.parameter)).filter(p => p.name !== 'diagnostics');
   }
   return obj;
 }

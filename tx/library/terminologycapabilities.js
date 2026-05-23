@@ -1,5 +1,11 @@
+// @ts-check
+
 const {CanonicalResource} = require("./canonical-resource");
 const {terminologyCapabilitiesToR5, terminologyCapabilitiesFromR5} = require("../xversion/xv-terminologyCapabilities");
+
+/**
+ * @typedef {import('../../types/fhirsmith').FhirResource} FhirResource
+ */
 
 /**
  * Represents a FHIR TerminologyCapabilities resource with version conversion support.
@@ -11,13 +17,13 @@ class TerminologyCapabilities extends CanonicalResource {
 
   /**
    * Creates a new TerminologyCapabilities instance
-   * @param {Object} jsonObj - The JSON object containing TerminologyCapabilities data
+   * @param {FhirResource} jsonObj - The JSON object containing TerminologyCapabilities data
    * @param {string} [fhirVersion='R5'] - FHIR version ('R3', 'R4', or 'R5')
    */
   constructor(jsonObj, fhirVersion = 'R5') {
     super(jsonObj, fhirVersion);
     // Convert to R5 format internally (modifies input for performance)
-    this.jsonObj = terminologyCapabilitiesToR5(jsonObj, fhirVersion);
+    this.jsonObj = /** @type {FhirResource} */ (terminologyCapabilitiesToR5(jsonObj, fhirVersion));
     this.validate();
     this.id = this.jsonObj.id;
   }
@@ -45,10 +51,10 @@ class TerminologyCapabilities extends CanonicalResource {
   /**
    * Returns JSON object in target version format
    * @param {string} [version='R5'] - Target FHIR version ('R3', 'R4', or 'R5')
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   toJSON(version = 'R5') {
-    return this._convertFromR5(this.jsonObj, version);
+    return /** @type {FhirResource} */ (terminologyCapabilitiesFromR5(this.jsonObj, version));
   }
 
 
@@ -86,7 +92,7 @@ class TerminologyCapabilities extends CanonicalResource {
 
   /**
    * Gets the code systems supported by this terminology server
-   * @returns {Object[]} Array of code system capability objects
+   * @returns {Record<string, any>[]} Array of code system capability objects
    */
   getCodeSystems() {
     return this.jsonObj.codeSystem || [];
@@ -94,7 +100,7 @@ class TerminologyCapabilities extends CanonicalResource {
 
   /**
    * Gets the expansion capabilities
-   * @returns {Object|undefined} Expansion capability object
+   * @returns {Record<string, any>|undefined} Expansion capability object
    */
   getExpansion() {
     return this.jsonObj.expansion;
@@ -102,7 +108,7 @@ class TerminologyCapabilities extends CanonicalResource {
 
   /**
    * Gets the validate-code capabilities
-   * @returns {Object|undefined} ValidateCode capability object
+   * @returns {Record<string, any>|undefined} ValidateCode capability object
    */
   getValidateCode() {
     return this.jsonObj.validateCode;
@@ -110,7 +116,7 @@ class TerminologyCapabilities extends CanonicalResource {
 
   /**
    * Gets the translation capabilities
-   * @returns {Object|undefined} Translation capability object
+   * @returns {Record<string, any>|undefined} Translation capability object
    */
   getTranslation() {
     return this.jsonObj.translation;
@@ -118,7 +124,7 @@ class TerminologyCapabilities extends CanonicalResource {
 
   /**
    * Gets the closure capabilities
-   * @returns {Object|undefined} Closure capability object
+   * @returns {Record<string, any>|undefined} Closure capability object
    */
   getClosure() {
     return this.jsonObj.closure;
@@ -133,7 +139,7 @@ class TerminologyCapabilities extends CanonicalResource {
     if (!expansion || !expansion.parameter) {
       return [];
     }
-    return expansion.parameter.map(p => p.name);
+    return expansion.parameter.map(/** @param {{name: string}} p */ p => p.name);
   }
 
   /**
@@ -148,7 +154,7 @@ class TerminologyCapabilities extends CanonicalResource {
   /**
    * Gets version information for a specific code system
    * @param {string} uri - The code system URI
-   * @returns {Object[]|undefined} Array of version objects or undefined if not found
+   * @returns {Record<string, any>[]|undefined} Array of version objects or undefined if not found
    */
   getCodeSystemVersions(uri) {
     const codeSystem = this.getCodeSystems().find(cs => cs.uri === uri);
@@ -157,7 +163,7 @@ class TerminologyCapabilities extends CanonicalResource {
 
   /**
    * Gets basic info about this terminology capabilities statement
-   * @returns {Object} Basic information object
+   * @returns {Record<string, any>} Basic information object
    */
   getInfo() {
     return {

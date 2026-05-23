@@ -1,6 +1,25 @@
+// @ts-check
+
 const {CanonicalResource} = require("./canonical-resource");
 const {VersionUtilities} = require("../../library/version-utilities");
 const {conceptMapToR5, conceptMapFromR5} = require("../xversion/xv-conceptmap");
+
+/**
+ * @typedef {import('../../types/fhirsmith').FhirResource & {
+ *   group?: ConceptMapGroup[],
+ *   sourceScopeUri?: string,
+ *   sourceScopeCanonical?: string,
+ *   targetScopeUri?: string,
+ *   targetScopeCanonical?: string
+ * }} ConceptMapResource
+ */
+/** @typedef {{source?: string, target?: string, element?: ConceptMapElement[]}} ConceptMapGroup */
+/** @typedef {{code?: string, display?: string, target?: ConceptMapTarget[]}} ConceptMapElement */
+/** @typedef {{code?: string, display?: string, equivalence?: string, relationship?: string, comment?: string}} ConceptMapTarget */
+/** @typedef {{system: string, version?: string, code?: string}} CodingLike */
+/** @typedef {{group: ConceptMapGroup, match: ConceptMapElement, target?: ConceptMapTarget}} TranslationMatch */
+/** @typedef {{system?: string, code?: string, display?: string}} ConceptSummary */
+/** @typedef {{targetSystem?: string, targetCode?: string, targetDisplay?: string, sourceSystem?: string, sourceCode?: string, sourceDisplay?: string, equivalence?: string, relationship?: string, comment?: string}} MappingSummary */
 
 /**
  * Represents a FHIR ConceptMap resource with version conversion support
@@ -11,22 +30,29 @@ class ConceptMap extends CanonicalResource {
 
   /**
    * Creates a new ConceptMap instance
-   * @param {Object} jsonObj - The JSON object containing ConceptMap data
-   * @param {string} [version='R5'] - FHIR version ('R3', 'R4', or 'R5')
+   * @param {ConceptMapResource} jsonObj - The JSON object containing ConceptMap data
+   * @param {string} [fhirVersion='R5'] - FHIR version ('R3', 'R4', or 'R5')
    */
   constructor(jsonObj, fhirVersion = 'R5') {
     super(jsonObj, fhirVersion);
     // Convert to R5 format internally (modifies input for performance)
-    this.jsonObj = conceptMapToR5(jsonObj, fhirVersion);
+    this.jsonObj = /** @type {ConceptMapResource} */ (conceptMapToR5(jsonObj, fhirVersion));
     this.validate();
     this.id = this.jsonObj.id;
   }
 
   /**
+   * @returns {ConceptMapResource} ConceptMap JSON object
+   */
+  get conceptMap() {
+    return /** @type {ConceptMapResource} */ (this.jsonObj);
+  }
+
+  /**
    * Static factory method for convenience
-   * @param {string} jsonString - JSON string representation of ValueSet
+   * @param {string} jsonString - JSON string representation of ConceptMap
    * @param {string} [version='R5'] - FHIR version ('R3', 'R4', or 'R5')
-   * @returns {ValueSet} New ValueSet instance
+   * @returns {ConceptMap} New ConceptMap instance
    */
   static fromJSON(jsonString, version = 'R5') {
     return new ConceptMap(JSON.parse(jsonString), version);
@@ -47,7 +73,7 @@ class ConceptMap extends CanonicalResource {
    * @returns {string} FHIR version ('R3', 'R4', or 'R5')
    */
   getFHIRVersion() {
-    return this.version;
+    return this.fhirVersion;
   }
 
   /**
@@ -55,44 +81,46 @@ class ConceptMap extends CanonicalResource {
    * @throws {Error} If validation fails
    */
   validate() {
-    if (!this.jsonObj || typeof this.jsonObj !== 'object') {
+    const resource = this.conceptMap;
+
+    if (!resource || typeof resource !== 'object') {
       throw new Error('Invalid ConceptMap: expected object');
     }
 
-    if (this.jsonObj.resourceType !== 'ConceptMap') {
-      throw new Error(`Invalid ConceptMap: resourceType must be "ConceptMap", got "${this.jsonObj.resourceType}"`);
+    if (resource.resourceType !== 'ConceptMap') {
+      throw new Error(`Invalid ConceptMap: resourceType must be "ConceptMap", got "${resource.resourceType}"`);
     }
 
-    if (!this.jsonObj.url || typeof this.jsonObj.url !== 'string') {
+    if (!resource.url || typeof resource.url !== 'string') {
       throw new Error('Invalid ConceptMap: url is required and must be a string');
     }
 
-    if (this.jsonObj.name && typeof this.jsonObj.name !== 'string') {
+    if (resource.name && typeof resource.name !== 'string') {
       throw new Error('Invalid ConceptMap: name must be a string if present');
     }
 
-    if (!this.jsonObj.status || typeof this.jsonObj.status !== 'string') {
+    if (!resource.status || typeof resource.status !== 'string') {
       throw new Error('Invalid ConceptMap: status is required and must be a string');
     }
 
     const validStatuses = ['draft', 'active', 'retired', 'unknown'];
-    if (!validStatuses.includes(this.jsonObj.status)) {
-      throw new Error(`Invalid ConceptMap: status must be one of ${validStatuses.join(', ')}, got "${this.jsonObj.status}"`);
+    if (!validStatuses.includes(resource.status)) {
+      throw new Error(`Invalid ConceptMap: status must be one of ${validStatuses.join(', ')}, got "${resource.status}"`);
     }
 
     // Validate identifier - should be array in R5 after conversion
-    if (this.jsonObj.identifier && !Array.isArray(this.jsonObj.identifier)) {
+    if (resource.identifier && !Array.isArray(resource.identifier)) {
       throw new Error('Invalid ConceptMap: identifier should be an array (converted from R3/R4 format)');
     }
 
     // Validate group structure if present
-    if (this.jsonObj.group && !Array.isArray(this.jsonObj.group)) {
+    if (resource.group && !Array.isArray(resource.group)) {
       throw new Error('Invalid ConceptMap: group must be an array if present');
     }
 
     // Validate group elements
-    if (this.jsonObj.group) {
-      this.jsonObj.group.forEach((group, groupIndex) => {
+    if (resource.group) {
+      resource.group.forEach((group, groupIndex) => {
         if (group.element && !Array.isArray(group.element)) {
           throw new Error(`Invalid ConceptMap: group[${groupIndex}].element must be an array if present`);
         }
@@ -109,6 +137,13 @@ class ConceptMap extends CanonicalResource {
     }
   }
 
+  /**
+   * @param {string | null | undefined} sourceSystem - Source system URL
+   * @param {string | null | undefined} sourceScope - Source scope URL
+   * @param {string | null | undefined} targetScope - Target scope URL
+   * @param {string | null | undefined} targetSystem - Target system URL
+   * @returns {boolean} Whether this map can provide the translation
+   */
   providesTranslation(sourceSystem, sourceScope, targetScope, targetSystem) {
     let source = this.sourceScope;
     let target = this.targetScope;
@@ -125,8 +160,14 @@ class ConceptMap extends CanonicalResource {
     return false;
   }
 
-
+  /**
+   * @param {CodingLike} coding - Source coding
+   * @param {string | null | undefined} targetScope - Target scope URL
+   * @param {string | null | undefined} targetSystem - Target system URL
+   * @returns {TranslationMatch[]} Matching translations
+   */
   listTranslations(coding, targetScope, targetSystem) {
+    /** @type {TranslationMatch[]} */
     let result = [];
     let vurl = VersionUtilities.vurl(coding.system, coding.version);
 
@@ -149,7 +190,14 @@ class ConceptMap extends CanonicalResource {
     return result;
   }
 
+  /**
+   * @param {CodingLike} coding - Target coding
+   * @param {string | null | undefined} targetScope - Target scope URL
+   * @param {string | null | undefined} sourceSystem - Source system URL
+   * @returns {TranslationMatch[]} Matching reverse translations
+   */
   listTranslationsReverse(coding, targetScope, sourceSystem) {
+    /** @type {TranslationMatch[]} */
     let result = [];
     let vurl = VersionUtilities.vurl(coding.system, coding.version);
 
@@ -179,7 +227,8 @@ class ConceptMap extends CanonicalResource {
    * @returns {string|undefined} Source scope/system
    */
   get sourceScope() {
-    return this.jsonObj.sourceScopeUri ? this.jsonObj.sourceScopeUri : this.jsonObj.sourceScopeCanonical;
+    const resource = this.conceptMap;
+    return resource.sourceScopeUri ? resource.sourceScopeUri : resource.sourceScopeCanonical;
   }
 
   /**
@@ -187,22 +236,24 @@ class ConceptMap extends CanonicalResource {
    * @returns {string|undefined} Target scope/system
    */
   get targetScope() {
-    return this.jsonObj.targetScopeUri ? this.jsonObj.targetScopeUri : this.jsonObj.targetScopeCanonical;
+    const resource = this.conceptMap;
+    return resource.targetScopeUri ? resource.targetScopeUri : resource.targetScopeCanonical;
   }
 
   /**
    * Gets all mapping groups
-   * @returns {Object[]} Array of group objects
+   * @returns {ConceptMapGroup[]} Array of group objects
    */
   getGroups() {
-    return this.jsonObj.group || [];
+    return this.conceptMap.group || [];
   }
 
   /**
    * Gets all source concepts across all groups
-   * @returns {Object[]} Array of {system, code, display} objects
+   * @returns {ConceptSummary[]} Array of {system, code, display} objects
    */
   getSourceConcepts() {
+    /** @type {ConceptSummary[]} */
     const concepts = [];
     this.getGroups().forEach(group => {
       const system = group.source;
@@ -221,9 +272,10 @@ class ConceptMap extends CanonicalResource {
 
   /**
    * Gets all target concepts across all groups
-   * @returns {Object[]} Array of {system, code, display, equivalence/relationship} objects
+   * @returns {Array<ConceptSummary & {equivalence?: string, relationship?: string}>} Array of {system, code, display, equivalence/relationship} objects
    */
   getTargetConcepts() {
+    /** @type {Array<ConceptSummary & {equivalence?: string, relationship?: string}>} */
     const concepts = [];
     this.getGroups().forEach(group => {
       const system = group.target;
@@ -250,9 +302,10 @@ class ConceptMap extends CanonicalResource {
    * Finds mappings for a source concept
    * @param {string} sourceSystem - Source system URL
    * @param {string} sourceCode - Source concept code
-   * @returns {Object[]} Array of target mappings
+   * @returns {MappingSummary[]} Array of target mappings
    */
   findMappings(sourceSystem, sourceCode) {
+    /** @type {MappingSummary[]} */
     const mappings = [];
     this.getGroups().forEach(group => {
       if (group.source === sourceSystem && group.element) {
@@ -278,9 +331,10 @@ class ConceptMap extends CanonicalResource {
    * Finds reverse mappings for a target concept
    * @param {string} targetSystem - Target system URL
    * @param {string} targetCode - Target concept code
-   * @returns {Object[]} Array of source mappings
+   * @returns {MappingSummary[]} Array of source mappings
    */
   findReverseMappings(targetSystem, targetCode) {
+    /** @type {MappingSummary[]} */
     const mappings = [];
     this.getGroups().forEach(group => {
       if (group.target === targetSystem && group.element) {
@@ -309,6 +363,7 @@ class ConceptMap extends CanonicalResource {
    * @returns {string[]} Array of source system URLs
    */
   getSourceSystems() {
+    /** @type {Set<string>} */
     const systems = new Set();
     this.getGroups().forEach(group => {
       if (group.source) {
@@ -323,6 +378,7 @@ class ConceptMap extends CanonicalResource {
    * @returns {string[]} Array of target system URLs
    */
   getTargetSystems() {
+    /** @type {Set<string>} */
     const systems = new Set();
     this.getGroups().forEach(group => {
       if (group.target) {
@@ -337,6 +393,7 @@ class ConceptMap extends CanonicalResource {
    * @returns {Object} Basic information object
    */
   getInfo() {
+    const resource = this.conceptMap;
     const groups = this.getGroups();
     const totalMappings = groups.reduce((sum, group) => {
       return sum + (group.element ? group.element.reduce((elSum, el) => {
@@ -345,15 +402,15 @@ class ConceptMap extends CanonicalResource {
     }, 0);
 
     return {
-      resourceType: this.jsonObj.resourceType,
-      url: this.jsonObj.url,
-      version: this.jsonObj.version,
-      name: this.jsonObj.name,
-      title: this.jsonObj.title,
-      status: this.jsonObj.status,
-      fhirVersion: this.version,
-      sourceScope: this.getSourceScope(),
-      targetScope: this.getTargetScope(),
+      resourceType: resource.resourceType,
+      url: resource.url,
+      version: resource.version,
+      name: resource.name,
+      title: resource.title,
+      status: resource.status,
+      fhirVersion: this.fhirVersion,
+      sourceScope: this.sourceScope,
+      targetScope: this.targetScope,
       groupCount: groups.length,
       sourceSystems: this.getSourceSystems(),
       targetSystems: this.getTargetSystems(),
@@ -361,6 +418,11 @@ class ConceptMap extends CanonicalResource {
     };
   }
 
+  /**
+   * @param {string | null | undefined} value - Versioned canonical value
+   * @param {string | null | undefined} pattern - Versioned canonical pattern
+   * @returns {boolean} Whether the canonical URLs and optional versions match
+   */
   canonicalMatches(value, pattern) {
     if (!pattern || !value) {
       return false;
@@ -374,7 +436,11 @@ class ConceptMap extends CanonicalResource {
     if (!pv) {
       return true;
     }
-    return vv && VersionUtilities.versionMatchesByAlgorithm(pv, vv);
+    return Boolean(vv && VersionUtilities.versionMatchesByAlgorithm(
+      pv,
+      vv,
+      VersionUtilities.guessVersionAlgorithmFromVersion(vv)
+    ));
   }
 }
 

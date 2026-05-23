@@ -1,10 +1,16 @@
+// @ts-check
+
 const {VersionUtilities} = require("../../library/version-utilities");
 
 /**
+ * @typedef {Record<string, any>} FhirJson
+ */
+
+/**
  * Converts input ConceptMap to R5 format (modifies input object for performance)
- * @param {Object} jsonObj - The input ConceptMap object
- * @param {string} version - Source FHIR version
- * @returns {Object} The same object, potentially modified to R5 format
+ * @param {FhirJson} jsonObj - The input ConceptMap object
+ * @param {string} sourceVersion - Source FHIR version
+ * @returns {FhirJson} The same object, potentially modified to R5 format
  * @private
  */
 
@@ -46,9 +52,9 @@ function conceptMapToR5(jsonObj, sourceVersion) {
     if (jsonObj.group && Array.isArray(jsonObj.group)) {
       jsonObj.group.forEach(group => {
         if (group.element && Array.isArray(group.element)) {
-          group.element.forEach(element => {
+          group.element.forEach(/** @param {FhirJson} element */ element => {
             if (element.target && Array.isArray(element.target)) {
-              element.target.forEach(target => {
+              element.target.forEach(/** @param {FhirJson} target */ target => {
                 if (target.equivalence && !target.relationship) {
                   // Convert equivalence to relationship and keep both
                   target.relationship = convertEquivalenceToRelationship(target.equivalence);
@@ -68,9 +74,9 @@ function conceptMapToR5(jsonObj, sourceVersion) {
 
 /**
  * Converts R5 ConceptMap to target version format (clones object first)
- * @param {Object} r5Obj - The R5 format ConceptMap object
+ * @param {FhirJson} r5Obj - The R5 format ConceptMap object
  * @param {string} targetVersion - Target FHIR version
- * @returns {Object} New object in target version format
+ * @returns {FhirJson} New object in target version format
  * @private
  */
 function conceptMapFromR5(r5Obj, targetVersion) {
@@ -92,8 +98,8 @@ function conceptMapFromR5(r5Obj, targetVersion) {
 
 /**
  * Converts R5 ConceptMap to R4 format
- * @param {Object} r5Obj - Cloned R5 ConceptMap object
- * @returns {Object} R4 format ConceptMap
+ * @param {FhirJson} r5Obj - Cloned R5 ConceptMap object
+ * @returns {FhirJson} R4 format ConceptMap
  * @private
  */
 function conceptMapR5ToR4(r5Obj) {
@@ -142,10 +148,10 @@ function conceptMapR5ToR4(r5Obj) {
   // Convert relationship back to equivalence in group.element.target
   if (r5Obj.group && Array.isArray(r5Obj.group)) {
     r5Obj.group.forEach(group => {
-      if (group.element && Array.isArray(group.element)) {
-        group.element.forEach(element => {
-          if (element.target && Array.isArray(element.target)) {
-            element.target.forEach(target => {
+        if (group.element && Array.isArray(group.element)) {
+          group.element.forEach(/** @param {FhirJson} element */ element => {
+            if (element.target && Array.isArray(element.target)) {
+              element.target.forEach(/** @param {FhirJson} target */ target => {
               // If we have both equivalence and relationship, prefer equivalence for R4
               if (target.relationship && !target.equivalence) {
                 target.equivalence = convertRelationshipToEquivalence(target.relationship);
@@ -164,8 +170,8 @@ function conceptMapR5ToR4(r5Obj) {
 
 /**
  * Converts R5 ConceptMap to R3 format
- * @param {Object} r5Obj - Cloned R5 ConceptMap object
- * @returns {Object} R3 format ConceptMap
+ * @param {FhirJson} r5Obj - Cloned R5 ConceptMap object
+ * @returns {FhirJson} R3 format ConceptMap
  * @private
  */
 function conceptMapR5ToR3(r5Obj) {
@@ -183,6 +189,7 @@ function conceptMapR5ToR3(r5Obj) {
  * @private
  */
 function convertEquivalenceToRelationship(equivalence) {
+  /** @type {Record<string, string>} */
   const equivalenceToRelationship = {
     'relatedto': 'related-to',
     'equivalent': 'equivalent',
@@ -205,6 +212,7 @@ function convertEquivalenceToRelationship(equivalence) {
  * @private
  */
 function convertRelationshipToEquivalence(relationship) {
+  /** @type {Record<string, string>} */
   const relationshipToEquivalence = {
     'related-to': 'relatedto',
     'equivalent': 'equivalent',
@@ -218,7 +226,5 @@ function convertRelationshipToEquivalence(relationship) {
 
 
 module.exports = { conceptMapToR5, conceptMapFromR5 };
-
-
 
 

@@ -1,8 +1,17 @@
+// @ts-check
+
 const fs = require('fs').promises;
 const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
 const { VersionUtilities } = require('../../library/version-utilities');
 const ValueSet = require("../library/valueset");
+
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {{name: string}} TableInfoRow */
+/** @typedef {{id: string, url: string, version: string|null, content: string, content_hash?: string|null}} ValueSetRow */
+/** @typedef {{url: string, id?: string}} UrlRow */
+/** @typedef {Record<string, any>} ValueSetLike */
+/** @typedef {{name: string, value: string}} SearchParam */
 
 // Columns that can be returned directly without parsing JSON
 const INDEXED_COLUMNS = ['id', 'url', 'version', 'date', 'description', 'name', 'publisher', 'status', 'title'];
@@ -12,25 +21,29 @@ const INDEXED_COLUMNS = ['id', 'url', 'version', 'date', 'description', 'name', 
  * Handles SQLite operations for indexing and searching ValueSets
  */
 class ValueSetDatabase {
-  vsCount;
+  /** @type {number} */
+  vsCount = 0;
 
   /**
    * @param {string} dbPath - Path to the SQLite database file
    */
   constructor(dbPath) {
+    /** @type {string} */
     this.dbPath = dbPath;
     // Single read-write connection used for everything. Using a separate
     // OPEN_READONLY connection for reads can miss WAL-based schema changes
     // made through the write connection (because read-only opens can't fully
     // participate in the shared-memory protocol), so queries issued right
     // after a migration ALTER TABLE can fail with a stale schema cache.
+    /** @type {SqliteDatabase|null} */
     this._writeDb = null;
+    /** @type {Promise<void>|null} */
     this._migrationPromise = null;
   }
 
   /**
    * Apply any pending schema migrations
-   * @param {sqlite3.Database} db
+   * @param {SqliteDatabase} db
    * @returns {Promise<void>}
    * @private
    */
@@ -41,17 +54,17 @@ class ValueSetDatabase {
     // `CREATE INDEX` can race ahead of its `CREATE TABLE`, or a `PRAGMA
     // table_info` can race ahead of a `CREATE TABLE IF NOT EXISTS`, and
     // you get "no such table" errors on DDL that should have been fine.
-    const run = (sql) => new Promise((res, rej) => {
-      db.run(sql, [], (err) => err ? rej(err) : res());
+    const run = (/** @type {string} */ sql) => new Promise((res, rej) => {
+      db.run(sql, [], (/** @type {Error|null} */ err) => err ? rej(err) : res(undefined));
     });
-    const all = (sql) => new Promise((res, rej) => {
-      db.all(sql, [], (err, rows) => err ? rej(err) : res(rows));
+    const all = (/** @type {string} */ sql) => new Promise((res, rej) => {
+      db.all(sql, [], (/** @type {Error|null} */ err, /** @type {any[]} */ rows) => err ? rej(err) : res(rows));
     });
 
     return (async () => {
       const cols = await all("PRAGMA table_info(valuesets)");
-      const hasDateFirstSeen = cols.some(c => c.name === 'date_first_seen');
-      const hasContentHash = cols.some(c => c.name === 'content_hash');
+      const hasDateFirstSeen = cols.some((/** @type {TableInfoRow} */ c) => c.name === 'date_first_seen');
+      const hasContentHash = cols.some((/** @type {TableInfoRow} */ c) => c.name === 'content_hash');
 
       if (!hasDateFirstSeen) {
         await run("ALTER TABLE valuesets ADD COLUMN date_first_seen INTEGER DEFAULT 0");
@@ -76,7 +89,7 @@ class ValueSetDatabase {
 
       // If vsac_runs already existed (older schema), add total_updated column
       const runCols = await all("PRAGMA table_info(vsac_runs)");
-      const hasTotalUpdated = runCols.some(c => c.name === 'total_updated');
+      const hasTotalUpdated = runCols.some((/** @type {TableInfoRow} */ c) => c.name === 'total_updated');
       if (!hasTotalUpdated && runCols.length > 0) {
         await run("ALTER TABLE vsac_runs ADD COLUMN total_updated INTEGER");
       }
@@ -109,20 +122,20 @@ class ValueSetDatabase {
       const needHash = await all(
           "SELECT COUNT(*) AS n FROM valuesets WHERE content_hash IS NULL"
       );
-      const missing = (needHash[0] && needHash[0].n) || 0;
+        const missing = (/** @type {{n?: number}[]} */ (needHash)[0] && /** @type {{n?: number}[]} */ (needHash)[0].n) || 0;
       if (missing > 0) {
         console.log(`Backfilling content_hash for ${missing} existing value sets...`);
         const rows = await all(
             "SELECT id, content FROM valuesets WHERE content_hash IS NULL"
         );
         let done = 0;
-        for (const row of rows) {
+        for (const row of /** @type {{id: string, content: string}[]} */ (rows)) {
           const hash = crypto.createHash('sha256').update(row.content).digest('hex');
           await new Promise((res, rej) => {
             db.run(
                 'UPDATE valuesets SET content_hash = ? WHERE id = ?',
                 [hash, row.id],
-                (err) => err ? rej(err) : res()
+                (/** @type {Error|null} */ err) => err ? rej(err) : res(undefined)
             );
           });
           done++;
@@ -137,22 +150,22 @@ class ValueSetDatabase {
 
   /**
    * Get a read-only database connection (opens lazily if needed)
-   * @returns {Promise<sqlite3.Database>}
+   * @returns {Promise<SqliteDatabase>}
    * @private
    */
   _getReadConnection() {
     // Reads go through the same connection as writes. See the constructor
     // comment for why we don't use a separate OPEN_READONLY connection.
-    return this._ensureMigrated().then(() => this._writeDb);
+    return this._ensureMigrated().then(() => /** @type {SqliteDatabase} */ (this._writeDb));
   }
 
   /**
    * Get a read-write database connection (opens lazily if needed)
-   * @returns {Promise<sqlite3.Database>}
+   * @returns {Promise<SqliteDatabase>}
    * @private
    */
   _getWriteConnection() {
-    return this._ensureMigrated().then(() => this._writeDb);
+    return this._ensureMigrated().then(() => /** @type {SqliteDatabase} */ (this._writeDb));
   }
 
   /**
@@ -169,16 +182,16 @@ class ValueSetDatabase {
     }
     this._migrationPromise = new Promise((resolve, reject) => {
       if (this._writeDb) {
-        this._migrateIfNeeded(this._writeDb).then(resolve).catch(reject);
+        this._migrateIfNeeded(/** @type {SqliteDatabase} */ (this._writeDb)).then(resolve).catch(reject);
         return;
       }
-      this._writeDb = new sqlite3.Database(this.dbPath, (err) => {
+      this._writeDb = new sqlite3.Database(this.dbPath, (/** @type {Error|null} */ err) => {
         if (err) {
           this._writeDb = null;
           reject(new Error(`Failed to open database for writing: ${err.message}`));
           return;
         }
-        this._migrateIfNeeded(this._writeDb).then(resolve).catch(reject);
+        this._migrateIfNeeded(/** @type {SqliteDatabase} */ (this._writeDb)).then(resolve).catch(reject);
       });
     });
     // If migration fails, clear the cached promise so a retry can attempt again
@@ -199,10 +212,11 @@ class ValueSetDatabase {
     }
 
     await new Promise((resolve) => {
-      this._writeDb.close((err) => {
+      const db = /** @type {SqliteDatabase} */ (this._writeDb);
+      db.close((/** @type {Error|null} */ err) => {
         if (err) console.warn(`Warning closing database connection: ${err.message}`);
         this._writeDb = null;
-        resolve();
+        resolve(undefined);
       });
     });
   }
@@ -229,7 +243,7 @@ class ValueSetDatabase {
     await this.close();
 
     return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(this.dbPath, (err) => {
+      const db = new sqlite3.Database(this.dbPath, (/** @type {Error|null} */ err) => {
         if (err) {
           reject(new Error(`Failed to create database ${this.dbPath}: ${err.message}`));
           return;
@@ -343,11 +357,11 @@ class ValueSetDatabase {
           db.run('CREATE INDEX idx_jurisdictions_code ON valueset_jurisdictions(code)');
           db.run('CREATE INDEX idx_systems_system ON valueset_systems(system, version)');
 
-          db.close((err) => {
+          db.close((/** @type {Error|null} */ err) => {
             if (err) {
               reject(new Error(`Failed to close database after creation: ${err.message}`));
             } else {
-              resolve();
+              resolve(undefined);
             }
           });
         });
@@ -365,6 +379,10 @@ class ValueSetDatabase {
       db.run(
           `INSERT INTO vsac_runs (started_at, status) VALUES (strftime('%s','now'), 'running')`,
           [],
+          /**
+           * @this {{lastID: number}}
+           * @param {Error|null} err
+           */
           function(err) { err ? reject(err) : resolve(this.lastID); }
       );
     });
@@ -385,7 +403,7 @@ class ValueSetDatabase {
           `UPDATE vsac_runs SET finished_at = strftime('%s','now'), status = 'ok',
                                 total_fetched = ?, total_new = ?, total_updated = ? WHERE id = ?`,
           [totalFetched, totalNew, totalUpdated, id],
-          err => err ? reject(err) : resolve()
+          (/** @type {Error|null} */ err) => err ? reject(err) : resolve(undefined)
       );
     });
   }
@@ -405,7 +423,7 @@ class ValueSetDatabase {
           `INSERT INTO vsac_events (timestamp, event_type, url, version, detail)
            VALUES (strftime('%s','now'), ?, ?, ?, ?)`,
           [eventType, url, version || null, detail],
-          err => err ? reject(err) : resolve()
+          (/** @type {Error|null} */ err) => err ? reject(err) : resolve(undefined)
       );
     });
   }
@@ -423,7 +441,7 @@ class ValueSetDatabase {
           `UPDATE vsac_runs SET finished_at = strftime('%s','now'), status = 'error',
                                 error_message = ? WHERE id = ?`,
           [errorMessage, id],
-          err => err ? reject(err) : resolve()
+          (/** @type {Error|null} */ err) => err ? reject(err) : resolve(undefined)
       );
     });
   }
@@ -436,9 +454,9 @@ class ValueSetDatabase {
   async getSetting(key) {
     const db = await this._getReadConnection();
     return new Promise((resolve, reject) => {
-      db.get('SELECT value FROM vsac_settings WHERE key = ?', [key], (err, row) => {
+      db.get('SELECT value FROM vsac_settings WHERE key = ?', [key], (/** @type {Error|null} */ err, /** @type {{value?: string}|undefined} */ row) => {
         if (err) reject(err);
-        else resolve(row ? row.value : null);
+        else resolve(row?.value || null);
       });
     });
   }
@@ -456,15 +474,15 @@ class ValueSetDatabase {
           `INSERT INTO vsac_settings (key, value) VALUES (?, ?)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
           [key, value],
-          err => err ? reject(err) : resolve()
+          (/** @type {Error|null} */ err) => err ? reject(err) : resolve(undefined)
       );
     });
   }
 
   /**
    * Insert or update a single ValueSet in the database
-   * @param {Object} valueSet - The ValueSet resource
-   * @param {string} [contentHash] - Optional pre-computed content hash to store
+   * @param {ValueSetLike} valueSet - The ValueSet resource
+   * @param {string|null} [contentHash] - Optional pre-computed content hash to store
    * @returns {Promise<void>}
    */
   async upsertValueSet(valueSet, contentHash = null) {
@@ -476,19 +494,19 @@ class ValueSetDatabase {
 
     return new Promise((resolve, reject) => {
       // Step 1: Delete existing related records
-      db.run('DELETE FROM valueset_identifiers WHERE valueset_id = ?', [valueSet.id], (err) => {
+      db.run('DELETE FROM valueset_identifiers WHERE valueset_id = ?', [valueSet.id], (/** @type {Error|null} */ err) => {
         if (err) {
           reject(new Error(`Failed to delete identifiers: ${err.message}`));
           return;
         }
 
-        db.run('DELETE FROM valueset_jurisdictions WHERE valueset_id = ?', [valueSet.id], (err) => {
+        db.run('DELETE FROM valueset_jurisdictions WHERE valueset_id = ?', [valueSet.id], (/** @type {Error|null} */ err) => {
           if (err) {
             reject(new Error(`Failed to delete jurisdictions: ${err.message}`));
             return;
           }
 
-          db.run('DELETE FROM valueset_systems WHERE valueset_id = ?', [valueSet.id], (err) => {
+          db.run('DELETE FROM valueset_systems WHERE valueset_id = ?', [valueSet.id], (/** @type {Error|null} */ err) => {
             if (err) {
               reject(new Error(`Failed to delete systems: ${err.message}`));
               return;
@@ -535,7 +553,7 @@ class ValueSetDatabase {
               valueSet.title || null,
               JSON.stringify(valueSet),
               contentHash
-            ], (err) => {
+            ], (/** @type {Error|null} */ err) => {
               if (err) {
                 reject(new Error(`Failed to insert main record: ${err.message}`));
                 return;
@@ -563,14 +581,14 @@ class ValueSetDatabase {
       db.run(
           'UPDATE valuesets SET content_hash = ? WHERE id = ?',
           [hash, id],
-          err => err ? reject(err) : resolve()
+          (/** @type {Error|null} */ err) => err ? reject(err) : resolve(undefined)
       );
     });
   }
 
   /**
    * Just update the timestamp on the valueset
-   * @param {Object} valueSet - The ValueSet resource
+   * @param {ValueSetLike} valueSet - The ValueSet resource
    * @returns {Promise<void>}
    */
   async seeValueSet(valueSet) {
@@ -589,22 +607,22 @@ class ValueSetDatabase {
       `, [
         valueSet.url,
         valueSet.version
-      ], (err) => {
+      ], (/** @type {Error|null} */ err) => {
         if (err) {
           reject(new Error(`Failed to update value Set: ${err.message}`));
           return;
         }
-        resolve();
+        resolve(undefined);
       });
     });
   }
 
   /**
    * Insert related records for a ValueSet
-   * @param {sqlite3.Database} db - Database connection
-   * @param {Object} valueSet - ValueSet resource
-   * @param {Function} resolve - Promise resolve function
-   * @param {Function} reject - Promise reject function
+   * @param {SqliteDatabase} db - Database connection
+   * @param {ValueSetLike} valueSet - ValueSet resource
+   * @param {(value?: void) => void} resolve - Promise resolve function
+   * @param {(reason?: unknown) => void} reject - Promise reject function
    * @private
    */
   _insertRelatedRecords(db, valueSet, resolve, reject) {
@@ -618,7 +636,7 @@ class ValueSetDatabase {
       }
     };
 
-    const operationError = (err) => {
+    const operationError = (/** @type {unknown} */ err) => {
       if (!hasError) {
         hasError = true;
         reject(err);
@@ -644,7 +662,7 @@ class ValueSetDatabase {
           id.use || null,
           typeSystem,
           typeCode
-        ], (err) => {
+        ], (/** @type {Error|null} */ err) => {
           if (err) operationError(new Error(`Failed to insert identifier: ${err.message}`));
           else operationComplete();
         });
@@ -666,7 +684,7 @@ class ValueSetDatabase {
               coding.system || null,
               coding.code || null,
               coding.display || null
-            ], (err) => {
+            ], (/** @type {Error|null} */ err) => {
               if (err) operationError(new Error(`Failed to insert jurisdiction: ${err.message}`));
               else operationComplete();
             });
@@ -683,7 +701,7 @@ class ValueSetDatabase {
 
           db.run(`
             INSERT INTO valueset_systems (valueset_id, system, version) VALUES (?, ?, ?)
-          `, [valueSet.id, include.system, include.version], function(err) {
+          `, [valueSet.id, include.system, include.version], (/** @type {Error|null} */ err) => {
             if (err) {
               operationError(new Error(`Failed to insert system: ${err.message}`));
             } else {
@@ -702,13 +720,14 @@ class ValueSetDatabase {
 
   /**
    * Load all ValueSets from the database
-   * @returns {Promise<Map<string, Object>>} Map of all ValueSets keyed by various combinations
+   * @param {any} source
+   * @returns {Promise<Map<string, any>>} Map of all ValueSets keyed by various combinations
    */
   async loadAllValueSets(source) {
     const db = await this._getReadConnection();
 
     return new Promise((resolve, reject) => {
-      db.all('SELECT id, url, version, content, content_hash FROM valuesets', [], (err, rows) => {
+      db.all('SELECT id, url, version, content, content_hash FROM valuesets', [], (/** @type {Error|null} */ err, /** @type {ValueSetRow[]} */ rows) => {
         if (err) {
           reject(new Error(`Failed to load value sets: ${err.message}`));
           return;
@@ -716,6 +735,7 @@ class ValueSetDatabase {
 
         try {
           this.vsCount = rows.length;
+          /** @type {Map<string, any>} */
           const valueSetMap = new Map();
 
           for (const row of rows) {
@@ -723,19 +743,26 @@ class ValueSetDatabase {
             valueSet.sourcePackage = source;
             // Attach the stored content hash so callers can detect changes
             // without recomputing over the full JSON.
-            valueSet.contentHash = row.content_hash || null;
+            /** @type {any} */ (valueSet).contentHash = row.content_hash || null;
             // Store by URL and id alone
             this.addToMap(valueSetMap, row.id, row.url, row.version, valueSet);
           }
 
           resolve(valueSetMap);
         } catch (error) {
-          reject(new Error(`Failed to parse value set content: ${error.message}`));
+          reject(new Error(`Failed to parse value set content: ${error instanceof Error ? error.message : String(error)}`));
         }
       });
     });
   }
 
+  /**
+   * @param {Map<string, any>} valueSetMap
+   * @param {string} id
+   * @param {string} url
+   * @param {string|null} version
+   * @param {any} valueSet
+   */
   addToMap(valueSetMap, id, url, version, valueSet) {
     valueSetMap.set(url, valueSet);
     valueSetMap.set(id, valueSet);
@@ -762,14 +789,16 @@ class ValueSetDatabase {
 
   /**
    * Search for ValueSets based on criteria
-   * @param {Array<{name: string, value: string}>} searchParams - Search criteria
+   * @param {any} spaceId
+   * @param {Map<string, any>} map
+   * @param {SearchParam[]} searchParams - Search criteria
    * @param {Array<string>|null} elements - Optional list of elements to return (for optimization)
-   * @returns {Promise<Array<Object>>} List of matching ValueSets
+   * @returns {Promise<Array<any>>} List of matching ValueSets
    */
   async search(spaceId, map, searchParams, elements = null) {
     // Check if we can optimize by selecting only indexed columns
     const canOptimize = elements && elements.length > 0 &&
-        elements.every(e => INDEXED_COLUMNS.includes(e));
+        elements.every((/** @type {string} */ e) => INDEXED_COLUMNS.includes(e));
 
     // Always include 'id' in the columns to select when optimizing
     const columnsToSelect = canOptimize
@@ -781,7 +810,7 @@ class ValueSetDatabase {
     return new Promise((resolve, reject) => {
       const { query, params } = this._buildSearchQuery(searchParams, columnsToSelect);
 
-      db.all(query, params, (err, rows) => {
+      db.all(query, params, (/** @type {Error|null} */ err, /** @type {Record<string, any>[]} */ rows) => {
         if (err) {
           reject(new Error(`Search query failed: ${err.message}`));
           return;
@@ -791,9 +820,10 @@ class ValueSetDatabase {
           let results;
           if (canOptimize) {
             // Construct objects directly from columns - much faster!
-            results = rows.map(row => {
+            results = rows.map((/** @type {Record<string, any>} */ row) => {
+              /** @type {Record<string, any>} */
               const obj = { resourceType: 'ValueSet' };
-              for (const elem of columnsToSelect) {
+              for (const elem of /** @type {string[]} */ (columnsToSelect)) {
                 if (row[elem] !== null && row[elem] !== undefined) {
                   if (elem === 'id' && spaceId) {
                     obj[elem] = `${spaceId}-${row[elem]}`;
@@ -806,7 +836,7 @@ class ValueSetDatabase {
             });
           } else {
             // Fall back to parsing JSON
-            results = rows.map(row => {
+            results = rows.map((/** @type {Record<string, any>} */ row) => {
               const vs = map.get(row.id);
               return vs;
             });
@@ -814,7 +844,7 @@ class ValueSetDatabase {
 
           resolve(results);
         } catch (error) {
-          reject(new Error(`Failed to parse search results: ${error.message}`));
+          reject(new Error(`Failed to parse search results: ${error instanceof Error ? error.message : String(error)}`));
         }
       });
     });
@@ -830,7 +860,7 @@ class ValueSetDatabase {
 
     return new Promise((resolve, reject) => {
       // Get URLs to delete first
-      db.all('SELECT url FROM valuesets WHERE last_seen < ?', [cutoffTimestamp], (err, rows) => {
+      db.all('SELECT id FROM valuesets WHERE last_seen < ?', [cutoffTimestamp], (/** @type {Error|null} */ err, /** @type {{id: string}[]} */ rows) => {
         if (err) {
           reject(new Error(`Failed to find old records: ${err.message}`));
           return;
@@ -841,7 +871,7 @@ class ValueSetDatabase {
           return;
         }
 
-        const idsToDelete = rows.map(row => row.id);
+        const idsToDelete = rows.map((/** @type {{id: string}} */ row) => row.id);
         let deletedCount = 0;
         let pendingDeletes = 0;
         let hasError = false;
@@ -850,7 +880,12 @@ class ValueSetDatabase {
           pendingDeletes--;
           if (pendingDeletes === 0 && !hasError) {
             // Finally delete main records
-            db.run('DELETE FROM valuesets WHERE last_seen < ?', [cutoffTimestamp], function(err) {
+            db.run('DELETE FROM valuesets WHERE last_seen < ?', [cutoffTimestamp],
+              /**
+               * @this {{changes: number}}
+               * @param {Error|null} err
+               */
+              function(err) {
               if (err) {
                 reject(new Error(`Failed to delete old records: ${err.message}`));
               } else {
@@ -861,7 +896,7 @@ class ValueSetDatabase {
           }
         };
 
-        const deleteError = (err) => {
+        const deleteError = (/** @type {unknown} */ err) => {
           if (!hasError) {
             hasError = true;
             reject(err);
@@ -873,17 +908,17 @@ class ValueSetDatabase {
 
         pendingDeletes = 3; // identifiers, jurisdictions, systems
 
-        db.run(`DELETE FROM valueset_identifiers WHERE valueset_id IN (${placeholders})`, idsToDelete, (err) => {
+        db.run(`DELETE FROM valueset_identifiers WHERE valueset_id IN (${placeholders})`, idsToDelete, (/** @type {Error|null} */ err) => {
           if (err) deleteError(new Error(`Failed to delete identifier records: ${err.message}`));
           else deleteComplete();
         });
 
-        db.run(`DELETE FROM valueset_jurisdictions WHERE valueset_id IN (${placeholders})`, idsToDelete, (err) => {
+        db.run(`DELETE FROM valueset_jurisdictions WHERE valueset_id IN (${placeholders})`, idsToDelete, (/** @type {Error|null} */ err) => {
           if (err) deleteError(new Error(`Failed to delete jurisdiction records: ${err.message}`));
           else deleteComplete();
         });
 
-        db.run(`DELETE FROM valueset_systems WHERE valueset_id IN (${placeholders})`, idsToDelete, (err) => {
+        db.run(`DELETE FROM valueset_systems WHERE valueset_id IN (${placeholders})`, idsToDelete, (/** @type {Error|null} */ err) => {
           if (err) deleteError(new Error(`Failed to delete system records: ${err.message}`));
           else deleteComplete();
         });
@@ -893,7 +928,7 @@ class ValueSetDatabase {
 
   /**
    * Get statistics about the database
-   * @returns {Promise<Object>} Statistics object
+   * @returns {Promise<Record<string, any>>} Statistics object
    */
   async getStatistics() {
     const db = await this._getReadConnection();
@@ -905,6 +940,7 @@ class ValueSetDatabase {
         'SELECT COUNT(DISTINCT system) as systems FROM valueset_systems'
       ];
 
+      /** @type {Record<string, any>} */
       const results = {};
       let completed = 0;
       let hasError = false;
@@ -916,7 +952,7 @@ class ValueSetDatabase {
         }
       };
 
-      const handleError = (err) => {
+      const handleError = (/** @type {unknown} */ err) => {
         if (!hasError) {
           hasError = true;
           reject(err);
@@ -924,7 +960,7 @@ class ValueSetDatabase {
       };
 
       // Total count
-      db.get(queries[0], [], (err, row) => {
+      db.get(queries[0], [], (/** @type {Error|null} */ err, /** @type {{total: number}} */ row) => {
         if (err) {
           handleError(err);
           return;
@@ -934,7 +970,7 @@ class ValueSetDatabase {
       });
 
       // Status breakdown
-      db.all(queries[1], [], (err, rows) => {
+      db.all(queries[1], [], (/** @type {Error|null} */ err, /** @type {{status: string|null, count: number}[]} */ rows) => {
         if (err) {
           handleError(err);
           return;
@@ -947,7 +983,7 @@ class ValueSetDatabase {
       });
 
       // System count
-      db.get(queries[2], [], (err, row) => {
+      db.get(queries[2], [], (/** @type {Error|null} */ err, /** @type {{systems: number}} */ row) => {
         if (err) {
           handleError(err);
           return;
@@ -960,14 +996,17 @@ class ValueSetDatabase {
 
   /**
    * Build SQL query for search parameters
-   * @param {Array<{name: string, value: string}>} searchParams - Search parameters
+   * @param {SearchParam[]} searchParams - Search parameters
    * @param {Array<string>|null} elements - If provided, select only these columns (optimization)
-   * @returns {{query: string, params: Array}} Query and parameters
+   * @returns {{query: string, params: any[]}} Query and parameters
    * @private
    */
   _buildSearchQuery(searchParams, elements = null) {
+    /** @type {string[]} */
     const conditions = [];
+    /** @type {any[]} */
     const params = [];
+    /** @type {Set<string>} */
     const joins = new Set();
 
     for (const param of searchParams) {
@@ -1054,7 +1093,7 @@ class ValueSetDatabase {
     let selectClause;
     if (elements) {
       // Optimized: select only the columns we need
-      const columns = elements.map(e => `v.${e}`).join(', ');
+      const columns = elements.map((/** @type {string} */ e) => `v.${e}`).join(', ');
       selectClause = `SELECT DISTINCT ${columns}`;
     } else {
       // Full content needed
@@ -1072,6 +1111,9 @@ class ValueSetDatabase {
     return { query, params };
   }
 
+  /**
+   * @param {unknown} ids
+   */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
     // nothing - we don't do any assigning.
@@ -1085,13 +1127,13 @@ class ValueSetDatabase {
     const db = await this._getReadConnection();
 
     return new Promise((resolve, reject) => {
-      db.all('SELECT url FROM valuesets ORDER BY url', [], (err, rows) => {
+      db.all('SELECT url FROM valuesets ORDER BY url', [], (/** @type {Error|null} */ err, /** @type {{url: string}[]} */ rows) => {
         if (err) {
           reject(new Error(`Failed to list value sets: ${err.message}`));
           return;
         }
 
-        const urls = rows.map(row => row.url);
+        const urls = rows.map((/** @type {{url: string}} */ row) => row.url);
         resolve(urls);
       });
     });

@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * SNOMED CT Expression Constraint Language (ECL) Validator
  *
@@ -6,6 +8,21 @@
  *
  * Supports ECL v2.1 specification from SNOMED International
  */
+
+/** @typedef {{type: string, value?: string | null}} ECLToken */
+/** @typedef {Record<string, any>} ECLNode */
+/** @typedef {{success: boolean, ast: ECLNode | null, errors: string[]}} ECLParseResult */
+/** @typedef {{success: boolean, errors: string[]}} ECLSemanticResult */
+/** @typedef {{descendants?: number[], matches?: Array<{index: number, term?: string | number | bigint}>, [key: string]: any}} FilterContextLike */
+/** @typedef {Record<string, any>} SnomedServicesLike */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 // ECL Token Types
 const ECLTokenType = {
@@ -100,12 +117,19 @@ const ECLNodeType = {
  * ECL Lexer - Tokenizes ECL expressions
  */
 class ECLLexer {
+  /**
+   * @param {string} input
+   */
   constructor(input) {
     this.input = input;
     this.position = 0;
     this.current = this.input[0] || null;
   }
 
+  /**
+   * @param {string} message
+   * @returns {never}
+   */
   error(message) {
     throw new Error(`Lexer error at position ${this.position}: ${message}`);
   }
@@ -115,6 +139,10 @@ class ECLLexer {
     this.current = this.position < this.input.length ? this.input[this.position] : null;
   }
 
+  /**
+   * @param {number} [offset]
+   * @returns {string | null}
+   */
   peek(offset = 1) {
     const pos = this.position + offset;
     return pos < this.input.length ? this.input[pos] : null;
@@ -126,6 +154,9 @@ class ECLLexer {
     }
   }
 
+  /**
+   * @returns {string}
+   */
   readSCTID() {
     let value = '';
     while (this.current && /\d/.test(this.current)) {
@@ -135,6 +166,9 @@ class ECLLexer {
     return value;
   }
 
+  /**
+   * @returns {string}
+   */
   readTerm() {
     let value = '';
     // We should be positioned at the opening |
@@ -156,6 +190,9 @@ class ECLLexer {
     return value.trim();
   }
 
+  /**
+   * @returns {string}
+   */
   readString() {
     let value = '';
     const quote = this.current;
@@ -182,6 +219,9 @@ class ECLLexer {
     return value;
   }
 
+  /**
+   * @returns {{value: string, type: string}}
+   */
   readNumber() {
     let value = '';
     let hasDecimal = false;
@@ -206,6 +246,9 @@ class ECLLexer {
     };
   }
 
+  /**
+   * @returns {ECLToken}
+   */
   getNextToken() {
     while (this.current) {
       if (/\s/.test(this.current)) {
@@ -371,7 +414,8 @@ class ECLLexer {
       }
 
       // Handle negative numbers separately
-      if (this.current === '-' && /\d/.test(this.peek())) {
+      const next = this.peek();
+      if (this.current === '-' && next !== null && /\d/.test(next)) {
         const num = this.readNumber();
         return { type: num.type, value: num.value };
       }
@@ -406,8 +450,13 @@ class ECLLexer {
     return { type: ECLTokenType.EOF, value: null };
   }
 
+  /**
+   * @returns {ECLToken[]}
+   */
   tokenize() {
+    /** @type {ECLToken[]} */
     const tokens = [];
+    /** @type {ECLToken} */
     let token;
 
     do {
@@ -423,26 +472,41 @@ class ECLLexer {
  * ECL Parser - Parses tokens into AST
  */
 class ECLParser {
+  /**
+   * @param {ECLToken[]} tokens
+   */
   constructor(tokens) {
     this.tokens = tokens;
     this.position = 0;
-    this.current = this.tokens[0] || { type: ECLTokenType.EOF };
+    this.current = this.tokens[0] || { type: ECLTokenType.EOF, value: null };
   }
 
+  /**
+   * @param {string} message
+   * @returns {never}
+   */
   error(message) {
     throw new Error(`Parser error at token ${this.position}: ${message}. Current token: ${this.current.type}(${this.current.value})`);
   }
 
   advance() {
     this.position++;
-    this.current = this.position < this.tokens.length ? this.tokens[this.position] : { type: ECLTokenType.EOF };
+    this.current = this.position < this.tokens.length ? this.tokens[this.position] : { type: ECLTokenType.EOF, value: null };
   }
 
+  /**
+   * @param {number} [offset]
+   * @returns {ECLToken}
+   */
   peek(offset = 1) {
     const pos = this.position + offset;
-    return pos < this.tokens.length ? this.tokens[pos] : { type: ECLTokenType.EOF };
+    return pos < this.tokens.length ? this.tokens[pos] : { type: ECLTokenType.EOF, value: null };
   }
 
+  /**
+   * @param {string} tokenType
+   * @returns {ECLToken}
+   */
   expect(tokenType) {
     if (this.current.type !== tokenType) {
       this.error(`Expected ${tokenType}, got ${this.current.type}`);
@@ -452,11 +516,18 @@ class ECLParser {
     return token;
   }
 
+  /**
+   * @param {...string} tokenTypes
+   * @returns {boolean}
+   */
   match(...tokenTypes) {
     return tokenTypes.includes(this.current.type);
   }
 
   // Main parsing entry point
+  /**
+   * @returns {ECLNode}
+   */
   parse() {
     const result = this.parseExpressionConstraint();
     if (this.current.type !== ECLTokenType.EOF) {
@@ -465,10 +536,16 @@ class ECLParser {
     return result;
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseExpressionConstraint() {
     return this.parseCompoundExpressionConstraint();
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseCompoundExpressionConstraint() {
     let left = this.parseRefinedExpressionConstraint();
 
@@ -492,6 +569,9 @@ class ECLParser {
     return left;
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseRefinedExpressionConstraint() {
     let base = this.parseDottedExpressionConstraint();
 
@@ -509,9 +589,13 @@ class ECLParser {
     return base;
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseDottedExpressionConstraint() {
     let base = this.parseSubExpressionConstraint();
 
+    /** @type {ECLNode[]} */
     const attributes = [];
     while (this.match(ECLTokenType.DOT)) {
       this.advance(); // consume .
@@ -530,8 +614,12 @@ class ECLParser {
     return base;
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseSubExpressionConstraint() {
     // Handle constraint operators
+    /** @type {ECLToken | null} */
     let operator = null;
     if (this.match(
         ECLTokenType.CHILD_OF, ECLTokenType.CHILD_OR_SELF_OF,
@@ -543,6 +631,7 @@ class ECLParser {
       this.advance();
     }
 
+    /** @type {ECLNode} */
     let focus;
 
     // Handle memberOf
@@ -550,6 +639,7 @@ class ECLParser {
       this.advance(); // consume ^
       // Parse the reference set - can be concept reference, wildcard, or parenthesized expression
       // but NOT another constraint operator or member-of expression
+      /** @type {ECLNode} */
       let refSet;
       if (this.match(ECLTokenType.LPAREN)) {
         this.advance(); // consume (
@@ -580,6 +670,9 @@ class ECLParser {
     return result;
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseEclFocusConcept() {
     if (this.match(ECLTokenType.WILDCARD)) {
       this.advance();
@@ -589,7 +682,7 @@ class ECLParser {
     }
 
     if (this.match(ECLTokenType.SCTID)) {
-      const conceptId = this.current.value;
+      const conceptId = String(this.current.value);
       this.advance();
 
       let term = null;
@@ -608,11 +701,18 @@ class ECLParser {
     this.error('Expected concept reference or wildcard');
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseRefinement() {
     return this.parseAttributeSet();
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseAttributeSet() {
+    /** @type {ECLNode[]} */
     const attributes = [];
 
     do {
@@ -635,7 +735,11 @@ class ECLParser {
     };
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseAttributeGroup() {
+    /** @type {ECLNode | null} */
     let cardinality = null;
 
     // Check for cardinality before {
@@ -645,6 +749,7 @@ class ECLParser {
 
     this.expect(ECLTokenType.LBRACE);
 
+    /** @type {ECLNode[]} */
     const attributes = [];
     do {
       attributes.push(this.parseAttribute());
@@ -659,7 +764,11 @@ class ECLParser {
     };
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseAttribute() {
+    /** @type {ECLNode | null} */
     let cardinality = null;
     let reverse = false;
 
@@ -677,6 +786,7 @@ class ECLParser {
     const name = this.parseAttributeName();
 
     // Parse comparison operator and value
+    /** @type {ECLNode | null} */
     let comparison = null;
     if (this.match(ECLTokenType.EQUALS, ECLTokenType.NOT_EQUALS)) {
       const operator = this.current;
@@ -698,10 +808,11 @@ class ECLParser {
 
       this.expect(ECLTokenType.HASH);
 
+      /** @type {string} */
       let value;
       if (this.match(ECLTokenType.SCTID, ECLTokenType.DECIMAL, ECLTokenType.INTEGER)) {
         // In numeric comparison context, accept SCTID, DECIMAL, or INTEGER as numbers
-        value = this.current.value;
+        value = String(this.current.value);
         this.advance();
       } else {
         this.error('Expected numeric value after #');
@@ -731,19 +842,27 @@ class ECLParser {
     };
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseAttributeName() {
     return this.parseEclFocusConcept();
   }
 
+  /**
+   * @returns {ECLNode}
+   */
   parseCardinality() {
     this.expect(ECLTokenType.LBRACKET);
 
+    /** @type {number | null} */
     let min = null;
+    /** @type {number | string | null} */
     let max = null;
 
     if (this.match(ECLTokenType.SCTID)) {
       // Parse as number in cardinality context
-      min = parseInt(this.current.value);
+      min = parseInt(String(this.current.value), 10);
       this.advance();
 
       // Check for range syntax: ..
@@ -751,7 +870,7 @@ class ECLParser {
         this.advance(); // consume ..
 
         if (this.match(ECLTokenType.SCTID)) {
-          max = parseInt(this.current.value);
+          max = parseInt(String(this.current.value), 10);
           this.advance();
         } else if (this.match(ECLTokenType.WILDCARD)) {
           max = '*';
@@ -784,12 +903,17 @@ class ECLParser {
  * ECL Validator - Validates and evaluates ECL expressions
  */
 class ECLValidator {
+  /**
+   * @param {SnomedServicesLike} snomedServices
+   */
   constructor(snomedServices) {
     this.sct = snomedServices;
   }
 
   /**
    * Parse and validate an ECL expression
+   * @param {string} eclExpression
+   * @returns {ECLParseResult}
    */
   parse(eclExpression) {
     try {
@@ -811,13 +935,14 @@ class ECLValidator {
       return {
         success: false,
         ast: null,
-        errors: [error.message]
+        errors: [errorMessage(error)]
       };
     }
   }
 
   /**
    * Validate AST node semantically
+   * @param {ECLNode} node
    */
   validateAST(node) {
     if (!node || typeof node !== 'object') {
@@ -841,7 +966,7 @@ class ECLValidator {
 
       case ECLNodeType.DOTTED_EXPRESSION_CONSTRAINT:
         this.validateAST(node.base);
-        node.attributes.forEach(attr => this.validateAST(attr));
+        node.attributes.forEach((/** @type {ECLNode} */ attr) => this.validateAST(attr));
         break;
 
       case ECLNodeType.SUB_EXPRESSION_CONSTRAINT:
@@ -854,11 +979,11 @@ class ECLValidator {
         break;
 
       case ECLNodeType.ATTRIBUTE_SET:
-        node.attributes.forEach(attr => this.validateAST(attr));
+        node.attributes.forEach((/** @type {ECLNode} */ attr) => this.validateAST(attr));
         break;
 
       case ECLNodeType.ATTRIBUTE_GROUP:
-        node.attributes.forEach(attr => this.validateAST(attr));
+        node.attributes.forEach((/** @type {ECLNode} */ attr) => this.validateAST(attr));
         break;
 
       case ECLNodeType.ATTRIBUTE:
@@ -887,6 +1012,7 @@ class ECLValidator {
    */
   /**
    * Validate concept reference exists in SNOMED CT and term matches if provided
+   * @param {ECLNode} node
    */
   validateConceptReference(node) {
     if (!node.conceptId) {
@@ -909,10 +1035,11 @@ class ECLValidator {
         }
       }
     } catch (error) {
-      if (error.message.includes('not found')) {
+      const message = errorMessage(error);
+      if (message.includes('not found')) {
         throw error; // Re-throw our custom message
       }
-      throw new Error(`Error validating concept ${node.conceptId}: ${error.message}`);
+      throw new Error(`Error validating concept ${node.conceptId}: ${message}`);
     }
 
     // Validate term if provided
@@ -931,7 +1058,7 @@ class ECLValidator {
 
         const list = [];
         // Check if the provided term matches any of the concept's descriptions
-        for (const descIndex of descriptionIndices) {
+        for (const descIndex of descriptionIndices || []) {
           const description = this.sct.descriptions.getDescription(descIndex);
           const actualTerm = this.sct.strings.getEntry(description.iDesc).trim();
           list.push(actualTerm);
@@ -947,15 +1074,17 @@ class ECLValidator {
           throw new Error(`Term "${node.term}" does not match any active description for concept ${node.conceptId}. Expected term like "${preferredTerm}" or from ${list}`);
         }
       } catch (error) {
-        if (error.message.includes('does not match')) {
+        const message = errorMessage(error);
+        if (message.includes('does not match')) {
           throw error; // Re-throw our term validation error
         }
-        throw new Error(`Error validating term for concept ${node.conceptId}: ${error.message}`);
+        throw new Error(`Error validating term for concept ${node.conceptId}: ${message}`);
       }
     }
   }
   /**
    * Validate reference set concept
+   * @param {ECLNode} node
    */
   validateReferenceSet(node) {
     if (node.type === ECLNodeType.CONCEPT_REFERENCE) {
@@ -969,6 +1098,7 @@ class ECLValidator {
 
   /**
    * Validate comparison expressions
+   * @param {ECLNode} comparison
    */
   validateComparison(comparison) {
     switch (comparison.type) {
@@ -990,20 +1120,25 @@ class ECLValidator {
 
   /**
    * Evaluate ECL expression and return matching concepts
+   * @param {string} eclExpression
+   * @returns {Promise<{total: number, results: Array<{conceptId: string, term: string, active: boolean}>}>}
    */
-  async evaluate(eclExpression, options = {}) {
+  async evaluate(eclExpression) {
     const parseResult = this.parse(eclExpression);
 
     if (!parseResult.success) {
       throw new Error(`ECL parsing failed: ${parseResult.errors.join(', ')}`);
     }
 
-    const filterContext = await this.evaluateAST(parseResult.ast, options);
+    const ast = /** @type {ECLNode} */ (parseResult.ast);
+    const filterContext = await this.evaluateAST(ast);
     return this.convertFilterToResults(filterContext);
   }
 
   /**
    * Evaluate AST node and return filter context
+   * @param {ECLNode | null} [node]
+   * @returns {Promise<FilterContextLike>}
    */
   async evaluateAST(node = {}) {
     if (!node) {
@@ -1034,16 +1169,24 @@ class ECLValidator {
     }
   }
 
+  /**
+   * @param {ECLNode} node
+   * @returns {Promise<FilterContextLike>}
+   */
   async evaluateConceptReference(node) {
     const conceptId = this.sct.stringToId(node.conceptId);
     return this.sct.filterEquals(conceptId);
   }
 
+  /**
+   * @returns {Promise<FilterContextLike>}
+   */
   async evaluateWildcard() {
     const { SnomedFilterContext } = require('../cs/cs-snomed');
 
     // Return all concepts - this would need optimization in practice
     const filter = new SnomedFilterContext();
+    /** @type {number[]} */
     const allConcepts = [];
 
     for (let i = 0; i < this.sct.concepts.count(); i++) {
@@ -1057,6 +1200,10 @@ class ECLValidator {
     return filter;
   }
 
+  /**
+   * @param {ECLNode} node
+   * @returns {Promise<FilterContextLike>}
+   */
   async evaluateSubExpressionConstraint(node) {
     const { SnomedFilterContext } = require('../cs/cs-snomed');
 
@@ -1068,11 +1215,13 @@ class ECLValidator {
 
     // Apply constraint operator — collect into a Set to deduplicate across
     // multi-concept base filters.
+    /** @type {Set<number>} */
     const accumulated = new Set();
 
     for (const conceptIndex of baseFilter.descendants || []) {
       const conceptId = this.sct.concepts.getConceptId(conceptIndex);
 
+      /** @type {FilterContextLike} */
       let operatorFilter;
       switch (node.operator) {
           // ── Descendants ─────────────────────────────────────────────────────
@@ -1100,9 +1249,11 @@ class ECLValidator {
         case ECLTokenType.ANCESTOR_OR_SELF_OF: {   // >>   transitive + self
           operatorFilter = this.sct.filterGeneralizes(conceptId);
           const selfResult = this.sct.concepts.findConcept(conceptId);
-          if (selfResult.found && !operatorFilter.descendants.includes(selfResult.index)) {
-            operatorFilter.descendants.push(selfResult.index);
+          const descendants = operatorFilter.descendants || [];
+          if (selfResult.found && !descendants.includes(selfResult.index)) {
+            descendants.push(selfResult.index);
           }
+          operatorFilter.descendants = descendants;
           break;
         }
         case ECLTokenType.PARENT_OF: {             // >!   direct parents only
@@ -1135,6 +1286,10 @@ class ECLValidator {
     return results;
   }
 
+  /**
+   * @param {ECLNode} node
+   * @returns {Promise<FilterContextLike>}
+   */
   async evaluateCompoundExpression(node) {
     const { SnomedFilterContext } = require('../cs/cs-snomed');
 
@@ -1162,6 +1317,10 @@ class ECLValidator {
     return result;
   }
 
+  /**
+   * @param {ECLNode} node
+   * @returns {Promise<FilterContextLike>}
+   */
   async evaluateRefinedExpression(node) {
     // This is a simplified implementation
     // Full refinement evaluation would require analyzing concept relationships
@@ -1172,6 +1331,10 @@ class ECLValidator {
     return baseFilter;
   }
 
+  /**
+   * @param {ECLNode} node
+   * @returns {Promise<FilterContextLike>}
+   */
   async evaluateMemberOf(node) {
     const refSetFilter = await this.evaluateAST(node.refSet);
 
@@ -1185,30 +1348,42 @@ class ECLValidator {
 
   /**
    * Convert filter context to user-friendly results
+   * @param {FilterContextLike} filterContext
+   * @returns {{total: number, results: Array<{conceptId: string, term: string, active: boolean}>}}
    */
   convertFilterToResults(filterContext) {
+    /** @type {Array<{conceptId: string, term: string, active: boolean}>} */
     const results = [];
 
     const concepts = filterContext.descendants || filterContext.matches || [];
 
     for (const conceptIndex of concepts.slice(0, 1000)) { // Limit results
       try {
-        let conceptId, term;
+        /** @type {string | number | bigint} */
+        let conceptId;
+        /** @type {string} */
+        let term;
+        /** @type {number} */
+        let index;
 
         if (typeof conceptIndex === 'object' && conceptIndex.index !== undefined) {
           // From search results
-          conceptId = conceptIndex.term;
-          term = this.sct.getDisplayName(conceptIndex.index);
-        } else {
+          index = conceptIndex.index;
+          conceptId = conceptIndex.term ?? this.sct.concepts.getConceptId(index);
+          term = this.sct.getDisplayName(index);
+        } else if (typeof conceptIndex === 'number') {
           // From regular index
+          index = conceptIndex;
           conceptId = this.sct.concepts.getConceptId(conceptIndex);
           term = this.sct.getDisplayName(conceptIndex);
+        } else {
+          continue;
         }
 
         results.push({
           conceptId: conceptId.toString(),
           term,
-          active: this.sct.isActive(conceptIndex)
+          active: this.sct.isActive(index)
         });
       } catch (error) {
         // Skip concepts that can't be read
@@ -1224,6 +1399,8 @@ class ECLValidator {
 
   /**
    * Helper to get concept reference index from concept ID
+   * @param {string | number | bigint} conceptId
+   * @returns {number}
    */
   getConceptReference(conceptId) {
     const id = this.sct.stringToId(conceptId);
@@ -1236,6 +1413,8 @@ class ECLValidator {
 
   /**
    * Validate ECL syntax only (no semantic validation)
+   * @param {string} eclExpression
+   * @returns {ECLParseResult}
    */
   validateSyntax(eclExpression) {
     try {
@@ -1254,13 +1433,14 @@ class ECLValidator {
       return {
         success: false,
         ast: null,
-        errors: [error.message]
+        errors: [errorMessage(error)]
       };
     }
   }
 
   /**
    * Get examples of valid ECL expressions
+   * @returns {string[]}
    */
   getExamples() {
     return [
@@ -1299,8 +1479,11 @@ class ECLValidator {
   /**
    * Perform semantic validation on a parsed AST
    * This is separate from parse() and optional
+   * @param {ECLNode} ast
+   * @returns {ECLSemanticResult}
    */
   validateSemantics(ast) {
+    /** @type {string[]} */
     const errors = [];
     this.validateSemanticAST(ast, errors);
 
@@ -1312,6 +1495,8 @@ class ECLValidator {
 
   /**
    * Parse AND validate semantics in one call
+   * @param {string} eclExpression
+   * @returns {ECLParseResult}
    */
   parseAndValidateSemantics(eclExpression) {
     const parseResult = this.parse(eclExpression);
@@ -1320,17 +1505,20 @@ class ECLValidator {
       return parseResult;
     }
 
-    const semanticResult = this.validateSemantics(parseResult.ast);
+    const ast = /** @type {ECLNode} */ (parseResult.ast);
+    const semanticResult = this.validateSemantics(ast);
 
     return {
       success: parseResult.success && semanticResult.success,
-      ast: parseResult.ast,
+      ast,
       errors: [...parseResult.errors, ...semanticResult.errors]
     };
   }
 
   /**
    * Semantic validation traversal (separate from basic validateAST)
+   * @param {ECLNode | null} node
+   * @param {string[]} errors
    */
   validateSemanticAST(node, errors) {
     if (!node || typeof node !== 'object') {
@@ -1349,7 +1537,7 @@ class ECLValidator {
 
       case ECLNodeType.DOTTED_EXPRESSION_CONSTRAINT:
         this.validateSemanticAST(node.base, errors);
-        node.attributes.forEach(attr => this.validateSemanticAST(attr, errors));
+        node.attributes.forEach((/** @type {ECLNode} */ attr) => this.validateSemanticAST(attr, errors));
         break;
 
       case ECLNodeType.SUB_EXPRESSION_CONSTRAINT:
@@ -1361,11 +1549,11 @@ class ECLValidator {
         break;
 
       case ECLNodeType.ATTRIBUTE_SET:
-        node.attributes.forEach(attr => this.validateSemanticAST(attr, errors));
+        node.attributes.forEach((/** @type {ECLNode} */ attr) => this.validateSemanticAST(attr, errors));
         break;
 
       case ECLNodeType.ATTRIBUTE_GROUP:
-        node.attributes.forEach(attr => this.validateSemanticAST(attr, errors));
+        node.attributes.forEach((/** @type {ECLNode} */ attr) => this.validateSemanticAST(attr, errors));
         break;
 
       case ECLNodeType.ATTRIBUTE:
@@ -1389,6 +1577,8 @@ class ECLValidator {
 
   /**
    * Validate semantics of refined expressions
+   * @param {ECLNode} node
+   * @param {string[]} errors
    */
   validateRefinedExpressionSemantics(node, errors) {
     this.validateSemanticAST(node.base, errors);
@@ -1406,6 +1596,8 @@ class ECLValidator {
 
   /**
    * Validate attribute semantics
+   * @param {ECLNode} node
+   * @param {string[]} errors
    */
   validateAttributeSemantics(node, errors) {
     // Validate the attribute name is a relationship type
@@ -1420,6 +1612,8 @@ class ECLValidator {
 
   /**
    * Check if concept is a valid relationship type
+   * @param {ECLNode} attributeNode
+   * @param {string[]} errors
    */
   validateRelationshipType(attributeNode, errors) {
     if (attributeNode.type !== ECLNodeType.CONCEPT_REFERENCE) {
@@ -1438,12 +1632,15 @@ class ECLValidator {
         errors.push(`Concept ${conceptId} |${displayName}| is not a valid relationship type. Relationship types must be descendants of ${ECLValidator.CONCEPT_MODEL_ATTRIBUTE} |Concept model attribute|`);
       }
     } catch (error) {
-      errors.push(`Error validating relationship type ${attributeNode.conceptId}: ${error.message}`);
+      errors.push(`Error validating relationship type ${attributeNode.conceptId}: ${errorMessage(error)}`);
     }
   }
 
   /**
    * Validate attribute usage in context of base concepts
+   * @param {ECLNode} attribute
+   * @param {number[]} baseConcepts
+   * @param {string[]} errors
    */
   validateAttributeInContext(attribute, baseConcepts, errors) {
     // Check domain appropriateness
@@ -1454,6 +1651,9 @@ class ECLValidator {
 
   /**
    * Validate attribute domain (which concepts can use this attribute)
+   * @param {ECLNode} attributeNode
+   * @param {number} baseConceptIndex
+   * @param {string[]} errors
    */
   validateAttributeDomain(attributeNode, baseConceptIndex, errors) {
     if (attributeNode.type !== ECLNodeType.CONCEPT_REFERENCE) {
@@ -1464,6 +1664,7 @@ class ECLValidator {
       const attributeId = attributeNode.conceptId;
 
       // Define common domain restrictions
+      /** @type {Record<string, string[]>} */
       const domainRules = {
         '116676008': ['404684003'], // |Associated morphology| -> |Clinical finding|
         '363698007': ['404684003'], // |Finding site| -> |Clinical finding|
@@ -1490,12 +1691,15 @@ class ECLValidator {
         }
       }
     } catch (error) {
-      errors.push(`Error validating attribute domain for ${attributeNode.conceptId}: ${error.message}`);
+      errors.push(`Error validating attribute domain for ${attributeNode.conceptId}: ${errorMessage(error)}`);
     }
   }
 
   /**
    * Validate attribute range (what values are allowed)
+   * @param {ECLNode} attributeNode
+   * @param {ECLNode} valueNode
+   * @param {string[]} errors
    */
   validateAttributeRange(attributeNode, valueNode, errors) {
     if (attributeNode.type !== ECLNodeType.CONCEPT_REFERENCE) {
@@ -1517,6 +1721,7 @@ class ECLValidator {
       const valueId = actualValueNode.conceptId;
 
       // Define common range restrictions
+      /** @type {Record<string, string[]>} */
       const rangeRules = {
         '116676008': ['49755003'],  // |Associated morphology| -> |Morphologically abnormal structure|
         '363698007': ['442083009'], // |Finding site| -> |Anatomical or acquired body structure|
@@ -1544,14 +1749,17 @@ class ECLValidator {
         }
       }
     } catch (error) {
-      errors.push(`Error validating attribute range for ${attributeNode.conceptId}: ${error.message}`);
+      errors.push(`Error validating attribute range for ${attributeNode.conceptId}: ${errorMessage(error)}`);
     }
   }
 
   /**
    * Extract base concept IDs from expression constraint
+   * @param {ECLNode} node
+   * @returns {number[]}
    */
   extractBaseConceptIds(node) {
+    /** @type {number[]} */
     const concepts = [];
 
     switch (node.type) {
@@ -1578,8 +1786,11 @@ class ECLValidator {
 
   /**
    * Extract attributes from refinement
+   * @param {ECLNode} refinementNode
+   * @returns {ECLNode[]}
    */
   extractAttributesFromRefinement(refinementNode) {
+    /** @type {ECLNode[]} */
     const attributes = [];
 
     switch (refinementNode.type) {

@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Copyright 2025, Health Intersections Pty Ltd (http://www.healthintersections.com.au)
 //
@@ -16,12 +18,27 @@ const fs = require('fs');
 const folders = require('../library/folder-setup');
 
 const Logger = require('../library/logger');
-const shlLog = Logger.getInstance().child({ module: 'shl' });
+const shlLog = /** @type {any} */ (Logger.getInstance().child({ module: 'shl' }));
 
 // Import the FHIR Validator
 const FhirValidator = require('fhir-validator-wrapper');
 
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {{countRequest: (name: string, elapsedMs: number) => void}} StatsTracker */
+/** @typedef {Record<string, any>} ShlConfig */
+/** @typedef {Record<string, {maxLength?: number, pattern?: RegExp, required?: boolean, default?: string}>} QueryValidationConfig */
+/** @typedef {{certPem: string, keyPem: string}} CertificatePair */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // Try to load vhl.js module, but don't fail if it doesn't exist
+/** @type {any} */
 let vhlProcessor;
 try {
   vhlProcessor = require('./vhl.js');
@@ -31,11 +48,19 @@ try {
 }
 
 class SHLModule {
+  /**
+   * @param {StatsTracker} stats
+   */
   constructor(stats) {
+    /** @type {any} */
     this.db = null;
+    /** @type {any} */
     this.config = null;
+    /** @type {any} */
     this.router = express.Router();
+    /** @type {import('node-cron').ScheduledTask|null} */
     this.cleanupJob = null;
+    /** @type {any} */
     this.fhirValidator = null;
     this.setupSecurityMiddleware();
     this.setupRoutes();
@@ -44,7 +69,7 @@ class SHLModule {
 
   setupSecurityMiddleware() {
     // Security headers middleware
-    this.router.use((req, res, next) => {
+    this.router.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {() => void} */ next) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -64,9 +89,14 @@ class SHLModule {
   }
 
   // Parameter validation middleware
+  /**
+   * @param {QueryValidationConfig} [allowedParams]
+   * @returns {any}
+   */
   validateQueryParams(allowedParams = {}) {
-    return (req, res, next) => {
+    return (/** @type {any} */ req, /** @type {any} */ res, /** @type {() => void} */ next) => {
       try {
+        /** @type {Record<string, string>} */
         const normalized = {};
 
         for (const [key, value] of Object.entries(req.query)) {
@@ -132,8 +162,13 @@ class SHLModule {
   }
 
   // Body validation middleware
+  /**
+   * @param {string[]} [requiredFields]
+   * @param {string[]} [optionalFields]
+   * @returns {any}
+   */
   validateJsonBody(requiredFields = [], optionalFields = []) {
-    return (req, res, next) => {
+    return (/** @type {any} */ req, /** @type {any} */ res, /** @type {() => void} */ next) => {
       try {
         if (!req.body || typeof req.body !== 'object') {
           return res.status(400).json({error: 'Request body must be JSON object'});
@@ -176,6 +211,7 @@ class SHLModule {
 
           // String length limits
           if (typeof value === 'string') {
+            /** @type {Record<string, number>} */
             const maxLengths = {
               password: 100,
               pword: 100,
@@ -204,6 +240,11 @@ class SHLModule {
   }
 
   // Secure comparison function
+  /**
+   * @param {unknown} a
+   * @param {unknown} b
+   * @returns {boolean}
+   */
   secureCompare(a, b) {
     if (typeof a !== 'string' || typeof b !== 'string') {
       return false;
@@ -223,6 +264,10 @@ class SHLModule {
   }
 
   // URL validation
+  /**
+   * @param {string} url
+   * @returns {URL}
+   */
   validateExternalUrl(url) {
     try {
       const parsed = new URL(url);
@@ -243,10 +288,13 @@ class SHLModule {
 
       return parsed;
     } catch (error) {
-      throw new Error(`Invalid URL: ${error.message}`);
+      throw new Error(`Invalid URL: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {ShlConfig} config
+   */
   async initialize(config) {
     this.config = config;
 
@@ -267,10 +315,10 @@ class SHLModule {
   async initializeDatabase() {
     return new Promise((resolve, reject) => {
 
-      const dbPath = folders.filePath('shl', this.config.database);  // <-- CHANGE
+      const dbPath = folders.filePath('shl', /** @type {ShlConfig} */ (this.config).database);  // <-- CHANGE
       fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-      this.db = new sqlite3.Database(dbPath, (err) => {
+      this.db = new sqlite3.Database(dbPath, (/** @type {Error|null} */ err) => {
         if (err) {
           shlLog.error('Error opening SHL SQLite database at "'+dbPath+'":', err.message);
           reject(err);
@@ -278,12 +326,12 @@ class SHLModule {
           shlLog.info('Connected to SHL SQLite database at "'+dbPath+'"');
 
           // Check if tables already exist before creating them
-          this.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='SHL'", (err, row) => {
+          /** @type {SqliteDatabase} */ (this.db).get("SELECT name FROM sqlite_master WHERE type='table' AND name='SHL'", (/** @type {Error|null} */ err, /** @type {unknown} */ row) => {
             if (err) {
               reject(err);
             } else if (row) {
               // Tables already exist, no need to create them
-              resolve();
+              resolve(undefined);
             } else {
               // Tables don't exist, create them
               this.createTables().then(resolve).catch(reject);
@@ -335,11 +383,11 @@ class SHLModule {
         tablesCreated++;
         if (tablesCreated === totalTables) {
           shlLog.info('SHL database initialized');
-          resolve();
+          resolve(undefined);
         }
       };
 
-      this.db.run(createSHLTable, (err) => {
+      /** @type {SqliteDatabase} */ (this.db).run(createSHLTable, (/** @type {Error|null} */ err) => {
         if (err) {
           shlLog.error('Error creating SHL table:', err.message);
           reject(err);
@@ -348,7 +396,7 @@ class SHLModule {
         }
       });
 
-      this.db.run(createSHLFilesTable, (err) => {
+      /** @type {SqliteDatabase} */ (this.db).run(createSHLFilesTable, (/** @type {Error|null} */ err) => {
         if (err) {
           shlLog.error('Error creating SHLFiles table:', err.message);
           reject(err);
@@ -357,7 +405,7 @@ class SHLModule {
         }
       });
 
-      this.db.run(createSHLViewsTable, (err) => {
+      /** @type {SqliteDatabase} */ (this.db).run(createSHLViewsTable, (/** @type {Error|null} */ err) => {
         if (err) {
           shlLog.error('Error creating SHLViews table:', err.message);
           reject(err);
@@ -373,12 +421,12 @@ class SHLModule {
       shlLog.info('Initializing FHIR Validator...');
 
       const validatorConfig = {
-        version: this.config.validator.version,
-        txServer: this.config.validator.txServer,
-        txLog: this.config.validator.txLog,
-        port: this.config.validator.port,
-        igs: this.config.validator.packages,
-        timeout: this.config.validator.timeout
+        version: /** @type {ShlConfig} */ (this.config).validator.version,
+        txServer: /** @type {ShlConfig} */ (this.config).validator.txServer,
+        txLog: /** @type {ShlConfig} */ (this.config).validator.txLog,
+        port: /** @type {ShlConfig} */ (this.config).validator.port,
+        igs: /** @type {ShlConfig} */ (this.config).validator.packages,
+        timeout: /** @type {ShlConfig} */ (this.config).validator.timeout
       };
 
       shlLog.info('Starting FHIR Validator with config:', validatorConfig);
@@ -396,25 +444,26 @@ class SHLModule {
 
   loadCertificates() {
     try {
-      const certPath = folders.filePath('shl', this.config.certificates.certFile);
-      const keyPath = folders.filePath('shl', this.config.certificates.keyFile);
+      const certPath = folders.filePath('shl', /** @type {ShlConfig} */ (this.config).certificates.certFile);
+      const keyPath = folders.filePath('shl', /** @type {ShlConfig} */ (this.config).certificates.keyFile);
 
       const certPem = fs.readFileSync(certPath, 'utf8');
       const keyPem = fs.readFileSync(keyPath, 'utf8');
 
       return { certPem, keyPem };
     } catch (error) {
-      throw new Error(`Failed to load certificates: ${error.message}`);
+      throw new Error(`Failed to load certificates: ${errorMessage(error)}`);
     }
   }
 
   startCleanupJob() {
-    if (this.config.cleanup && this.config.cleanup.schedule) {
-      this.cleanupJob = cron.schedule(this.config.cleanup.schedule, () => {
+    const config = /** @type {ShlConfig} */ (this.config);
+    if (config.cleanup && config.cleanup.schedule) {
+      this.cleanupJob = cron.schedule(config.cleanup.schedule, () => {
         shlLog.info('Running scheduled cleanup of expired SHL entries...');
         this.cleanupExpiredEntries();
       });
-      shlLog.info(`SHL cleanup job scheduled: ${this.config.cleanup.schedule}`);
+      shlLog.info(`SHL cleanup job scheduled: ${config.cleanup.schedule}`);
     }
   }
 
@@ -428,7 +477,15 @@ class SHLModule {
   cleanupExpiredEntries() {
     const deleteSql = 'DELETE FROM SHL WHERE expires_at < datetime("now")';
 
-    this.db.run(deleteSql, function(err) {
+    if (!this.db) {
+      return;
+    }
+    this.db.run(deleteSql,
+      /**
+       * @this {{changes: number}}
+       * @param {Error|null} err
+       */
+      function(err) {
       if (err) {
         shlLog.error('SHL cleanup error:', err.message);
       } else if (this.changes > 0) {
@@ -442,6 +499,11 @@ class SHLModule {
   }
 
   // Helper function to convert PEM to JWK for COSE signing
+  /**
+   * @param {string} pemCert
+   * @param {string} pemKey
+   * @returns {Record<string, any>}
+   */
   pemToJwk(pemCert, pemKey) {
     try {
       const keyObject = crypto.createPrivateKey(pemKey);
@@ -451,14 +513,18 @@ class SHLModule {
         throw new Error('Only EC (Elliptic Curve) keys are supported for COSE signing');
       }
 
-      const jwk = keyObject.export({ format: 'jwk' });
+      const jwk = /** @type {Record<string, any>} */ (keyObject.export({ format: 'jwk' }));
       return jwk;
     } catch (error) {
-      throw new Error(`Failed to convert PEM to JWK: ${error.message}`);
+      throw new Error(`Failed to convert PEM to JWK: ${errorMessage(error)}`);
     }
   }
 
   // Helper function to convert DER signature to raw r||s format
+  /**
+   * @param {Buffer} derSignature
+   * @returns {Buffer}
+   */
   derToRaw(derSignature) {
     let offset = 2; // Skip SEQUENCE tag and length
 
@@ -484,6 +550,12 @@ class SHLModule {
     return Buffer.concat([r, s]);
   }
 
+  /**
+   * @param {Buffer|Uint8Array} payload
+   * @param {Record<string, any>} privateKeyJWK
+   * @param {string} kid
+   * @returns {Promise<Buffer>}
+   */
   async createCOSESign1(payload, privateKeyJWK, kid) {
     try {
       const protectedHeaders = new Map();
@@ -547,7 +619,7 @@ class SHLModule {
     };
 
     // FHIR Validation endpoint
-    this.router.post('/validate', this.validateQueryParams(validationParams), async (req, res) => {
+    this.router.post('/validate', this.validateQueryParams(validationParams), async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         if (!this.fhirValidator || !this.fhirValidator.isRunning()) {
@@ -562,6 +634,7 @@ class SHLModule {
         }
 
         try {
+          /** @type {Record<string, any>} */
           const options = {};
 
           if (req.query.profiles) {
@@ -604,7 +677,7 @@ class SHLModule {
             issue: [{
               severity: 'error',
               code: 'exception',
-              diagnostics: `Validation failed: ${error.message}`
+              diagnostics: `Validation failed: ${errorMessage(error)}`
             }]
           });
         }
@@ -614,7 +687,7 @@ class SHLModule {
     });
 
     // Validator status endpoint
-    this.router.get('/validate/status', (req, res) => {
+    this.router.get('/validate/status', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const status = {
@@ -629,7 +702,7 @@ class SHLModule {
     });
 
     // Load additional IG endpoint
-    this.router.post('/validate/loadig', this.validateJsonBody(['packageId', 'version']), async (req, res) => {
+    this.router.post('/validate/loadig', this.validateJsonBody(['packageId', 'version']), async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         if (!this.fhirValidator || !this.fhirValidator.isRunning()) {
@@ -666,7 +739,7 @@ class SHLModule {
             issue: [{
               severity: 'error',
               code: 'exception',
-              diagnostics: `Failed to load IG: ${error.message}`
+              diagnostics: `Failed to load IG: ${errorMessage(error)}`
             }]
           });
         }
@@ -676,7 +749,7 @@ class SHLModule {
     });
 
     // SHL create endpoint
-    this.router.post('/create', this.validateJsonBody(['vhl', 'password', 'days']), (req, res) => {
+    this.router.post('/create', this.validateJsonBody(['vhl', 'password', 'days']), (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const {vhl, password, days} = req.body;
@@ -716,7 +789,7 @@ class SHLModule {
 
         const insertSql = 'INSERT INTO SHL (uuid, vhl, expires_at, password) VALUES (?, ?, ?, ?)';
 
-        this.db.run(insertSql, [uuid, vhl, expiryDateString, newPassword], function (err) {
+        this.db.run(insertSql, [uuid, vhl, expiryDateString, newPassword], (/** @type {Error|null} */ err) => {
           if (err) {
             return res.status(500).json({error: 'Failed to create SHL entry: ' + err.message});
           }
@@ -735,7 +808,7 @@ class SHLModule {
     });
 
     // SHL upload endpoint
-    this.router.post('/upload', this.validateJsonBody(['uuid', 'pword', 'files']), (req, res) => {
+    this.router.post('/upload', this.validateJsonBody(['uuid', 'pword', 'files']), (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const {uuid, pword, files} = req.body;
@@ -756,7 +829,7 @@ class SHLModule {
 
         const checkSHLSql = 'SELECT vhl, password FROM SHL WHERE uuid = ?';
 
-        this.db.get(checkSHLSql, [uuid], (err, row) => {
+        this.db.get(checkSHLSql, [uuid], (/** @type {Error|null} */ err, /** @type {any} */ row) => {
           if (err) {
             return res.status(500).json({error: 'Database error'});
           }
@@ -771,21 +844,21 @@ class SHLModule {
 
           const deleteExistingFilesSql = 'DELETE FROM SHLFiles WHERE shl_uuid = ?';
 
-          this.db.run(deleteExistingFilesSql, [uuid], (err) => {
+          this.db.run(deleteExistingFilesSql, [uuid], (/** @type {Error|null} */ err) => {
             if (err) {
               return res.status(500).json({error: 'Failed to clear existing files'});
             }
 
-            const insertPromises = files.map((f) => {
+            const insertPromises = files.map((/** @type {Record<string, any>} */ f) => {
               return new Promise((resolve, reject) => {
                 const fileId = this.generateUUID();
                 const insertFileSql = 'INSERT INTO SHLFiles (id, shl_uuid, cnt, type) VALUES (?, ?, ?, ?)';
 
-                this.db.run(insertFileSql, [fileId, uuid, f.cnt, f.type], function (err) {
+                this.db.run(insertFileSql, [fileId, uuid, f.cnt, f.type], (/** @type {Error|null} */ err) => {
                   if (err) {
                     reject(err);
                   } else {
-                    resolve();
+                    resolve(undefined);
                   }
                 });
               });
@@ -807,7 +880,7 @@ class SHLModule {
     });
 
     // Helper function for the shared access logic
-    const handleSHLAccess = (req, res) => {
+    const handleSHLAccess = (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const {uuid} = req.params;
@@ -833,7 +906,7 @@ class SHLModule {
 
         const checkSHLSql = 'SELECT uuid, vhl FROM SHL WHERE uuid = ? AND expires_at > datetime("now")';
 
-        this.db.get(checkSHLSql, [uuid], (err, shlRow) => {
+        this.db.get(checkSHLSql, [uuid], (/** @type {Error|null} */ err, /** @type {any} */ shlRow) => {
           if (err) {
             return res.status(500).json({error: 'Database error'});
           }
@@ -844,14 +917,14 @@ class SHLModule {
 
           const logAccessSql = 'INSERT INTO SHLViews (shl_uuid, recipient, ip_address) VALUES (?, ?, ?)';
 
-          this.db.run(logAccessSql, [uuid, recipient, clientIP], function (logErr) {
+          this.db.run(logAccessSql, [uuid, recipient, clientIP], (/** @type {Error|null} */ logErr) => {
             if (logErr) {
               shlLog.error('Failed to log SHL access:', logErr.message);
             }
 
             const getFilesSql = 'SELECT id, cnt, type FROM SHLFiles WHERE shl_uuid = ?';
 
-            this.db.all(getFilesSql, [uuid], (err, fileRows) => {
+            this.db.all(getFilesSql, [uuid], (/** @type {Error|null} */ err, /** @type {any[]} */ fileRows) => {
               if (err) {
                 return res.status(500).json({error: 'Failed to retrieve files'});
               }
@@ -860,7 +933,8 @@ class SHLModule {
               const protocol = req.secure ? 'https' : 'http';
               const maxLength = embeddedLengthMax ? parseInt(embeddedLengthMax) : undefined;
 
-              const files = fileRows.map(file => {
+              const files = fileRows.map((/** @type {any} */ file) => {
+                /** @type {Record<string, any>} */
                 const fileResponse = {
                   contentType: file.type,
                   location: `${protocol}://${host}/shl/file/${file.id}`
@@ -880,7 +954,7 @@ class SHLModule {
                   const vhlResponse = vhlProcessor.processVHL(host, uuid, standardResponse);
                   res.json(vhlResponse);
                 } catch (vhlErr) {
-                  shlLog.error('VHL processing error:', vhlErr.message);
+                  shlLog.error('VHL processing error:', errorMessage(vhlErr));
                   res.json(standardResponse);
                 }
               } else {
@@ -899,7 +973,7 @@ class SHLModule {
     this.router.post('/access/:uuid', this.validateJsonBody(['recipient'], ['embeddedLengthMax']), handleSHLAccess);
 
     // SHL file endpoint - serves individual files
-    this.router.get('/file/:fileId', (req, res) => {
+    this.router.get('/file/:fileId', (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const {fileId} = req.params;
@@ -915,7 +989,7 @@ class SHLModule {
 
         const getFileSql = 'SELECT id, shl_uuid, cnt, type FROM SHLFiles WHERE id = ?';
 
-        this.db.get(getFileSql, [fileId], (err, fileRow) => {
+        this.db.get(getFileSql, [fileId], (/** @type {Error|null} */ err, /** @type {any} */ fileRow) => {
           if (err) {
             return res.status(500).json({error: 'Database error'});
           }
@@ -927,13 +1001,13 @@ class SHLModule {
           const logMasterAccessSql = 'INSERT INTO SHLViews (shl_uuid, recipient, ip_address) VALUES (?, ?, ?)';
           const logFileAccessSql = 'INSERT INTO SHLViews (shl_uuid, recipient, ip_address) VALUES (?, ?, ?)';
 
-          this.db.run(logMasterAccessSql, [fileRow.shl_uuid, null, clientIP], function (logErr) {
+          this.db.run(logMasterAccessSql, [fileRow.shl_uuid, null, clientIP], (/** @type {Error|null} */ logErr) => {
             if (logErr) {
               shlLog.error('Failed to log master SHL file access:', logErr.message);
             }
           });
 
-          this.db.run(logFileAccessSql, [fileRow.id, null, clientIP], function (logErr) {
+          this.db.run(logFileAccessSql, [fileRow.id, null, clientIP], (/** @type {Error|null} */ logErr) => {
             if (logErr) {
               shlLog.error('Failed to log file-specific access:', logErr.message);
             }
@@ -953,7 +1027,7 @@ class SHLModule {
     });
 
     // SHL sign endpoint
-    this.router.post('/sign', this.validateJsonBody(['url']), async (req, res) => {
+    this.router.post('/sign', this.validateJsonBody(['url']), async (/** @type {any} */ req, /** @type {any} */ res) => {
       const start = Date.now();
       try {
         const {url} = req.body;
@@ -1042,13 +1116,13 @@ class SHLModule {
           } catch (error) {
             shlLog.error('SHL sign processing error:', error);
             res.status(500).json({
-              error: 'Failed to sign URL: ' + error.message
+              error: 'Failed to sign URL: ' + errorMessage(error)
             });
           }
         } catch (error) {
           shlLog.error('SHL sign error:', error);
           res.status(500).json({
-            error: 'Failed to sign URL: ' + error.message
+            error: 'Failed to sign URL: ' + errorMessage(error)
           });
         }
       } finally {
@@ -1075,13 +1149,13 @@ class SHLModule {
 
     if (this.db) {
       return new Promise((resolve) => {
-        this.db.close((err) => {
+        this.db.close((/** @type {Error|null} */ err) => {
           if (err) {
             shlLog.error('Error closing SHL database:', err.message);
           } else {
             shlLog.info('SHL database connection closed');
           }
-          resolve();
+          resolve(undefined);
         });
       });
     }

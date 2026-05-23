@@ -1,3 +1,5 @@
+// @ts-check
+
 const { Language } = require("../../library/languages");
 const {CanonicalResource} = require("./canonical-resource");
 const {codeSystemFromR5, codeSystemToR5} = require("../xversion/xv-codesystem");
@@ -20,14 +22,9 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Creates a new CodeSystem instance
-   * @param {Object} jsonObj - The JSON object containing CodeSystem data
-   * @param {string} [version='R5'] - FHIR version ('R3', 'R4', or 'R5')
-   * @param {string} jsonObj.resourceType - Must be "CodeSystem"
-   * @param {string} jsonObj.url - Canonical URL for the code system
-   * @param {string} [jsonObj.version] - Version of the code system
-   * @param {string} jsonObj.name - Name for this code system
-   * @param {string} jsonObj.status - Publication status (draft|active|retired|unknown)
-   * @param {Object[]} [jsonObj.concept] - Array of concept definitions
+   * @param {any} jsonObj - The JSON object containing CodeSystem data
+   * @param {string} [fhirVersion='R5'] - FHIR version ('R3', 'R4', or 'R5')
+   * @param {boolean} [noMaps]
    */
   constructor(jsonObj, fhirVersion = 'R5', noMaps = false) {
     super(jsonObj, fhirVersion);
@@ -38,7 +35,7 @@ class CodeSystem extends CanonicalResource {
         this.validate();
       } catch (e) {
         const id = this.jsonObj?.url ? `${this.jsonObj.url}|${this.jsonObj.version || ''}` : this.jsonObj?.name || 'unknown';
-        throw new Error(`${e.message} (in ${id})`);
+        throw new Error(`${e instanceof Error ? e.message : String(e)} (in ${id})`);
       }
       this.buildMaps();
     }
@@ -46,19 +43,19 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Map of code to concept object for fast lookup
-   * @type {Map<string, Object>}
+   * @type {Map<string, any>}
    */
   codeMap = new Map();
 
   /**
    * Map of code to concept object for fast lookup - not case sensitive, only for non-case sensitive code systems
-   * @type {Map<string, Object>}
+   * @type {Map<string, any>}
    */
-  codeMapNC;
+  codeMapNC = /** @type {any} */ (undefined);
 
   /**
    * Map of display text to concept object for fast lookup
-   * @type {Map<string, Object>}
+   * @type {Map<string, any>}
    */
   displayMap = new Map();
 
@@ -213,9 +210,9 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Helper method to validate arrays for null/undefined elements
-   * @param {Array} array - The array to validate
+   * @param {any[]} array - The array to validate
    * @param {string} path - Path description for error messages
-   * @param {Function} [itemValidator] - Optional function to validate each item
+   * @param {(item: any, index: number) => void} [itemValidator] - Optional function to validate each item
    * @private
    */
   _validateArray(array, path, itemValidator) {
@@ -235,7 +232,7 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Recursively validates concept arrays and their nested structure
-   * @param {Array} concepts - Array of concepts to validate
+   * @param {any[]} concepts - Array of concepts to validate
    * @param {string} path - Path description for error messages
    * @private
    */
@@ -307,6 +304,7 @@ class CodeSystem extends CanonicalResource {
     }
 
     // First pass: build basic maps and collect all concepts (including nested)
+    /** @type {any[]} */
     const allConcepts = [];
     this._collectAllConcepts(this.jsonObj.concept, allConcepts);
 
@@ -334,8 +332,8 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Recursively collects all concepts including nested ones
-   * @param {Object[]} concepts - Array of concepts
-   * @param {Object[]} allConcepts - Accumulator for all concepts
+   * @param {any[]} concepts - Array of concepts
+   * @param {any[]} allConcepts - Accumulator for all concepts
    * @private
    */
   _collectAllConcepts(concepts, allConcepts) {
@@ -349,7 +347,7 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Builds hierarchy maps from concept properties
-   * @param {Object} concept - The concept to process
+   * @param {any} concept - The concept to process
    * @private
    */
   _buildHierarchyMaps(concept) {
@@ -357,7 +355,7 @@ class CodeSystem extends CanonicalResource {
       return;
     }
 
-    concept.property.forEach(property => {
+    concept.property.forEach((/** @type {any} */ property) => {
       if ((property.code === 'parent' || this.isPropUri(property.code, 'http://hl7.org/fhir/concept-properties#parent')) && property.valueCode) {
         // This concept has a parent
         this._addToChildToParentsMap(concept.code, property.valueCode);
@@ -372,8 +370,8 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Builds hierarchy from nested concept structures
-   * @param {Object[]} concepts - Array of concepts
-   * @param {string} [parentCode] - Code of parent concept
+   * @param {any[]} concepts - Array of concepts
+   * @param {string | null} [parentCode] - Code of parent concept
    * @private
    */
   _buildNestedHierarchy(concepts, parentCode = null) {
@@ -400,6 +398,7 @@ class CodeSystem extends CanonicalResource {
       this.childToParentsMap.set(childCode, []);
     }
     const parents = this.childToParentsMap.get(childCode);
+    if (!parents) return;
     if (!parents.includes(parentCode)) {
       parents.push(parentCode);
     }
@@ -416,6 +415,7 @@ class CodeSystem extends CanonicalResource {
       this.parentToChildrenMap.set(parentCode, []);
     }
     const children = this.parentToChildrenMap.get(parentCode);
+    if (!children) return;
     if (!children.includes(childCode)) {
       children.push(childCode);
     }
@@ -424,7 +424,7 @@ class CodeSystem extends CanonicalResource {
   /**
    * Gets a concept by its code
    * @param {string} code - The concept code to look up
-   * @returns {Object|undefined} The concept object or undefined if not found
+   * @returns {any} The concept object or undefined if not found
    */
   getConceptByCode(code) {
     return this.caseInsensitive() ? this.codeMapNC.get(code.toLowerCase()) : this.codeMap.get(code);
@@ -433,7 +433,7 @@ class CodeSystem extends CanonicalResource {
   /**
    * Gets a concept by its display text
    * @param {string} display - The display text to look up
-   * @returns {Object|undefined} The concept object or undefined if not found
+   * @returns {any} The concept object or undefined if not found
    */
   getConceptByDisplay(display) {
     return this.displayMap.get(display);
@@ -463,12 +463,20 @@ class CodeSystem extends CanonicalResource {
    * @returns {string[]} Array of all descendant codes
    */
   getDescendants(code) {
+    /** @type {string[]} */
     const descendants = [];
+    /** @type {Set<string>} */
     const descSet = new Set();
     this.addDescendents(descendants, descSet, code, false);
     return descendants;
   }
 
+  /**
+   * @param {string[]} descendants
+   * @param {Set<string>} descSet
+   * @param {string} current
+   * @param {boolean} add
+   */
   addDescendents(descendants, descSet, current, add) {
     if (!descSet.has(current)) {
       descSet.add(current);
@@ -488,15 +496,19 @@ class CodeSystem extends CanonicalResource {
    * @returns {string[]} Array of all ancestor codes
    */
   getAncestors(code) {
+    /** @type {Set<string>} */
     const ancestors = new Set();
+    /** @type {Set<string>} */
     const visited = new Set([code]); // Track visited codes to handle circular references
+    /** @type {string[]} */
     const toProcess = [code];
 
     while (toProcess.length > 0) {
       const current = toProcess.pop();
+      if (!current) continue;
       const parents = this.getParents(current);
 
-      parents.forEach(parent => {
+      parents.forEach((/** @type {string} */ parent) => {
         if (!visited.has(parent)) {
           visited.add(parent);
           ancestors.add(parent);
@@ -557,7 +569,7 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Gets all concepts in this code system
-   * @returns {Object[]} Array of all concept objects
+   * @returns {any[]} Array of all concept objects
    */
   getAllConcepts() {
     return Array.from(this.codeMap.values());
@@ -565,7 +577,7 @@ class CodeSystem extends CanonicalResource {
 
   /**
    * Gets basic info about this code system
-   * @returns {Object} Basic information object
+   * @returns {any} Basic information object
    */
   getInfo() {
     return {
@@ -582,6 +594,9 @@ class CodeSystem extends CanonicalResource {
     };
   }
 
+  /**
+   * @param {any} use
+   */
   static isUseADisplay(use) {
     return (use != null) || true; // for now
   }
@@ -610,6 +625,7 @@ class CodeSystem extends CanonicalResource {
     return this.jsonObj.caseSensitive == undefined || this.jsonObj.caseSensitive == false;
   }
 
+  // @ts-ignore CanonicalResource exposes id as a data property; CodeSystem keeps the historical jsonObj-backed accessor.
   get id() {
     return this.jsonObj.id;
   }
@@ -623,13 +639,21 @@ class CodeSystem extends CanonicalResource {
     if (this.jsonObj.url === 'https://terminology.dhp.uz/fhir/CodeSystem/loinc-supplement-uz') {
       return true;
     }
-    return (this.jsonObj.extension || []).find(x => x.url == 'http://hl7.org/fhir/StructureDefinition/codesystem-supplement-type' && getValuePrimitive(x) == 'lang-pack');
+    return (this.jsonObj.extension || []).find((/** @type {any} */ x) => x.url == 'http://hl7.org/fhir/StructureDefinition/codesystem-supplement-type' && getValuePrimitive(x) == 'lang-pack');
   }
 
+  /**
+   * @param {string} code
+   * @param {string} uri
+   */
   isPropUri(code, uri) {
-    return (this.jsonObj.property || []).find(x => x.code == code && x.uri == uri);
+    return (this.jsonObj.property || []).find((/** @type {any} */ x) => x.code == code && x.uri == uri);
   }
 
+  /**
+   * @param {string} url
+   * @param {string | null | undefined} version
+   */
   isSupplementFor(url, version) {
     if (this.jsonObj.content !== 'supplement') {
       return false;
@@ -640,7 +664,7 @@ class CodeSystem extends CanonicalResource {
     }
     if (suppU.startsWith(url + '|')) {
       let suppV = suppU.substring(suppU.indexOf('|') + 1);
-      return VersionUtilities.versionMatchesByAlgorithm(suppV, version, VersionUtilities.guessVersionAlgorithmFromVersion(version));
+      return VersionUtilities.versionMatchesByAlgorithm(suppV, /** @type {string} */ (version), VersionUtilities.guessVersionAlgorithmFromVersion(/** @type {string} */ (version)));
     }
     return false;
   }

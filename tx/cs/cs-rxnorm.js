@@ -1,15 +1,32 @@
+// @ts-check
+
 const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
-const { CodeSystemProvider, CodeSystemFactoryProvider } = require('./cs-api');
+const csApi = require('./cs-api');
+const CodeSystemProvider = /** @type {any} */ (csApi.CodeSystemProvider);
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
 const {Designations} = require("../library/designations");
 const {validateArrayParameter, formatDateMMDDYYYY} = require("../../library/utilities");
 
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {string | RxNormConcept | null | undefined} RxNormContextInput */
+/** @typedef {{context: RxNormConcept | null, message?: string | null}} RxNormLocateResult */
+/** @typedef {{version: string, rels: string[], reltypes: string[], totalCodeCount: number}} RxNormSharedData */
+/** @typedef {Record<string, string>} RxNormSqlParams */
+/** @typedef {{RXCUI?: string, SCUI?: string, STR: string, TTY?: string, suppress?: string, version?: string | number, [key: string]: any}} RxNormRow */
+/** @typedef {{stems: string[]}} RxNormSearchFilter */
+
 // Context for RxNorm concepts
 class RxNormConcept {
-  constructor(code, display) {
+  /**
+   * @param {string} code - RxNorm/NCI code
+   * @param {string} display - Display text
+   */
+  constructor(code, display = '') {
     this.code = code;
     this.display = display;
+    /** @type {string[]} */
     this.others = []; // Array of alternative displays (SY terms, etc.)
     this.archived = false;
   }
@@ -20,8 +37,10 @@ class RxNormFilterHolder {
   constructor() {
     this.sql = '';
     this.text = false; // Whether this is a text search filter
+    /** @type {RxNormSqlParams} */
     this.params = {}; // Parameters for the SQL query
     this.cursor = 0;
+    /** @type {RxNormRow[] | null} */
     this.results = null; // Will hold query results for iteration
     this.executed = false;
   }
@@ -30,32 +49,52 @@ class RxNormFilterHolder {
 // Filter preparation context
 class RxNormPrep {
   constructor() {
+    /** @type {RxNormFilterHolder[]} */
     this.filters = [];
   }
 }
 
 // Iterator context
 class RxNormIteratorContext {
+  /**
+   * @param {string} query - SQL query
+   * @param {RxNormSqlParams} params - SQL parameters
+   */
   constructor(query, params = {}) {
     this.query = query;
     this.params = params;
     this.cursor = 0;
+    /** @type {RxNormRow[] | null} */
     this.results = null;
     this.executed = false;
   }
 
+  /**
+   * @returns {boolean} Whether another row is available
+   */
   more() {
     return this.cursor < (this.results ? this.results.length : 0);
   }
 
+  /**
+   * @returns {void}
+   */
   next() {
     this.cursor++;
   }
 }
 
 class RxNormServices extends CodeSystemProvider {
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @param {SqliteDatabase | null} db - Open RxNorm database
+   * @param {RxNormSharedData} sharedData - Shared data loaded by factory
+   * @param {boolean} isNCI - Whether this is NCI metadata
+   */
   constructor(opContext, supplements, db, sharedData, isNCI = false) {
     super(opContext, supplements);
+    /** @type {SqliteDatabase | null} */
     this.db = db;
     this.isNCI = isNCI;
 
@@ -94,25 +133,42 @@ class RxNormServices extends CodeSystemProvider {
     return this.totalCodeCount;
   }
 
+  /**
+   * @returns {string} Source abbreviation
+   */
   getSAB() {
     return this.isNCI ? 'NCI' : 'RXNORM';
   }
 
+  /**
+   * @returns {string} Source code field name
+   */
   getCodeField() {
     return this.isNCI ? 'SCUI' : 'RXCUI';
   }
 
+  /**
+   * @returns {boolean} Whether the code system has parent relationships
+   */
   hasParents() {
     return true; // RxNorm has relationships
   }
 
   // Core concept methods
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<string | null>} Concept code
+   */
   async code(context) {
     
     const ctxt = await this.#ensureContext(context);
     return ctxt ? ctxt.code : null;
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<string | null>} Display string
+   */
   async display(context) {
     
     const ctxt = await this.#ensureContext(context);
@@ -129,67 +185,102 @@ class RxNormServices extends CodeSystemProvider {
     return ctxt.display || '';
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<null>} Definition, if any
+   */
   async definition(context) {
     await this.#ensureContext(context);
     return null; // RxNorm doesn't provide definitions
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<boolean>} Whether the concept is abstract
+   */
   async isAbstract(context) {
     await this.#ensureContext(context);
 
     return false; // RxNorm codes are not abstract
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<string | null>} Concept status
+   */
   async getStatus(context) {
 
     const ctxt = await this.#ensureContext(context);
 
-    if (ctxt && ctxt.archived) {
+    if (!ctxt) {
+      return null;
+    }
+    if (ctxt.archived) {
       return 'archived';
     }
 
     // Check suppress flag
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = `SELECT suppress FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ? AND TTY <> 'SY'`;
 
-      this.db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
+      db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
         if (err) {
           reject(err);
         } else {
-          resolve(row ? row.suppress === '1' ? 'suppressed' : null : null);
+          const rxRow = row ? /** @type {RxNormRow} */ (row) : null;
+          resolve(rxRow ? rxRow.suppress === '1' ? 'suppressed' : null : null);
         }
       });
     });
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<boolean>} Whether the concept is inactive
+   */
   async isInactive(context) {
     
     const ctxt = await this.#ensureContext(context);
 
-    if (ctxt && ctxt.archived) {
+    if (!ctxt) {
+      return false;
+    }
+    if (ctxt.archived) {
       return true;
     }
 
     // Check suppress flag
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const sql = `SELECT suppress FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ? AND TTY <> 'SY'`;
 
-      this.db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
+      db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
         if (err) {
           reject(err);
         } else {
-          resolve(row ? row.suppress === '1' : false);
+          const rxRow = row ? /** @type {RxNormRow} */ (row) : null;
+          resolve(rxRow ? rxRow.suppress === '1' : false);
         }
       });
     });
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<boolean>} Whether the concept is deprecated
+   */
   async isDeprecated(context) {
     
     const ctxt = await this.#ensureContext(context);
     return ctxt ? ctxt.archived : false;
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<void>}
+   */
   async designations(context, displays) {
     
     const ctxt = await this.#ensureContext(context);
@@ -208,6 +299,10 @@ class RxNormServices extends CodeSystemProvider {
     }
   }
 
+  /**
+   * @param {RxNormContextInput} context - Code or context
+   * @returns {Promise<RxNormConcept | null>}
+   */
   async #ensureContext(context) {
     if (!context) {
       return null;
@@ -215,7 +310,7 @@ class RxNormServices extends CodeSystemProvider {
     if (typeof context === 'string') {
       const ctxt = await this.locate(context);
       if (!ctxt.context) {
-        throw new Error(ctxt.message);
+        throw new Error(ctxt.message || `Code '${context}' not found in ${this.name()}`);
       } else {
         return ctxt.context;
       }
@@ -226,16 +321,31 @@ class RxNormServices extends CodeSystemProvider {
     throw new Error("Unknown Type at #ensureContext: " + (typeof context));
   }
 
+  /**
+   * @returns {SqliteDatabase}
+   */
+  #requireDb() {
+    if (!this.db) {
+      throw new Error('RxNorm database is closed');
+    }
+    return this.db;
+  }
+
   // Lookup methods
+  /**
+   * @param {string | null | undefined} code - Code to locate
+   * @returns {Promise<RxNormLocateResult>} Locate result
+   */
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
     if (!code) return { context: null, message: 'Empty code' };
 
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       let sql = `SELECT STR, TTY FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
 
-      this.db.all(sql, [code, this.getSAB()], (err, rows) => {
+      db.all(sql, [code, this.getSAB()], (err, rows) => {
         if (err) {
           reject(err);
           return;
@@ -244,7 +354,7 @@ class RxNormServices extends CodeSystemProvider {
         if (rows.length === 0) {
           // Try archive
           sql = `SELECT STR, TTY FROM RXNATOMARCHIVE WHERE ${this.getCodeField()} = ? AND SAB = ?`;
-          this.db.all(sql, [code, this.getSAB()], (err, archiveRows) => {
+          db.all(sql, [code, this.getSAB()], (err, archiveRows) => {
             if (err) {
               reject(err);
               return;
@@ -255,17 +365,23 @@ class RxNormServices extends CodeSystemProvider {
               return;
             }
 
-            const concept = this.#createConceptFromRows(code, archiveRows, true);
+            const concept = this.#createConceptFromRows(code, /** @type {RxNormRow[]} */ (archiveRows), true);
             resolve({ context: concept, message: null });
           });
         } else {
-          const concept = this.#createConceptFromRows(code, rows, false);
+          const concept = this.#createConceptFromRows(code, /** @type {RxNormRow[]} */ (rows), false);
           resolve({ context: concept, message: null });
         }
       });
     });
   }
 
+  /**
+   * @param {string} code - Concept code
+   * @param {RxNormRow[]} rows - Database rows
+   * @param {boolean} archived - Whether the concept is archived
+   * @returns {RxNormConcept} Concept
+   */
   #createConceptFromRows(code, rows, archived) {
     const concept = new RxNormConcept(code);
     concept.archived = archived;
@@ -282,6 +398,10 @@ class RxNormServices extends CodeSystemProvider {
   }
 
   // Iterator methods
+  /**
+   * @param {RxNormContextInput} context - Optional context
+   * @returns {Promise<RxNormIteratorContext>} Iterator context
+   */
   async iterator(context) {
     
 
@@ -295,6 +415,10 @@ class RxNormServices extends CodeSystemProvider {
     }
   }
 
+  /**
+   * @param {RxNormIteratorContext} iteratorContext - Iterator context
+   * @returns {Promise<RxNormConcept | null>} Next concept
+   */
   async nextContext(iteratorContext) {
     
 
@@ -306,32 +430,46 @@ class RxNormServices extends CodeSystemProvider {
       return null;
     }
 
-    const row = iteratorContext.results[iteratorContext.cursor];
+    const row = iteratorContext.results ? iteratorContext.results[iteratorContext.cursor] : null;
+    if (!row) {
+      return null;
+    }
     iteratorContext.next();
 
     const concept = new RxNormConcept(row[this.getCodeField()], row.STR);
     return concept;
   }
 
+  /**
+   * @param {RxNormIteratorContext} iteratorContext - Iterator context
+   * @returns {Promise<void>}
+   */
   async #executeIterator(iteratorContext) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
-      this.db.all(iteratorContext.query, Object.values(iteratorContext.params), (err, rows) => {
+      db.all(iteratorContext.query, Object.values(iteratorContext.params), (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          iteratorContext.results = rows;
+          iteratorContext.results = /** @type {RxNormRow[]} */ (rows);
           iteratorContext.executed = true;
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
   // Filter support
+  /**
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<boolean>} Whether this filter is supported
+   */
   async doesFilter(prop, op, value) {
     
 
-    let propUC = prop.toUpperCase();
+    const propUC = prop.toUpperCase();
 
     // TTY filters
     if (propUC === 'TTY' && ['=', 'in'].includes(op)) {
@@ -361,19 +499,32 @@ class RxNormServices extends CodeSystemProvider {
     return false;
   }
 
+  /**
+   * @param {boolean} iterate - Whether filters will be iterated
+   * @returns {Promise<RxNormPrep>} Filter prep context
+   */
   // eslint-disable-next-line no-unused-vars
   async getPrepContext(iterate) {
     return new RxNormPrep();
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @param {boolean} forIteration - Whether the filter is for iteration
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<void>}
+   */
   async filter(filterContext, forIteration, prop, op, value) {
     
 
     const filter = new RxNormFilterHolder();
-    let propUC = prop.toUpperCase();
+    const propUC = prop.toUpperCase();
 
     let sql = '';
-    let params = {};
+    /** @type {RxNormSqlParams} */
+    const params = {};
 
     if (op === 'in' && propUC === 'TTY') {
       const values = value.split(',').map(v => v.trim()).filter(v => v);
@@ -428,6 +579,12 @@ class RxNormServices extends CodeSystemProvider {
     filterContext.filters.push(filter);
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @param {RxNormSearchFilter} filter - Search filter
+   * @param {boolean} sort - Whether sorting was requested
+   * @returns {Promise<void>}
+   */
   async searchFilter(filterContext, filter, sort) {
 
     if (!filter || !filter.stems || filter.stems.length === 0) {
@@ -448,6 +605,10 @@ class RxNormServices extends CodeSystemProvider {
     }
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @returns {Promise<RxNormFilterHolder[]>} Combined filters
+   */
   async executeFilters(filterContext) {
     
 
@@ -458,7 +619,8 @@ class RxNormServices extends CodeSystemProvider {
     // Build the complete query
     let sql1 = '';
     let sql2 = 'FROM rxnconso';
-    let allParams = {};
+    /** @type {RxNormSqlParams} */
+    const allParams = {};
 
     let stemIndex = 0;
 
@@ -497,6 +659,11 @@ class RxNormServices extends CodeSystemProvider {
     return [combinedFilter];
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @param {RxNormFilterHolder} set - Filter holder
+   * @returns {Promise<number>} Number of matching rows
+   */
   async filterSize(filterContext, set) {
     if (!set.executed) {
       await this.#executeFilter(set);
@@ -505,6 +672,11 @@ class RxNormServices extends CodeSystemProvider {
     return set.results ? set.results.length : 0;
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @param {RxNormFilterHolder} set - Filter holder
+   * @returns {Promise<boolean>} Whether another row exists
+   */
   async filterMore(filterContext, set) {
     
 
@@ -515,6 +687,11 @@ class RxNormServices extends CodeSystemProvider {
     return set.cursor < (set.results ? set.results.length : 0);
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @param {RxNormFilterHolder} set - Filter holder
+   * @returns {Promise<RxNormConcept | null>} Current concept
+   */
   async filterConcept(filterContext, set) {
     
 
@@ -522,7 +699,7 @@ class RxNormServices extends CodeSystemProvider {
       await this.#executeFilter(set);
     }
 
-    if (set.cursor >= set.results.length) {
+    if (!set.results || set.cursor >= set.results.length) {
       return null;
     }
 
@@ -533,28 +710,42 @@ class RxNormServices extends CodeSystemProvider {
     return concept;
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @param {RxNormFilterHolder} set - Filter holder
+   * @param {string} code - Concept code
+   * @returns {Promise<RxNormConcept | null>} Matching concept, if any
+   */
   async filterLocate(filterContext, set, code) {
     
 
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       // Build query to check if code exists in filter
       const checkQuery = `SELECT ${this.getCodeField()}, STR FROM rxnconso WHERE SAB = $sab AND TTY <> 'SY' AND ${this.getCodeField()} = $code ${set.sql.replace(/SELECT.*?FROM rxnconso/, '').replace(/WHERE SAB = \$sab AND TTY <> 'SY'/, '')}`;
 
       const params = { ...set.params, code };
 
-      this.db.get(checkQuery, this.#buildParamArray(checkQuery, params), (err, row) => {
+      db.get(checkQuery, this.#buildParamArray(checkQuery, params), (err, row) => {
         if (err) {
           reject(err);
         } else if (!row) {
           resolve(null);
         } else {
-          const concept = new RxNormConcept(row[this.getCodeField()], row.STR);
+          const rxRow = /** @type {RxNormRow} */ (row);
+          const concept = new RxNormConcept(rxRow[this.getCodeField()], rxRow.STR);
           resolve(concept);
         }
       });
     });
   }
 
+  /**
+   * @param {RxNormPrep} filterContext - Filter context
+   * @param {RxNormFilterHolder} set - Filter holder
+   * @param {RxNormContextInput} concept - Concept to check
+   * @returns {Promise<boolean>} Whether the concept is in the filter
+   */
   async filterCheck(filterContext, set, concept) {
     
 
@@ -566,28 +757,40 @@ class RxNormServices extends CodeSystemProvider {
       await this.#executeFilter(set);
     }
 
-    return set.results.some(row => row[this.getCodeField()] === concept.code);
+    return set.results ? set.results.some(row => row[this.getCodeField()] === concept.code) : false;
   }
 
+  /**
+   * @param {RxNormFilterHolder} filter - Filter holder
+   * @returns {Promise<void>}
+   */
   async #executeFilter(filter) {
+    const db = this.#requireDb();
     return new Promise((resolve, reject) => {
       const paramArray = this.#buildParamArray(filter.sql, filter.params);
 
-      this.db.all(filter.sql, paramArray, (err, rows) => {
+      db.all(filter.sql, paramArray, (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          filter.results = rows;
+          filter.results = /** @type {RxNormRow[]} */ (rows);
           filter.executed = true;
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
   // Helper method to build parameter arrays for sqlite3
+  /**
+   * @param {string} sql - SQL containing named parameters
+   * @param {RxNormSqlParams} params - Parameter values by name
+   * @returns {string[]} Parameters in SQL order
+   */
   #buildParamArray(sql, params) {
+    /** @type {string[]} */
     const paramArray = [];
+    /** @type {string[]} */
     const paramOrder = [];
 
     // Extract parameter names from SQL in order
@@ -609,11 +812,20 @@ class RxNormServices extends CodeSystemProvider {
     return paramArray;
   }
 
+  /**
+   * @param {string} str - String to quote for SQLite
+   * @returns {string} Escaped string
+   */
   #sqlWrapString(str) {
     return str.replace(/'/g, "''");
   }
 
   // Subsumption testing
+  /**
+   * @param {RxNormContextInput} codeA - First code or context
+   * @param {RxNormContextInput} codeB - Second code or context
+   * @returns {Promise<string>} Subsumption outcome
+   */
   async subsumesTest(codeA, codeB) {
     await this.#ensureContext(codeA);
     await this.#ensureContext(codeB);
@@ -621,6 +833,12 @@ class RxNormServices extends CodeSystemProvider {
   }
 
   // Extension for lookup operation
+  /**
+   * @param {RxNormContextInput} ctxt - Code or context
+   * @param {string[]} props - Requested properties
+   * @param {any} params - Parameters object
+   * @returns {Promise<void>}
+   */
   async extendLookup(ctxt, props, params) {
     validateArrayParameter(props, 'props', String);
     validateArrayParameter(params, 'params', Object);
@@ -629,7 +847,7 @@ class RxNormServices extends CodeSystemProvider {
     if (typeof ctxt === 'string') {
       const located = await this.locate(ctxt);
       if (!located.context) {
-        throw new Error(located.message);
+        throw new Error(located.message || `Code '${ctxt}' not found in ${this.name()}`);
       }
       ctxt = located.context;
     }
@@ -645,10 +863,20 @@ class RxNormServices extends CodeSystemProvider {
     const designations =  new Designations(this.opContext.i18n.languageDefinitions);
     await this.designations(ctxt, designations);
     for (const designation of designations) {
-      this.#addProperty(params, 'designation', 'display', designation.value, designation.language);
+      if (designation.value) {
+        this.#addProperty(params, 'designation', 'display', designation.value, designation.language);
+      }
     }
   }
 
+  /**
+   * @param {any} params - Parameters object
+   * @param {string} type - Parameter name
+   * @param {string} name - Property/designation code
+   * @param {string} value - Property/designation value
+   * @param {any} language - Optional language
+   * @returns {void}
+   */
   #addProperty(params, type, name, value, language = null) {
     if (!params.parameter) {
       params.parameter = [];
@@ -675,11 +903,17 @@ class RxNormServices extends CodeSystemProvider {
 }
 
 class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
+  /**
+   * @param {any} i18n - Translation support
+   * @param {string} dbPath - Path to RxNorm SQLite database
+   * @param {boolean} isNCI - Whether this is NCI metadata
+   */
   constructor(i18n, dbPath, isNCI = false) {
     super(i18n);
     this.dbPath = dbPath;
     this.isNCI = isNCI;
     this._loaded = false;
+    /** @type {RxNormSharedData | null} */
     this._sharedData = null;
   }
 
@@ -688,14 +922,22 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
   }
 
   version() {
-    return this._sharedData.version;
+    return this._sharedData ? this._sharedData.version : null;
   }
 
+  /**
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - ValueSet version
+   * @returns {Promise<null>}
+   */
   // eslint-disable-next-line no-unused-vars
   async buildKnownValueSet(url, version) {
     return null;
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async #ensureLoaded() {
     if (!this._loaded) {
       await this.load();
@@ -708,7 +950,7 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     try {
       await new Promise((resolve, reject) => {
         db.run(`CREATE INDEX IF NOT EXISTS idx_rxnstems_cui_stem ON RXNSTEMS(CUI, stem)`,
-          err => err ? reject(err) : resolve());
+          err => err ? reject(err) : resolve(undefined));
       });
 
       this._sharedData = {
@@ -719,17 +961,18 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
       };
 
       // Load version
-      this._sharedData.version = await this.#readVersion(db);
+      const sharedData = this._sharedData;
+      sharedData.version = await this.#readVersion(db);
 
       // Load relationship types
-      this._sharedData.rels = await this.#loadList(db, 'SELECT DISTINCT REL FROM RXNREL');
+      sharedData.rels = await this.#loadList(db, 'SELECT DISTINCT REL FROM RXNREL');
 
       // Load relationship attributes
-      this._sharedData.reltypes = await this.#loadList(db, 'SELECT DISTINCT RELA FROM RXNREL');
+      sharedData.reltypes = await this.#loadList(db, 'SELECT DISTINCT RELA FROM RXNREL');
 
       // Get total count
       const sab = this.isNCI ? 'NCI' : 'RXNORM';
-      this._sharedData.totalCodeCount = await this.#getCount(db, `SELECT COUNT(RXCUI) FROM rxnconso WHERE SAB = ? AND TTY <> 'SY'`, [sab]);
+      sharedData.totalCodeCount = await this.#getCount(db, `SELECT COUNT(RXCUI) FROM rxnconso WHERE SAB = ? AND TTY <> 'SY'`, [sab]);
 
     } finally {
       db.close();
@@ -737,6 +980,10 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     this._loaded = true;
   }
 
+  /**
+   * @param {SqliteDatabase} db - RxNorm database
+   * @returns {Promise<string>} Database version
+   */
   async #readVersion(db) {
     return new Promise((resolve) => {
       db.get('SELECT version FROM RXNVer', (err, row) => {
@@ -759,31 +1006,43 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
           }
           resolve(version);
         } else {
-          resolve(row.version.toString());
+          resolve(String(/** @type {RxNormRow} */ (row).version));
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - RxNorm database
+   * @param {string} sql - Query returning one value per row
+   * @returns {Promise<string[]>} Values
+   */
   async #loadList(db, sql) {
     return new Promise((resolve, reject) => {
       db.all(sql, (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          resolve(rows.map(row => Object.values(row)[0]));
+          resolve(rows.map(row => String(Object.values(/** @type {Record<string, any>} */ (row))[0])));
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - RxNorm database
+   * @param {string} sql - Count query
+   * @param {string[]} params - SQL parameters
+   * @returns {Promise<number>} Count
+   */
   async #getCount(db, sql, params = []) {
     return new Promise((resolve, reject) => {
       db.get(sql, params, (err, row) => {
         if (err) {
           reject(err);
         } else {
-          resolve(row ? Object.values(row)[0] : 0);
+          const value = row ? Object.values(/** @type {Record<string, any>} */ (row))[0] : 0;
+          resolve(Number(value));
         }
       });
     });
@@ -793,6 +1052,11 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     return this._sharedData?.version || 'unknown';
   }
 
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @returns {Promise<RxNormServices>} New provider
+   */
   async build(opContext, supplements) {
     await this.#ensureLoaded();
     this.recordUse();
@@ -800,7 +1064,7 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     // Create fresh database connection for this provider instance
     const db = new sqlite3.Database(this.dbPath);
 
-    return new RxNormServices(opContext, supplements, db, this._sharedData, this.isNCI);
+    return new RxNormServices(opContext, supplements, db, /** @type {RxNormSharedData} */ (this._sharedData), this.isNCI);
   }
 
   name() {
@@ -811,6 +1075,10 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     return this.name()+"-"+this.version();
   }
 
+  /**
+   * @param {string} version - Version to describe
+   * @returns {string} Human-readable version
+   */
   describeVersion(version) {
     try {
       return formatDateMMDDYYYY(version);
@@ -822,6 +1090,10 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
 
 // Specific RxNorm implementation
 class RxNormServicesFactory extends RxNormTypeServicesFactory {
+  /**
+   * @param {any} languageDefinitions - Translation support
+   * @param {string} dbPath - Path to RxNorm SQLite database
+   */
   constructor(languageDefinitions, dbPath) {
     super(languageDefinitions, dbPath, false);
   }
@@ -829,6 +1101,10 @@ class RxNormServicesFactory extends RxNormTypeServicesFactory {
 
 // NCI Meta implementation
 class NCIServicesFactory extends RxNormTypeServicesFactory {
+  /**
+   * @param {any} languageDefinitions - Translation support
+   * @param {string} dbPath - Path to NCI SQLite database
+   */
   constructor(languageDefinitions, dbPath) {
     super(languageDefinitions, dbPath, true);
   }

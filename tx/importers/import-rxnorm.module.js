@@ -1,9 +1,25 @@
+// @ts-check
+
 const { BaseTerminologyModule } = require('./tx-import-base');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const readline = require('readline');
 const chalk = require('chalk');
+
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {{requiredFiles: string[], optionalFiles: string[], estimatedConcepts: number, estimatedRelationships: number, warnings: string[]}} RxNormValidationStats */
+/** @typedef {{version: string, rxnconsoCount: number, rxnrelCount: number, rxnstyCount: number, stemCount: number, sizeGB: number, lastModified: string}} RxNormDatabaseStats */
+/** @typedef {{name: string, sql: string}} CountQuery */
+/** @typedef {{verbose?: boolean, createStems?: boolean, progressCallback?: ((current: number, operation: string | null) => void) | null}} RxNormImporterOptions */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 class RxNormModule extends BaseTerminologyModule {
   constructor() {
@@ -35,6 +51,10 @@ class RxNormModule extends BaseTerminologyModule {
     return '15-45 minutes (depending on stem generation)';
   }
 
+  /**
+   * @param {any} terminologyCommand
+   * @param {Record<string, any>} globalOptions
+   */
   registerCommands(terminologyCommand, globalOptions) {
     // Import command
     terminologyCommand
@@ -46,7 +66,7 @@ class RxNormModule extends BaseTerminologyModule {
       .option('-y, --yes', 'Skip confirmations')
       .option('--no-indexes', 'Skip index creation for faster import')
       .option('--no-stems', 'Skip stem generation for faster import')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleImportCommand({...globalOptions, ...options});
       });
 
@@ -55,7 +75,7 @@ class RxNormModule extends BaseTerminologyModule {
       .command('validate')
       .description('Validate RxNorm source directory structure')
       .option('-s, --source <directory>', 'Source directory to validate')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleValidateCommand({...globalOptions, ...options});
       });
 
@@ -64,11 +84,14 @@ class RxNormModule extends BaseTerminologyModule {
       .command('status')
       .description('Show status of RxNorm database')
       .option('-d, --dest <file>', 'Database file to check')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleStatusCommand({...globalOptions, ...options});
       });
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleImportCommand(options) {
     try {
       // Gather configuration with remembered values
@@ -96,14 +119,18 @@ class RxNormModule extends BaseTerminologyModule {
       // Run the import
       await this.runImport(config);
     } catch (error) {
-      this.logError(`Import command failed: ${error.message}`);
+      this.logError(`Import command failed: ${errorMessage(error)}`);
       if (options.verbose) {
-        console.error(error.stack);
+        console.error(error instanceof Error ? error.stack : error);
       }
       throw error;
     }
   }
 
+  /**
+   * @param {string} sourcePath
+   * @returns {string}
+   */
   detectVersionFromPath(sourcePath) {
     // Try to extract version from path like "RxNorm_full_08042025"
     const pathMatch = sourcePath.match(/RxNorm_full_(\d{8})/);
@@ -118,6 +145,10 @@ class RxNormModule extends BaseTerminologyModule {
     return 'RXNORM-UNKNOWN';
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async confirmImport(config) {
     const inquirer = require('inquirer');
 
@@ -144,13 +175,16 @@ class RxNormModule extends BaseTerminologyModule {
     return confirmed;
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleValidateCommand(options) {
     if (!options.source) {
       const answers = await require('inquirer').prompt({
         type: 'input',
         name: 'source',
         message: 'Source directory to validate:',
-        validate: (input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
+        validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'Directory does not exist'
       });
       options.source = answers.source;
     }
@@ -168,14 +202,17 @@ class RxNormModule extends BaseTerminologyModule {
 
       if (stats.warnings.length > 0) {
         this.logWarning('Validation warnings:');
-        stats.warnings.forEach(warning => console.log(`    ${warning}`));
+        stats.warnings.forEach((/** @type {string} */ warning) => console.log(`    ${warning}`));
       }
 
     } catch (error) {
-      this.logError(`Validation failed: ${error.message}`);
+      this.logError(`Validation failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleStatusCommand(options) {
     const dbPath = options.dest || './data/rxnorm.db';
 
@@ -199,10 +236,14 @@ class RxNormModule extends BaseTerminologyModule {
       console.log(`  Last Modified: ${stats.lastModified}`);
 
     } catch (error) {
-      this.logError(`Status check failed: ${error.message}`);
+      this.logError(`Status check failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} config
+   * @returns {Promise<boolean>}
+   */
   async validatePrerequisites(config) {
     const baseValid = await super.validatePrerequisites(config);
 
@@ -211,13 +252,16 @@ class RxNormModule extends BaseTerminologyModule {
       await this.validateRxNormDirectory(config.source);
       this.logSuccess('RxNorm directory structure valid');
     } catch (error) {
-      this.logError(`RxNorm directory validation failed: ${error.message}`);
+      this.logError(`RxNorm directory validation failed: ${errorMessage(error)}`);
       return false;
     }
 
     return baseValid;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async executeImport(config) {
     this.logInfo('Starting RxNorm data import...');
 
@@ -228,7 +272,7 @@ class RxNormModule extends BaseTerminologyModule {
       {
         verbose: config.verbose,
         createStems: config.createStems,
-        progressCallback: (current, operation) => {
+        progressCallback: (/** @type {number} */ current, /** @type {string | null} */ operation) => {
           if (operation && this.progressBar) {
             // Update operation display
             this.progressBar.update(current, {
@@ -263,6 +307,10 @@ class RxNormModule extends BaseTerminologyModule {
     }
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<RxNormValidationStats>}
+   */
   async validateRxNormDirectory(sourceDir) {
     if (!fs.existsSync(sourceDir)) {
       throw new Error(`Source directory not found: ${sourceDir}`);
@@ -280,8 +328,11 @@ class RxNormModule extends BaseTerminologyModule {
       'RXNCUI.RRF'
     ];
 
+    /** @type {string[]} */
     const warnings = [];
+    /** @type {string[]} */
     let requiredFound = [];
+    /** @type {string[]} */
     let optionalFound = [];
     let estimatedConcepts = 0;
     let estimatedRelationships = 0;
@@ -321,8 +372,12 @@ class RxNormModule extends BaseTerminologyModule {
     };
   }
 
+  /**
+   * @param {string} filePath
+   * @returns {Promise<number>}
+   */
   async countLines(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: number) => void} */ resolve, reject) => {
       let lineCount = 0;
       const rl = readline.createInterface({
         input: fs.createReadStream(filePath),
@@ -335,6 +390,10 @@ class RxNormModule extends BaseTerminologyModule {
     });
   }
 
+  /**
+   * @param {string} sourceDir
+   * @returns {Promise<number>}
+   */
   async estimateWorkload(sourceDir) {
     let totalWork = 0;
     const files = ['RXNCONSO.RRF', 'RXNREL.RRF', 'RXNSTY.RRF', 'RXNSAB.RRF', 'RXNATOMARCHIVE.RRF', 'RXNCUI.RRF'];
@@ -357,10 +416,15 @@ class RxNormModule extends BaseTerminologyModule {
     return Math.max(totalWork, 1);
   }
 
+  /**
+   * @param {string} dbPath
+   * @returns {Promise<RxNormDatabaseStats>}
+   */
   async getDatabaseStats(dbPath) {
     const db = new sqlite3.Database(dbPath);
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: RxNormDatabaseStats) => void} */ resolve) => {
+      /** @type {Record<string, any>} */
       const stats = {};
 
       // Try to get version from a version table or derive from path
@@ -368,19 +432,26 @@ class RxNormModule extends BaseTerminologyModule {
         if (row) {
           db.get('SELECT version FROM RXNVer LIMIT 1', (err, versionRow) => {
             stats.version = versionRow ? versionRow.version : 'Unknown';
-            this.getTableCounts(db, stats, resolve, reject);
+            this.getTableCounts(db, stats, dbPath, resolve);
           });
         } else {
           // Derive version from path or set as unknown
           const pathVersion = path.basename(dbPath, '.db').match(/\d+$/);
           stats.version = pathVersion ? pathVersion[0] : 'Unknown';
-          this.getTableCounts(db, stats, resolve, reject);
+          this.getTableCounts(db, stats, dbPath, resolve);
         }
       });
     });
   }
 
-  getTableCounts(db, stats, resolve) {
+  /**
+   * @param {SqliteDatabase} db
+   * @param {Record<string, any>} stats
+   * @param {string} dbPath
+   * @param {(value: RxNormDatabaseStats) => void} resolve
+   */
+  getTableCounts(db, stats, dbPath, resolve) {
+    /** @type {CountQuery[]} */
     const queries = [
       { name: 'rxnconsoCount', sql: 'SELECT COUNT(*) as count FROM RXNCONSO' },
       { name: 'rxnrelCount', sql: 'SELECT COUNT(*) as count FROM RXNREL' },
@@ -390,7 +461,7 @@ class RxNormModule extends BaseTerminologyModule {
 
     let completed = 0;
 
-    queries.forEach(query => {
+    queries.forEach((query) => {
       db.get(query.sql, (err, row) => {
         if (err) {
           stats[query.name] = 0;
@@ -400,17 +471,21 @@ class RxNormModule extends BaseTerminologyModule {
         completed++;
 
         if (completed === queries.length) {
-          const fileStat = fs.statSync(this.dbPath || './data/rxnorm.db');
+          const fileStat = fs.statSync(dbPath);
           stats.sizeGB = fileStat.size / (1024 * 1024 * 1024);
           stats.lastModified = fileStat.mtime.toISOString();
 
           db.close();
-          resolve(stats);
+          resolve(/** @type {RxNormDatabaseStats} */ (stats));
         }
       });
     });
   }
 
+  /**
+   * @param {string} dbPath
+   * @returns {Promise<void>}
+   */
   async createIndexes(dbPath) {
     const db = new sqlite3.Database(dbPath);
 
@@ -432,7 +507,7 @@ class RxNormModule extends BaseTerminologyModule {
       'CREATE INDEX IF NOT EXISTS idx_rxnstems_cui_stem ON RXNSTEMS(CUI, stem)'
     ];
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       db.serialize(() => {
         indexes.forEach(sql => {
           db.run(sql, (err) => {
@@ -451,6 +526,23 @@ class RxNormModule extends BaseTerminologyModule {
 
 // RxNorm data importer
 class RxNormImporter {
+  /** @type {string} */
+  sourceDir;
+  /** @type {string} */
+  destFile;
+  /** @type {string} */
+  version;
+  /** @type {Required<RxNormImporterOptions>} */
+  options;
+  /** @type {number} */
+  currentProgress;
+
+  /**
+   * @param {string} sourceDir
+   * @param {string} destFile
+   * @param {string} version
+   * @param {RxNormImporterOptions} [options]
+   */
   constructor(sourceDir, destFile, version, options = {}) {
     this.sourceDir = sourceDir;
     this.destFile = destFile;
@@ -464,6 +556,10 @@ class RxNormImporter {
     this.currentProgress = 0;
   }
 
+  /**
+   * @param {number} [amount]
+   * @param {string | null} [operation]
+   */
   updateProgress(amount = 1, operation = null) {
     this.currentProgress += amount;
     if (this.options.progressCallback) {
@@ -471,6 +567,9 @@ class RxNormImporter {
     }
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async import() {
     if (this.options.verbose) console.log('Starting RxNorm import...');
 
@@ -507,6 +606,9 @@ class RxNormImporter {
     }
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async checkFiles() {
     this.updateProgress(0, 'Checking Files');
 
@@ -520,6 +622,10 @@ class RxNormImporter {
     }
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @returns {Promise<void>}
+   */
   async createTables(db) {
     this.updateProgress(0, 'Creating Tables');
 
@@ -629,9 +735,9 @@ class RxNormImporter {
        )`
     ];
 
-    return new Promise((resolve) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve) => {
       db.serialize(() => {
-        tableSQL.forEach(sql => {
+        tableSQL.forEach((sql) => {
           db.run(sql, (err) => {
             if (err && this.options.verbose) {
               console.warn(`Table creation warning: ${err.message}`);
@@ -645,6 +751,9 @@ class RxNormImporter {
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   */
   async loadRXNCONSO(db) {
     await this.loadRRFFile(db, 'RXNCONSO.RRF',
       'INSERT INTO RXNCONSO (RXCUI, RXAUI, SAB, TTY, CODE, STR, SUPPRESS) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -652,6 +761,9 @@ class RxNormImporter {
     );
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   */
   async loadRXNSAB(db) {
     const filePath = path.join(this.sourceDir, 'RXNSAB.RRF');
     if (!fs.existsSync(filePath)) return;
@@ -663,6 +775,9 @@ class RxNormImporter {
     );
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   */
   async loadRXNCUI(db) {
     const filePath = path.join(this.sourceDir, 'RXNCUI.RRF');
     if (!fs.existsSync(filePath)) return;
@@ -673,6 +788,9 @@ class RxNormImporter {
     );
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   */
   async loadRXNATOMARCHIVE(db) {
     const filePath = path.join(this.sourceDir, 'RXNATOMARCHIVE.RRF');
     if (!fs.existsSync(filePath)) return;
@@ -684,6 +802,9 @@ class RxNormImporter {
     );
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   */
   async loadRXNREL(db) {
     await this.loadRRFFile(db, 'RXNREL.RRF',
       'INSERT INTO RXNREL (RXCUI1, RXAUI1, REL, RXCUI2, RXAUI2, RELA, SAB) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -691,6 +812,9 @@ class RxNormImporter {
     );
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   */
   async loadRXNSTY(db) {
     await this.loadRRFFile(db, 'RXNSTY.RRF',
       'INSERT INTO RXNSTY (RXCUI, TUI) VALUES (?, ?)',
@@ -698,6 +822,13 @@ class RxNormImporter {
     );
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @param {string} fileName
+   * @param {string} insertSQL
+   * @param {(items: string[]) => any[]} extractValues
+   * @returns {Promise<void>}
+   */
   async loadRRFFile(db, fileName, insertSQL, extractValues) {
     const filePath = path.join(this.sourceDir, fileName);
     if (!fs.existsSync(filePath)) {
@@ -712,7 +843,7 @@ class RxNormImporter {
       crlfDelay: Infinity
     });
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       db.serialize(() => {
         db.run('BEGIN TRANSACTION');
 
@@ -721,7 +852,7 @@ class RxNormImporter {
         let processedCount = 0;
         let errorCount = 0;
 
-        rl.on('line', (line) => {
+        rl.on('line', (/** @type {string} */ line) => {
           lineCount++;
 
           const items = line.split('|');
@@ -730,10 +861,11 @@ class RxNormImporter {
           try {
             const values = extractValues(items);
             stmt.run(values, (err) => {
-              if (err && err.code !== 'SQLITE_CONSTRAINT') {
+              const sqliteError = /** @type {any} */ (err);
+              if (sqliteError && sqliteError.code !== 'SQLITE_CONSTRAINT') {
                 errorCount++;
                 if (this.options.verbose && errorCount <= 10) {
-                  console.warn(`Error processing line ${lineCount} in ${fileName}: ${err.message}`);
+                  console.warn(`Error processing line ${lineCount} in ${fileName}: ${sqliteError.message}`);
                 }
               }
             });
@@ -745,7 +877,7 @@ class RxNormImporter {
           } catch (error) {
             errorCount++;
             if (this.options.verbose && errorCount <= 10) {
-              console.warn(`Error processing line ${lineCount} in ${fileName}: ${error.message}`);
+              console.warn(`Error processing line ${lineCount} in ${fileName}: ${errorMessage(error)}`);
             }
           }
         });
@@ -774,6 +906,10 @@ class RxNormImporter {
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @returns {Promise<void>}
+   */
   async makeStems(db) {
     this.updateProgress(0, 'Generating Stems');
 
@@ -781,23 +917,27 @@ class RxNormImporter {
 
     // Simple English stemmer implementation
     var natural = require('natural');
+    /** @type {Map<string, Set<string>>} */
     const stems = new Map();
 
     // Get all RXNORM concepts
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       db.all("SELECT RXCUI, STR FROM RXNCONSO WHERE SAB = 'RXNORM'", (err, rows) => {
         if (err) return reject(err);
 
         // Process each concept and generate stems
-        rows.forEach(row => {
+        rows.forEach((/** @type {{RXCUI: string, STR: string}} */ row) => {
           const words = this.extractWords(row.STR);
-          words.forEach(word => {
+          words.forEach((word) => {
             const stem = natural.PorterStemmer.stem(word.toLowerCase());
             if (stem.length > 0 && stem.length <= 20) {
               if (!stems.has(stem)) {
                 stems.set(stem, new Set());
               }
-              stems.get(stem).add(row.RXCUI);
+              const cuis = stems.get(stem);
+              if (cuis) {
+                cuis.add(row.RXCUI);
+              }
             }
           });
         });
@@ -843,18 +983,26 @@ class RxNormImporter {
     });
   }
 
+  /**
+   * @param {string} text
+   * @returns {string[]}
+   */
   extractWords(text) {
     // Extract words from text, removing punctuation and numbers
     return text
       .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(word => word.length > 2 && !/^\d+$/.test(word))
-      .filter(word => word.match(/^[a-z]/));
+      .filter((word) => word.length > 2 && !/^\d+$/.test(word))
+      .filter((word) => word.match(/^[a-z]/));
   }
 
+  /**
+   * @param {SqliteDatabase} db
+   * @returns {Promise<void>}
+   */
   async closeDatabase(db) {
-    return new Promise((resolve) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve) => {
       db.close((err) => {
         if (err && this.options.verbose) {
           console.error('Error closing database:', err);

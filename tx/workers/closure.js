@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Closure Worker - Handles ConceptMap $closure operation
 //
@@ -7,15 +9,24 @@
 
 class ClosureWorker {
   /**
-   * Handle a $closure request
-   * @param {express.Request} req - Express request (with txProvider attached)
-   * @param {express.Response} res - Express response
-   * @param {Object} log - Logger instance
+   * @param {any} _opContext
+   * @param {{debug?: (...args: any[]) => void}} [log]
    */
-  static handle(req, res) {
+  constructor(_opContext = null, log = console) {
+    void _opContext;
+    this.log = log;
+  }
+
+  /**
+   * Handle a $closure request
+   * @param {{method: string, body?: any, query?: any}} req - Express request (with txProvider attached)
+   * @param {{status: (code: number) => {json: (body: any) => any}}} res - Express response
+   * @param {{debug?: (...args: any[]) => void}} [log] - Logger instance
+   */
+  async handle(req, res, log = this.log) {
     const params = req.method === 'POST' ? req.body : req.query;
 
-    this.log.debug('ConceptMap $closure with params:', params);
+    log.debug?.('ConceptMap $closure with params:', params);
 
     // TODO: Implement closure logic using provider
     res.status(501).json({

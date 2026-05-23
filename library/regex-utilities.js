@@ -1,8 +1,14 @@
+// @ts-check
+
 const { RE2JS } = require('re2js');
 
 // Translate a JS-style flags string ("i", "im", "is", etc.) into the bit-flag
 // integer that RE2JS.compile() expects. Only the flags actually used by callers
 // (and their natural counterparts) are mapped; anything else is ignored.
+/**
+ * @param {string | null | undefined} flags
+ * @returns {number}
+ */
 function toRE2JSFlags(flags) {
   if (!flags) return 0;
   let bits = 0;
@@ -18,10 +24,21 @@ function toRE2JSFlags(flags) {
 // against compiled regexes: a JS-RegExp-style `.test(input)` that returns
 // true if the pattern is found anywhere in `input`.
 class CompiledRegex {
+  /** @type {any} */
+  _pattern;
+
+  /**
+   * @param {string} pattern
+   * @param {string | null | undefined} flags
+   */
   constructor(pattern, flags) {
     this._pattern = RE2JS.compile(pattern, toRE2JSFlags(flags));
   }
 
+  /**
+   * @param {unknown} input
+   * @returns {boolean}
+   */
   test(input) {
     if (input == null) return false;
     return this._pattern.matcher(String(input)).find();
@@ -35,11 +52,19 @@ class RegExUtilities {
   // workload with many distinct regex patterns can't grow it without bound.
   static MAX_CACHE_SIZE = 1000;
 
+  /** @type {Map<string, CompiledRegex>} */
+  _cache;
+
   constructor() {
     this._cache = new Map();
   }
 
-  compile(pattern, flags) {
+  /**
+   * @param {string} pattern
+   * @param {string | null | undefined} [flags]
+   * @returns {CompiledRegex}
+   */
+  compile(pattern, flags = null) {
     const key = pattern + '|' + (flags || '');
     const cached = this._cache.get(key);
     if (cached) {
@@ -53,7 +78,9 @@ class RegExUtilities {
       // Evict the oldest entry. Map iteration order is insertion order, so
       // the first key is the least-recently-used.
       const oldest = this._cache.keys().next().value;
-      this._cache.delete(oldest);
+      if (oldest !== undefined) {
+        this._cache.delete(oldest);
+      }
     }
     this._cache.set(key, compiled);
     return compiled;

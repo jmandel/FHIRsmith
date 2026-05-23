@@ -1,16 +1,61 @@
 // Enhanced registry.js with HTML rendering and resolver endpoints
+// @ts-check
 
 const express = require('express');
 const path = require('path');
-const RegistryCrawler = require('./crawler');
-const RegistryAPI = require('./api');
-const htmlServer = require('../library/html-server');
-const Logger = require('../library/logger');
+const RegistryCrawler = /** @type {any} */ (require('./crawler'));
+const RegistryAPI = /** @type {any} */ (require('./api'));
+const htmlServer = /** @type {any} */ (require('../library/html-server'));
+const Logger = /** @type {any} */ (require('../library/logger'));
 const regLog = Logger.getInstance().child({ module: 'registry' });
 const folders = require('../library/folder-setup');
 const escape = require('escape-html');
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorStack(error) {
+  return error instanceof Error && error.stack ? error.stack : '';
+}
+
 class RegistryModule {
+  /** @type {any} */
+  router;
+  /** @type {any} */
+  logger;
+  /** @type {any} */
+  crawler;
+  /** @type {any} */
+  api;
+  /** @type {any} */
+  config;
+  /** @type {any} */
+  crawlInterval;
+  /** @type {boolean} */
+  isInitialized;
+  /** @type {Date | null} */
+  lastCrawlTime;
+  /** @type {boolean} */
+  crawlInProgress;
+  /** @type {any} */
+  currentData;
+  /** @type {boolean} */
+  dataLock;
+  /** @type {any} */
+  stats;
+
+  /**
+   * @param {any} stats
+   */
   constructor(stats) {
     this.router = express.Router();
     this.logger = Logger.getInstance().child({ module: 'registry' });
@@ -30,6 +75,8 @@ class RegistryModule {
 
   /**
    * Initialize the registry module
+   * @param {any} config
+   * @returns {Promise<void>}
    */
   async initialize(config) {
     this.logger.info('Initializing Registry module...');
@@ -72,6 +119,7 @@ class RegistryModule {
 
   /**
    * Load saved registry data if available
+   * @returns {Promise<void>}
    */
   async loadSavedData() {
     try {
@@ -94,6 +142,7 @@ class RegistryModule {
 
   /**
    * Save registry data to disk
+   * @returns {Promise<void>}
    */
   async saveData() {
     try {
@@ -110,6 +159,8 @@ class RegistryModule {
 
   /**
    * Start periodic crawling
+   * @param {number} intervalMinutes
+   * @returns {void}
    */
   startPeriodicCrawl(intervalMinutes) {
     const intervalMs = intervalMinutes * 60 * 1000;
@@ -130,6 +181,7 @@ class RegistryModule {
 
   /**
    * Perform a single crawl
+   * @returns {Promise<void>}
    */
   async performCrawl() {
     if (this.crawlInProgress) {
@@ -166,7 +218,7 @@ class RegistryModule {
       this.stats.taskDone('TxRegistry', 'Crawling Finished');
     } catch (error) {
       this.logger.error('Crawl failed:', error);
-      this.stats.taskError('TxRegistry', 'Crawling Error: '+error.message);
+      this.stats.taskError('TxRegistry', 'Crawling Error: '+errorMessage(error));
     } finally {
       this.crawlInProgress = false;
     }
@@ -174,12 +226,19 @@ class RegistryModule {
 
   /**
    * Data update - no locking needed, Node.js is single-threaded
+   * @param {() => void} updateFn
+   * @returns {Promise<void>}
    */
   async updateData(updateFn) {
     updateFn();
   }
 
+  /**
+   * @param {Record<string, any>} query
+   * @returns {Record<string, string>}
+   */
   _normalizeQueryParams(query) {
+    /** @type {Record<string, string>} */
     const normalized = {};
 
     // Process each parameter
@@ -199,7 +258,7 @@ class RegistryModule {
   }
 
   setupSecurityMiddleware() {
-    this.router.use((req, res, next) => {
+    this.router.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       // Basic security headers
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
@@ -221,7 +280,7 @@ class RegistryModule {
     this.setupSecurityMiddleware();
 
     // Attach API to all routes
-    this.router.use((req, res, next) => {
+    this.router.use((/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       req.registryAPI = this.api;
       next();
     });
@@ -235,8 +294,20 @@ class RegistryModule {
   /**
    * Render HTML page for code system or value set query
    * Combines functionality from sendHtmlCS and sendHtmlVS
+   * @param {any} req
+   * @param {any} res
+   * @param {any} jsonResult
+   * @param {string} basePath
+   * @param {string | undefined} registry
+   * @param {string | undefined} server
+   * @param {string | undefined} fhirVersion
+   * @param {string | undefined} codeSystem
+   * @param {string | undefined} valueSet
+   * @returns {string}
    */
   renderHtmlPage(req, res, jsonResult, basePath, registry, server, fhirVersion, codeSystem, valueSet) {
+    void req;
+    void res;
     // Generate path with query parameters
     let pagePath = basePath;
     if (registry) pagePath += `&registry=${encodeURIComponent(registry)}`;
@@ -293,23 +364,24 @@ class RegistryModule {
       );
     } catch (error) {
       this.logger.error('Error rendering page:', error);
-      return `<html><body><h1>Error rendering page</h1><p>${escape(error.message)}</p></body></html>`;
+      return `<html><body><h1>Error rendering page</h1><p>${escape(errorMessage(error))}</p></body></html>`;
     }
   }
 
   /**
    * Get status text about crawling
    * Based on Pascal status function
+   * @returns {string}
    */
   getStatusText() {
     if (this.crawlInProgress) {
       return 'Scanning for updates now';
     } else if (!this.lastCrawlTime) {
-      const nextScan = this.crawlInterval ?
-        new Date(Date.now() + this.crawlInterval) : null;
+      const nextScan = this.config?.crawlInterval ?
+        new Date(Date.now() + this.config.crawlInterval * 60 * 1000) : null;
 
       if (nextScan) {
-        const timeUntil = this.describePeriod(nextScan - Date.now());
+        const timeUntil = this.describePeriod(nextScan.getTime() - Date.now());
         return `First Scan in ${timeUntil}`;
       } else {
         return 'No automatic scanning configured';
@@ -319,11 +391,11 @@ class RegistryModule {
         new Date(this.lastCrawlTime.getTime() + (this.config.crawlInterval * 60 * 1000)) : null;
 
       if (nextScan) {
-        const timeUntil = this.describePeriod(nextScan - Date.now());
-        const timeSince = this.describePeriod(Date.now() - this.lastCrawlTime);
+        const timeUntil = this.describePeriod(nextScan.getTime() - Date.now());
+        const timeSince = this.describePeriod(Date.now() - this.lastCrawlTime.getTime());
         return `Next Scan in ${timeUntil}. Last scan was ${timeSince} ago`;
       } else {
-        const timeSince = this.describePeriod(Date.now() - this.lastCrawlTime);
+        const timeSince = this.describePeriod(Date.now() - this.lastCrawlTime.getTime());
         return `Last scan was ${timeSince} ago. No automatic scanning configured`;
       }
     }
@@ -332,6 +404,8 @@ class RegistryModule {
   /**
    * Format a time period in milliseconds to a human-readable string
    * Based on Pascal DescribePeriod function
+   * @param {number} milliseconds
+   * @returns {string}
    */
   describePeriod(milliseconds) {
     const seconds = Math.floor(milliseconds / 1000);
@@ -349,6 +423,9 @@ class RegistryModule {
 
   /**
    * Handle main registry page
+   * @param {any} req
+   * @param {any} res
+   * @returns {Promise<void>}
    */
   async handleMainPage(req, res) {
     const start = Date.now();
@@ -385,7 +462,7 @@ class RegistryModule {
             htmlServer.loadTemplate('registry', templatePath);
           } catch (templateError) {
             this.logger.error('Failed to load registry template:', templateError);
-            return res.status(500).send(`<html><body><h1>Template Error</h1><p>Could not load registry-template.html: ${escape(templateError.message)}</p></body></html>`);
+            return res.status(500).send(`<html><body><h1>Template Error</h1><p>Could not load registry-template.html: ${escape(errorMessage(templateError))}</p></body></html>`);
           }
         }
 
@@ -409,7 +486,7 @@ class RegistryModule {
 
       } catch (error) {
         this.logger.error('Error rendering registry page:', error);
-        res.status(500).send(`<html><body><h1>Error rendering registry page</h1><pre>${escape(error.message)}\n${escape(error.stack || '')}</pre></body></html>`);
+        res.status(500).send(`<html><body><h1>Error rendering registry page</h1><pre>${escape(errorMessage(error))}\n${escape(errorStack(error))}</pre></body></html>`);
       }
     } finally {
       this.stats.countRequest('home', Date.now() - start);
@@ -421,6 +498,7 @@ class RegistryModule {
    */
   /**
    * Build HTML content for main page - simplified version
+   * @returns {Promise<string>}
    */
   async buildHtmlContent() {
     const stats = this.api.getStatistics();
@@ -437,15 +515,16 @@ class RegistryModule {
     }
 
     // Gather all server versions into a flat list
+    /** @type {any[]} */
     const serverVersions = [];
 
-    data.registries.forEach(registry => {
+    data.registries.forEach((/** @type {any} */ registry) => {
       const authority = registry.authority || '';
 
-      registry.servers.forEach(server => {
+      registry.servers.forEach((/** @type {any} */ server) => {
         const usageTags = server.usageList || [];
 
-        server.versions.forEach(version => {
+        server.versions.forEach((/** @type {any} */ version) => {
           serverVersions.push({
             serverName: server.name,
             serverUrl: version.address,
@@ -502,7 +581,7 @@ class RegistryModule {
       html += `<td>${escape(server.security || '')}</td>`;
       html += '<td>';
       if (server.usage && server.usage.length > 0) {
-        const badges = server.usage.map(tag =>
+        const badges = server.usage.map((/** @type {string} */ tag) =>
           (tag == 'public' ? '' : `<span class="badge badge-info mr-1">${escape(tag)}</span>`)
         );
         html += badges.join(' ');
@@ -544,18 +623,19 @@ class RegistryModule {
 
   /**
    * Gather information about authoritative code systems
-   * @returns {Array} Array of objects with code system information
+   * @returns {any[]} Array of objects with code system information
    */
   _getAuthoritativeCodeSystems() {
     const data = this.crawler.getData();
+    /** @type {Map<string, any>} */
     const authCSMap = new Map();
 
     if (!data || !data.registries) return [];
 
     // Gather all authoritative code systems
-    data.registries.forEach(registry => {
-      registry.servers.forEach(server => {
-        server.authCSList.forEach(csMask => {
+    data.registries.forEach((/** @type {any} */ registry) => {
+      registry.servers.forEach((/** @type {any} */ server) => {
+        server.authCSList.forEach((/** @type {string} */ csMask) => {
           // Create or update entry for this code system mask
           if (!authCSMap.has(csMask)) {
             authCSMap.set(csMask, {
@@ -576,7 +656,7 @@ class RegistryModule {
 
           // Add version info for this server
           const serverEntry = csEntry.servers.get(server.name);
-          server.versions.forEach(version => {
+          server.versions.forEach((/** @type {any} */ version) => {
             if (!version.error) {
               serverEntry.versions.add(version.version);
             }
@@ -587,37 +667,38 @@ class RegistryModule {
 
     // Convert map to array and sort
     const authCSList = Array.from(authCSMap.values())
-      .map(entry => {
+      .map((/** @type {any} */ entry) => {
         // Convert servers map to array
         entry.servers = Array.from(entry.servers.values())
-          .map(server => {
+          .map((/** @type {any} */ server) => {
             // Convert versions set to sorted array
             server.versions = Array.from(server.versions)
               .sort(this._compareVersionsForSort);
             return server;
           })
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .sort((/** @type {any} */ a, /** @type {any} */ b) => a.name.localeCompare(b.name));
         return entry;
       })
-      .sort((a, b) => a.mask.localeCompare(b.mask));
+      .sort((/** @type {any} */ a, /** @type {any} */ b) => a.mask.localeCompare(b.mask));
 
     return authCSList;
   }
 
   /**
    * Gather information about authoritative value sets
-   * @returns {Array} Array of objects with value set information
+   * @returns {any[]} Array of objects with value set information
    */
   _getAuthoritativeValueSets() {
     const data = this.crawler.getData();
+    /** @type {Map<string, any>} */
     const authVSMap = new Map();
 
     if (!data || !data.registries) return [];
 
     // Gather all authoritative value sets
-    data.registries.forEach(registry => {
-      registry.servers.forEach(server => {
-        server.authVSList.forEach(vsMask => {
+    data.registries.forEach((/** @type {any} */ registry) => {
+      registry.servers.forEach((/** @type {any} */ server) => {
+        server.authVSList.forEach((/** @type {string} */ vsMask) => {
           // Create or update entry for this value set mask
           if (!authVSMap.has(vsMask)) {
             authVSMap.set(vsMask, {
@@ -638,7 +719,7 @@ class RegistryModule {
 
           // Add version info for this server
           const serverEntry = vsEntry.servers.get(server.name);
-          server.versions.forEach(version => {
+          server.versions.forEach((/** @type {any} */ version) => {
             if (!version.error) {
               serverEntry.versions.add(version.version);
             }
@@ -649,19 +730,19 @@ class RegistryModule {
 
     // Convert map to array and sort
     const authVSList = Array.from(authVSMap.values())
-      .map(entry => {
+      .map((/** @type {any} */ entry) => {
         // Convert servers map to array
         entry.servers = Array.from(entry.servers.values())
-          .map(server => {
+          .map((/** @type {any} */ server) => {
             // Convert versions set to sorted array
             server.versions = Array.from(server.versions)
               .sort(this._compareVersionsForSort);
             return server;
           })
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .sort((/** @type {any} */ a, /** @type {any} */ b) => a.name.localeCompare(b.name));
         return entry;
       })
-      .sort((a, b) => a.mask.localeCompare(b.mask));
+      .sort((/** @type {any} */ a, /** @type {any} */ b) => a.mask.localeCompare(b.mask));
 
     return authVSList;
   }
@@ -813,7 +894,7 @@ class RegistryModule {
     html += '</thead>';
     html += '<tbody>';
 
-    authCSList.forEach(cs => {
+    authCSList.forEach((/** @type {any} */ cs) => {
       // Format mask with SNOMED CT edition if applicable
       const formattedMask = this._describeSnomedEdition(cs.mask);
 
@@ -824,7 +905,7 @@ class RegistryModule {
       html += `<td><a href="${escape(cs.servers[0].url)}" target="_blank">${escape(cs.servers[0].url)}</a></td>`;
 
       // Format versions as R3/R4/R5
-      const formattedVersions = cs.servers[0].versions.map(v => this._formatFhirVersion(v));
+      const formattedVersions = cs.servers[0].versions.map((/** @type {string} */ v) => this._formatFhirVersion(v));
       html += `<td>${formattedVersions.join(',')}</td>`;
       html += '</tr>';
 
@@ -834,7 +915,7 @@ class RegistryModule {
         html += `<td><a href="${escape(cs.servers[i].url)}" target="_blank">${escape(cs.servers[i].url)}</a></td>`;
 
         // Format versions as R3/R4/R5
-        const formattedVersions = cs.servers[i].versions.map(v => this._formatFhirVersion(v));
+        const formattedVersions = cs.servers[i].versions.map((/** @type {string} */ v) => this._formatFhirVersion(v));
         html += `<td>${formattedVersions.join(',')}</td>`;
         html += '</tr>';
       }
@@ -872,7 +953,7 @@ class RegistryModule {
     html += '</thead>';
     html += '<tbody>';
 
-    authVSList.forEach(vs => {
+    authVSList.forEach((/** @type {any} */ vs) => {
       // First row for this value set
       const rowspan = vs.servers.length;
       html += '<tr>';
@@ -880,7 +961,7 @@ class RegistryModule {
       html += `<td><a href="${escape(vs.servers[0].url)}" target="_blank">${escape(vs.servers[0].url)}</a></td>`;
 
       // Format versions as R3/R4/R5
-      const formattedVersions = vs.servers[0].versions.map(v => this._formatFhirVersion(v));
+      const formattedVersions = vs.servers[0].versions.map((/** @type {string} */ v) => this._formatFhirVersion(v));
       html += `<td>${formattedVersions.join(',')}</td>`;
       html += '</tr>';
 
@@ -890,7 +971,7 @@ class RegistryModule {
         html += `<td><a href="${escape(vs.servers[i].url)}" target="_blank">${escape(vs.servers[i].url)}</a></td>`;
 
         // Format versions as R3/R4/R5
-        const formattedVersions = vs.servers[i].versions.map(v => this._formatFhirVersion(v));
+        const formattedVersions = vs.servers[i].versions.map((/** @type {string} */ v) => this._formatFhirVersion(v));
         html += `<td>${formattedVersions.join(',')}</td>`;
         html += '</tr>';
       }
@@ -906,6 +987,7 @@ class RegistryModule {
 
   /**
    * Get module status for health check
+   * @returns {any}
    */
   getStatus() {
     const metadata = this.crawler ? this.crawler.getMetadata() : null;
@@ -924,6 +1006,7 @@ class RegistryModule {
 
   /**
    * Shutdown the module
+   * @returns {Promise<void>}
    */
   async shutdown() {
     this.logger.info('Shutting down Registry module...');
@@ -949,7 +1032,7 @@ class RegistryModule {
   /**
    * Validate a URL string for safety
    * @param {string} url - URL to validate
-   * @param {Array} allowedProtocols - Array of allowed protocols (default: ['http:', 'https:'])
+   * @param {string[]} allowedProtocols - Array of allowed protocols (default: ['http:', 'https:'])
    * @returns {boolean} True if URL is valid and safe
    */
   _isValidUrl(url, allowedProtocols = ['http:', 'https:', 'urn:']) {
@@ -969,6 +1052,9 @@ class RegistryModule {
   /**
    * Handle resolve endpoint for browser users
    * Serves a form when accessed directly from a browser
+   * @param {any} req
+   * @param {any} res
+   * @returns {any}
    */
   handleResolveEndpoint(req, res) {
     const start = Date.now();
@@ -989,7 +1075,7 @@ class RegistryModule {
           return res.status(400).json({error: 'Invalid code system URL format'});
         }
 
-        if (valueSet && !this._isValidUrl(cleanVS)) {
+        if (cleanVS && !this._isValidUrl(cleanVS)) {
           return res.status(400).json({error: 'Invalid value set URL format'});
         }
 
@@ -1055,7 +1141,7 @@ class RegistryModule {
         }
 
         // If only authoritative servers are requested, filter results
-        if (authoritativeOnly === 'true' && result) {
+        if (authoritativeOnly && result) {
           result.candidates = [];
         }
         if (acceptsHtml) {
@@ -1089,13 +1175,20 @@ class RegistryModule {
         res.json(result);
       } catch (error) {
         this.logger.error('Error in resolve endpoint:', error);
-        res.status(400).json({error: error.message});
+        res.status(400).json({error: errorMessage(error)});
       }
     } finally {
       this.stats.countRequest('resolve', Date.now() - start);
     }
   }
 
+  /**
+   * @param {any} result
+   * @param {string} fhirVersion
+   * @param {string} resourceUrl
+   * @param {string | undefined} usage
+   * @returns {string}
+   */
   buildResolveResultContent(result, fhirVersion, resourceUrl, usage) {
     let html = '';
 
@@ -1133,7 +1226,7 @@ class RegistryModule {
       html += '</thead>';
       html += '<tbody>';
 
-      result.authoritative.forEach(server => {
+      result.authoritative.forEach((/** @type {any} */ server) => {
         html += '<tr>';
         html += `<td>${escape(server['server-name'])}</td>`;
         html += `<td><a href="${server.url}" target="_blank">${escape(server.url)}</a></td>`;
@@ -1171,7 +1264,7 @@ class RegistryModule {
       html += '</thead>';
       html += '<tbody>';
 
-      result.candidates.forEach(server => {
+      result.candidates.forEach((/** @type {any} */ server) => {
         html += '<tr>';
         html += `<td>${escape(server['server-name'])}</td>`;
         html += `<td><a href="${server.url}" target="_blank">${escape(server.url)}</a></td>`;
@@ -1200,6 +1293,10 @@ class RegistryModule {
 
 // Add this helper method to render security tags
 
+  /**
+   * @param {any} server
+   * @returns {string}
+   */
   renderSecurityTags(server) {
     const tags = [];
 
@@ -1215,6 +1312,8 @@ class RegistryModule {
 
   /**
    * Build content for the resolve form, to be used with the HTML template
+   * @param {Record<string, any>} [queryParams]
+   * @returns {string}
    */
   buildResolveFormContent(queryParams = {}) {
     const fhirVersion = queryParams.fhirVersion || '';
@@ -1287,6 +1386,35 @@ class RegistryModule {
     return html;
   }
 
+  /**
+   * @param {Record<string, any>} [queryParams]
+   * @returns {string}
+   */
+  buildStandaloneResolveForm(queryParams = {}) {
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <title>FHIR Terminology Server Resolver</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+      </head>
+      <body>
+        <main class="container mt-4">
+          <h1>FHIR Terminology Server Resolver</h1>
+          ${this.buildResolveFormContent(queryParams)}
+        </main>
+      </body>
+      </html>
+    `;
+  }
+
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @returns {void}
+   */
   handleLogEndpoint(req, res) {
     const start = Date.now();
     try {
@@ -1327,7 +1455,7 @@ class RegistryModule {
             res.send(html);
           } catch (error) {
             this.logger.error('Error rendering log page:', error);
-            res.status(500).send(`<pre>Error rendering log page: ${error.message}</pre>`);
+            res.status(500).send(`<pre>Error rendering log page: ${errorMessage(error)}</pre>`);
           }
         } else {
           // Return JSON logs
@@ -1338,7 +1466,7 @@ class RegistryModule {
         }
       } catch (error) {
         this.logger.error('Error in log endpoint:', error);
-        res.status(500).json({error: error.message});
+        res.status(500).json({error: errorMessage(error)});
       }
     } finally {
       this.stats.countRequest('log', Date.now() - start);
@@ -1347,8 +1475,8 @@ class RegistryModule {
 
   /**
    * Build log content for template
-   * @param {Array} logs - Array of log entries
-   * @retucountRequestrns {string} HTML content
+   * @param {any[]} logs - Array of log entries
+   * @returns {string} HTML content
    */
   buildLogContent(logs) {
     let html = '';
@@ -1363,7 +1491,7 @@ class RegistryModule {
       const firstTimestamp = new Date(logs[0].timestamp).getTime();
 
       // Format each log entry
-      logs.forEach((log, index) => {
+      logs.forEach((/** @type {any} */ log, /** @type {number} */ index) => {
         const currentTime = new Date(log.timestamp);
 
         // For the first entry, show the full timestamp

@@ -1,9 +1,17 @@
+// @ts-check
+
 /**
  * VersionUtilities - JavaScript implementation
  * Port of the Java VersionUtilities class for FHIR version handling
  */
 
 const { Utilities, validateParameter, validateOptionalParameter} = require('./utilities');
+
+/**
+ * @typedef {'MAJOR' | 'MINOR' | 'PATCH' | 'FULL'} VersionPrecisionValue
+ * @typedef {{url: string | null, version: string | null}} CanonicalParts
+ * @typedef {'semver' | 'date' | 'integer' | 'natural' | 'alpha' | null} VersionAlgorithm
+ */
 
 // Enums
 const VersionPrecision = {
@@ -14,7 +22,14 @@ const VersionPrecision = {
 };
 
 class SemverParser {
-    static parseSemver(version, allowWildcards = false) {
+    /**
+     * @param {unknown} version
+     * @param {boolean} [allowWildcards]
+     * @param {boolean} [_allowQuestion]
+     * @returns {ParseResult}
+     */
+    static parseSemver(version, allowWildcards = false, _allowQuestion = false) {
+        void _allowQuestion;
         const result = new ParseResult();
 
         if (Utilities.noString(version)) {
@@ -23,7 +38,7 @@ class SemverParser {
         }
 
         // Handle question mark suffix
-        let versionStr = version;
+        let versionStr = String(version);
         if (versionStr.endsWith('?')) {
             versionStr = versionStr.slice(0, -1);
         }
@@ -112,6 +127,21 @@ class SemverParser {
 }
 
 class ParseResult {
+    /** @type {boolean} */
+    success;
+    /** @type {string | null} */
+    error;
+    /** @type {string | null} */
+    major;
+    /** @type {string | null} */
+    minor;
+    /** @type {string | null} */
+    patch;
+    /** @type {string | null} */
+    releaseLabel;
+    /** @type {string | null} */
+    build;
+
     constructor() {
         this.success = false;
         this.error = null;
@@ -152,7 +182,9 @@ class ParseResult {
 }
 
 class VersionUtilities {
+    /** @type {string[]} */
     static SUPPORTED_MAJOR_VERSIONS = ["1.0", "1.4", "3.0", "4.0", "5.0", "6.0"];
+    /** @type {string[]} */
     static SUPPORTED_VERSIONS = ["1.0.2", "1.4.0", "3.0.2", "4.0.1", "4.1.0", "4.3.0", "5.0.0", "6.0.0"];
 
     /**
@@ -244,7 +276,7 @@ class VersionUtilities {
 
     /**
      * Checks if the given version is in the list of supported FHIR versions.
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if version is supported
      */
     static isSupportedVersion(version) {
@@ -270,6 +302,8 @@ class VersionUtilities {
 
     /**
      * returns true if version refers to any R6 release (including rX/RX variants)
+     * @param {string | null | undefined} version version string to check
+     * @return {boolean} true if R6+ version
      */
     static isR6Plus(version) {
         return this.isR6Ver(version);
@@ -277,7 +311,7 @@ class VersionUtilities {
 
     /**
      * Checks if version refers to any R6 release.
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if R6 version
      */
     static isR6Ver(version) {
@@ -287,6 +321,8 @@ class VersionUtilities {
 
     /**
      * returns true if version refers to any R5 release (including pre-release versions starting from 4.5) (including rX/RX variants)
+     * @param {string | null | undefined} version version string to check
+     * @return {boolean} true if R5+ version
      */
     static isR5Plus(version) {
         return this.isR5Ver(version) || this.isR6Plus(version);
@@ -294,7 +330,7 @@ class VersionUtilities {
 
     /**
      * Checks if version refers to any R5 release (including 4.5+ pre-releases).
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if R5 version
      */
     static isR5Ver(version) {
@@ -304,7 +340,7 @@ class VersionUtilities {
 
     /**
      * Checks if version refers to any R4B release.
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if R4B version
      */
     static isR4BVer(version) {
@@ -314,7 +350,7 @@ class VersionUtilities {
 
     /**
      * Checks if version refers to any R4 release (including 3.2+ pre-releases).
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if R4 version
      */
     static isR4Ver(version) {
@@ -327,6 +363,8 @@ class VersionUtilities {
 
     /**
      * returns true if version refers to any R4 release (including pre-release versions starting from 3.2) (including rX/RX variants)
+     * @param {string | null | undefined} version version string to check
+     * @return {boolean} true if R4+ version
      */
     static isR4Plus(version) {
         return this.isR4Ver(version) || this.isR4BVer(version) || this.isR5Plus(version);
@@ -334,7 +372,7 @@ class VersionUtilities {
 
     /**
      * Checks if version refers to any R3 release.
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if R3 version
      */
     static isR3Ver(version) {
@@ -344,7 +382,7 @@ class VersionUtilities {
 
     /**
      * Checks if version refers to any R2B release.
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if R2B version
      */
     static isR2BVer(version) {
@@ -354,7 +392,7 @@ class VersionUtilities {
 
     /**
      * Checks if version refers to any R2 release.
-     * @param {string} version version string to check
+     * @param {string | null | undefined} version version string to check
      * @return {boolean} true if R2 version
      */
     static isR2Ver(version) {
@@ -392,6 +430,8 @@ class VersionUtilities {
      * given any valid semver string, returns major.minor. Also accepts the special values rX/RX where X is a major FHIR version (2,2B,3,4,4B,5,6)
      *
      * returns null if not a valid semver
+     * @param {string | null | undefined} version version string
+     * @return {string | null} major.minor or null
      */
     static getMajMin(version) {
         version = this.removeLabels(this.fixForSpecialValue(version));
@@ -404,6 +444,10 @@ class VersionUtilities {
         return this.getMajMinPriv(version);
     }
 
+    /**
+     * @param {string} version
+     * @returns {string}
+     */
     static getMajMinPriv(version) {
         const p = version.split(".");
         return p[0] + "." + p[1];
@@ -415,6 +459,8 @@ class VersionUtilities {
      * if there's no patch, it will be assumed to be 0
      *
      * returns null if it's not a valid semver
+     * @param {string | null | undefined} version version string
+     * @return {string | null} major.minor.patch or null
      */
     static getMajMinPatch(version) {
         version = this.removeLabels(this.fixForSpecialValue(version));
@@ -430,6 +476,8 @@ class VersionUtilities {
 
     /**
      * given any valid semver string, returns just the patch version, with no labels. Also accepts the special values rX/RX where X is a major FHIR version (2,2B,3,4,4B,5,6)
+     * @param {string | null | undefined} version version string
+     * @return {string | null} patch value or null
      */
     static getPatch(version) {
         version = this.removeLabels(this.checkVersionValid(this.fixForSpecialValue(version)));
@@ -438,6 +486,10 @@ class VersionUtilities {
         return this.getPatchPriv(version);
     }
 
+    /**
+     * @param {string} version
+     * @returns {string}
+     */
     static getPatchPriv(version) {
         const p = version.split(".");
         return p.length >= 3 ? p[2] : "0";
@@ -445,6 +497,8 @@ class VersionUtilities {
 
     /**
      * returns true if this is a valid semver. we accept major.minor without a patch. This one does not accept the codes such as RX
+     * @param {string | null | undefined} version version string
+     * @return {boolean} true if valid semver
      */
     static isSemVer(version) {
         if (Utilities.noString(version)) {
@@ -475,6 +529,10 @@ class VersionUtilities {
             (pr.getPatch() == null || this.isIntegerOrX(pr.getPatch()));
     }
 
+    /**
+     * @param {string | null} p
+     * @returns {boolean}
+     */
     static isIntegerOrX(p) {
         return Utilities.existsInList(p, "x", "*", "X") || Utilities.isInteger(p);
     }
@@ -535,8 +593,16 @@ class VersionUtilities {
      * @return {boolean} Is candidate later or equal to criteria? For example, if criteria = 0.5 and candidate = 0.6 this method will return true
      */
     static isThisOrLater(criteria, candidate, precision) {
-        criteria = this.checkVersionNotNullAndValidWildcards(this.fixForSpecialValue(criteria), "criteria");
-        candidate = this.checkVersionNotNullAndValid(this.fixForSpecialValue(candidate), "candidate");
+        const fixedCriteria = this.fixForSpecialValue(criteria);
+        const fixedCandidate = this.fixForSpecialValue(candidate);
+        if (fixedCriteria == null) {
+            throw new Error("Invalid criteria: null / empty");
+        }
+        if (fixedCandidate == null) {
+            throw new Error("Invalid candidate: null / empty");
+        }
+        criteria = fixedCriteria;
+        candidate = fixedCandidate;
 
         let endsWithQ = false;
         if (criteria.endsWith("?")) {
@@ -574,6 +640,12 @@ class VersionUtilities {
         return true;
     }
 
+    /**
+     * @param {string | null} criteria
+     * @param {string | null} candidate
+     * @param {boolean} allowX
+     * @returns {number}
+     */
     static partIsThisOrLater(criteria, candidate, allowX) {
         if (criteria == null) {
             if (candidate == null) {
@@ -594,33 +666,46 @@ class VersionUtilities {
 
     /**
      * given any semver, increment the major version and reset the minor and patch to .0.0, and remove any labels
+     * @param {string} v version string
+     * @return {string} incremented version
      */
     static incMajorVersion(v) {
-        v = this.removeLabels(this.checkVersionNotNullAndValid(this.fixForSpecialValue(v)));
-        const parts = this.splitParts(this.removeLabels(v));
+        const normalized = this.removeLabels(this.checkVersionNotNullAndValid(this.fixForSpecialValue(v)));
+        if (normalized == null) throw new Error("Invalid version: '" + v + "'");
+        const parts = this.splitParts(normalized);
         return (parts[0] + 1).toString() + ".0.0";
     }
 
     /**
      * given any semver, increment the minor version and reset the patch to .0 and remove any labels
+     * @param {string} v version string
+     * @return {string} incremented version
      */
     static incMinorVersion(v) {
-        v = this.removeLabels(this.checkVersionNotNullAndValid(this.fixForSpecialValue(v)));
-        const parts = this.splitParts(this.removeLabels(v));
+        const normalized = this.removeLabels(this.checkVersionNotNullAndValid(this.fixForSpecialValue(v)));
+        if (normalized == null) throw new Error("Invalid version: '" + v + "'");
+        const parts = this.splitParts(normalized);
         return parts[0].toString() + "." + (parts.length === 1 ? "0.0" : (parts[1] + 1).toString() + ".0");
     }
 
     /**
      * given any semver, increment the patch and remove any labels
+     * @param {string} v version string
+     * @return {string} incremented version
      */
     static incPatchVersion(v) {
-        v = this.removeLabels(this.checkVersionNotNullAndValid(this.fixForSpecialValue(v)));
-        const parts = this.splitParts(v);
+        const normalized = this.removeLabels(this.checkVersionNotNullAndValid(this.fixForSpecialValue(v)));
+        if (normalized == null) throw new Error("Invalid version: '" + v + "'");
+        const parts = this.splitParts(normalized);
         return parts[0].toString() + "." +
             (parts.length < 2 ? "0" : parts[1].toString()) + "." +
             (parts.length < 3 ? "1" : (parts[2] + 1).toString());
     }
 
+    /**
+     * @param {string} v
+     * @returns {number[]}
+     */
     static splitParts(v) {
         const p = v.split(".");
         return p.map(part => parseInt(part, 10));
@@ -639,6 +724,9 @@ class VersionUtilities {
 
     /**
      * returns true if v1 and v2 are both semver, and they 'match'
+     * @param {string} criteria criteria version
+     * @param {string} candidate candidate version
+     * @return {boolean} true if versions match
      */
     static versionMatches(criteria, candidate) {
         validateParameter(criteria, "criteria", String);
@@ -649,8 +737,16 @@ class VersionUtilities {
         if (Utilities.noString(candidate)) {
             throw new Error("Invalid candidate: null / empty");
         }
-        criteria = this.fixForSpecialValue(criteria);
-        candidate = this.fixForSpecialValue(candidate);
+        const fixedCriteria = this.fixForSpecialValue(criteria);
+        const fixedCandidate = this.fixForSpecialValue(candidate);
+        if (fixedCriteria == null) {
+            throw new Error("Invalid criteria: null / empty");
+        }
+        if (fixedCandidate == null) {
+            throw new Error("Invalid candidate: null / empty");
+        }
+        criteria = fixedCriteria;
+        candidate = fixedCandidate;
 
         let endsWithQ = false;
         if (criteria.endsWith("?")) {
@@ -679,6 +775,12 @@ class VersionUtilities {
         return true;
     }
 
+    /**
+     * @param {string | null} criteria
+     * @param {string | null} candidate
+     * @param {boolean} allowX
+     * @returns {boolean}
+     */
     static partMatches(criteria, candidate, allowX) {
         if (criteria == null) {
             return candidate == null;
@@ -693,6 +795,9 @@ class VersionUtilities {
 
     /**
      * returns true if v1 matches any v2 using the rules for versionMatches()
+     * @param {string} v1 criteria version
+     * @param {string[]} v2l candidate versions
+     * @return {boolean} true if any candidate matches
      */
     static versionMatchesList(v1, v2l) {
         for (const v2 of v2l) {
@@ -705,6 +810,8 @@ class VersionUtilities {
 
     /**
      * Given a canonical URL of format {url}|{version}, remove the version part
+     * @param {string | null | undefined} url canonical URL
+     * @return {string | null} canonical URL without version, or null
      */
     static removeVersionFromCanonical(url) {
         if (url == null) {
@@ -720,6 +827,9 @@ class VersionUtilities {
     /**
      * given version ver1 and ver2, compare them as semver strings (special values also accepted).
      * -1 means ver1 is earlier, 0 means they 'match' and 1 means ver2 is later (normal java sort order)
+     * @param {string | null | undefined} ver1 first version
+     * @param {string | null | undefined} ver2 second version
+     * @return {number} comparison result
      */
     static compareVersions(ver1, ver2) {
         ver1 = this.checkVersionValid(this.fixForSpecialValue(ver1), "ver1");
@@ -749,6 +859,13 @@ class VersionUtilities {
         }
     }
 
+    /**
+     * @param {string | null} v1
+     * @param {string | null} v2
+     * @param {boolean} asInteger
+     * @param {boolean} inverted
+     * @returns {number}
+     */
     static compareVersionStrings(v1, v2, asInteger, inverted) {
         if (v1 == null) {
             if (v2 == null) {
@@ -780,18 +897,28 @@ class VersionUtilities {
     }
 
     // Helper methods
+    /**
+     * @param {string | null | undefined} version
+     * @returns {string | null}
+     */
     static removeLabels(version) {
         if (Utilities.noString(version))
             return null;
-        if (version.includes("+")) {
-            version = version.substring(0, version.indexOf("+"));
+        let versionStr = String(version);
+        if (versionStr.includes("+")) {
+            versionStr = versionStr.substring(0, versionStr.indexOf("+"));
         }
-        if (version.includes("-")) {
-            version = version.substring(0, version.indexOf("-"));
+        if (versionStr.includes("-")) {
+            versionStr = versionStr.substring(0, versionStr.indexOf("-"));
         }
-        return version;
+        return versionStr;
     }
 
+    /**
+     * @param {string | null} s
+     * @param {string | null} [label]
+     * @returns {string}
+     */
     static checkVersionNotNullAndValid(s, label = null) {
         if (s == null) {
             throw new Error("Invalid" + (label ? " " + label : "") + " version: null");
@@ -802,6 +929,11 @@ class VersionUtilities {
         }
     }
 
+    /**
+     * @param {string | null} s
+     * @param {string | null} [label]
+     * @returns {string}
+     */
     static checkVersionNotNullAndValidWildcards(s, label = null) {
         if (s == null) {
             throw new Error("Invalid" + (label ? " " + label : "") + " version: null");
@@ -812,6 +944,11 @@ class VersionUtilities {
         }
     }
 
+    /**
+     * @param {string | null} s
+     * @param {string | null} [label]
+     * @returns {string | null}
+     */
     static checkVersionValid(s, label = null) {
         if (s == null) {
             return null;
@@ -822,18 +959,23 @@ class VersionUtilities {
         }
     }
 
+    /**
+     * @param {string | null | undefined} version
+     * @returns {string | null}
+     */
     static fixForSpecialValue(version) {
         if (Utilities.noString(version)) {
             return null;
         }
-        if (version.startsWith("http://hl7.org/fhir/")) {
-            version = version.substring(20);
-            if (version.includes("/")) {
-                version = version.substring(0, version.indexOf("/"));
+        let versionStr = String(version);
+        if (versionStr.startsWith("http://hl7.org/fhir/")) {
+            versionStr = versionStr.substring(20);
+            if (versionStr.includes("/")) {
+                versionStr = versionStr.substring(0, versionStr.indexOf("/"));
             }
         }
 
-        switch (version.toUpperCase()) {
+        switch (versionStr.toUpperCase()) {
             case "R2":
                 return "1.0.2";
             case "DSTU2":
@@ -853,10 +995,16 @@ class VersionUtilities {
             case "R6":
                 return "6.0.0-cibuild";
             default:
-                return version;
+                return versionStr;
         }
     }
 
+    /**
+     * @param {string | null | undefined} criteria
+     * @param {string | null | undefined} candidate
+     * @param {string | null | undefined} versionAlgorithm
+     * @returns {boolean}
+     */
     static versionMatchesByAlgorithm(criteria, candidate, versionAlgorithm) {
         validateOptionalParameter(criteria, "criteria", String);
         validateOptionalParameter(candidate, "candidate", String);
@@ -880,17 +1028,25 @@ class VersionUtilities {
 
     /**
      * Guess the version format algorithm from a version string
-     * @param {string} v - Version string
-     * @returns {string} One of VersionAlgorithm values
+     * @param {string | null | undefined} v - Version string
+     * @returns {VersionAlgorithm} One of VersionAlgorithm values
      */
     static guessVersionFormat(v) {
         if (!v || v.length === 0) {
             return null;
         }
 
+        /** @param {string} c */
         const isDigit = (c) => c >= '0' && c <= '9';
+        /** @param {string} c */
         const isLetter = (c) => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 
+        /**
+         * @param {string} part
+         * @param {number} minVal
+         * @param {number} maxVal
+         * @returns {boolean}
+         */
         const isValidDatePart = (part, minVal, maxVal) => {
             if (!part || part.length === 0 || part.length > 4) return false;
             for (const c of part) {
@@ -900,6 +1056,7 @@ class VersionUtilities {
             return !isNaN(val) && val >= minVal && val <= maxVal;
         };
 
+        /** @returns {boolean} */
         const checkDateFormat = () => {
             // Look for YYYY-MM-DD format
             if (v.length >= 4 && dashCount > 0) {
@@ -951,6 +1108,7 @@ class VersionUtilities {
             return false;
         };
 
+        /** @returns {boolean} */
         const checkSemverFormat = () => {
             // Must have exactly 2 dots for basic semver (major.minor.patch)
             if (dotCount !== 2) return false;
@@ -1026,6 +1184,10 @@ class VersionUtilities {
         return null;
     }
 
+    /**
+     * @param {string | null | undefined} canonical
+     * @returns {CanonicalParts}
+     */
     static splitCanonical(canonical) {
         if (!canonical) {
             return { url: null, version: null };
@@ -1043,7 +1205,11 @@ class VersionUtilities {
         };
     }
 
-
+    /**
+     * @param {string} url
+     * @param {string | null | undefined} version
+     * @returns {string}
+     */
     static vurl(url, version) {
         if (version) {
             return url + "|" + version;
@@ -1052,11 +1218,18 @@ class VersionUtilities {
         }
     }
 
-
+    /**
+     * @param {string} version
+     * @returns {boolean}
+     */
     static isAnInteger(version) {
         return /^\d+$/.test(version);
     }
 
+    /**
+     * @param {unknown} version
+     * @returns {boolean}
+     */
     static appearsToBeDate(version) {
         if (!version || typeof version !== 'string') return false;
         // Strip optional time portion (T...) before checking
@@ -1065,6 +1238,10 @@ class VersionUtilities {
 
     }
 
+    /**
+     * @param {string} version
+     * @returns {'semver' | 'date' | 'integer' | 'alpha'}
+     */
     static guessVersionAlgorithmFromVersion(version) {
         if (VersionUtilities.isSemVerWithWildcards(version)) {
             return 'semver';
@@ -1078,10 +1255,19 @@ class VersionUtilities {
         return 'alpha';
     }
 
+    /**
+     * @param {string} date
+     * @param {string} date2
+     * @returns {boolean}
+     */
     static dateIsMoreRecent(date, date2) {
         return VersionUtilities.normaliseDateString(date) > VersionUtilities.normaliseDateString(date2);
     }
 
+    /**
+     * @param {string} date
+     * @returns {string}
+     */
     static normaliseDateString(date) {
         // Strip time portion, then remove dashes so all formats compare uniformly as YYYYMMDD or YYYYMM
         return date.split('T')[0].replace(/-/g, '');
@@ -1090,6 +1276,9 @@ class VersionUtilities {
 
     /**
      * guesses the correct format, then compares accordingly
+     * @param {string | null | undefined} version1 first version
+     * @param {string | null | undefined} version2 second version
+     * @returns {number} comparison result
      */
     static compareVersionsGeneral(version1, version2) {
         if (version1 && version2) {

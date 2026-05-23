@@ -1,15 +1,42 @@
+// @ts-check
+
 const {getValuePrimitive} = require("../../library/utilities");
 const {Issue} = require("./operation-outcome");
 
+/**
+ * @typedef {import('../../types/fhirsmith').FhirElement} FhirElement
+ * @typedef {import('../../types/fhirsmith').FhirExtension} FhirExtension
+ * @typedef {import('../../types/fhirsmith').FhirExtensionSource} FhirExtensionSource
+ */
+
+/**
+ * @param {FhirExtensionSource} source
+ * @param {'extension' | 'modifierExtension'} property
+ * @returns {FhirExtension[]}
+ */
+function extensionArray(source, property) {
+  if (!source) {
+    return [];
+  }
+  if (Array.isArray(source)) {
+    return source;
+  }
+  return source[property] || [];
+}
+
 const Extensions = {
 
+  /**
+   * @param {FhirExtensionSource} object
+   * @param {string} url
+   * @returns {FhirExtension[]}
+   */
   list(object, url) {
-    if (object.extension) {
-      let res = [];
-      for (let extension of object.extension) {
-        if (extension.url === url) {
-          res.push(extension);
-        }
+    const extensions = extensionArray(object, 'extension');
+    if (extensions.length) {
+      const res = [];
+      for (const extension of extensions) {
+        if (extension.url === url) res.push(extension);
       }
       return res;
     } else {
@@ -17,6 +44,12 @@ const Extensions = {
     }
   },
 
+  /**
+   * @param {FhirElement | null | undefined} resource
+   * @param {string} place
+   * @param {string} name
+   * @returns {void}
+   */
   checkNoImplicitRules(resource, place, name) {
     if (!resource) {
       return;
@@ -29,6 +62,13 @@ const Extensions = {
     }
   },
 
+  /**
+   * @param {FhirElement | null | undefined} element
+   * @param {string} place
+   * @param {string} name
+   * @param {string} [resource]
+   * @returns {true | void}
+   */
   checkNoModifiers(element, place, name, resource) {
     if (!element) {
       return;
@@ -52,17 +92,22 @@ const Extensions = {
     return true;
   },
 
+  /**
+   * @param {FhirExtensionSource} resource
+   * @param {string} url
+   * @returns {unknown}
+   */
   readString(resource, url) {
     if (!resource) {
       return undefined;
     }
-    let extensions = Array.isArray(resource) ? resource : (resource.extension || []);
+    let extensions = extensionArray(resource, 'extension');
     for (let ext of extensions || []) {
       if (ext.url === url) {
         return getValuePrimitive(ext);
       }
     }
-    extensions = Array.isArray(resource) ? resource : (resource.modifierExtension || []);
+    extensions = extensionArray(resource, 'modifierExtension');
     for (let ext of extensions || []) {
       if (ext.url === url) {
         return getValuePrimitive(ext);
@@ -71,11 +116,17 @@ const Extensions = {
     return null;
   },
 
+  /**
+   * @param {FhirExtensionSource} resource
+   * @param {string} url
+   * @param {number} defaultValue
+   * @returns {number}
+   */
   readNumber(resource, url, defaultValue) {
     if (!resource) {
       return defaultValue;
     }
-    const extensions = Array.isArray(resource) ? resource : (resource.extension || []);
+    const extensions = extensionArray(resource, 'extension');
     for (let ext of extensions) {
       if (ext.url === url) {
         const value = getValuePrimitive(ext);
@@ -92,11 +143,16 @@ const Extensions = {
     return defaultValue;
   },
 
+  /**
+   * @param {FhirExtensionSource} resource
+   * @param {string} url
+   * @returns {FhirExtension | null | undefined}
+   */
   readValue(resource, url) {
     if (!resource) {
       return undefined;
     }
-    const extensions = Array.isArray(resource) ? resource : (resource.extension || []);
+    const extensions = extensionArray(resource, 'extension');
     for (let ext of extensions || []) {
       if (ext.url === url) {
         return ext;
@@ -105,28 +161,45 @@ const Extensions = {
     return null;
   },
 
+  /**
+   * @param {FhirExtensionSource} object
+   * @param {string} url
+   * @returns {FhirExtension | undefined}
+   */
   has(object, url) {
     if (!object) {
       return undefined;
     }
-    const extensions = Array.isArray(object) ? object : (object.extension || []);
+    const extensions = extensionArray(object, 'extension');
     return extensions.find(ex => ex.url === url);
   },
 
+  /**
+   * @param {FhirElement} exp
+   * @param {string} url
+   * @param {boolean} b
+   * @returns {FhirExtension}
+   */
   addBoolean(exp, url, b) {
     if (!exp.extension) {
       exp.extension = [];
     }
-    let ext = { url : url, valueBoolean : b };
+    let ext = /** @type {FhirExtension} */ ({ url : url, valueBoolean : b });
     exp.extension.push(ext);
     return ext;
   },
 
+  /**
+   * @param {FhirElement} exp
+   * @param {string} url
+   * @param {string} s
+   * @returns {FhirExtension}
+   */
   addString(exp, url, s) {
     if (!exp.extension) {
       exp.extension = [];
     }
-    let ext = { url : url, valueString : s };
+    let ext = /** @type {FhirExtension} */ ({ url : url, valueString : s });
     exp.extension.push(ext);
     return ext;
   }

@@ -1,3 +1,5 @@
+// @ts-check
+
 const path = require('path');
 const crypto = require('crypto');
 const axios = require('axios');
@@ -8,30 +10,84 @@ const folders = require('../../library/folder-setup');
 const {debugLog} = require("../operation-context");
 
 /**
+ * @typedef {{
+ *   apiKey: string,
+ *   cacheFolder?: string,
+ *   refreshIntervalHours?: number,
+ *   baseUrl?: string,
+ *   timeoutMs?: number
+ * }} VSACConfig
+ * @typedef {{name: string, value: string}} SearchParam
+ * @typedef {{totalFetched: number, totalNew: number, totalUpdated: number, count: number, newCount: number}} RefreshTracking
+ */
+
+const NOOP_STATS = {
+  addTask() {},
+  task() {},
+  taskDone() {},
+  taskError() {}
+};
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * VSAC (Value Set Authority Center) ValueSet provider
  * Fetches and caches ValueSets from the NLM VSAC FHIR server
  */
 class VSACValueSetProvider extends AbstractValueSetProvider {
+  /** @type {boolean} */
   SYNC_AT_START_UP = false;
+  /** @type {any} */
+  stats;
+  /** @type {string} */
+  apiKey;
+  /** @type {string} */
+  cacheFolder;
+  /** @type {string} */
+  baseUrl;
+  /** @type {number} */
+  refreshIntervalHours;
+  /** @type {string} */
+  dbPath;
+  /** @type {ValueSetDatabase} */
+  database;
+  /** @type {Map<string, any>} */
+  valueSetMap;
+  /** @type {boolean} */
+  initialized;
+  /** @type {ReturnType<typeof setInterval> | null} */
+  refreshTimer;
+  /** @type {boolean} */
+  isRefreshing;
+  /** @type {Date | null} */
+  lastRefresh;
+  /** @type {any} */
+  httpClient;
+  /** @type {string[]} */
+  queue = [];
+  /** @type {string[]} */
+  requeue = [];
 
   /**
-   * @param {Object} config - Configuration object
-   * @param {string} config.apiKey - API key for VSAC authentication
-   * @param {string} config.cacheFolder - Local folder for cached database
-   * @param {number} [config.refreshIntervalHours=24] - Hours between refresh scans
-   * @param {string} [config.baseUrl='http://cts.nlm.nih.gov/fhir'] - Base URL for VSAC FHIR server
-   * @param {number} [config.timeoutMs=120000] - HTTP request timeout in milliseconds
+   * @param {VSACConfig} config - Configuration object
+   * @param {any} [stats] - Sync statistics reporter
    */
   constructor(config, stats) {
     super();
-    this.stats = stats;
+    this.stats = stats || NOOP_STATS;
 
     if (!config.apiKey) {
       throw new Error('VSAC API key is required');
     }
 
     this.apiKey = config.apiKey;
-    this.cacheFolder = folders.ensureFilePath("terminology-cache/vsac");
+    this.cacheFolder = config.cacheFolder || folders.ensureFilePath("terminology-cache/vsac");
     this.baseUrl = config.baseUrl || 'http://cts.nlm.nih.gov/fhir';
     this.refreshIntervalHours = config.refreshIntervalHours || 24;
 
@@ -101,7 +157,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
         await this.refreshValueSets();
       } catch (error) {
         debugLog(error);
-        this.log.error(error, 'Error during scheduled refresh:');
+        console.error('Error during scheduled refresh:', error);
       }
     }, intervalMs);
   }
@@ -136,6 +192,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
       console.log('Starting VSAC ValueSet refresh...');
 
       // This lists all the currently valid value sets by URL, but not the older versions
+      /** @type {string | null} */
       let url = '/ValueSet?_offset=0&_count=1000&_elements=id,url,version,status';
 
       let total = undefined;
@@ -194,7 +251,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
         } catch (error) {
           this.requeue.push(q)
           debugLog(error);
-          this.stats.task('VSAC Sync', error.message);
+          this.stats.task('VSAC Sync', errorMessage(error));
         }
         tracking.count++;
       }
@@ -205,7 +262,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
           await this.processContentAndHistory(q, tracking, this.requeue.length);
         } catch (error) {
           debugLog(error);
-          this.stats.task('VSAC Sync', error.message);
+          this.stats.task('VSAC Sync', errorMessage(error));
         }
         tracking.count++;
       }
@@ -219,8 +276,9 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
       await this.database.finishRun(runId, tracking.totalFetched, tracking.totalNew, tracking.totalUpdated);
     } catch (error) {
       debugLog(error, 'Error during VSAC refresh:');
-      this.stats.taskError('VSAC Sync', `Error (${error.message})`);
-      await this.database.failRun(runId, error.message);
+      const message = errorMessage(error);
+      this.stats.taskError('VSAC Sync', `Error (${message})`);
+      await this.database.failRun(runId, message);
       throw error;
     } finally {
       this.isRefreshing = false;
@@ -229,7 +287,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
 
   /**
    * Compute a SHA-256 hash of the ValueSet content for change detection.
-   * @param {Object} vs - The ValueSet resource (plain JSON object)
+   * @param {any} vs - The ValueSet resource (plain JSON object)
    * @returns {string} hex-encoded SHA-256
    * @private
    */
@@ -243,7 +301,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
    *   - hash unchanged  -> touch last_seen only (seeValueSet)
    *   - hash changed    -> upsert and record an 'updated' event
    *   - not seen before -> upsert and record a 'new' event
-   * @param {Array<Object>} valueSets - Array of ValueSet resources
+   * @param {any[]} valueSets - Array of ValueSet resources
    * @returns {Promise<{newCount: number, updatedCount: number}>}
    */
   async batchUpsertValueSets(valueSets) {
@@ -298,7 +356,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
   /**
    * Fetch a FHIR Bundle from the server
    * @param {string} url - Relative URL to fetch
-   * @returns {Promise<Object>} FHIR Bundle
+   * @returns {Promise<any>} FHIR Bundle
    * @private
    */
   async _fetchBundle(url) {
@@ -311,20 +369,21 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
         throw new Error('VSAC Response is not a FHIR Bundle');
       }
     } catch (error) {
-      if (error.response) {
-        throw new Error(`HTTP ${error.response.status}: ${error.response.statusText}`);
-      } else if (error.request) {
+      const err = /** @type {any} */ (error);
+      if (err.response) {
+        throw new Error(`HTTP ${err.response.status}: ${err.response.statusText}`);
+      } else if (err.request) {
         throw new Error('Network error: No response received');
       } else {
-        throw new Error(`Request error: ${error.message}`);
+        throw new Error(`Request error: ${errorMessage(error)}`);
       }
     }
   }
 
   /**
-   * Fetch a FHIR Bundle from the server
-   * @param {string} url - Relative URL to fetch
-   * @returns {Promise<Object>} FHIR Bundle
+   * Fetch a FHIR ValueSet from the server
+   * @param {string} id - ValueSet id to fetch
+   * @returns {Promise<any>} FHIR ValueSet
    * @private
    */
   async _fetchValueSet(id) {
@@ -337,19 +396,20 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
         throw new Error('VSAC Response is not a FHIR ValueSet');
       }
     } catch (error) {
-      if (error.response) {
-        throw new Error(`HTTP ${error.response.status}: ${error.response.statusText}`);
-      } else if (error.request) {
+      const err = /** @type {any} */ (error);
+      if (err.response) {
+        throw new Error(`HTTP ${err.response.status}: ${err.response.statusText}`);
+      } else if (err.request) {
         throw new Error('Network error: No response received');
       } else {
-        throw new Error(`Request error: ${error.message}`);
+        throw new Error(`Request error: ${errorMessage(error)}`);
       }
     }
   }
 
   /**
    * Extract the next URL from a FHIR Bundle's link array
-   * @param {Object} bundle - FHIR Bundle
+   * @param {any} bundle - FHIR Bundle
    * @returns {string|null} Next URL or null if no more pages
    * @private
    */
@@ -358,7 +418,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
       return null;
     }
 
-    const nextLink = bundle.link.find(link => link.relation === 'next');
+    const nextLink = bundle.link.find((/** @type {any} */ link) => link.relation === 'next');
     if (!nextLink || !nextLink.url) {
       return null;
     }
@@ -375,7 +435,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
    * @private
    */
   async _reloadMap() {
-    const newMap = await this.database.loadAllValueSets(this.sourcePackage());
+    const newMap = /** @type {Map<string, any>} */ (await this.database.loadAllValueSets(this.sourcePackage()));
     for (const vs of newMap.values()) {
       if (vs.jsonObj.compose) {
         for (const inc of vs.jsonObj.compose.include || []) {
@@ -396,8 +456,8 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
   /**
    * Fetches a value set by URL and version
    * @param {string} url - The canonical URL of the value set
-   * @param {string} version - The version of the value set
-   * @returns {Promise<Object>} The requested value set
+   * @param {string | null | undefined} version - The version of the value set
+   * @returns {Promise<any>} The requested value set
    */
   async fetchValueSet(url, version) {
     await this.initialize();
@@ -432,15 +492,20 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     return null;
   }
 
+  /**
+   * @param {string} id - ValueSet id
+   * @returns {Promise<any>}
+   */
   async fetchValueSetById(id) {
     return await this.checkFullVS(this.valueSetMap.get(id));
   }
   /**
    * Searches for value sets based on criteria
-   * @param {Array<{name: string, value: string}>} searchParams - Search criteria
-   * @returns {Promise<Array<Object>>} List of matching value sets
+   * @param {SearchParam[]} searchParams - Search criteria
+   * @param {string[] | null} [elements] - Optional result elements
+   * @returns {Promise<any[]>} List of matching value sets
    */
-  async searchValueSets(searchParams, elements) {
+  async searchValueSets(searchParams, elements = null) {
     await this.initialize();
     this._validateSearchParams(searchParams);
 
@@ -523,6 +588,10 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     await this.database.close();
   }
 
+  /**
+   * @param {any} ids
+   * @returns {void}
+   */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
     // nothing?
@@ -532,6 +601,10 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
   // populated. We don't load all the composes. Instead, when value sets
   // are fetched, we check to see if we've got the compose, and if we
   // haven't, then we fetch it and store it
+  /**
+   * @param {any} vs
+   * @returns {Promise<any>}
+   */
   async checkFullVS(vs) {
     // if (!vs) {
     //   return null;
@@ -547,6 +620,12 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     return vs;
   }
 
+  /**
+   * @param {string} q
+   * @param {RefreshTracking} tracking
+   * @param {number} length
+   * @returns {Promise<void>}
+   */
   async processContentAndHistory(q, tracking, length) {
     let url = `/ValueSet?url=${q}`;
     const bundle = await this._fetchBundle(url);
@@ -556,8 +635,8 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     if (bundle.entry && bundle.entry.length > 0) {
       // Extract ValueSets from bundle entries
       const valueSets = bundle.entry
-          .filter(entry => entry.resource && entry.resource.resourceType === 'ValueSet')
-          .map(entry => entry.resource);
+          .filter((/** @type {any} */ entry) => entry.resource && entry.resource.resourceType === 'ValueSet')
+          .map((/** @type {any} */ entry) => entry.resource);
       if (valueSets.length > 0) {
         perRun = await this.batchUpsertValueSets(valueSets);
         tracking.totalNew += perRun.newCount;
@@ -589,6 +668,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
       sinceDate = d.toISOString();
     }
 
+    /** @type {string | null} */
     let url = `/res/ValueSet/?_lastUpdated=ge${sinceDate}&_offset=0&_count=100&_elements=id,url,version,status`;
     let count = 0;
     let serverDate = null;
@@ -633,9 +713,10 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
 
   async info() {
     const escape = require('escape-html');
-    const db = await this.database._getReadConnection();
+    const db = await /** @type {any} */ (this.database)._getReadConnection();
 
-    const rows = await new Promise((resolve, reject) => {
+    /** @type {any[]} */
+    const rows = await new Promise((/** @type {(value: any[]) => void} */ resolve, reject) => {
       db.all(
           `SELECT 'event' AS kind,
                   url,
@@ -665,27 +746,27 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
           ORDER BY ts DESC
             LIMIT 200`,
           [],
-          (err, rows) => err ? reject(err) : resolve(rows)
+          (/** @type {Error | null} */ err, /** @type {any[]} */ rows) => err ? reject(err) : resolve(rows)
       );
     });
 
     // ISO date (YYYY-MM-DD UTC) for grouping
-    const dayKey = ts => ts
+    const dayKey = (/** @type {number | null | undefined} */ ts) => ts
         ? new Date(ts * 1000).toISOString().substring(0, 10)
         : '';
     // Human-friendly day heading e.g. "Tuesday, 14 April 2026"
-    const dayLabel = ts => ts
+    const dayLabel = (/** @type {number | null | undefined} */ ts) => ts
         ? new Date(ts * 1000).toLocaleDateString('en-GB', {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
           timeZone: 'UTC'
         })
         : '—';
     // HH:MM:SS UTC within a day
-    const timeOnly = ts => ts
+    const timeOnly = (/** @type {number | null | undefined} */ ts) => ts
         ? new Date(ts * 1000).toISOString().substring(11, 19) + ' UTC'
         : '—';
     // Full timestamp (used in "Running..." detail where context is needed)
-    const fmtFull = ts => ts
+    const fmtFull = (/** @type {number | null | undefined} */ ts) => ts
         ? new Date(ts * 1000).toISOString().replace('T', ' ').substring(0, 19) + ' UTC'
         : '—';
 
@@ -759,6 +840,10 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     return "vsac";
   }
 
+  /**
+   * @param {string | null | undefined} url
+   * @returns {string}
+   */
   urlTail(url) {
     return url ? url.substring(url.lastIndexOf('/') + 1) : '';
   }

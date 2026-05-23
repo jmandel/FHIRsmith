@@ -6,6 +6,7 @@
 // GET /CodeSystem/{id}/$lookup?{params}
 // POST /CodeSystem/{id}/$lookup
 //
+// @ts-check
 
 const { TerminologyWorker } = require('./worker');
 const { FhirCodeSystemProvider } = require('../cs/cs-cs');
@@ -15,13 +16,16 @@ const {Parameters} = require("../library/parameters");
 const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const {debugLog} = require("../operation-context");
 
+/** @typedef {{system?: string, version?: string, code?: string}} CodingLike */
+/** @typedef {{statusCode?: number, issueCode?: string, msgId?: string, className?: string, message?: string}} WorkerErrorLike */
+
 class LookupWorker extends TerminologyWorker {
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -38,24 +42,25 @@ class LookupWorker extends TerminologyWorker {
   /**
    * Static factory method to handle type-level lookup from Express
    * GET/POST /CodeSystem/$lookup
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handle(req, res) {
     try {
       await this.handleTypeLevelLookup(req, res);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
-      const statusCode = error.statusCode || 500;
-      const issueCode = error.issueCode || 'exception';
+      req.logInfo = this.usedSources.join("|")+" - error"+(workerError.msgId  ? " "+workerError.msgId : "");
+      const statusCode = workerError.statusCode || 500;
+      const issueCode = workerError.issueCode || 'exception';
       return res.status(statusCode).json({
         resourceType: 'OperationOutcome',
         issue: [{
           severity: 'error',
           code: issueCode,
-          diagnostics: error.message
+          diagnostics: workerError.message || String(error)
         }]
       });
     }
@@ -64,24 +69,25 @@ class LookupWorker extends TerminologyWorker {
   /**
    * Static factory method to handle instance-level lookup from Express
    * GET/POST /CodeSystem/{id}/$lookup
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handleInstance(req, res) {
 
     try {
       await this.handleInstanceLevelLookup(req, res);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
-      const issueCode = error.issueCode || 'exception';
+      req.logInfo = this.usedSources.join("|")+" - error"+(workerError.msgId  ? " "+workerError.msgId : "");
+      const issueCode = workerError.issueCode || 'exception';
       return res.status(400).json({
         resourceType: 'OperationOutcome',
         issue: [{
           severity: 'error',
           code: issueCode,
-          diagnostics: error.message
+          diagnostics: workerError.message || String(error)
         }]
       });
     }
@@ -90,6 +96,8 @@ class LookupWorker extends TerminologyWorker {
   /**
    * Handle type-level lookup: /CodeSystem/$lookup
    * CodeSystem identified by system+version params or coding parameter
+   * @param {any} req
+   * @param {any} res
    */
   async handleTypeLevelLookup(req, res) {
     try {
@@ -107,11 +115,12 @@ class LookupWorker extends TerminologyWorker {
 
       // Determine how the code system is identified
       let csProvider;
+      /** @type {string} */
       let code;
 
       if (params.has('coding')) {
         // Coding parameter provided - extract system, version, code
-        const coding = params.get('coding');
+        const coding = /** @type {CodingLike} */ (params.get('coding'));
         if (!coding.system) {
           return res.status(400).json(this.operationOutcome('error', 'invalid',
             'Coding parameter must include a system'));
@@ -128,10 +137,12 @@ class LookupWorker extends TerminologyWorker {
 
       } else if (params.has('system') && params.has('code')) {
         // system + code parameters
-        csProvider = await this.findCodeSystem(params.get('system'), params.get('version') || '', txp, ['complete', 'fragment'],
+        const system = String(params.get('system'));
+        const version = params.get('version') ? String(params.get('version')) : '';
+        csProvider = await this.findCodeSystem(system, version, txp, ['complete', 'fragment'],
           null, true, false, false, txp.supplements);
-        this.seeSourceProvider(csProvider, params.get('system'));
-        code = params.get('code');
+        this.seeSourceProvider(csProvider, system);
+        code = /** @type {string} */ (params.get('code'));
 
       } else {
         return res.status(400).json(this.operationOutcome('error', 'invalid',
@@ -139,8 +150,9 @@ class LookupWorker extends TerminologyWorker {
       }
 
       if (!csProvider) {
-        const systemUrl = params.system || params.coding?.system;
-        const versionStr = params.version || params.coding?.version;
+        const parameterSource = /** @type {any} */ (params);
+        const systemUrl = parameterSource.system || parameterSource.coding?.system;
+        const versionStr = parameterSource.version || parameterSource.coding?.version;
         const msg = versionStr
           ? `CodeSystem not found: ${systemUrl} version ${versionStr}`
           : `CodeSystem not found: ${systemUrl}`;
@@ -150,7 +162,7 @@ class LookupWorker extends TerminologyWorker {
       // check supplements
       const used = new Set();
       const reported = new Set();
-      this.checkSupplements(csProvider, null, txp.supplements, used, reported);
+      this.checkSupplements(csProvider, /** @type {any} */ (null), txp.supplements, /** @type {any} */ (used), /** @type {any} */ (reported));
       const unused = new Set([...txp.supplements].filter(s => !used.has(s)));
       if (unused.size > 0) {
         throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', txp.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(400);
@@ -160,16 +172,17 @@ class LookupWorker extends TerminologyWorker {
       const result = await this.doLookup(csProvider, code, txp, reported);
       return res.status(200).json(result);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
+      req.logInfo = this.usedSources.join("|")+" - error"+(workerError.msgId  ? " "+workerError.msgId : "");
       if (error instanceof Issue) {
         let oo = new OperationOutcome();
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(workerError.statusCode || 500).json(this.operationOutcome(
+          'error', workerError.issueCode || 'exception', workerError.message || String(error)));
       }
     }
   }
@@ -177,6 +190,8 @@ class LookupWorker extends TerminologyWorker {
   /**
    * Handle instance-level lookup: /CodeSystem/{id}/$lookup
    * CodeSystem identified by resource ID
+   * @param {any} req
+   * @param {any} res
    */
   async handleInstanceLevelLookup(req, res) {
     try {
@@ -204,11 +219,12 @@ class LookupWorker extends TerminologyWorker {
       txp.readParams(params.jsonObj);
 
       // For instance-level, code is required (system/version come from the resource)
+      /** @type {string} */
       let code;
       if (params.has('coding')) {
-        code = params.get('coding').code;
+        code = /** @type {string} */ ((/** @type {CodingLike} */ (params.get('coding'))).code);
       } else if (params.has('code')) {
-        code = params.get('code');
+        code = /** @type {string} */ (params.get('code'));
       } else {
         return res.status(400).json(this.operationOutcome('error', 'invalid',
           'Must provide code parameter or coding parameter with code'));
@@ -224,40 +240,45 @@ class LookupWorker extends TerminologyWorker {
       const result = await this.doLookup(csProvider, code, txp);
       return res.status(200).json(result);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
+      req.logInfo = this.usedSources.join("|")+" - error"+(workerError.msgId  ? " "+workerError.msgId : "");
       if (error instanceof Issue) {
         let oo = new OperationOutcome();
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(workerError.statusCode || 500).json(this.operationOutcome(
+          'error', workerError.issueCode || 'exception', workerError.message || String(error)));
       }
     }
   }
 
   /**
    * Perform the actual lookup operation
-   * @param {CodeSystemProvider} csProvider - CodeSystem provider
+   * @param {any} csProvider - CodeSystem provider
    * @param {string} code - Code to look up
-   * @param {Object} params - Parsed parameters
-   * @param {Set} reportedSupplements - Set of supplements that are to be reported
-   * @returns {Object} Parameters resource with lookup result
+   * @param {any} params - Parsed parameters
+   * @param {Set<any>} [reportedSupplements] - Set of supplements that are to be reported
+   * @returns {Promise<any>} Parameters resource with lookup result
    */
   async doLookup(csProvider, code, params, reportedSupplements) {
     this.deadCheck('doLookup');
 
-    await this.checkSupplements(csProvider, null, params.supplements);
+    await this.checkSupplements(csProvider, /** @type {any} */ (null), params.supplements);
 
     // Helper to check if a property should be included
+    /**
+     * @param {string} name
+     * @param {boolean} [defaultValue]
+     */
     const hasProp = (name, defaultValue = true) => {
       if (!params.properties || params.properties.length === 0) {
         return defaultValue;
       }
       const lowerName = name.toLowerCase();
-      return params.properties.some(p =>
+      return params.properties.some((/** @type {string} */ p) =>
         p.toLowerCase() === lowerName || p === '*'
       );
     };
@@ -276,6 +297,7 @@ class LookupWorker extends TerminologyWorker {
     const ctxt = locateResult.context;
 
     // Build the response parameters
+    /** @type {any[]} */
     const responseParams = [];
 
     // name (required)
@@ -352,6 +374,7 @@ class LookupWorker extends TerminologyWorker {
       if (designations && Array.isArray(designations.designations)) {
         for (const designation of designations.designations) {
           this.deadCheck('doLookup-designations');
+          /** @type {any[]} */
           const designationParts = [];
 
           if (designation.supplement) {
@@ -406,7 +429,7 @@ class LookupWorker extends TerminologyWorker {
 
   /**
    * Add a property to the response parameters
-   * @param {Array} responseParams - Response parameters array
+   * @param {any[]} responseParams - Response parameters array
    * @param {string} code - Property code
    * @param {*} value - Property value
    * @param {string} valueType - FHIR value type (e.g., 'valueString', 'valueBoolean')
@@ -426,7 +449,7 @@ class LookupWorker extends TerminologyWorker {
    * @param {string} severity - error, warning, information
    * @param {string} code - Issue code
    * @param {string} message - Diagnostic message
-   * @returns {Object} OperationOutcome resource
+   * @returns {any} OperationOutcome resource
    */
   operationOutcome(severity, code, message) {
     return {

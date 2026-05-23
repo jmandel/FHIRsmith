@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Package Watcher
 // Watches a local directory or .tgz file and triggers reloads on changes
@@ -9,14 +11,24 @@ const path = require('path');
 const os = require('os');
 const tar = require('tar');
 
+/** @typedef {{resources: any[], searchParameters: any[]}} PackageData */
+/** @typedef {{debounceMs?: number, onReload?: (data: PackageData) => void, log?: {info: (...args: any[]) => void, warn: (...args: any[]) => void, error: (...args: any[]) => void}, resourceFolders?: string[] | null, searchParametersFolder?: string | null}} WatcherOptions */
+
 class PackageWatcher {
+  /**
+   * @param {string} packagePath
+   * @param {WatcherOptions} [options]
+   */
   constructor(packagePath, options = {}) {
     this.packagePath = packagePath;
     this.debounceMs = options.debounceMs || 500;
     this.onReload = options.onReload || (() => {});
     this.log = options.log || console;
+    /** @type {any} */
     this.watcher = null;
+    /** @type {NodeJS.Timeout | null} */
     this.debounceTimer = null;
+    /** @type {string | null} */
     this.extractDir = null;
     this.isTgz = false;
     
@@ -27,6 +39,7 @@ class PackageWatcher {
 
   /**
    * Start watching the package directory or .tgz file
+   * @returns {void}
    */
   start() {
     this.log.info(`Watching package at: ${this.packagePath}`);
@@ -50,10 +63,10 @@ class PackageWatcher {
     });
 
     this.watcher
-      .on('add', filePath => this.handleChange('add', filePath))
-      .on('change', filePath => this.handleChange('change', filePath))
-      .on('unlink', filePath => this.handleChange('unlink', filePath))
-      .on('error', error => this.log.error('Watcher error:', error));
+      .on('add', /** @type {(filePath: string) => void} */ (filePath => this.handleChange('add', filePath)))
+      .on('change', /** @type {(filePath: string) => void} */ (filePath => this.handleChange('change', filePath)))
+      .on('unlink', /** @type {(filePath: string) => void} */ (filePath => this.handleChange('unlink', filePath)))
+      .on('error', /** @type {(error: unknown) => void} */ (error => this.log.error('Watcher error:', error)));
 
     // Do initial load
     this.triggerReload();
@@ -61,6 +74,9 @@ class PackageWatcher {
 
   /**
    * Handle a file change event
+   * @param {string} event
+   * @param {string} filePath
+   * @returns {void}
    */
   handleChange(event, filePath) {
     this.log.info(`File ${event}: ${filePath}`);
@@ -77,6 +93,7 @@ class PackageWatcher {
 
   /**
    * Load all data and trigger the reload callback
+   * @returns {void}
    */
   triggerReload() {
     this.log.info('Reloading package data...');
@@ -101,44 +118,58 @@ class PackageWatcher {
 
   /**
    * Extract .tgz file to temp directory
+   * @returns {void}
    */
   extractTgz() {
-    // Clear existing extracted content
-    if (fs.existsSync(this.extractDir)) {
-      fs.rmSync(this.extractDir, { recursive: true, force: true });
+    const extractDir = this.extractDir;
+    if (!extractDir) {
+      throw new Error('extractDir is not initialized');
     }
-    fs.mkdirSync(this.extractDir, { recursive: true });
+    // Clear existing extracted content
+    if (fs.existsSync(extractDir)) {
+      fs.rmSync(extractDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(extractDir, { recursive: true });
 
     // Extract synchronously
     tar.extract({
       file: this.packagePath,
-      cwd: this.extractDir,
+      cwd: extractDir,
       sync: true
     });
 
-    this.log.info(`Extracted .tgz to ${this.extractDir}`);
+    this.log.info(`Extracted .tgz to ${extractDir}`);
   }
 
   /**
    * Get the actual directory to read from
+   * @returns {string}
    */
   getReadPath() {
     if (this.isTgz) {
+      const extractDir = this.extractDir;
+      if (!extractDir) {
+        throw new Error('extractDir is not initialized');
+      }
       // npm packages typically extract to a 'package' subdirectory
-      const packageSubdir = path.join(this.extractDir, 'package');
+      const packageSubdir = path.join(extractDir, 'package');
       if (fs.existsSync(packageSubdir)) {
         return packageSubdir;
       }
-      return this.extractDir;
+      return extractDir;
     }
     return this.packagePath;
   }
 
   /**
    * Load all FHIR resources and search parameters from a directory
+   * @param {string} dirPath
+   * @returns {PackageData}
    */
   loadPackageDataFrom(dirPath) {
+    /** @type {any[]} */
     const resources = [];
+    /** @type {any[]} */
     const searchParameters = [];
 
     // Load search parameters from specified folder within package
@@ -214,8 +245,11 @@ class PackageWatcher {
 
   /**
    * Load search parameters from a specific path
+   * @param {string} searchParamPath
+   * @returns {any[]}
    */
   loadSearchParametersFrom(searchParamPath) {
+    /** @type {any[]} */
     const searchParameters = [];
 
     if (!fs.existsSync(searchParamPath)) {
@@ -239,6 +273,9 @@ class PackageWatcher {
 
   /**
    * Load search parameters from a single file
+   * @param {string} filePath
+   * @param {any[]} searchParameters
+   * @returns {void}
    */
   loadSearchParamsFromFile(filePath, searchParameters) {
     try {
@@ -255,12 +292,16 @@ class PackageWatcher {
         searchParameters.push(parsed);
       }
     } catch (err) {
-      this.log.warn(`Failed to parse search params from ${filePath}: ${err.message}`);
+      this.log.warn(`Failed to parse search params from ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   /**
    * Categorize a resource as either a SearchParameter or a regular resource
+   * @param {any} resource
+   * @param {any[]} resources
+   * @param {any[]} searchParameters
+   * @returns {void}
    */
   categorizeResource(resource, resources, searchParameters) {
     if (resource.resourceType === 'SearchParameter') {
@@ -272,8 +313,11 @@ class PackageWatcher {
 
   /**
    * Recursively find all JSON files in a directory
+   * @param {string} dir
+   * @returns {string[]}
    */
   findJsonFiles(dir) {
+    /** @type {string[]} */
     const files = [];
 
     if (!fs.existsSync(dir)) {
@@ -310,6 +354,7 @@ class PackageWatcher {
 
   /**
    * Stop watching
+   * @returns {void}
    */
   stop() {
     if (this.watcher) {
@@ -326,7 +371,7 @@ class PackageWatcher {
         fs.rmSync(this.extractDir, { recursive: true, force: true });
         this.log.info(`Cleaned up temp directory: ${this.extractDir}`);
       } catch (err) {
-        this.log.warn(`Failed to clean up temp directory: ${err.message}`);
+        this.log.warn(`Failed to clean up temp directory: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }

@@ -1,8 +1,14 @@
+// @ts-check
+
+/**
+ * @typedef {Record<string, any>} FhirJson
+ */
+
 /**
  * Converts input OperationOutcome to R5 format (modifies input object for performance)
- * @param {Object} jsonObj - The input OperationOutcome object
- * @param {string} version - Source FHIR version
- * @returns {Object} The same object, potentially modified to R5 format
+ * @param {FhirJson} jsonObj - The input OperationOutcome object
+ * @param {string} sourceVersion - Source FHIR version
+ * @returns {FhirJson} The same object, potentially modified to R5 format
  * @private
  */
 
@@ -13,9 +19,9 @@ function operationOutcomeToR5(jsonObj, sourceVersion) {
 
 /**
  * Converts R5 OperationOutcome to target version format (clones object first)
- * @param {Object} r5Obj - The R5 format OperationOutcome object
+ * @param {FhirJson} r5Obj - The R5 format OperationOutcome object
  * @param {string} targetVersion - Target FHIR version
- * @returns {Object} New object in target version format
+ * @returns {FhirJson} New object in target version format
  * @private
  */
 // eslint-disable-next-line no-unused-vars

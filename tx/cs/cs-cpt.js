@@ -1,11 +1,30 @@
+// @ts-check
+
 const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
-const { FilterExecutionContext, CodeSystemFactoryProvider } = require('./cs-api');
+const csApi = require('./cs-api');
+const FilterExecutionContext = /** @type {any} */ (csApi.FilterExecutionContext);
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
 const {validateArrayParameter} = require("../../library/utilities");
-const {BaseCSServices} = require("./cs-base");
+const csBase = require("./cs-base");
+const BaseCSServices = /** @type {any} */ (csBase.BaseCSServices);
+
+/** @typedef {import('sqlite3').Database} SqliteDatabase */
+/** @typedef {string | CPTConcept | CPTExpression | null | undefined} CPTContextInput */
+/** @typedef {CPTConcept | CPTExpression} CPTContext */
+/** @typedef {{context: CPTContext | null, message?: string | null}} CPTLocateResult */
+/** @typedef {{_version: string, conceptMap: Map<string, CPTConcept>, conceptList: CPTConcept[], baseList: CPTConcept[], modifierList: CPTConcept[]}} CPTSharedData */
+/** @typedef {{name: string, value: string}} CPTInfoRow */
+/** @typedef {{code: string, modifier: number}} CPTConceptRow */
+/** @typedef {{code: string, name: string, value: string}} CPTPropertyRow */
+/** @typedef {{code: string, type: string, value: string}} CPTDesignationRow */
 
 class CPTConceptDesignation {
+  /**
+   * @param {string} kind - Designation kind
+   * @param {string} value - Designation value
+   */
   constructor(kind, value) {
     this.kind = kind;
     this.value = value;
@@ -13,6 +32,10 @@ class CPTConceptDesignation {
 }
 
 class CPTConceptProperty {
+  /**
+   * @param {string} name - Property name
+   * @param {string} value - Property value
+   */
   constructor(name, value) {
     this.name = name;
     this.value = value;
@@ -20,25 +43,50 @@ class CPTConceptProperty {
 }
 
 class CPTConcept {
+  /**
+   * @param {string} code - CPT code
+   * @param {boolean} modifier - Whether this concept is a modifier
+   */
   constructor(code, modifier = false) {
     this.code = code;
     this.modifier = modifier;
+    /** @type {CPTConceptDesignation[]} */
     this.designations = [];
+    /** @type {CPTConceptProperty[]} */
     this.properties = [];
   }
 
+  /**
+   * @param {string} name - Property name
+   * @param {string} value - Property value
+   * @returns {void}
+   */
   addProperty(name, value) {
     this.properties.push(new CPTConceptProperty(name, value));
   }
 
+  /**
+   * @param {string} name - Property name
+   * @param {string} value - Property value
+   * @returns {boolean} Whether the property exists
+   */
   hasProperty(name, value) {
     return this.properties.some(p => p.name === name && p.value === value);
   }
 
+  /**
+   * @param {string} kind - Designation kind
+   * @param {string} value - Designation value
+   * @returns {void}
+   */
   addDesignation(kind, value) {
     this.designations.push(new CPTConceptDesignation(kind, value));
   }
 
+  /**
+   * @param {string} kind - Designation kind
+   * @returns {string} Matching designation value
+   */
   getDesignation(kind) {
     const designation = this.designations.find(d => d.kind === kind);
     return designation ? designation.value : '';
@@ -46,12 +94,22 @@ class CPTConcept {
 }
 
 class CPTExpression {
+  /**
+   * @param {CPTConcept | null} focus - Focus CPT concept
+   */
   constructor(focus = null) {
     this.focus = focus;
+    /** @type {CPTConcept[]} */
     this.modifiers = [];
   }
 
+  /**
+   * @returns {string} CPT expression string
+   */
   expression() {
+    if (!this.focus) {
+      return '';
+    }
     let result = this.focus.code;
     for (const modifier of this.modifiers) {
       result += ':' + modifier.code;
@@ -59,12 +117,21 @@ class CPTExpression {
     return result;
   }
 
+  /**
+   * @param {string} code - Modifier code
+   * @returns {boolean} Whether the expression has the modifier
+   */
   hasModifier(code) {
     return this.modifiers.some(m => m.code === code);
   }
 }
 
 class CPTFilterContext {
+  /**
+   * @param {string} name - Filter name
+   * @param {CPTConcept[]} list - Concepts matching the filter
+   * @param {boolean} closed - Whether the filter is closed
+   */
   constructor(name, list, closed) {
     this.name = name;
     this.list = list;
@@ -82,36 +149,58 @@ class CPTFilterContext {
     console.info(logCodes);
   }
 
+  /**
+   * @returns {void}
+   */
   next() {
     this.index++;
   }
 }
 
 class CPTIteratorContext {
+  /**
+   * @param {CPTConcept[] | null | undefined} list - Concepts to iterate
+   */
   constructor(list) {
     this.list = list || [];
     this.current = 0;
     this.total = this.list.length;
   }
 
+  /**
+   * @returns {boolean} Whether another concept exists
+   */
   more() {
     return this.current < this.total;
   }
 
+  /**
+   * @returns {void}
+   */
   next() {
     this.current++;
   }
 }
 
 class CPTPrep extends FilterExecutionContext {
-  constructor() {
-    super();
+  /**
+   * @param {boolean} iterate - Whether filters will be iterated
+   */
+  constructor(iterate) {
+    super(iterate);
   }
 }
 
 class CPTServices extends BaseCSServices {
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @param {SqliteDatabase | null} db - Open CPT database
+   * @param {CPTSharedData} sharedData - Shared CPT data loaded by factory
+   */
   constructor(opContext, supplements, db, sharedData) {
     super(opContext, supplements);
+    /** @type {SqliteDatabase | null} */
     this.db = db;
 
     // Shared data from factory
@@ -155,6 +244,10 @@ class CPTServices extends BaseCSServices {
   }
 
   // Core concept methods
+  /**
+   * @param {CPTContextInput} context - CPT code or context
+   * @returns {Promise<string | null>} CPT code
+   */
   async code(context) {
     
     const ctxt = await this.#ensureContext(context);
@@ -167,6 +260,10 @@ class CPTServices extends BaseCSServices {
     return null;
   }
 
+  /**
+   * @param {CPTContextInput} context - CPT code or context
+   * @returns {Promise<string | null>} Display string
+   */
   async display(context) {
     
     const ctxt = await this.#ensureContext(context);
@@ -176,7 +273,8 @@ class CPTServices extends BaseCSServices {
     }
 
     // Check supplements first
-    let disp = this._displayFromSupplements(await this.code(ctxt));
+    const code = await this.code(ctxt);
+    const disp = code ? this._displayFromSupplements(code) : null;
     if (disp) {
       return disp;
     }
@@ -190,11 +288,19 @@ class CPTServices extends BaseCSServices {
     return '';
   }
 
+  /**
+   * @param {CPTContextInput} context - CPT code or context
+   * @returns {Promise<string | null>} Definition text
+   */
   async definition(context) {
     
     return this.display(context);
   }
 
+  /**
+   * @param {CPTContextInput} context - CPT code or context
+   * @returns {Promise<boolean>} Whether the concept is abstract
+   */
   async isAbstract(context) {
     
     const ctxt = await this.#ensureContext(context);
@@ -207,6 +313,11 @@ class CPTServices extends BaseCSServices {
     return false;
   }
 
+  /**
+   * @param {CPTContextInput} context - CPT code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<void>}
+   */
   async designations(context, displays) {
     
     const ctxt = await this.#ensureContext(context);
@@ -228,6 +339,13 @@ class CPTServices extends BaseCSServices {
   isNotClosed() {
     return true;
   }
+
+  /**
+   * @param {CPTContextInput} ctxt - CPT code or context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async extendLookup(ctxt, props, params) {
     validateArrayParameter(props, 'props', String);
     validateArrayParameter(params, 'params', Object);
@@ -236,7 +354,7 @@ class CPTServices extends BaseCSServices {
     if (typeof ctxt === 'string') {
       const located = await this.locate(ctxt);
       if (!located.context) {
-        throw new Error(located.message);
+        throw new Error(located.message || `Code '${ctxt}' not found in CPT`);
       }
       ctxt = located.context;
     }
@@ -247,7 +365,9 @@ class CPTServices extends BaseCSServices {
 
     if (ctxt instanceof CPTExpression) {
       // Extend lookup for the focus concept first
-      await this.extendLookup(ctxt.focus, props, params);
+      if (ctxt.focus) {
+        await this.extendLookup(ctxt.focus, props, params);
+      }
 
       // Add modifier properties
       for (const modifier of ctxt.modifiers) {
@@ -274,6 +394,14 @@ class CPTServices extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {any[]} params - Parameters array
+   * @param {string} type - Parameter name
+   * @param {string} name - Property/designation code
+   * @param {string} value - Property/designation value
+   * @param {string | null} language - Optional language
+   * @returns {void}
+   */
   #addProperty(params, type, name, value, language = null) {
 
 
@@ -292,11 +420,21 @@ class CPTServices extends BaseCSServices {
     params.push(property);
   }
 
+  /**
+   * @param {string[]} props - Requested property names
+   * @param {string} name - Property name
+   * @param {boolean} defaultValue - Default when props is empty
+   * @returns {boolean} Whether the property was requested
+   */
   #hasProp(props, name, defaultValue) {
     if (!props || props.length === 0) return defaultValue;
     return props.includes(name);
   }
 
+  /**
+   * @param {CPTContextInput} context - CPT code or context
+   * @returns {Promise<CPTContext | null>}
+   */
   async #ensureContext(context) {
     if (!context) {
       return null;
@@ -316,6 +454,10 @@ class CPTServices extends BaseCSServices {
   }
 
   // Expression parsing and validation
+  /**
+   * @param {string | null | undefined} code - CPT expression
+   * @returns {CPTLocateResult} Parsed expression result
+   */
   #parse(code) {
     if (!code) {
       return { context: null, message: 'No Expression Found' };
@@ -346,8 +488,15 @@ class CPTServices extends BaseCSServices {
     return { context: expression, message: null };
   }
 
+  /**
+   * @param {CPTExpression} exp - CPT expression
+   * @returns {string} Validation message, empty when valid
+   */
   #validateExpression(exp) {
     const errors = [];
+    if (!exp.focus) {
+      return 'No base CPT code';
+    }
 
     // Check modifiers
     for (const modifier of exp.modifiers) {
@@ -417,6 +566,12 @@ class CPTServices extends BaseCSServices {
     return errors.join(', ');
   }
 
+  /**
+   * @param {string[]} errors - Error collector
+   * @param {CPTExpression} exp - CPT expression
+   * @param {string[]} modifiers - Mutually exclusive modifier codes
+   * @returns {void}
+   */
   #checkMutuallyExclusive(errors, exp, modifiers) {
     const count = exp.modifiers.filter(m => modifiers.includes(m.code)).length;
     if (count > 1) {
@@ -425,6 +580,10 @@ class CPTServices extends BaseCSServices {
   }
 
   // Lookup methods
+  /**
+   * @param {string | null | undefined} code - CPT code or expression
+   * @returns {Promise<CPTLocateResult>} Located concept and status message
+   */
   async locate(code) {
     
     assert(!code || typeof code === 'string', 'code must be string');
@@ -442,6 +601,10 @@ class CPTServices extends BaseCSServices {
   }
 
   // Iterator methods
+  /**
+   * @param {CPTContextInput} context - CPT context
+   * @returns {Promise<CPTIteratorContext>} Iterator context
+   */
   async iterator(context) {
     
 
@@ -454,6 +617,10 @@ class CPTServices extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {CPTIteratorContext} iteratorContext - Iterator context
+   * @returns {Promise<CPTConcept | null>} Next concept
+   */
   async nextContext(iteratorContext) {
     
 
@@ -467,6 +634,12 @@ class CPTServices extends BaseCSServices {
   }
 
   // Filter support
+  /**
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<boolean>} Whether this filter is supported
+   */
   async doesFilter(prop, op, value) {
     
 
@@ -485,14 +658,27 @@ class CPTServices extends BaseCSServices {
     return false;
   }
 
+  /**
+   * @param {boolean} iterate - Whether filters will be iterated
+   * @returns {Promise<CPTPrep>} Filter prep context
+   */
   async getPrepContext(iterate) {
     
     return new CPTPrep(iterate);
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {boolean} forIteration - Whether this filter is for iteration
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<void>}
+   */
   async filter(filterContext, forIteration, prop, op, value) {
     
 
+    /** @type {CPTConcept[]} */
     let list;
     let closed = true;
 
@@ -521,27 +707,52 @@ class CPTServices extends BaseCSServices {
     filterContext.filters.push(filter);
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @returns {Promise<CPTFilterContext[]>} Filters to execute
+   */
   async executeFilters(filterContext) {
     
     return filterContext.filters;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {CPTFilterContext} set - Filter set
+   * @returns {Promise<number>} Number of concepts
+   */
   async filterSize(filterContext, set) {
     
     return set.list.length;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {CPTFilterContext} set - Filter set
+   * @returns {Promise<boolean>} Whether another concept exists
+   */
   async filterMore(filterContext, set) {
     
     set.next();
     return set.index < set.list.length;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {CPTFilterContext} set - Filter set
+   * @returns {Promise<CPTConcept | undefined>} Current concept
+   */
   async filterConcept(filterContext, set) {
     
     return set.list[set.index];
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {CPTFilterContext} set - Filter set
+   * @param {string} code - CPT code
+   * @returns {Promise<CPTConcept | null>} Matching concept, if any
+   */
   async filterLocate(filterContext, set, code) {
     
 
@@ -552,6 +763,12 @@ class CPTServices extends BaseCSServices {
     return null;
   }
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @param {CPTFilterContext} set - Filter set
+   * @param {CPTContextInput} concept - CPT code or context
+   * @returns {Promise<boolean>} Whether the concept passes the filter
+   */
   async filterCheck(filterContext, set, concept) {
     
 
@@ -564,14 +781,23 @@ class CPTServices extends BaseCSServices {
   }
 
 
+  /**
+   * @param {any} filterContext - Filter execution context
+   * @returns {Promise<boolean>} Whether any filter is not closed
+   */
   async filtersNotClosed(filterContext) {
     
-    return filterContext.filters.some(f => !f.closed);
+    return /** @type {CPTFilterContext[]} */ (filterContext.filters).some(f => !f.closed);
   }
 
 
 
   // Subsumption testing - not implemented
+  /**
+   * @param {CPTContextInput} codeA - First CPT code or context
+   * @param {CPTContextInput} codeB - Second CPT code or context
+   * @returns {Promise<string>} Subsumption outcome
+   */
   async subsumesTest(codeA, codeB) {
     await this.#ensureContext(codeA);
     await this.#ensureContext(codeB);
@@ -585,11 +811,16 @@ class CPTServices extends BaseCSServices {
 }
 
 class CPTServicesFactory extends CodeSystemFactoryProvider {
+  /**
+   * @param {any} i18n - Translation support
+   * @param {string} dbPath - Path to CPT SQLite database
+   */
   constructor(i18n, dbPath) {
     super(i18n);
     this.dbPath = dbPath;
     this.uses = 0;
     this._loaded = false;
+    /** @type {CPTSharedData | null} */
     this._sharedData = null;
   }
 
@@ -599,14 +830,22 @@ class CPTServicesFactory extends CodeSystemFactoryProvider {
   }
 
   version() {
-    return this._sharedData._version;
+    return this._sharedData ? this._sharedData._version : null;
   }
 
+  /**
+   * @param {string} url - ValueSet URL
+   * @param {string | null | undefined} version - ValueSet version
+   * @returns {Promise<null>}
+   */
   // eslint-disable-next-line no-unused-vars
   async buildKnownValueSet(url, version) {
     return null;
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async #ensureLoaded() {
     if (!this._loaded) {
       await this.load();
@@ -643,6 +882,10 @@ class CPTServicesFactory extends CodeSystemFactoryProvider {
     this._loaded = true;
   }
 
+  /**
+   * @param {SqliteDatabase} db - CPT database
+   * @returns {Promise<void>}
+   */
   async #loadVersion(db) {
     return new Promise((resolve, reject) => {
       db.all('SELECT * FROM Information', (err, rows) => {
@@ -650,71 +893,90 @@ class CPTServicesFactory extends CodeSystemFactoryProvider {
           reject(err);
         } else {
           for (const row of rows) {
-            if (row.name === 'version') {
-              this._sharedData._version = row.value;
+            const infoRow = /** @type {CPTInfoRow} */ (row);
+            if (infoRow.name === 'version' && this._sharedData) {
+              this._sharedData._version = infoRow.value;
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - CPT database
+   * @returns {Promise<void>}
+   */
   async #loadConcepts(db) {
     return new Promise((resolve, reject) => {
       db.all('SELECT * FROM Concepts', (err, rows) => {
         if (err) {
           reject(err);
         } else {
+          const sharedData = /** @type {CPTSharedData} */ (this._sharedData);
           for (const row of rows) {
-            const concept = new CPTConcept(row.code, row.modifier === 1);
+            const conceptRow = /** @type {CPTConceptRow} */ (row);
+            const concept = new CPTConcept(conceptRow.code, conceptRow.modifier === 1);
 
-            this._sharedData.conceptMap.set(concept.code, concept);
-            this._sharedData.conceptList.push(concept);
+            sharedData.conceptMap.set(concept.code, concept);
+            sharedData.conceptList.push(concept);
 
             if (concept.modifier) {
-              this._sharedData.modifierList.push(concept);
+              sharedData.modifierList.push(concept);
             } else {
-              this._sharedData.baseList.push(concept);
+              sharedData.baseList.push(concept);
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - CPT database
+   * @returns {Promise<void>}
+   */
   async #loadProperties(db) {
     return new Promise((resolve, reject) => {
       db.all('SELECT * FROM Properties', (err, rows) => {
         if (err) {
           reject(err);
         } else {
+          const sharedData = /** @type {CPTSharedData} */ (this._sharedData);
           for (const row of rows) {
-            const concept = this._sharedData.conceptMap.get(row.code);
+            const propertyRow = /** @type {CPTPropertyRow} */ (row);
+            const concept = sharedData.conceptMap.get(propertyRow.code);
             if (concept) {
-              concept.addProperty(row.name, row.value);
+              concept.addProperty(propertyRow.name, propertyRow.value);
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
   }
 
+  /**
+   * @param {SqliteDatabase} db - CPT database
+   * @returns {Promise<void>}
+   */
   async #loadDesignations(db) {
     return new Promise((resolve, reject) => {
       db.all('SELECT * FROM Designations', (err, rows) => {
         if (err) {
           reject(err);
         } else {
+          const sharedData = /** @type {CPTSharedData} */ (this._sharedData);
           for (const row of rows) {
-            const concept = this._sharedData.conceptMap.get(row.code);
+            const designationRow = /** @type {CPTDesignationRow} */ (row);
+            const concept = sharedData.conceptMap.get(designationRow.code);
             if (concept) {
-              !concept.addDesignation(row.type, row.value);
+              concept.addDesignation(designationRow.type, designationRow.value);
             }
           }
-          resolve();
+          resolve(undefined);
         }
       });
     });
@@ -724,6 +986,11 @@ class CPTServicesFactory extends CodeSystemFactoryProvider {
     return this._sharedData?._version || 'unknown';
   }
 
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @returns {Promise<CPTServices>} New provider
+   */
   async build(opContext, supplements) {
     await this.#ensureLoaded();
     this.recordUse();
@@ -731,9 +998,13 @@ class CPTServicesFactory extends CodeSystemFactoryProvider {
     // Create fresh database connection for this provider instance
     const db = new sqlite3.Database(this.dbPath);
 
-    return new CPTServices(opContext, supplements, db, this._sharedData);
+    return new CPTServices(opContext, supplements, db, /** @type {CPTSharedData} */ (this._sharedData));
   }
 
+  /**
+   * @param {string} dbPath - Path to CPT database
+   * @returns {string} Database status
+   */
   static checkDB(dbPath) {
     try {
       const fs = require('fs');
@@ -756,7 +1027,7 @@ class CPTServicesFactory extends CodeSystemFactoryProvider {
       // For the fragment database, we know it should have 9 concepts
       return 'OK (9 Concepts)';
     } catch (e) {
-      return `Database error: ${e.message}`;
+      return `Database error: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
 
@@ -770,7 +1041,7 @@ class CPTServicesFactory extends CodeSystemFactoryProvider {
 
 
   id() {
-    return "cpt2023";
+    return 'cpt2023';
   }
 }
 

@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // TX HTML Rendering Module
 //
@@ -5,20 +7,29 @@
 //
 
 const path = require('path');
-const htmlServer = require('../library/html-server');
-const Logger = require('../library/logger');
+const htmlServer = /** @type {any} */ (require('../library/html-server'));
+const Logger = /** @type {any} */ (require('../library/logger'));
 const packageJson = require("../package.json");
 const escape = require('escape-html');
-const {ExpandWorker} = require("./workers/expand");
-const ValueSet = require("./library/valueset");
-const {CodeSystemXML} = require("./xml/codesystem-xml");
-const {ValueSetXML} = require("./xml/valueset-xml");
-const {BundleXML} = require("./xml/bundle-xml");
-const {CapabilityStatementXML} = require("./xml/capabilitystatement-xml");
-const {TerminologyCapabilitiesXML} = require("./xml/terminologycapabilities-xml");
-const {ParametersXML} = require("./xml/parameters-xml");
-const {OperationOutcomeXML} = require("./xml/operationoutcome-xml");
-const {debugLog} = require("./operation-context");
+const expandModule = require("./workers/expand");
+const ExpandWorker = /** @type {any} */ (expandModule.ExpandWorker);
+const ValueSet = /** @type {any} */ (require("./library/valueset"));
+const codeSystemXmlModule = require("./xml/codesystem-xml");
+const CodeSystemXML = /** @type {any} */ (codeSystemXmlModule.CodeSystemXML);
+const valueSetXmlModule = require("./xml/valueset-xml");
+const ValueSetXML = /** @type {any} */ (valueSetXmlModule.ValueSetXML);
+const bundleXmlModule = require("./xml/bundle-xml");
+const BundleXML = /** @type {any} */ (bundleXmlModule.BundleXML);
+const capabilityXmlModule = require("./xml/capabilitystatement-xml");
+const CapabilityStatementXML = /** @type {any} */ (capabilityXmlModule.CapabilityStatementXML);
+const terminologyCapabilitiesXmlModule = require("./xml/terminologycapabilities-xml");
+const TerminologyCapabilitiesXML = /** @type {any} */ (terminologyCapabilitiesXmlModule.TerminologyCapabilitiesXML);
+const parametersXmlModule = require("./xml/parameters-xml");
+const ParametersXML = /** @type {any} */ (parametersXmlModule.ParametersXML);
+const operationOutcomeXmlModule = require("./xml/operationoutcome-xml");
+const OperationOutcomeXML = /** @type {any} */ (operationOutcomeXmlModule.OperationOutcomeXML);
+const operationContextModule = require("./operation-context");
+const debugLog = /** @type {any} */ (operationContextModule.debugLog);
 
 const txHtmlLog = Logger.getInstance().child({ module: 'tx-html' });
 
@@ -59,28 +70,52 @@ function loadTemplate() {
       txHtmlLog.error('Failed to load TX HTML template');
     }
   } catch (error) {
-    txHtmlLog.error(`Failed to load TX HTML template: ${error.message}`);
+    txHtmlLog.error(`Failed to load TX HTML template: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 
 class TxHtmlRenderer {
+  /** @type {any} */
   renderer;
+  /** @type {any} */
   liquid;
+  /** @type {any} */
   languages;
+  /** @type {any} */
   i18n;
+  /** @type {string} */
   path;
+  /** @type {string} */
+  fhirVersion;
+  /** @type {any} */
+  log;
 
-  constructor(renderer, liquid, languages, i18n, path) {
+  /**
+   * @param {any} renderer
+   * @param {any} liquid
+   * @param {any} languages
+   * @param {any} i18n
+   * @param {string} path
+   * @param {string} [fhirVersion]
+   */
+  constructor(renderer, liquid, languages, i18n, path, fhirVersion = '5.0') {
     this.renderer = renderer;
     this.liquid = liquid;
     this.languages = languages;
     this.i18n = i18n;
     this.path = path;
+    this.fhirVersion = fhirVersion;
+    this.log = txHtmlLog;
   }
 
   /**
    * Render a page with the TX template
+   * @param {string} title
+   * @param {string} content
+   * @param {any} endpoint
+   * @param {number} startTime
+   * @returns {string}
    */
   renderPage(title, content, endpoint, startTime) {
     const options = {
@@ -95,6 +130,8 @@ class TxHtmlRenderer {
 
   /**
    * Check if request accepts HTML
+   * @param {any} req
+   * @returns {boolean}
    */
   acceptsHtml(req) {
     let _fmt = req.query._format || req.query.format || req.body?._format;
@@ -115,6 +152,9 @@ class TxHtmlRenderer {
 
   /**
    * Build page title from JSON response
+   * @param {any} json
+   * @param {any} req
+   * @returns {string}
    */
   buildTitle(json, req) {
     if (req.path == "/") {
@@ -132,7 +172,7 @@ class TxHtmlRenderer {
 
       if (resourceType === 'Bundle' && json.type === 'searchset') {
         // Extract the resource type being searched from self link or entries
-        const selfLink = json.link?.find(l => l.relation === 'self')?.url || '';
+        const selfLink = json.link?.find((/** @type {any} */ l) => l.relation === 'self')?.url || '';
         const typeMatch = selfLink.match(/\/(CodeSystem|ValueSet|ConceptMap)\?/);
         if (typeMatch) {
           return `Search: ${typeMatch[1]}`;
@@ -160,11 +200,23 @@ class TxHtmlRenderer {
   }
 
 // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {any} req
+   * @param {any} [mode]
+   * @param {any} [params]
+   * @returns {Promise<string>}
+   */
   async buildSearchForm(req, mode, params) {
+    void mode;
+    void params;
     const html = await this.liquid.renderFile('search-form', { baseUrl: escape(req.baseUrl), sourceOptions : this.buildSourceOptions(req.txProvider) });
     return html;
   }
 
+  /**
+   * @param {any} req
+   * @returns {Promise<string>}
+   */
   async buildHomePage(req) {
     const provider = req.txProvider;
 
@@ -305,6 +357,10 @@ class TxHtmlRenderer {
 
   /**
    * Main render - determines what to render based on resource type
+   * @param {any} json
+   * @param {any} req
+   * @param {boolean} [inBundle]
+   * @returns {Promise<string>}
    */
   async render(json, req, inBundle = false) {
     if (req && req.path == "/") {
@@ -330,18 +386,18 @@ class TxHtmlRenderer {
                 exp = error;
               }
             }
-            return await this.renderValueSet(json, inBundle, _fmt, op, exp, req.sourcePackage);
+            return await this.renderValueSet(json, inBundle, _fmt, op, exp);
           }
           case 'ConceptMap':
-            return await this.renderConceptMap(json, inBundle, _fmt, op, req.sourcePackage);
+            return await this.renderConceptMap(json, inBundle, _fmt, op);
           case 'CapabilityStatement':
             return await this.renderCapabilityStatement(json, inBundle);
           case 'TerminologyCapabilities':
             return await this.renderTerminologyCapabilities(json, inBundle);
           case 'Bundle':
-            return await this.renderBundle(json, req, inBundle);
+            return await this.renderBundle(json, req);
           case 'OperationOutcome':
-            return await this.renderOperationOutcome(json, req);
+            return await this.renderOperationOutcome(json);
           case 'Operations':
             return await this.renderOperationsForm(json, req);
           default:
@@ -357,6 +413,8 @@ class TxHtmlRenderer {
 
   /**
    * Render Parameters resource
+   * @param {any} json
+   * @returns {Promise<string>}
    */
   async renderParameters(json) {
     let html = '<table class="table grid">';
@@ -386,6 +444,8 @@ class TxHtmlRenderer {
 
   /**
    * Render a single parameter row
+   * @param {any} param
+   * @returns {Promise<string>}
    */
   async renderParameter(param) {
     let html = '<tr>';
@@ -399,6 +459,8 @@ class TxHtmlRenderer {
 
   /**
    * Render the value portion of a parameter
+   * @param {any} param
+   * @returns {Promise<string>}
    */
   async renderParameterValue(param) {
     // Check for parts (nested parameters)
@@ -482,10 +544,13 @@ class TxHtmlRenderer {
 
   /**
    * Render Coding datatype
+   * @param {any} coding
+   * @returns {Promise<string>}
    */
   async renderCoding(coding) {
     if (!coding) return '';
 
+    /** @type {string[]} */
     let parts = [];
     if (coding.system) {
       parts.push(escape(coding.system));
@@ -505,6 +570,8 @@ class TxHtmlRenderer {
 
   /**
    * Render CodeableConcept datatype
+   * @param {any} cc
+   * @returns {Promise<string>}
    */
   async renderCodeableConcept(cc) {
     if (!cc) return '';
@@ -519,7 +586,7 @@ class TxHtmlRenderer {
       if (cc.text) html += '<br/>';
       html += '<ul style="margin: 0; padding-left: 20px;">';
       for (const coding of cc.coding) {
-        html += `<li>${this.renderCoding(coding)}</li>`;
+        html += `<li>${await this.renderCoding(coding)}</li>`;
       }
       html += '</ul>';
     }
@@ -529,6 +596,8 @@ class TxHtmlRenderer {
 
   /**
    * Render Quantity datatype
+   * @param {any} qty
+   * @returns {Promise<string>}
    */
   async renderQuantity(qty) {
     if (!qty) return '';
@@ -555,6 +624,8 @@ class TxHtmlRenderer {
 
   /**
    * Render Attachment datatype
+   * @param {any} att
+   * @returns {Promise<string>}
    */
   async renderAttachment(att) {
     if (!att) return '';
@@ -585,10 +656,13 @@ class TxHtmlRenderer {
 
   /**
    * Render Identifier datatype
+   * @param {any} id
+   * @returns {Promise<string>}
    */
   async renderIdentifier(id) {
     if (!id) return '';
 
+    /** @type {string[]} */
     let parts = [];
 
     if (id.use) {
@@ -604,7 +678,7 @@ class TxHtmlRenderer {
       parts.push(`<strong>${escape(id.value)}</strong>`);
     }
     if (id.period) {
-      parts.push(this.renderPeriod(id.period));
+      parts.push(await this.renderPeriod(id.period));
     }
 
     return parts.join(' | ') || '<em>(empty Identifier)</em>';
@@ -612,6 +686,8 @@ class TxHtmlRenderer {
 
   /**
    * Render Period datatype
+   * @param {any} period
+   * @returns {Promise<string>}
    */
   async renderPeriod(period) {
     if (!period) return '';
@@ -631,6 +707,12 @@ class TxHtmlRenderer {
 
   /**
    * Render CodeSystem resource
+   * @param {any} json
+   * @param {boolean} inBundle
+   * @param {string | undefined} _fmt
+   * @param {boolean} op
+   * @param {string | undefined} sourcePackage
+   * @returns {Promise<string>}
    */
   async renderCodeSystem(json, inBundle, _fmt, op, sourcePackage) {
     if (inBundle) {
@@ -666,6 +748,14 @@ class TxHtmlRenderer {
     }
   }
 
+  /**
+   * @param {any} b
+   * @param {string} name
+   * @param {string} rtype
+   * @param {string} type
+   * @param {string | undefined} id
+   * @returns {string}
+   */
   tab(b, name, rtype, type, id) {
     if (b) {
       return `<li class="active"><a href="#">${name}</a></li>`;
@@ -675,6 +765,12 @@ class TxHtmlRenderer {
   }
   /**
    * Render ValueSet resource
+   * @param {any} json
+   * @param {boolean} inBundle
+   * @param {string | undefined} _fmt
+   * @param {boolean} op
+   * @param {any} exp
+   * @returns {Promise<string>}
    */
   async renderValueSet(json, inBundle, _fmt, op, exp) {
     if (inBundle || op) {
@@ -718,6 +814,11 @@ class TxHtmlRenderer {
 
   /**
    * Render ConceptMap resource
+   * @param {any} json
+   * @param {boolean} inBundle
+   * @param {string | undefined} _fmt
+   * @param {boolean} op
+   * @returns {Promise<string>}
    */
   // eslint-disable-next-line no-unused-vars
   async renderConceptMap(json, inBundle, _fmt, op) {
@@ -769,12 +870,20 @@ class TxHtmlRenderer {
 
   /**
    * Render CapabilityStatement resource
+   * @param {any} json
+   * @param {boolean} inBundle
+   * @returns {Promise<string>}
    */
   // eslint-disable-next-line no-unused-vars
   async renderCapabilityStatement(json, inBundle) {
     return await this.renderResourceWithNarrative(json, await this.renderer.renderCapabilityStatement(json));
   }
 
+  /**
+   * @param {any} json
+   * @param {boolean} inBundle
+   * @returns {Promise<string>}
+   */
   // eslint-disable-next-line no-unused-vars
   async renderTerminologyCapabilities(json, inBundle) {
     return await this.renderResourceWithNarrative(json, await this.renderer.renderTerminologyCapabilities(json));
@@ -782,6 +891,8 @@ class TxHtmlRenderer {
 
   /**
    * Render OperationOutcome resource
+   * @param {any} json
+   * @returns {Promise<string>}
    */
   async renderOperationOutcome(json) {
     let html = '<div class="operation-outcome">';
@@ -822,6 +933,9 @@ class TxHtmlRenderer {
 
   /**
    * Render Bundle resource
+   * @param {any} json
+   * @param {any} req
+   * @returns {Promise<string>}
    */
   async renderBundle(json, req) {
     if (json.type === 'searchset') {
@@ -834,11 +948,14 @@ class TxHtmlRenderer {
 
   /**
    * Render a search result Bundle
+   * @param {any} json
+   * @param {any} req
+   * @returns {Promise<string>}
    */
   async renderSearchBundle(json, req) {
 
     // Check if there are any actual search parameters (not just pagination/control params)
-    const selfLink = json.link?.find(l => l.relation === 'self')?.url || '';
+    const selfLink = json.link?.find((/** @type {any} */ l) => l.relation === 'self')?.url || '';
     const hasSearchParams = this.checkForSearchParams(selfLink);
 
     // If no search params provided, show the search form
@@ -848,7 +965,7 @@ class TxHtmlRenderer {
 
     // Check if _elements was specified (look in self link)
     const elementsMatch = selfLink.match(/[?&]_elements=([^&]*)/);
-    const elements = elementsMatch ? decodeURIComponent(elementsMatch[1]).split(',').map(e => e.trim()) : null;
+    const elements = elementsMatch ? decodeURIComponent(elementsMatch[1]).split(',').map((/** @type {string} */ e) => e.trim()) : null;
 
     if (elements && elements.length > 0) {
       return this.renderSearchTable(json, elements, req);
@@ -860,6 +977,8 @@ class TxHtmlRenderer {
 
   /**
    * Check if URL has any actual search parameters (not just _offset, _count, _elements, _sort)
+   * @param {string} url
+   * @returns {boolean}
    */
   checkForSearchParams(url) {
     try {
@@ -879,6 +998,9 @@ class TxHtmlRenderer {
 
   /**
    * Render search form (when no search params provided)
+   * @param {any} json
+   * @param {any} req
+   * @returns {Promise<string>}
    */
   async renderSearchForm(json, req) {
     const resourceType = this.getSearchResourceType(json);
@@ -895,7 +1017,7 @@ class TxHtmlRenderer {
 
       if (param.type === 'select') {
         html += `<select name="${param.name}" id="${param.name}" class="form-select">`;
-        for (const opt of param.options) {
+        for (const opt of param.options || []) {
           html += `<option value="${escape(opt)}">${escape(opt || '(any)')}</option>`;
         }
         html += '</select>';
@@ -939,10 +1061,12 @@ class TxHtmlRenderer {
 
   /**
    * Get resource type from search bundle (from self link or first entry)
+   * @param {any} json
+   * @returns {string}
    */
   getSearchResourceType(json) {
     // Try to get from self link first
-    const selfLink = json.link?.find(l => l.relation === 'self')?.url || '';
+    const selfLink = json.link?.find((/** @type {any} */ l) => l.relation === 'self')?.url || '';
     const typeMatch = selfLink.match(/\/(CodeSystem|ValueSet|ConceptMap)\?/);
     if (typeMatch) {
       return typeMatch[1];
@@ -956,9 +1080,11 @@ class TxHtmlRenderer {
   /**
    * Build a human-readable description of what this search bundle represents,
    * by parsing the self link URL parameters.
+   * @param {any} json
+   * @returns {string}
    */
   describeSearchBundle(json) {
-    const selfLink = json.link?.find(l => l.relation === 'self')?.url || '';
+    const selfLink = json.link?.find((/** @type {any} */ l) => l.relation === 'self')?.url || '';
     if (!selfLink) return '';
 
     let urlObj;
@@ -973,6 +1099,7 @@ class TxHtmlRenderer {
     const resourceType = typeMatch ? typeMatch[1] : 'Resource';
 
     // Human-friendly labels for search params
+    /** @type {Record<string, string>} */
     const PARAM_LABELS = {
       'url': 'URL',
       'version': 'Version',
@@ -991,6 +1118,7 @@ class TxHtmlRenderer {
       'source': 'Source'
     };
 
+    /** @type {Record<string, string>} */
     const WORDS = {
       'url': 'contains',
       'version': 'contains',
@@ -1070,6 +1198,10 @@ class TxHtmlRenderer {
 
   /**
    * Render search results as a table (when _elements is specified)
+   * @param {any} json
+   * @param {string[]} elements
+   * @param {any} req
+   * @returns {Promise<string>}
    */
   async renderSearchTable(json, elements, req) {
     const entries = json.entry || [];
@@ -1123,6 +1255,9 @@ class TxHtmlRenderer {
 
   /**
    * Render search results as summary with individual resources
+   * @param {any} json
+   * @param {any} req
+   * @returns {Promise<string>}
    */
   async renderSearchSummary(json, req) {
     const entries = json.entry || [];
@@ -1157,6 +1292,8 @@ class TxHtmlRenderer {
 
   /**
    * Render pagination links
+   * @param {any} json
+   * @returns {string}
    */
   renderPaginationLinks(json) {
     const links = json.link || [];
@@ -1167,7 +1304,7 @@ class TxHtmlRenderer {
     const linkOrder = ['first', 'previous', 'self', 'next', 'last'];
 
     for (const rel of linkOrder) {
-      const link = links.find(l => l.relation === rel);
+      const link = links.find((/** @type {any} */ l) => l.relation === rel);
       if (link) {
         const isDisabled = rel === 'self';
         const label = rel.charAt(0).toUpperCase() + rel.slice(1);
@@ -1186,6 +1323,9 @@ class TxHtmlRenderer {
 
   /**
    * Render a generic bundle (non-search)
+   * @param {any} json
+   * @param {any} req
+   * @returns {Promise<string>}
    */
   async renderGenericBundle(json, req) {
     let html = '<div class="card mb-3">';
@@ -1221,13 +1361,19 @@ class TxHtmlRenderer {
 
   /**
    * Render generic resource (fallback)
+   * @param {any} json
+   * @param {boolean} inBundle
+   * @returns {Promise<string>}
    */
   async renderGeneric(json, inBundle) {
-    return this.renderResourceWithNarrative(json, inBundle);
+    void inBundle;
+    return this.renderResourceWithNarrative(json, undefined);
   }
 
   /**
    * Format a value for display
+   * @param {any} value
+   * @returns {string}
    */
   formatValue(value) {
     if (value === null || value === undefined) {
@@ -1242,9 +1388,12 @@ class TxHtmlRenderer {
   /**
    * Generate a unique ID for collapsible sections
    */
-  let
+  /** @type {number} */
   resourceIdCounter = 0;
 
+  /**
+   * @returns {string}
+   */
   generateResourceId() {
     return 'resource_' + (++this.resourceIdCounter);
   }
@@ -1252,8 +1401,12 @@ class TxHtmlRenderer {
 
   /**
    * Render resource with text/div narrative and collapsible JSON source
+   * @param {any} json
+   * @param {string | undefined} rendered
+   * @returns {Promise<string>}
    */
   async renderResourceWithNarrative(json, rendered) {
+    void json;
     let html = '';
 
     // Show text/div narrative if present
@@ -1268,6 +1421,10 @@ class TxHtmlRenderer {
     return html;
   }
 
+  /**
+   * @param {any} json
+   * @returns {Promise<string>}
+   */
   async renderResourceJson(json) {
     let html = "";
     html += `<div class="json-content" style="margin-top: 10px;">`;
@@ -1276,6 +1433,10 @@ class TxHtmlRenderer {
     return html;
   }
 
+  /**
+   * @param {any} res
+   * @returns {string}
+   */
   convertResourceToXml(res) {
     switch (res.resourceType) {
       case "CodeSystem" : return CodeSystemXML.toXml(res);
@@ -1289,6 +1450,10 @@ class TxHtmlRenderer {
     throw new Error(`Resource type ${res.resourceType} not supported in XML`);
   }
 
+  /**
+   * @param {any} json
+   * @returns {Promise<string>}
+   */
   async renderResourceXml(json) {
     let xml = this.convertResourceToXml(json);
     let html = "";
@@ -1299,7 +1464,13 @@ class TxHtmlRenderer {
   }
 
   // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {any} json
+   * @param {any} req
+   * @returns {Promise<string>}
+   */
   async renderOperationsForm(json, req) {
+    void req;
     const vcSystemId = this.generateResourceId();
     const inferSystemId = this.generateResourceId();
 
@@ -1310,6 +1481,11 @@ class TxHtmlRenderer {
     });
   }
 
+  /**
+   * @param {any} source
+   * @param {any} req
+   * @returns {Promise<string>}
+   */
   async buildInfoPage(source, req) {
     let html = '';
     const infoContent = await source.info(req);
@@ -1317,6 +1493,10 @@ class TxHtmlRenderer {
     return html;
   }
 
+  /**
+   * @param {any} provider
+   * @returns {string}
+   */
   buildSourceOptions(provider) {
     let result = '<option value=""></option>';
     result += `<option value="internal">internal</option>`;

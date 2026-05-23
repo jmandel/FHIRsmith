@@ -1,2 +1,3 @@
-﻿module.exports = require('./cs-ocl.cjs');
+// @ts-check
 
+module.exports = require('./cs-ocl.cjs');

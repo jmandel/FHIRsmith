@@ -1,21 +1,45 @@
-const { CodeSystemContentMode, CodeSystemFactoryProvider} = require('./cs-api');
-const {
-  SnomedStrings, SnomedWords, SnomedStems, SnomedReferences,
-  SnomedDescriptions, SnomedDescriptionIndex, SnomedConceptList,
-  SnomedRelationshipList, SnomedReferenceSetMembers, SnomedReferenceSetIndex,
-  SnomedFileReader
-} = require('../sct/structures');
-const {
-  SnomedExpressionServices, SnomedExpression, SnomedConcept,
-  SnomedExpressionParser, NO_REFERENCE, SnomedServicesRenderOption
-} = require('../sct/expressions');
+// @ts-check
+
+const csApi = require('./cs-api');
+const CodeSystemContentMode = /** @type {any} */ (csApi.CodeSystemContentMode);
+const CodeSystemFactoryProvider = /** @type {any} */ (csApi.CodeSystemFactoryProvider);
+const sctStructures = require('../sct/structures');
+const SnomedStrings = /** @type {any} */ (sctStructures.SnomedStrings);
+const SnomedWords = /** @type {any} */ (sctStructures.SnomedWords);
+const SnomedStems = /** @type {any} */ (sctStructures.SnomedStems);
+const SnomedReferences = /** @type {any} */ (sctStructures.SnomedReferences);
+const SnomedDescriptions = /** @type {any} */ (sctStructures.SnomedDescriptions);
+const SnomedDescriptionIndex = /** @type {any} */ (sctStructures.SnomedDescriptionIndex);
+const SnomedConceptList = /** @type {any} */ (sctStructures.SnomedConceptList);
+const SnomedRelationshipList = /** @type {any} */ (sctStructures.SnomedRelationshipList);
+const SnomedReferenceSetMembers = /** @type {any} */ (sctStructures.SnomedReferenceSetMembers);
+const SnomedReferenceSetIndex = /** @type {any} */ (sctStructures.SnomedReferenceSetIndex);
+const SnomedFileReader = /** @type {any} */ (sctStructures.SnomedFileReader);
+const sctExpressions = require('../sct/expressions');
+const SnomedExpressionServices = /** @type {any} */ (sctExpressions.SnomedExpressionServices);
+const SnomedExpression = /** @type {any} */ (sctExpressions.SnomedExpression);
+const SnomedConcept = /** @type {any} */ (sctExpressions.SnomedConcept);
+const SnomedExpressionParser = /** @type {any} */ (sctExpressions.SnomedExpressionParser);
+const NO_REFERENCE = /** @type {any} */ (sctExpressions.NO_REFERENCE);
+const SnomedServicesRenderOption = /** @type {any} */ (sctExpressions.SnomedServicesRenderOption);
 const {DesignationUse} = require("../library/designations");
-const {BaseCSServices} = require("./cs-base");
+const csBase = require("./cs-base");
+const BaseCSServices = /** @type {any} */ (csBase.BaseCSServices);
 const {formatDateMMDDYYYY} = require("../../library/utilities");
 const {ConceptMap} = require("../library/conceptmap");
 const {ECLLexer, ECLParser, ECLNodeType, ECLTokenType} = require("../sct/ecl");
 const {Issue} = require("../library/operation-outcome");
 const {debugLog} = require("../operation-context");
+
+/** @typedef {string | number | bigint} SnomedIdLike */
+/** @typedef {SnomedExpressionContext | string | null | undefined} SnomedContextInput */
+/** @typedef {{context: SnomedExpressionContext | null, message?: string | null}} SnomedLocateResult */
+/** @typedef {{context: SnomedExpressionContext | null, keys: number[], current: number, total: number}} SnomedIteratorContext */
+/** @typedef {{filter: string}} SnomedSearchText */
+/** @typedef {{index: number, term?: string | bigint | number, priority?: number, ref?: number, values?: number}} SnomedMatchEntry */
+/** @typedef {{strings: any, words: any, stems: any, refs: any, desc: any, descRef: any, concept: any, rel: any, refSetIndex: any, refSetMembers: any, hasLangs?: boolean, versionUri: string, versionDate: string, edition: string, version: string, isAIndex: number, activeRoots: number[], inactiveRoots: number[], defaultLanguage?: string, isTesting?: boolean}} SnomedSharedData */
+/** @typedef {{resourceType: string, url: string, status: string, version: string, name: string, title?: string, description: string, date: string, compose: {include: Array<{system: string, concept?: Array<{code: string}>, filter?: Array<{property: string, op: string, value: string}>}>}}} SnomedValueSetLike */
+/** @typedef {{system?: string, code?: string | number, display?: string, version?: string, relationship?: string, map?: string, [key: string]: any}} SnomedTranslationLike */
 
 // Context kinds matching Pascal enum
 const SnomedProviderContextKind = {
@@ -27,17 +51,31 @@ const SnomedProviderContextKind = {
  * SNOMED Expression Context - represents either a simple concept or complex expression
  */
 class SnomedExpressionContext {
+  /**
+   * @param {string} source - Source code or expression text
+   * @param {any | null} expression - Parsed SNOMED expression
+   */
   constructor(source = '', expression = null) {
     this.source = source;
+    /** @type {any | null} */
     this.expression = expression;
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {SnomedExpressionContext} Expression context
+   */
   static fromReference(reference) {
     const expression = new SnomedExpression();
     expression.concepts.push(new SnomedConcept(reference));
     return new SnomedExpressionContext('', expression);
   }
 
+  /**
+   * @param {string} code - SNOMED concept id
+   * @param {number} reference - Concept reference/index
+   * @returns {SnomedExpressionContext} Expression context
+   */
   static fromCode(code, reference) {
     const expression = new SnomedExpression();
     const concept = new SnomedConcept(reference);
@@ -46,6 +84,11 @@ class SnomedExpressionContext {
     return new SnomedExpressionContext(code, expression);
   }
 
+  /**
+   * @param {string} source - Expression source
+   * @param {any} expression - Parsed expression
+   * @returns {SnomedExpressionContext} Expression context
+   */
   static fromExpression(source, expression) {
     return new SnomedExpressionContext(source, expression);
   }
@@ -79,15 +122,30 @@ class SnomedFilterContext {
   constructor() {
     this.ndx = 0;
     this.cursor = 0;
+    /** @type {SnomedMatchEntry[]} */
     this.matches = [];
+    /** @type {any[]} */
     this.members = [];
+    /** @type {number[]} */
     this.descendants = [];
+    /** @type {boolean | undefined} */
     this.expressions = undefined; // special use
+    /** @type {boolean | undefined} */
+    this.inactive = undefined;
+    /** @type {number | undefined} */
+    this.moduleId = undefined;
+    /** @type {number | undefined} */
+    this.propProp = undefined;
+    /** @type {number | undefined} */
+    this.propValue = undefined;
+    this.eclWildcard = false;
+    this.populationDone = false;
   }
 }
 
 class SnomedPrep {
   constructor() {
+    /** @type {SnomedFilterContext[]} */
     this.filters = [];
   }
 }
@@ -96,6 +154,9 @@ class SnomedPrep {
  * Core SNOMED services providing access to structures and expression processing
  */
 class SnomedServices {
+  /**
+   * @param {SnomedSharedData} sharedData - Shared SNOMED data
+   */
   constructor(sharedData) {
     // Core data structures
     this.strings = new SnomedStrings(sharedData.strings);
@@ -159,6 +220,10 @@ class SnomedServices {
     return `SCT ${getEditionCode(this.edition)}`;
   }
 
+  /**
+   * @param {SnomedIdLike | null | undefined} str - ID-like value
+   * @returns {bigint} Parsed id or zero
+   */
   stringToIdOrZero(str) {
     try {
       if (!str) return 0n;
@@ -168,10 +233,18 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {SnomedIdLike} str - ID-like value
+   * @returns {bigint} Parsed id
+   */
   stringToId(str) {
     return BigInt(str);
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {string} Concept id
+   */
   getConceptId(reference) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -181,6 +254,10 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {SnomedIdLike} conceptId - Concept id
+   * @returns {boolean} Whether concept exists
+   */
   conceptExists(conceptId) {
     const id = this.stringToIdOrZero(conceptId);
     if (id === 0n) return false;
@@ -189,6 +266,10 @@ class SnomedServices {
     return result.found;
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {boolean} Whether concept is active
+   */
   isActive(reference) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -199,6 +280,10 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {boolean} Whether concept is primitive
+   */
   isPrimitive(reference) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -209,6 +294,11 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {number} parentRef - Parent concept reference
+   * @param {number} childRef - Child concept reference
+   * @returns {boolean} Whether parent subsumes child
+   */
   subsumes(parentRef, childRef) {
     if (parentRef === childRef) {
       return true;
@@ -229,7 +319,13 @@ class SnomedServices {
     }
   }
 
-  getDisplayName(reference = 0) {
+  /**
+   * @param {number} reference - Concept reference/index
+   * @param {string | null} language - Requested language
+   * @returns {string} Display name
+   */
+  getDisplayName(reference = 0, language = null) {
+    void language;
     try {
       const concept = this.concepts.getConcept(reference);
       const descriptionsRef = concept.descriptions;
@@ -255,6 +351,10 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {number[]} Descendant references
+   */
   getConceptDescendants(reference) {
     try {
       const allDescRef = this.concepts.getAllDesc(reference);
@@ -267,6 +367,10 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {number[]} Child references
+   */
   getConceptChildren(reference) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -290,6 +394,10 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {number[]} Parent references
+   */
   getConceptParents(reference) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -303,6 +411,10 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {number} reference - Concept reference/index
+   * @returns {number[]} Relationship references
+   */
   getConceptRelationships(reference) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -316,6 +428,11 @@ class SnomedServices {
     }
   }
 
+  /**
+   * @param {number} conceptIndex - Concept index
+   * @param {boolean} byName - Whether to return members by name
+   * @returns {number} Reference set member index
+   */
   getConceptRefSet(conceptIndex, byName = false) {
     for (let i = 0; i < this.refSetIndex.count(); i++) {
       const refSet = this.refSetIndex.getReferenceSet(i);
@@ -327,6 +444,10 @@ class SnomedServices {
   }
 
   // Filter support methods
+  /**
+   * @param {SnomedIdLike} id - Concept id
+   * @returns {SnomedFilterContext} Filter context
+   */
   filterEquals(id) {
     const result = new SnomedFilterContext();
     const conceptResult = this.concepts.findConcept(id);
@@ -339,6 +460,11 @@ class SnomedServices {
     return result;
   }
 
+  /**
+   * @param {SnomedIdLike} id - Concept id
+   * @param {boolean} includeBase - Include focus concept
+   * @returns {SnomedFilterContext} Filter context
+   */
   filterIsA(id, includeBase = true) {
     const result = new SnomedFilterContext();
     const conceptResult = this.concepts.findConcept(id);
@@ -358,7 +484,11 @@ class SnomedServices {
     return result;
   }
 
-  filterChildOf(id = true) {
+  /**
+   * @param {SnomedIdLike} id - Concept id
+   * @returns {SnomedFilterContext} Filter context
+   */
+  filterChildOf(id) {
     const result = new SnomedFilterContext();
     const conceptResult = this.concepts.findConcept(id);
 
@@ -374,7 +504,13 @@ class SnomedServices {
   }
 
 
-  filterGeneralizes(id = true) {
+  /**
+   * @param {SnomedIdLike} id - Concept id
+   * @param {boolean} includeBase - Unused compatibility flag
+   * @returns {SnomedFilterContext} Filter context
+   */
+  filterGeneralizes(id, includeBase = false) {
+    void includeBase;
     const result = new SnomedFilterContext();
     const conceptResult = this.concepts.findConcept(id);
 
@@ -404,6 +540,10 @@ class SnomedServices {
   }
 
 
+  /**
+   * @param {string} idList - Comma-separated concept ids
+   * @returns {SnomedFilterContext} Filter context
+   */
   filterIn(idList) {
     const result = new SnomedFilterContext();
     let members = [];
@@ -425,12 +565,20 @@ class SnomedServices {
     return result;
   }
 
+  /**
+   * @param {boolean} state - Inactive filter state
+   * @returns {SnomedFilterContext} Filter context
+   */
   filterInactive(state) {
     const result = new SnomedFilterContext();
     result.inactive = state;
     return result;
   }
 
+  /**
+   * @param {SnomedIdLike} id - Module concept id
+   * @returns {SnomedFilterContext} Filter context
+   */
   filterModuleId(id) {
     const result = new SnomedFilterContext();
     let concept = this.concepts.findConcept(id);
@@ -438,6 +586,11 @@ class SnomedServices {
     return result;
   }
 
+  /**
+   * @param {SnomedIdLike} prop - Property concept id
+   * @param {SnomedIdLike} value - Value concept id
+   * @returns {SnomedFilterContext} Filter context
+   */
   filterByProperty(prop, value) {
     const result = new SnomedFilterContext();
     let p = this.concepts.findConcept(prop);
@@ -472,23 +625,25 @@ class SnomedServices {
    * Throws an Error for syntax errors, unknown concepts, or unsupported features.
    *
    * @param {string} eclExpression
+   * @param {boolean} forIteration
+   * @param {any} opContext
    * @returns {SnomedFilterContext}
    */
-  filterECL = function (eclExpression, forIteration, opContext) {
+  filterECL = (eclExpression, forIteration, opContext) => {
     let ast;
     try {
       const tokens = new ECLLexer(eclExpression).tokenize();
       ast = new ECLParser(tokens).parse();
     } catch (err) {
       debugLog(err);
-      throw new Issue('error', 'invalid', null, 'INVALID_ECL', opContext.i18n.translate('INVALID_ECL', opContext.langs, [eclExpression, err.message]), 'vs-invalid').handleAsOO(400);
+      throw new Issue('error', 'invalid', null, 'INVALID_ECL', opContext.i18n.translate('INVALID_ECL', opContext.langs, [eclExpression, err instanceof Error ? err.message : String(err)]), 'vs-invalid').handleAsOO(400);
     }
     let result;
     try {
       result = this._evalECLNode(ast);
     } catch (err) {
       debugLog(err);
-      throw new Issue('error', 'invalid', null, 'UNSUPPORTED_ECL', opContext.i18n.translate('UNSUPPORTED_ECL', opContext.langs, [eclExpression, err.message]), 'vs-invalid').handleAsOO(400);
+      throw new Issue('error', 'invalid', null, 'UNSUPPORTED_ECL', opContext.i18n.translate('UNSUPPORTED_ECL', opContext.langs, [eclExpression, err instanceof Error ? err.message : String(err)]), 'vs-invalid').handleAsOO(400);
     }
     // Wildcard + iteration: the `eclWildcard` flag is only consulted by the
     // per-concept membership checks (filterCheck/filterLocate). For an $expand
@@ -496,7 +651,7 @@ class SnomedServices {
     // and the iteration yields nothing. Materialise active concepts now.
     if (forIteration && result.eclWildcard && (!result.descendants || result.descendants.length === 0)) {
       result.descendants = this._eclEnumerateActiveConcepts();
-      delete result.eclWildcard;
+      result.eclWildcard = false;
     }
     return result;
   };
@@ -506,7 +661,7 @@ class SnomedServices {
    * when the filter needs to be iterated over (e.g. $expand).
    * @returns {number[]}
    */
-  _eclEnumerateActiveConcepts = function () {
+  _eclEnumerateActiveConcepts = () => {
     const all = [];
     const n = this.concepts.count();
     for (let i = 0; i < n; i++) {
@@ -520,10 +675,10 @@ class SnomedServices {
 
   /**
    * Recursive ECL AST evaluator.
-   * @param {object} node
+   * @param {any} node
    * @returns {SnomedFilterContext}
    */
-  _evalECLNode = function (node) {
+  _evalECLNode = (node) => {
     if (!node) {
       throw new Error('ECL evaluation error: null AST node');
     }
@@ -570,10 +725,10 @@ class SnomedServices {
   /**
    * Evaluate a SUB_EXPRESSION_CONSTRAINT node, which combines an optional
    * hierarchy operator with a focus (concept ref, wildcard, or member-of).
-   * @param {object} node
+   * @param {any} node
    * @returns {SnomedFilterContext}
    */
-  _evalSubExpression = function (node) {
+  _evalSubExpression = (node) => {
     const operator = node.operator; // an ECLTokenType string, or null
     const focus = node.focus;
 
@@ -608,7 +763,7 @@ class SnomedServices {
    * @param {string|null} operator  ECLTokenType constant
    * @returns {SnomedFilterContext}
    */
-  _evalConceptWithOperator = function (conceptId, operator) {
+  _evalConceptWithOperator = (conceptId, operator) => {
     switch (operator) {
       case null:
       case undefined:
@@ -681,10 +836,10 @@ class SnomedServices {
   /**
    * Evaluate a MEMBER_OF node.  Only plain concept-reference refsets are
    * supported; complex expressions inside ^ are not yet supported.
-   * @param {object} memberOfNode
+   * @param {any} memberOfNode
    * @returns {SnomedFilterContext}
    */
-  _evalMemberOf = function (memberOfNode) {
+  _evalMemberOf = (memberOfNode) => {
     const refSet = memberOfNode.refSet;
     if (refSet.type !== ECLNodeType.CONCEPT_REFERENCE) {
       throw new Error('ECL ^ (member-of) with a non-concept-reference refset is not yet supported');
@@ -698,7 +853,7 @@ class SnomedServices {
    * filterLocate to accept every active concept without enumeration.
    * @returns {SnomedFilterContext}
    */
-  _eclWildcard = function () {
+  _eclWildcard = () => {
     const result = new SnomedFilterContext();
     result.eclWildcard = true;
     return result;
@@ -711,10 +866,10 @@ class SnomedServices {
    * For each chained attribute, replaces the current set with the set of
    * active relationship targets whose `relType` matches the attribute.
    * Only plain concept-reference attribute names are supported.
-   * @param {object} node
+   * @param {any} node
    * @returns {SnomedFilterContext}
    */
-  _evalDotted = function (node) {
+  _evalDotted = (node) => {
     let current = this._eclResolveSet(this._evalECLNode(node.base));
 
     for (const attr of node.attributes || []) {
@@ -755,10 +910,10 @@ class SnomedServices {
    *   - ATTRIBUTE_GROUP      { attr1 = v1, attr2 = v2 } (same relationship group)
    * Reverse attributes, cardinality, `!=`, and non-concept attribute names
    * throw informative errors.
-   * @param {object} node
+   * @param {any} node
    * @returns {SnomedFilterContext}
    */
-  _evalRefined = function (node) {
+  _evalRefined = (node) => {
     const baseSet = this._eclResolveSet(this._evalECLNode(node.base));
     const matching = [];
     for (const conceptIdx of baseSet) {
@@ -775,10 +930,10 @@ class SnomedServices {
    * Check whether a single concept satisfies a refinement node (ATTRIBUTE,
    * ATTRIBUTE_SET, or ATTRIBUTE_GROUP).
    * @param {number} conceptIdx
-   * @param {object} refinement
+   * @param {any} refinement
    * @returns {boolean}
    */
-  _refinementMatches = function (conceptIdx, refinement) {
+  _refinementMatches = (conceptIdx, refinement) => {
     switch (refinement.type) {
       case ECLNodeType.ATTRIBUTE:
         return this._attributeMatches(conceptIdx, refinement, null);
@@ -800,11 +955,11 @@ class SnomedServices {
    * expression's result set. If `groupFilter` is not null, the relationship
    * must also have that exact `group` number (used by group matching).
    * @param {number} conceptIdx
-   * @param {object} attr
+   * @param {any} attr
    * @param {number|null} groupFilter
    * @returns {boolean}
    */
-  _attributeMatches = function (conceptIdx, attr, groupFilter) {
+  _attributeMatches = (conceptIdx, attr, groupFilter) => {
     if (attr.reverse) {
       throw new Error('ECL reverse attributes (R) are not yet supported');
     }
@@ -834,11 +989,11 @@ class SnomedServices {
    * matches the attribute name and whose `target` is in the value expression's
    * result set. Honours an optional group filter.
    * @param {number} conceptIdx
-   * @param {object} attr
+   * @param {any} attr
    * @param {number|null} groupFilter
    * @returns {number}
    */
-  _countAttributeMatches = function (conceptIdx, attr, groupFilter) {
+  _countAttributeMatches = (conceptIdx, attr, groupFilter) => {
     const attrResult = this.concepts.findConcept(attr.name.conceptId);
     if (!attrResult.found) {
       throw new Error(`The SNOMED CT Concept ${attr.name.conceptId} is not known`);
@@ -866,7 +1021,7 @@ class SnomedServices {
    * @param {number} count
    * @returns {boolean}
    */
-  _cardinalityAccepts = function (cardinality, count) {
+  _cardinalityAccepts = (cardinality, count) => {
     const { min, max } = cardinality;
     if (min != null && count < min) return false;
     if (max != null && max !== '*' && count > max) return false;
@@ -881,11 +1036,12 @@ class SnomedServices {
    * If the group itself carries cardinality (e.g. `[1..1] {…}`), the match
    * requires the count of matching groups to fall within the specified range.
    * @param {number} conceptIdx
-   * @param {object} group
+   * @param {any} group
    * @returns {boolean}
    */
-  _attributeGroupMatches = function (conceptIdx, group) {
+  _attributeGroupMatches = (conceptIdx, group) => {
     const relIdxs = this.getConceptRelationships(conceptIdx);
+    /** @type {Set<number>} */
     const groupNumbers = new Set();
     for (const relIdx of relIdxs) {
       const rel = this.relationships.getRelationship(relIdx);
@@ -924,7 +1080,7 @@ class SnomedServices {
    * @param {SnomedFilterContext} ctx
    * @returns {number[]}
    */
-  _eclToIndexArray = function (ctx) {
+  _eclToIndexArray = (ctx) => {
     if (ctx.descendants && ctx.descendants.length > 0) return ctx.descendants;
     if (ctx.members && ctx.members.length > 0) return ctx.members.map(m => m.ref);
     if (ctx.matches && ctx.matches.length > 0) return ctx.matches.map(m => m.index);
@@ -939,7 +1095,7 @@ class SnomedServices {
    * @param {SnomedFilterContext} ctx
    * @returns {number[]}
    */
-  _eclResolveSet = function (ctx) {
+  _eclResolveSet = (ctx) => {
     if (ctx.eclWildcard && (!ctx.descendants || ctx.descendants.length === 0)) {
       return this._eclEnumerateActiveConcepts();
     }
@@ -948,20 +1104,26 @@ class SnomedServices {
 
   /**
    * AND: concepts present in both sets.
+   * @param {SnomedFilterContext} left - Left set
+   * @param {SnomedFilterContext} right - Right set
+   * @returns {SnomedFilterContext} Intersection
    */
-  _eclIntersect = function (left, right) {
+  _eclIntersect = (left, right) => {
     if (left.eclWildcard) return right;
     if (right.eclWildcard) return left;
     const leftSet = new Set(this._eclToIndexArray(left));
     const result = new SnomedFilterContext();
-    result.descendants = this._eclToIndexArray(right).filter(idx => leftSet.has(idx));
+    result.descendants = this._eclToIndexArray(right).filter((/** @type {number} */ idx) => leftSet.has(idx));
     return result;
   };
 
   /**
    * OR: concepts present in either set.
+   * @param {SnomedFilterContext} left - Left set
+   * @param {SnomedFilterContext} right - Right set
+   * @returns {SnomedFilterContext} Union
    */
-  _eclUnion = function (left, right) {
+  _eclUnion = (left, right) => {
     if (left.eclWildcard || right.eclWildcard) return this._eclWildcard();
     const combined = new Set([
       ...this._eclToIndexArray(left),
@@ -974,8 +1136,11 @@ class SnomedServices {
 
   /**
    * MINUS: concepts in left that are not in right.
+   * @param {SnomedFilterContext} left - Left set
+   * @param {SnomedFilterContext} right - Right set
+   * @returns {SnomedFilterContext} Difference
    */
-  _eclMinus = function (left, right) {
+  _eclMinus = (left, right) => {
     const result = new SnomedFilterContext();
 
     if (right.eclWildcard) {
@@ -998,16 +1163,23 @@ class SnomedServices {
       return result;
     }
 
-    result.descendants = this._eclToIndexArray(left).filter(idx => !rightSet.has(idx));
+    result.descendants = this._eclToIndexArray(left).filter((/** @type {number} */ idx) => !rightSet.has(idx));
     return result;
   };
 
 
+  /**
+   * @param {SnomedSearchText} searchText - Search text
+   * @param {boolean} includeInactive - Whether inactive concepts are included
+   * @param {boolean} exactMatch - Whether all search terms must match
+   * @returns {SnomedFilterContext} Search filter context
+   */
   searchFilter(searchText, includeInactive = false, exactMatch = false) {
     const result = new SnomedFilterContext();
 
     // Simplified search - in full implementation would use stemming and word indexes
     const searchTerms = searchText.filter.toLowerCase().split(/\s+/);
+    /** @type {SnomedMatchEntry[]} */
     const matches = [];
 
     // Search through all concepts
@@ -1034,10 +1206,10 @@ class SnomedServices {
 
             if (exactMatch) {
               // All search terms must be present
-              matchFound = searchTerms.every(searchTerm => term.includes(searchTerm));
+              matchFound = searchTerms.every((/** @type {string} */ searchTerm) => term.includes(searchTerm));
             } else {
               // Any search term can match
-              matchFound = searchTerms.some(searchTerm => term.includes(searchTerm));
+              matchFound = searchTerms.some((/** @type {string} */ searchTerm) => term.includes(searchTerm));
             }
 
             if (matchFound) {
@@ -1068,7 +1240,7 @@ class SnomedServices {
     }
 
     // Sort by priority (descending)
-    matches.sort((a, b) => b.priority - a.priority);
+    matches.sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
     result.matches = matches;
     return result;
@@ -1079,6 +1251,11 @@ class SnomedServices {
  * SNOMED CT Code System Provider
  */
 class SnomedProvider extends BaseCSServices {
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[] | null | undefined} supplements - Supplement CodeSystems
+   * @param {SnomedServices} snomedServices - SNOMED services
+   */
   constructor(opContext, supplements, snomedServices) {
     super(opContext, supplements);
     this.sct = snomedServices;
@@ -1100,7 +1277,7 @@ class SnomedProvider extends BaseCSServices {
    * @returns {boolean} True if actualVersion is more detailed than checkVersion (for SCT)
    */
   versionIsMoreDetailed(checkVersion, actualVersion) {
-    return actualVersion && actualVersion.startsWith(checkVersion);
+    return Boolean(actualVersion && actualVersion.startsWith(checkVersion));
   }
 
   description() {
@@ -1119,6 +1296,10 @@ class SnomedProvider extends BaseCSServices {
     return true;
   }
 
+  /**
+   * @param {any} languages - Requested languages
+   * @returns {boolean} Whether displays are available
+   */
   hasAnyDisplays(languages) {
     const langs = this._ensureLanguages(languages);
 
@@ -1132,6 +1313,10 @@ class SnomedProvider extends BaseCSServices {
   }
 
   // Core concept methods
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<string | null>} Code
+   */
   async code(context) {
 
     const ctxt = await this.#ensureContext(context);
@@ -1145,6 +1330,10 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<string | null>} Display
+   */
   async display(context) {
 
     const ctxt = await this.#ensureContext(context);
@@ -1162,16 +1351,28 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<null>} Definition, if any
+   */
   async definition(context) {
     await this.#ensureContext(context);
     return null; // SNOMED doesn't provide definitions in this sense
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<boolean>} Whether concept is abstract
+   */
   async isAbstract(context) {
     await this.#ensureContext(context);
     return false; // SNOMED concepts are not abstract
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<boolean>} Whether concept is inactive
+   */
   async isInactive(context) {
 
     const ctxt = await this.#ensureContext(context);
@@ -1181,12 +1382,20 @@ class SnomedProvider extends BaseCSServices {
     return !this.sct.isActive(ctxt.getReference());
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<boolean>} Whether concept is deprecated
+   */
   async isDeprecated(context) {
     await this.#ensureContext(context);
 
     return false; // Handle via status if needed
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<string | null>} Status
+   */
   async getStatus(context) {
 
     const ctxt = await this.#ensureContext(context);
@@ -1196,6 +1405,11 @@ class SnomedProvider extends BaseCSServices {
     return this.sct.isActive(ctxt.getReference()) ? 'active' : 'inactive';
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @param {any} displays - Designation collector
+   * @returns {Promise<void>}
+   */
   async designations(context, displays) {
 
     const ctxt = await this.#ensureContext(context);
@@ -1244,7 +1458,12 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {number | string} langIndex - Language index
+   * @returns {string} Language code
+   */
   getLanguageCode(langIndex) {
+    /** @type {Record<string, string>} */
     const languageMap = {
       1: 'en',
       2: 'fr',
@@ -1256,10 +1475,14 @@ class SnomedProvider extends BaseCSServices {
       8: 'it',
       9: 'cs'
     };
-    return languageMap[langIndex] || 'en';
+    return languageMap[String(langIndex)] || 'en';
   }
 
   // Lookup methods
+  /**
+   * @param {string} code - SNOMED code or expression
+   * @returns {Promise<SnomedLocateResult>} Locate result
+   */
   async locate(code) {
     if (!code) return { context: null, message: 'Empty code' };
 
@@ -1277,7 +1500,7 @@ class SnomedProvider extends BaseCSServices {
       } catch (error) {
         return {
           context: null,
-          message: Number.isInteger(code) ? undefined : `Not a valid expression: ${error.message}`
+          message: Number.isInteger(code) ? undefined : `Not a valid expression: ${error instanceof Error ? error.message : String(error)}`
         };
       }
     } else {
@@ -1296,6 +1519,10 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<string | null>} Incomplete validation message
+   */
   async incompleteValidationMessage(context) {
 
     const ctxt = await this.#ensureContext(context);
@@ -1309,6 +1536,12 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {string} code - Child concept id
+   * @param {string} parent - Parent concept id
+   * @param {boolean} disallowParent - Whether parent itself is disallowed
+   * @returns {Promise<SnomedLocateResult>} Locate result
+   */
   async locateIsA(code, parent, disallowParent = false) {
 
 
@@ -1340,6 +1573,10 @@ class SnomedProvider extends BaseCSServices {
   }
 
   // Iterator methods
+  /**
+   * @param {SnomedContextInput} context - Parent context
+   * @returns {Promise<SnomedIteratorContext>} Iterator context
+   */
   async iterator(context) {
 
 
@@ -1368,6 +1605,10 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {SnomedIteratorContext} iteratorContext - Iterator context
+   * @returns {Promise<SnomedExpressionContext | null>} Next concept
+   */
   async nextContext(iteratorContext) {
     if (iteratorContext.current >= iteratorContext.total) {
       return null;
@@ -1379,6 +1620,12 @@ class SnomedProvider extends BaseCSServices {
     return SnomedExpressionContext.fromReference(key);
   }
 
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @param {string[]} props - Requested properties
+   * @param {any[]} params - Parameters array
+   * @returns {Promise<void>}
+   */
   async extendLookup(context, props, params) {
     const ctxt = await this.#ensureContext(context);
     if (ctxt) {
@@ -1450,6 +1697,12 @@ class SnomedProvider extends BaseCSServices {
   }
 
   // Filter support
+  /**
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<boolean>} Whether filter is supported
+   */
   async doesFilter(prop, op, value) {
     if (prop === 'concept') {
       const id = this.sct.stringToIdOrZero(value);
@@ -1485,7 +1738,7 @@ class SnomedProvider extends BaseCSServices {
     }
 
     const cid = this.sct.stringToIdOrZero(prop);
-    if (cid != 0) {
+    if (cid !== 0n) {
       const id = this.sct.stringToIdOrZero(value);
       return id !== 0n && op === '=';
     }
@@ -1493,12 +1746,24 @@ class SnomedProvider extends BaseCSServices {
     return false;
   }
 
-  // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {boolean} iterate - Whether filters are for iteration
+   * @returns {Promise<SnomedPrep>} Prep context
+   */
   async getPrepContext(iterate) {
+    void iterate;
 
     return new SnomedPrep(); // Simple filter context
   }
 
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @param {boolean} forIteration - Whether filter is for iteration
+   * @param {string} prop - Filter property
+   * @param {string} op - Filter operator
+   * @param {string} value - Filter value
+   * @returns {Promise<null>} Null result
+   */
   async filter(filterContext, forIteration, prop, op, value) {
 
     if (prop === 'concept') {
@@ -1581,7 +1846,7 @@ class SnomedProvider extends BaseCSServices {
     }
 
     const cid = this.sct.stringToIdOrZero(prop);
-    if (cid != 0) {
+    if (cid !== 0n) {
 
       const id = this.sct.stringToIdOrZero(value);
       if (id === 0n) {
@@ -1602,11 +1867,19 @@ class SnomedProvider extends BaseCSServices {
   }
 
 
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @returns {Promise<SnomedFilterContext[]>} Filters
+   */
   async executeFilters(filterContext) {
     return filterContext.filters;
   }
 
   // eslint-disable-next-line no-unused-vars
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @returns {Promise<boolean>} Whether filters are open
+   */
   async filtersNotClosed(filterContext) {
     for (let filter of filterContext.filters) {
       if (filter.expressions != undefined && !filter.expressions) {
@@ -1616,6 +1889,11 @@ class SnomedProvider extends BaseCSServices {
     return true;
   }
 
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @param {SnomedFilterContext} set - Filter set
+   * @returns {Promise<number>} Filter size
+   */
   async filterSize(filterContext, set) {
     if (set.matches && set.matches.length > 0) {
       return set.matches.length;
@@ -1628,6 +1906,11 @@ class SnomedProvider extends BaseCSServices {
     return 0;
   }
 
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @param {SnomedFilterContext} set - Filter set
+   * @returns {Promise<boolean>} Whether another concept is available
+   */
   async filterMore(filterContext, set) {
     set.cursor = set.cursor || 0;
     this.#ensurePopulated(set);
@@ -1635,6 +1918,11 @@ class SnomedProvider extends BaseCSServices {
     return set.cursor < size;
   }
 
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @param {SnomedFilterContext} set - Filter set
+   * @returns {Promise<SnomedExpressionContext | null>} Current concept
+   */
   async filterConcept(filterContext, set) {
     const size = await this.filterSize(filterContext, set);
     if (set.cursor >= size) {
@@ -1656,6 +1944,12 @@ class SnomedProvider extends BaseCSServices {
     return SnomedExpressionContext.fromReference(key);
   }
 
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @param {SnomedFilterContext} set - Filter set
+   * @param {string} code - SNOMED code
+   * @returns {Promise<SnomedExpressionContext | string | null | undefined>} Located concept, message, or null
+   */
   async filterLocate(filterContext, set, code) {
 
     const conceptResult = await this.locate(code);
@@ -1663,11 +1957,11 @@ class SnomedProvider extends BaseCSServices {
       return conceptResult.message;
     }
 
+    const ctxt = conceptResult.context;
+    const reference = ctxt.getReference();
     if (set.eclWildcard) {
       return this.sct.isActive(reference) ? ctxt : null;
     }
-    const ctxt = conceptResult.context;
-    const reference = ctxt.getReference();
     let found = false;
 
     if (set.inactive !== undefined) {
@@ -1688,9 +1982,9 @@ class SnomedProvider extends BaseCSServices {
         }
       }
     } else if (set.matches && set.matches.length > 0) {
-      found = set.matches.some(m => m.index === reference);
+      found = set.matches.some((/** @type {SnomedMatchEntry} */ m) => m.index === reference);
     } else if (set.members && set.members.length > 0) {
-      found = set.members.some(m => m.ref === reference);
+      found = set.members.some((/** @type {any} */ m) => m.ref === reference);
     } else if (set.descendants && set.descendants.length > 0) {
       found = set.descendants.includes(reference);
     }
@@ -1702,6 +1996,12 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @param {SnomedFilterContext} set - Filter set
+   * @param {unknown} concept - Concept context
+   * @returns {Promise<boolean>} Whether concept is in filter
+   */
   async filterCheck(filterContext, set, concept) {
     if (!(concept instanceof SnomedExpressionContext)) {
       return false;
@@ -1732,9 +2032,9 @@ class SnomedProvider extends BaseCSServices {
     }
 
     if (set.matches && set.matches.length > 0) {
-      return set.matches.some(m => m.index === reference);
+      return set.matches.some((/** @type {SnomedMatchEntry} */ m) => m.index === reference);
     } else if (set.members && set.members.length > 0) {
-      return set.members.some(m => m.ref === reference);
+      return set.members.some((/** @type {any} */ m) => m.ref === reference);
     } else if (set.descendants && set.descendants.length > 0) {
       return set.descendants.includes(reference);
     }
@@ -1744,6 +2044,10 @@ class SnomedProvider extends BaseCSServices {
     return false;
   }
 
+  /**
+   * @param {SnomedFilterContext} set - Filter set
+   * @returns {void}
+   */
   #ensurePopulated(set) {
     if (set.populationDone) {
       return;
@@ -1782,6 +2086,12 @@ class SnomedProvider extends BaseCSServices {
   }
 
   // Search filter
+  /**
+   * @param {SnomedPrep} filterContext - Filter context
+   * @param {SnomedSearchText} filter - Search filter
+   * @param {boolean} sort - Whether exact matching is requested
+   * @returns {Promise<SnomedFilterContext>} Search filter
+   */
   async searchFilter(filterContext, filter, sort) {
     let f = this.sct.searchFilter(filter, false, sort);
     filterContext.filters.push(f);
@@ -1789,6 +2099,11 @@ class SnomedProvider extends BaseCSServices {
   }
 
   // Subsumption testing
+  /**
+   * @param {string} codeA - First code or expression
+   * @param {string} codeB - Second code or expression
+   * @returns {Promise<string>} Subsumption result
+   */
   async subsumesTest(codeA, codeB) {
 
 
@@ -1824,11 +2139,15 @@ class SnomedProvider extends BaseCSServices {
         }
       }
     } catch (error) {
-      throw new Error(`Error in subsumption test: ${error.message}`);
+      throw new Error(`Error in subsumption test: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   // Helper methods
+  /**
+   * @param {SnomedContextInput} context - SNOMED code or context
+   * @returns {Promise<SnomedExpressionContext | null>} Resolved context
+   */
   async #ensureContext(context) {
     if (!context) {
       return null;
@@ -1837,7 +2156,7 @@ class SnomedProvider extends BaseCSServices {
     if (typeof context === 'string') {
       const result = await this.locate(context);
       if (!result.context) {
-        throw new Error(result.message);
+        throw new Error(result.message || `SNOMED CT code '${context}' not found`);
       }
       return result.context;
     }
@@ -1857,11 +2176,22 @@ class SnomedProvider extends BaseCSServices {
     return true;
   }
 
+  /**
+   * @param {{use?: {system?: string, code?: string}}} cd - Designation
+   * @returns {boolean} Whether designation is a display
+   */
   isDisplay(cd) {
-    return cd.use.system === this.system() &&
-        (cd.use.code === '900000000000013009' || cd.use.code === '900000000000003001');
+    return cd.use?.system === this.system() &&
+        (cd.use?.code === '900000000000013009' || cd.use?.code === '900000000000003001');
   }
 
+  /**
+   * @param {any} map - ConceptMap
+   * @param {{code: string | number | bigint}} coding - Source coding
+   * @param {string | null | undefined} target - Target system
+   * @param {boolean} reverse - Whether translation is reverse
+   * @returns {Promise<SnomedTranslationLike[]>} Translations
+   */
   async getTranslations(map, coding, target, reverse) {
     if (!map || (target && target !== this.system()) || reverse) {
       return [];
@@ -1881,6 +2211,7 @@ class SnomedProvider extends BaseCSServices {
       return [];
     }
 
+    /** @type {SnomedTranslationLike[]} */
     let result = [];
     let L = 0;
     let H = members.length - 1;
@@ -1907,7 +2238,7 @@ class SnomedProvider extends BaseCSServices {
               code: tgtId,
               system: this.system(),
               version : this.version(),
-              display: await this.display(tgtId),
+              display: await this.display(tgtId) || undefined,
               relationship: map.jsonObj.relationship
             }
             result.push(ct);
@@ -1930,12 +2261,19 @@ class SnomedProvider extends BaseCSServices {
  * Factory for creating SNOMED services and providers
  */
 class SnomedServicesFactory extends CodeSystemFactoryProvider {
+  /**
+   * @param {any} i18n - Translation support
+   * @param {string} filePath - Path to SNOMED data files
+   */
   constructor(i18n, filePath) {
     super(i18n);
     this.filePath = filePath;
     this.uses = 0;
     this._loaded = false;
+    /** @type {any} */
     this._sharedData = null;
+    /** @type {any} */
+    this.snomedServices = null;
   }
 
   system() {
@@ -1970,7 +2308,8 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
    *   http://snomed.info/sct/<edition>/version/<ver>?fhir_vs...
    *
    * @param {string} url - The ValueSet URL to resolve
-   * @returns {object|null} A FHIR ValueSet JSON object, or null if the URL is not recognised
+   * @param {string | null | undefined} version - Requested version
+   * @returns {Promise<SnomedValueSetLike|null>} A FHIR ValueSet JSON object, or null if the URL is not recognised
    */
   async buildKnownValueSet(url, version) {
     if (!url.startsWith("http://snomed.info/sct")) {
@@ -2122,6 +2461,11 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
     return this._sharedData?.version || 'unknown';
   }
 
+  /**
+   * @param {any} opContext - Operation context
+   * @param {any[]} supplements - Supplement CodeSystems
+   * @returns {Promise<SnomedProvider>} Provider
+   */
   async build(opContext, supplements = []) {
     await this.#ensureLoaded();
     this.recordUse();
@@ -2159,6 +2503,10 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
     return match && match[1] && match[2] ? "SCT-"+match[1]+"-"+match[2] : null;
   }
 
+  /**
+   * @param {string} version - SNOMED version URL
+   * @returns {string} Human-readable version
+   */
   describeVersion(version) {
     const match = version.match(/^http:\/\/snomed\.info\/sct\/(\d+)(?:\/version\/(\d{8}))?$/);
     if (!match) return version;
@@ -2169,6 +2517,11 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
     return edition + ' ' + formatDateMMDDYYYY(match[2].substring(4, 6) + match[2].substring(6, 8) + match[2].substring(0, 4));
   }
 
+  /**
+   * @param {string} url - ConceptMap URL
+   * @param {string | null | undefined} version - Requested version
+   * @returns {Promise<ConceptMap | null>} Implicit ConceptMap
+   */
   async findImplicitConceptMap(url, version) {
     if (version && (version !== this.version())) {
       return null;
@@ -2228,7 +2581,12 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
 
 }
 
+/**
+ * @param {string | number | bigint} edition - SNOMED edition id
+ * @returns {string} Edition display name
+ */
 function getEditionName(edition) {
+  /** @type {Record<string, string>} */
   const editionMap = {
     '900000000000207008': 'International Edition',
     '449081005': 'International Spanish Edition',
@@ -2261,10 +2619,15 @@ function getEditionName(edition) {
     '5991000124107': 'US Edition (with ICD-10-CM maps)'
   };
 
-  return editionMap[edition] || 'Unknown Edition';
+  return editionMap[String(edition)] || 'Unknown Edition';
 }
 
+/**
+ * @param {string | number | bigint} edition - SNOMED edition id
+ * @returns {string} Edition short code
+ */
 function getEditionCode(edition) {
+  /** @type {Record<string, string>} */
   const editionMap = {
     '900000000000207008': 'Intl',
     '449081005': 'es',
@@ -2297,7 +2660,7 @@ function getEditionCode(edition) {
     '5991000124107': 'US+)'
   };
 
-  return editionMap[edition] || 'Unknown Edition';
+  return editionMap[String(edition)] || 'Unknown Edition';
 }
 
 

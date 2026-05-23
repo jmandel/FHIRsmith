@@ -1,8 +1,18 @@
+// @ts-check
+
 const { BaseTerminologyModule } = require('./tx-import-base');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const path = require("path");
 const readline = require("readline");
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 class UniiModule extends BaseTerminologyModule {
   getName() {
@@ -21,6 +31,10 @@ class UniiModule extends BaseTerminologyModule {
     return '15-45 minutes (depending on file size)';
   }
 
+  /**
+   * @param {any} terminologyCommand
+   * @param {Record<string, any>} globalOptions
+   */
   registerCommands(terminologyCommand, globalOptions) {
     // Import command
     terminologyCommand
@@ -31,7 +45,7 @@ class UniiModule extends BaseTerminologyModule {
       .option('-v, --version <version>', 'Data version identifier')
       .option('-y, --yes', 'Skip confirmations')
       .option('--no-indexes', 'Skip index creation for faster import')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleImportCommand({...globalOptions, ...options});
       });
 
@@ -41,7 +55,7 @@ class UniiModule extends BaseTerminologyModule {
       .description('Validate UNII source file format')
       .option('-s, --source <file>', 'Source file to validate')
       .option('--sample <lines>', 'Number of lines to sample for validation', '100')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleValidateCommand({...globalOptions, ...options});
       });
 
@@ -50,11 +64,14 @@ class UniiModule extends BaseTerminologyModule {
       .command('status')
       .description('Show status of UNII database')
       .option('-d, --dest <file>', 'Database file to check')
-      .action(async (options) => {
+      .action(async (/** @type {Record<string, any>} */ options) => {
         await this.handleStatusCommand({...globalOptions, ...options});
       });
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleImportCommand(options) {
     // Gather configuration
     const config = await this.gatherCommonConfig(options);
@@ -77,6 +94,9 @@ class UniiModule extends BaseTerminologyModule {
     await this.runImport(config);
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async confirmImport(config) {
     const inquirer = require('inquirer');
     const chalk = require('chalk');
@@ -103,13 +123,16 @@ class UniiModule extends BaseTerminologyModule {
     return confirmed;
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleValidateCommand(options) {
     if (!options.source) {
       const answers = await require('inquirer').prompt({
         type: 'input',
         name: 'source',
         message: 'Source file to validate:',
-        validate: (input) => input && fs.existsSync(input) ? true : 'File does not exist'
+        validate: (/** @type {string} */ input) => input && fs.existsSync(input) ? true : 'File does not exist'
       });
       options.source = answers.source;
     }
@@ -131,10 +154,13 @@ class UniiModule extends BaseTerminologyModule {
       }
       
     } catch (error) {
-      this.logError(`Validation failed: ${error.message}`);
+      this.logError(`Validation failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async handleStatusCommand(options) {
     const dbPath = options.dest || './data/unii.db';
     
@@ -156,10 +182,13 @@ class UniiModule extends BaseTerminologyModule {
       console.log(`  Last Modified: ${stats.lastModified}`);
       
     } catch (error) {
-      this.logError(`Status check failed: ${error.message}`);
+      this.logError(`Status check failed: ${errorMessage(error)}`);
     }
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async validatePrerequisites(config) {
     const baseValid = await super.validatePrerequisites(config);
     
@@ -169,13 +198,16 @@ class UniiModule extends BaseTerminologyModule {
       await this.validateUniiFile(config.source, 10);
       this.logSuccess('UNII file format valid');
     } catch (error) {
-      this.logError(`UNII file validation failed: ${error.message}`);
+      this.logError(`UNII file validation failed: ${errorMessage(error)}`);
       return false;
     }
 
     return baseValid;
   }
 
+  /**
+   * @param {Record<string, any>} config
+   */
   async executeImport(config) {
     this.logInfo('Starting UNII data migration...');
     
@@ -202,6 +234,11 @@ class UniiModule extends BaseTerminologyModule {
     }
   }
 
+  /**
+   * @param {string} filePath
+   * @param {number} [sampleLines]
+   * @returns {Promise<{totalLines: number, estimatedCodes: number, estimatedDescriptions: number, formatValid: boolean, warnings: string[]}>}
+   */
   async validateUniiFile(filePath, sampleLines = 100) {
     const readline = require('readline');
     const fileStream = fs.createReadStream(filePath);
@@ -212,8 +249,10 @@ class UniiModule extends BaseTerminologyModule {
 
     let lineCount = 0;
     let sampleCount = 0;
+    /** @type {Set<string>} */
     let estimatedCodes = new Set();
     let estimatedDescriptions = 0;
+    /** @type {string[]} */
     const warnings = [];
     let formatValid = true;
 
@@ -256,24 +295,29 @@ class UniiModule extends BaseTerminologyModule {
     };
   }
 
+  /**
+   * @param {string} dbPath
+   * @returns {Promise<Record<string, any>>}
+   */
   async getDatabaseStats(dbPath) {
     const sqlite3 = require('sqlite3').verbose();
     const db = new sqlite3.Database(dbPath);
 
     return new Promise((resolve, reject) => {
+      /** @type {Record<string, any>} */
       const stats = {};
       
       // Get version
-      db.get('SELECT Version FROM UniiVersion LIMIT 1', (err, row) => {
+      db.get('SELECT Version FROM UniiVersion LIMIT 1', (/** @type {Error | null} */ err, /** @type {any} */ row) => {
         if (err) return reject(err);
         stats.version = row ? row.Version : 'Unknown';
         
         // Get counts
-        db.get('SELECT COUNT(*) as count FROM Unii', (err, row) => {
+        db.get('SELECT COUNT(*) as count FROM Unii', (/** @type {Error | null} */ err, /** @type {any} */ row) => {
           if (err) return reject(err);
           stats.uniiCount = row.count;
           
-          db.get('SELECT COUNT(*) as count FROM UniiDesc', (err, row) => {
+          db.get('SELECT COUNT(*) as count FROM UniiDesc', (/** @type {Error | null} */ err, /** @type {any} */ row) => {
             if (err) return reject(err);
             stats.descCount = row.count;
             
@@ -290,6 +334,10 @@ class UniiModule extends BaseTerminologyModule {
     });
   }
 
+  /**
+   * @param {string} dbPath
+   * @returns {Promise<void>}
+   */
   async createIndexes(dbPath) {
     const sqlite3 = require('sqlite3').verbose();
     const db = new sqlite3.Database(dbPath);
@@ -300,16 +348,16 @@ class UniiModule extends BaseTerminologyModule {
       'CREATE INDEX IF NOT EXISTS idx_uniidesc_type ON UniiDesc(Type)'
     ];
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       db.serialize(() => {
-        indexes.forEach(sql => {
-          db.run(sql, (err) => {
+        indexes.forEach((/** @type {string} */ sql) => {
+          db.run(sql, (/** @type {Error | null} */ err) => {
             if (err) console.warn(`Index creation warning: ${err.message}`);
           });
         });
       });
       
-      db.close((err) => {
+      db.close((/** @type {Error | null} */ err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -360,10 +408,16 @@ class UniiDataMigrator {
    * Creates the required database tables
    * @private
    */
+  /**
+   * @param {any} db
+   * @param {string} version
+   * @param {boolean} [verbose]
+   * @returns {Promise<void>}
+   */
   async #createTables(db, version, verbose = true) {
     if (verbose) console.log('Creating database tables...');
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
       db.serialize(() => {
         // Create Unii table
         db.run(`
@@ -372,7 +426,7 @@ class UniiDataMigrator {
                                   Code TEXT(20) NOT NULL,
                                   Display TEXT(255) NULL
             )
-        `, (err) => {
+        `, (/** @type {Error | null} */ err) => {
           if (err) return reject(err);
         });
 
@@ -384,7 +438,7 @@ class UniiDataMigrator {
                                       Type TEXT(20) NOT NULL,
                                       Display TEXT(255) NULL
             )
-        `, (err) => {
+        `, (/** @type {Error | null} */ err) => {
           if (err) return reject(err);
         });
 
@@ -393,12 +447,12 @@ class UniiDataMigrator {
             CREATE TABLE UniiVersion (
                                          Version TEXT(20) NOT NULL
             )
-        `, (err) => {
+        `, (/** @type {Error | null} */ err) => {
           if (err) return reject(err);
         });
 
         // Insert version
-        db.run('INSERT INTO UniiVersion (Version) VALUES (?)', [version], (err) => {
+        db.run('INSERT INTO UniiVersion (Version) VALUES (?)', [version], (/** @type {Error | null} */ err) => {
           if (err) return reject(err);
           if (verbose) console.log('Database tables created');
           resolve();
@@ -411,6 +465,12 @@ class UniiDataMigrator {
    * Processes the tab-delimited source file
    * @private
    */
+  /**
+   * @param {any} db
+   * @param {string} sourceFile
+   * @param {boolean} [verbose]
+   * @returns {Promise<void>}
+   */
   async #processSourceFile(db, sourceFile, verbose = true) {
     if (verbose) console.log('Processing source file:', sourceFile);
 
@@ -419,6 +479,7 @@ class UniiDataMigrator {
     }
 
     // Read all lines first using streaming (for memory efficiency)
+    /** @type {string[]} */
     const lines = [];
     const fileStream = fs.createReadStream(sourceFile);
     const rl = readline.createInterface({
@@ -426,8 +487,8 @@ class UniiDataMigrator {
       crlfDelay: Infinity
     });
 
-    await new Promise((resolve, reject) => {
-      rl.on('line', (line) => {
+    await new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
+      rl.on('line', (/** @type {string} */ line) => {
         lines.push(line);
       });
       rl.on('close', resolve);
@@ -452,7 +513,7 @@ class UniiDataMigrator {
     for (let batchStart = 1; batchStart < lines.length; batchStart += BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE, lines.length);
 
-      await new Promise((resolve, reject) => {
+      await new Promise((/** @type {(value?: void) => void} */ resolve, reject) => {
         const insertUnii = db.prepare('INSERT INTO Unii (UniiKey, Code, Display) VALUES (?, ?, ?)');
         const insertUniiDesc = db.prepare('INSERT INTO UniiDesc (UniiDescKey, UniiKey, Type, Display) VALUES (?, ?, ?, ?)');
 
@@ -495,12 +556,12 @@ class UniiDataMigrator {
             processedLines++;
           }
 
-          db.run('COMMIT', (err) => {
+          db.run('COMMIT', (/** @type {Error | null} */ err) => {
             if (err) return reject(err);
 
-            insertUnii.finalize((err) => {
+            insertUnii.finalize((/** @type {Error | null} */ err) => {
               if (err) return reject(err);
-              insertUniiDesc.finalize((err) => {
+              insertUniiDesc.finalize((/** @type {Error | null} */ err) => {
                 if (err) return reject(err);
                 resolve();
               });
@@ -525,9 +586,14 @@ class UniiDataMigrator {
    * Closes the database connection
    * @private
    */
+  /**
+   * @param {any} db
+   * @param {boolean} [verbose]
+   * @returns {Promise<void>}
+   */
   async #closeDatabase(db, verbose = true) {
-    return new Promise((resolve) => {
-      db.close((err) => {
+    return new Promise((/** @type {(value?: void) => void} */ resolve) => {
+      db.close((/** @type {Error | null} */ err) => {
         if (err && verbose) {
           console.error('Error closing database:', err);
         }
@@ -539,12 +605,23 @@ class UniiDataMigrator {
 
 // Enhanced migrator with progress reporting
 class UniiDataMigratorWithProgress {
+  /**
+   * @param {UniiDataMigrator} migrator
+   * @param {UniiModule} moduleInstance
+   * @param {boolean} [verbose]
+   */
   constructor(migrator, moduleInstance, verbose = true) {
     this.migrator = migrator;
     this.module = moduleInstance;
     this.verbose = verbose;
   }
 
+  /**
+   * @param {string} sourceFile
+   * @param {string} destFile
+   * @param {string} version
+   * @param {boolean} verbose
+   */
   async migrate(sourceFile, destFile, version, verbose) {
     // Count total lines for progress bar
     const totalLines = await this.countLines(sourceFile);
@@ -579,8 +656,12 @@ class UniiDataMigratorWithProgress {
     }
   }
 
+  /**
+   * @param {string} filePath
+   * @returns {Promise<number>}
+   */
   async countLines(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {(value: number) => void} */ resolve, reject) => {
       let lineCount = 0;
       const rl = require('readline').createInterface({
         input: fs.createReadStream(filePath),

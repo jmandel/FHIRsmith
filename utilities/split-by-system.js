@@ -1,3 +1,5 @@
+// @ts-check
+
 import { createReadStream, writeFileSync } from 'fs';
 import { createInterface } from 'readline';
 import { createHash } from 'crypto';
@@ -6,6 +8,7 @@ const inputFile = '/Users/grahamegrieve/temp/tx-comp/comparison.ndjson';
 const outDir = '/Users/grahamegrieve/temp/tx-comp/';
 
 // Map well-known system URLs to short names
+/** @type {Record<string, string>} */
 const systemNames = {
   'http://snomed.info/sct': 'snomed',
   'http://loinc.org': 'loinc',
@@ -23,8 +26,13 @@ const systemNames = {
 };
 
 let unknownCounter = 0;
+/** @type {Map<string, string>} */
 const unknownMap = new Map(); // url -> assigned name
 
+/**
+ * @param {string | null | undefined} url
+ * @returns {string | null}
+ */
 function nameForSystem(url) {
   if (!url) return null;
   // exact match
@@ -50,20 +58,25 @@ function nameForSystem(url) {
   }
   if (url.startsWith('http://hl7.org/fhir/v3/') || url.startsWith('http://terminology.hl7.org/CodeSystem/v3-')) {
     const tail = url.includes('v3/') ? url.split('v3/').pop() : url.split('v3-').pop();
-    return 'v3-' + tail.replace(/\//g, '-');
+    return tail ? 'v3-' + tail.replace(/\//g, '-') : 'v3-unknown';
   }
   // fall back to numbered
-  if (unknownMap.has(url)) return unknownMap.get(url);
+  if (unknownMap.has(url)) return unknownMap.get(url) || null;
   unknownCounter++;
   const name = 'n' + String(unknownCounter).padStart(3, '0');
   unknownMap.set(url, name);
   return name;
 }
 
+/**
+ * @param {string} line
+ * @returns {{systems: Set<string>, obj: any} | null}
+ */
 function extractSystems(line) {
   let obj;
   try { obj = JSON.parse(line); } catch { return null; }
 
+  /** @type {Set<string>} */
   const systems = new Set();
   const reqBody = obj.requestBody;
   if (!reqBody) return { systems: new Set(), obj };
@@ -125,7 +138,9 @@ function extractSystems(line) {
 }
 
 async function run() {
+  /** @type {Set<string>} */
   const seenHashes = new Set();
+  /** @type {Map<string, string[]>} */
   const fileLines = new Map(); // filename -> lines[]
   let totalLines = 0;
   let dupes = 0;
@@ -163,7 +178,7 @@ async function run() {
       noSystem++;
       filename = 'system-unknown.ndjson';
     } else if (systems.size === 1) {
-      const sysUrl = [...systems][0];
+      const sysUrl = [...systems][0] || '';
       const name = nameForSystem(sysUrl);
       filename = `system-${name}.ndjson`;
     } else {
@@ -171,7 +186,7 @@ async function run() {
     }
 
     if (!fileLines.has(filename)) fileLines.set(filename, []);
-    fileLines.get(filename).push(line);
+    fileLines.get(filename)?.push(line);
 
     if (totalLines % 50000 === 0) {
       console.log(`  processed ${totalLines} lines...`);

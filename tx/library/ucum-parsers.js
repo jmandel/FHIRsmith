@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * UCUM Parsers - JavaScript port of UCUM Java library parsers
  * BSD 3-Clause License
@@ -12,18 +14,44 @@ const {
 } = require('./ucum-types.js');
 const regexUtilities = require("../../library/regex-utilities");
 
+/**
+ * @typedef {import('./ucum-types.js').BaseUnit} BaseUnitType
+ * @typedef {import('./ucum-types.js').Canonical} CanonicalType
+ * @typedef {import('./ucum-types.js').CanonicalUnit} CanonicalUnitType
+ * @typedef {import('./ucum-types.js').Decimal} DecimalType
+ * @typedef {import('./ucum-types.js').DefinedUnit} DefinedUnitType
+ * @typedef {import('./ucum-types.js').Factor} FactorType
+ * @typedef {import('./ucum-types.js').Prefix} PrefixType
+ * @typedef {import('./ucum-types.js').Registry} RegistryType
+ * @typedef {import('./ucum-types.js').Symbol} SymbolType
+ * @typedef {import('./ucum-types.js').Term} TermType
+ * @typedef {import('./ucum-types.js').Value} ValueType
+ * @typedef {BaseUnitType|DefinedUnitType|PrefixType} UcumConcept
+ * @typedef {BaseUnitType|DefinedUnitType} UcumUnit
+ * @typedef {{ error: (...args: unknown[]) => void }} ErrorLogger
+ * @typedef {Record<string, any>} XmlNode
+ */
+
 // Lexer for tokenizing UCUM expressions (port of Lexer.java)
 class Lexer {
   static NO_CHAR = '\0';
 
+  /**
+   * @param {string} source
+   */
   constructor(source) {
     if (typeof source !== 'string') {
       throw new Error("not a string");
     }
+    /** @type {string} */
     this.source = source || '';
+    /** @type {number} */
     this.index = 0;
+    /** @type {string|null} */
     this.token = null;
+    /** @type {string} */
     this.type = TokenType.NONE;
+    /** @type {number} */
     this.start = 0;
 
     this.consume();
@@ -49,6 +77,10 @@ class Lexer {
     }
   }
 
+  /**
+   * @param {string} ch
+   * @returns {boolean}
+   */
   _checkNumber(ch) {
     if (ch === '+' || ch === '-') {
       this.token = ch;
@@ -70,6 +102,10 @@ class Lexer {
     return false;
   }
 
+  /**
+   * @param {string} ch
+   * @returns {boolean}
+   */
   _checkNumberOrSymbol(ch) {
     let isSymbol = false;
     let inBrackets = false;
@@ -96,6 +132,11 @@ class Lexer {
     return false;
   }
 
+  /**
+   * @param {string} ch
+   * @param {boolean} inBrackets
+   * @returns {boolean}
+   */
   _checkBrackets(ch, inBrackets) {
     if (ch === '[') {
       if (inBrackets) {
@@ -112,6 +153,12 @@ class Lexer {
     return inBrackets;
   }
 
+  /**
+   * @param {string} ch
+   * @param {boolean} allowDigits
+   * @param {boolean} inBrackets
+   * @returns {boolean}
+   */
   _isValidSymbolChar(ch, allowDigits, inBrackets) {
     return (allowDigits && ch >= '0' && ch <= '9') ||
       (ch >= 'a' && ch <= 'z') ||
@@ -121,6 +168,10 @@ class Lexer {
       (inBrackets && ch === '.');
   }
 
+  /**
+   * @param {string} ch
+   * @returns {boolean}
+   */
   _checkAnnotation(ch) {
     if (ch === '{') {
       const b = [];
@@ -144,6 +195,12 @@ class Lexer {
     return false;
   }
 
+  /**
+   * @param {string} ch
+   * @param {string} test
+   * @param {string} type
+   * @returns {boolean}
+   */
   _checkSingle(ch, test, type) {
     if (ch === test) {
       this.token = ch;
@@ -153,32 +210,57 @@ class Lexer {
     return false;
   }
 
+  /**
+   * @returns {string}
+   */
   _nextChar() {
     const res = this.index < this.source.length ? this.source.charAt(this.index) : Lexer.NO_CHAR;
     this.index++;
     return res;
   }
 
+  /**
+   * @returns {string}
+   */
   _peekChar() {
     return this.index < this.source.length ? this.source.charAt(this.index) : Lexer.NO_CHAR;
   }
 
+  /**
+   * @returns {string|null}
+   */
   getToken() {
     return this.token;
   }
 
+  /**
+   * @returns {string}
+   */
   getType() {
     return this.type;
   }
 
+  /**
+   * @param {string} errMsg
+   * @returns {never}
+   */
   error(errMsg) {
     throw new UcumException(`Error processing unit '${this.source}': ${errMsg} at character ${this.start+1}`);
   }
 
+  /**
+   * @returns {number}
+   */
   getTokenAsInt() {
+    if (this.token == null) {
+      throw new UcumException(`Error processing unit '${this.source}': missing numeric token at character ${this.start+1}`);
+    }
     return this.token.charAt(0) === '+' ? parseInt(this.token.substring(1)) : parseInt(this.token);
   }
 
+  /**
+   * @returns {boolean}
+   */
   finished() {
     return this.index === this.source.length;
   }
@@ -186,10 +268,18 @@ class Lexer {
 
 // Expression parser for UCUM unit expressions (port of ExpressionParser.java)
 class ExpressionParser {
+  /**
+   * @param {UcumModel} model
+   */
   constructor(model) {
+    /** @type {UcumModel} */
     this.model = model;
   }
 
+  /**
+   * @param {string} code
+   * @returns {TermType}
+   */
   parse(code) {
     const lexer = new Lexer(code);
     const res = this._parseTerm(lexer, true);
@@ -201,6 +291,11 @@ class ExpressionParser {
     return res;
   }
 
+  /**
+   * @param {Lexer} lexer
+   * @param {boolean} first
+   * @returns {TermType}
+   */
   _parseTerm(lexer, first) {
     const res = new Term();
 
@@ -237,6 +332,10 @@ class ExpressionParser {
     return res;
   }
 
+  /**
+   * @param {Lexer} lexer
+   * @returns {FactorType|SymbolType|TermType}
+   */
   _parseComp(lexer) {
     if (lexer.getType() === TokenType.NUMBER) {
       const fact = new Factor(lexer.getTokenAsInt());
@@ -258,21 +357,27 @@ class ExpressionParser {
     } else {
       lexer.error('unexpected token looking for a symbol or a number');
     }
-    return null; // we never get to here
+    lexer.error('unreachable parser state');
   }
 
+  /**
+   * @param {Lexer} lexer
+   * @returns {SymbolType}
+   */
   _parseSymbol(lexer) {
     const symbol = new Symbol();
-    const sym = lexer.getToken();
+    const sym = lexer.getToken() || '';
 
     // now, can we pick a prefix that leaves behind a metric unit?
+    /** @type {PrefixType|null} */
     let selected = null;
+    /** @type {UcumUnit|null} */
     let unit = null;
 
     for (const prefix of this.model.getPrefixes()) {
       if (sym.startsWith(prefix.code)) {
-        unit = this.model.getUnit(sym.substring(prefix.code.length));
-        if (unit != null && (unit.kind === ConceptKind.BASEUNIT || unit.metric)) {
+        unit = this.model.getUnit(sym.substring(prefix.code.length)) || null;
+        if (unit != null && (unit.kind === ConceptKind.BASEUNIT || /** @type {DefinedUnitType} */ (unit).metric)) {
           selected = prefix;
           break;
         }
@@ -283,7 +388,7 @@ class ExpressionParser {
       symbol.prefix = selected;
       symbol.unit = unit;
     } else {
-      unit = this.model.getUnit(sym);
+      unit = this.model.getUnit(sym) || null;
       if (unit != null) {
         symbol.unit = unit;
       } else if (sym !== '1') {
@@ -305,6 +410,11 @@ class ExpressionParser {
 
 // Expression composer for creating string representations (port of ExpressionComposer.java)
 class ExpressionComposer {
+  /**
+   * @param {TermType|CanonicalType|null|undefined} termOrCanonical
+   * @param {boolean} [includeValue]
+   * @returns {string}
+   */
   compose(termOrCanonical, includeValue = true) {
     if (termOrCanonical === null || termOrCanonical === undefined) {
       return '1';
@@ -316,11 +426,17 @@ class ExpressionComposer {
     }
 
     // Handle Term objects
+    /** @type {string[]} */
     const bldr = [];
     this._composeTerm(bldr, termOrCanonical);
     return bldr.join('');
   }
 
+  /**
+   * @param {CanonicalType} can
+   * @param {boolean} [includeValue]
+   * @returns {string}
+   */
   composeCanonical(can, includeValue = true) {
     const b = [];
     if (includeValue) {
@@ -342,6 +458,10 @@ class ExpressionComposer {
     return b.join('');
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {TermType} term
+   */
   _composeTerm(bldr, term) {
     if (term.comp !== null) {
       this._composeComp(bldr, term.comp);
@@ -354,6 +474,10 @@ class ExpressionComposer {
     }
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {FactorType|SymbolType|TermType} comp
+   */
   _composeComp(bldr, comp) {
     if (comp instanceof Factor) {
       this._composeFactor(bldr, comp);
@@ -368,20 +492,32 @@ class ExpressionComposer {
     }
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {SymbolType} symbol
+   */
   _composeSymbol(bldr, symbol) {
     if (symbol.prefix !== null) {
       bldr.push(symbol.prefix.code);
     }
-    bldr.push(symbol.unit.code);
+    bldr.push(/** @type {UcumUnit} */ (symbol.unit).code);
     if (symbol.exponent !== 1) {
       bldr.push(symbol.exponent.toString());
     }
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {FactorType} comp
+   */
   _composeFactor(bldr, comp) {
     bldr.push(comp.value.toString());
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {string} op
+   */
   _composeOp(bldr, op) {
     if (op === Operator.DIVISION) {
       bldr.push('/');
@@ -393,12 +529,21 @@ class ExpressionComposer {
 
 // Formal structure composer for human-readable representations (port of FormalStructureComposer.java)
 class FormalStructureComposer {
+  /**
+   * @param {TermType} term
+   * @returns {string}
+   */
   compose(term) {
+    /** @type {string[]} */
     const bldr = [];
     this._composeTerm(bldr, term);
     return bldr.join('');
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {TermType} term
+   */
   _composeTerm(bldr, term) {
     if (term.comp !== null) {
       this._composeComp(bldr, term.comp);
@@ -411,6 +556,10 @@ class FormalStructureComposer {
     }
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {FactorType|SymbolType|TermType} comp
+   */
   _composeComp(bldr, comp) {
     if (comp instanceof Factor) {
       this._composeFactor(bldr, comp);
@@ -423,12 +572,16 @@ class FormalStructureComposer {
     }
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {SymbolType} symbol
+   */
   _composeSymbol(bldr, symbol) {
     bldr.push('(');
     if (symbol.prefix !== null) {
       bldr.push(symbol.prefix.names[0]);
     }
-    bldr.push(symbol.unit.names[0]);
+    bldr.push(/** @type {UcumUnit} */ (symbol.unit).names[0]);
     if (symbol.exponent !== 1) {
       bldr.push(' ^ ');
       bldr.push(symbol.exponent.toString());
@@ -436,10 +589,18 @@ class FormalStructureComposer {
     bldr.push(')');
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {FactorType} comp
+   */
   _composeFactor(bldr, comp) {
     bldr.push(comp.value.toString());
   }
 
+  /**
+   * @param {string[]} bldr
+   * @param {string} op
+   */
   _composeOp(bldr, op) {
     if (op === Operator.DIVISION) {
       bldr.push(' / ');
@@ -451,20 +612,38 @@ class FormalStructureComposer {
 
 // UCUM model for storing all units, prefixes, etc.
 class UcumModel {
+  /**
+   * @param {string|null} [version]
+   * @param {string|null} [revision]
+   * @param {Date|null} [revisionDate]
+   */
   constructor(version = null, revision = null, revisionDate = null) {
+    /** @type {string|null} */
     this.version = version;
+    /** @type {string|null} */
     this.revision = revision;
+    /** @type {Date|null} */
     this.revisionDate = revisionDate;
+    /** @type {PrefixType[]} */
     this.prefixes = [];
+    /** @type {BaseUnitType[]} */
     this.baseUnits = [];
+    /** @type {DefinedUnitType[]} */
     this.definedUnits = [];
+    /** @type {Map<string, UcumUnit>} */
     this.unitsMap = new Map(); // For quick lookup by code
   }
 
+  /**
+   * @param {PrefixType} prefix
+   */
   addPrefix(prefix) {
     this.prefixes.push(prefix);
   }
 
+  /**
+   * @param {BaseUnitType} unit
+   */
   addBaseUnit(unit) {
     this.baseUnits.push(unit);
     this.unitsMap.set(unit.code, unit);
@@ -473,27 +652,46 @@ class UcumModel {
     }
   }
 
+  /**
+   * @param {DefinedUnitType} unit
+   */
   addDefinedUnit(unit) {
     this.definedUnits.push(unit);
     this.unitsMap.set(unit.code, unit);
   }
 
+  /**
+   * @param {string} code
+   * @returns {UcumUnit|undefined}
+   */
   getUnit(code) {
     return this.unitsMap.get(code);
   }
 
+  /**
+   * @returns {PrefixType[]}
+   */
   getPrefixes() {
     return this.prefixes;
   }
 
+  /**
+   * @returns {BaseUnitType[]}
+   */
   getBaseUnits() {
     return this.baseUnits;
   }
 
+  /**
+   * @returns {DefinedUnitType[]}
+   */
   getDefinedUnits() {
     return this.definedUnits;
   }
 
+  /**
+   * @returns {UcumUnit[]}
+   */
   getAllUnits() {
     return [...this.baseUnits, ...this.definedUnits];
   }
@@ -502,7 +700,8 @@ class UcumModel {
 // Parser for UCUM essence XML format using fast-xml-parser
 class UcumEssenceParser {
   constructor() {
-    this.parser = new XMLParser({
+    /** @type {XMLParser} */
+    this.parser = new XMLParser(/** @type {any} */ ({
       ignoreAttributes: false,
       attributeNamePrefix: '@_',
       textNodeName: '#text',
@@ -512,19 +711,24 @@ class UcumEssenceParser {
       parseTrueNumberOnly: false,
       arrayMode: false,
       alwaysCreateTextNode: true
-    });
+    }));
   }
 
+  /**
+   * @param {string} xmlContent
+   * @returns {UcumModel}
+   */
   parse(xmlContent) {
     let parsedXml;
     try {
       parsedXml = this.parser.parse(xmlContent);
     } catch (e) {
-      e.message = `Invalid XML content: ${e.message}`;
-      throw e;
+      const err = /** @type {Error} */ (e);
+      err.message = `Invalid XML content: ${err.message}`;
+      throw err;
     }
 
-    const root = parsedXml.root;
+    const root = /** @type {XmlNode|undefined} */ (parsedXml.root);
     if (!root) {
       throw new UcumException("Unable to process XML document: expected 'root' element not found");
     }
@@ -575,6 +779,10 @@ class UcumEssenceParser {
     return model;
   }
 
+  /**
+   * @param {XmlNode} x
+   * @returns {DefinedUnitType}
+   */
   _parseUnit(x) {
     const unit = new DefinedUnit(x['@_Code'], x['@_CODE']);
     unit.metric = x['@_isMetric'] === 'yes';
@@ -611,29 +819,39 @@ class UcumEssenceParser {
     return unit;
   }
 
+  /**
+   * @param {XmlNode|string} x
+   * @param {string} context
+   * @returns {ValueType}
+   */
   _parseValue(x, context) {
     let val = null;
-    const valueAttr = x['@_value'];
+    const valueAttr = typeof x === 'string' ? undefined : x['@_value'];
     if (valueAttr !== null && valueAttr !== undefined && valueAttr) {
       try {
         if (valueAttr.includes("."))
-          val = new Decimal(valueAttr, 24); // unlimited precision for these
+          val = new (/** @type {any} */ (Decimal))(valueAttr, 24); // unlimited precision for these
         else
           val = new Decimal(valueAttr);
       } catch (e) {
-        e.message = "Error reading "+context+": "+e.message;
-        throw e;
+        const err = /** @type {Error} */ (e);
+        err.message = "Error reading "+context+": "+err.message;
+        throw err;
       }
     }
     const value = new Value(
-      x['@_Unit'] || '',
-      x['@_UNIT'] || '',
+      typeof x === 'string' ? '' : x['@_Unit'] || '',
+      typeof x === 'string' ? '' : x['@_UNIT'] || '',
       val
     );
     value.text = typeof x === 'string' ? x : x['#text'] || '';
     return value;
   }
 
+  /**
+   * @param {XmlNode} x
+   * @returns {BaseUnitType}
+   */
   _parseBaseUnit(x) {
     const base = new BaseUnit(x['@_Code'], x['@_CODE']);
     const dimAttr = x['@_dim'];
@@ -665,6 +883,10 @@ class UcumEssenceParser {
     return base;
   }
 
+  /**
+   * @param {XmlNode} x
+   * @returns {PrefixType}
+   */
   _parsePrefix(x) {
     const prefix = new Prefix(x['@_Code'], x['@_CODE']);
 
@@ -694,13 +916,14 @@ class UcumEssenceParser {
           if (isNaN(numValue)) {
             throw new Error(`Invalid numeric value: ${valueStr}`);
           }
-          prefix.value = new Decimal(numValue.toString(), 24);
+          prefix.value = new (/** @type {any} */ (Decimal))(numValue.toString(), 24);
         } else {
-          prefix.value = new Decimal(valueStr, 24);
+          prefix.value = new (/** @type {any} */ (Decimal))(valueStr, 24);
         }
       } catch (e) {
-        e.message = `Error parsing prefix '${prefix.code}' value '${x.value['@_value']}': ${e.message}`;
-        throw e;
+        const err = /** @type {Error} */ (e);
+        err.message = `Error parsing prefix '${prefix.code}' value '${x.value['@_value']}': ${err.message}`;
+        throw err;
       }
     }
 
@@ -710,7 +933,20 @@ class UcumEssenceParser {
 
 // Search functionality for finding concepts
 class Search {
+  constructor() {
+    /** @type {ErrorLogger} */
+    this.log = console;
+  }
+
+  /**
+   * @param {UcumModel} model
+   * @param {string|null} [kind]
+   * @param {string} [text]
+   * @param {boolean} [isRegex]
+   * @returns {UcumConcept[]}
+   */
   doSearch(model, kind = null, text = '', isRegex = false) {
+    /** @type {UcumConcept[]} */
     const concepts = [];
 
     if (!kind || kind === ConceptKind.PREFIX) {
@@ -726,6 +962,12 @@ class Search {
     return concepts;
   }
 
+  /**
+   * @param {UcumConcept[]} concepts
+   * @param {UcumUnit[]} units
+   * @param {string} text
+   * @param {boolean} isRegex
+   */
   _searchUnits(concepts, units, text, isRegex) {
     for (const unit of units) {
       if (this._matchesUnit(unit, text, isRegex)) {
@@ -734,11 +976,23 @@ class Search {
     }
   }
 
+  /**
+   * @param {UcumUnit} unit
+   * @param {string} text
+   * @param {boolean} isRegex
+   * @returns {boolean}
+   */
   _matchesUnit(unit, text, isRegex) {
     return this._matches(unit.property, text, isRegex) ||
       this._matchesConcept(unit, text, isRegex);
   }
 
+  /**
+   * @param {UcumConcept[]} concepts
+   * @param {PrefixType[]} prefixes
+   * @param {string} text
+   * @param {boolean} isRegex
+   */
   _searchPrefixes(concepts, prefixes, text, isRegex) {
     for (const concept of prefixes) {
       if (this._matchesConcept(concept, text, isRegex)) {
@@ -747,6 +1001,12 @@ class Search {
     }
   }
 
+  /**
+   * @param {UcumConcept} concept
+   * @param {string} text
+   * @param {boolean} isRegex
+   * @returns {boolean}
+   */
   _matchesConcept(concept, text, isRegex) {
     for (const name of concept.names) {
       if (this._matches(name, text, isRegex)) {
@@ -759,6 +1019,12 @@ class Search {
       this._matches(concept.printSymbol, text, isRegex);
   }
 
+  /**
+   * @param {string|null|undefined} value
+   * @param {string} text
+   * @param {boolean} isRegex
+   * @returns {boolean}
+   */
   _matches(value, text, isRegex) {
     if (!value) return false;
 
@@ -778,20 +1044,36 @@ class Search {
 
 // Converter for converting terms to canonical form (port of Converter.java)
 class Converter {
+  /**
+   * @param {UcumModel} model
+   * @param {RegistryType} [handlers]
+   */
   constructor(model, handlers) {
+    /** @type {UcumModel} */
     this.model = model;
+    /** @type {RegistryType} */
     this.handlers = handlers || new Registry();
   }
 
+  /**
+   * @param {TermType} term
+   * @returns {CanonicalType}
+   */
   convert(term) {
     return this._normalise("  ", term);
   }
 
+  /**
+   * @param {string} indent
+   * @param {TermType} term
+   * @returns {CanonicalType}
+   */
   _normalise(indent, term) {
     const result = new Canonical(new Decimal("1.000000000000000000000000000000"));
 
     this._debug(indent, "canonicalise", term);
     let div = false;
+    /** @type {TermType|null} */
     let t = term;
 
     while (t != null) {
@@ -863,13 +1145,22 @@ class Converter {
     return result;
   }
 
+  /**
+   * @param {string} indent
+   * @param {SymbolType} sym
+   * @returns {CanonicalType}
+   */
   _normaliseSymbol(indent, sym) {
     const result = new Canonical(new Decimal("1.000000000000000000000000000000"));
+    const unit = sym.unit;
+    if (unit == null) {
+      throw new UcumException("No unit found for symbol");
+    }
 
-    if (sym.unit instanceof BaseUnit) {
-      result.getUnits().push(new CanonicalUnit(sym.unit, sym.exponent));
+    if (unit instanceof BaseUnit) {
+      result.getUnits().push(new CanonicalUnit(unit, sym.exponent));
     } else {
-      const can = this._expandDefinedUnit(indent, sym.unit);
+      const can = this._expandDefinedUnit(indent, /** @type {DefinedUnitType} */ (unit));
       for (const c of can.getUnits()) {
         c.setExponent(c.getExponent() * sym.exponent);
       }
@@ -900,7 +1191,15 @@ class Converter {
     return result;
   }
 
+  /**
+   * @param {string} indent
+   * @param {DefinedUnitType} unit
+   * @returns {CanonicalType}
+   */
   _expandDefinedUnit(indent, unit) {
+    if (unit.value == null) {
+      throw new UcumException(`Unit '${unit.code}' has no value`);
+    }
     let u = unit.value.unit;
     let v = unit.value.value;
 
@@ -909,6 +1208,9 @@ class Converter {
         throw new UcumException("Not handled yet (special unit)");
       } else {
         const handler = this.handlers.get(unit.code);
+        if (handler == null) {
+          throw new UcumException("Not handled yet (special unit)");
+        }
         u = handler.getUnits();
         v = handler.getValue();
         if (handler.hasOffset()) {
@@ -924,6 +1226,11 @@ class Converter {
     return result;
   }
 
+  /**
+   * @param {string} indent
+   * @param {string} state
+   * @param {unknown} unit
+   */
   // eslint-disable-next-line no-unused-vars
   _debug(indent, state, unit) {
     // Debug output - can be enabled for debugging
@@ -939,12 +1246,24 @@ class Converter {
 
 // UCUM Validator for validating the model (port of UcumValidator.java)
 class UcumValidator {
+  /**
+   * @param {UcumModel} model
+   * @param {RegistryType} [handlers]
+   */
   constructor(model, handlers) {
+    /** @type {UcumModel} */
     this.model = model;
+    /** @type {RegistryType} */
     this.handlers = handlers || new Registry();
+    /** @type {string[]} */
     this.result = [];
+    /** @type {ErrorLogger} */
+    this.log = console;
   }
 
+  /**
+   * @returns {string[]}
+   */
   validate() {
     this.result = [];
     this._checkCodes();
@@ -964,13 +1283,21 @@ class UcumValidator {
   _checkUnits() {
     for (const unit of this.model.getDefinedUnits()) {
       if (!unit.isSpecial) {
-        this._checkUnitCode(unit.value.unit, false);
+        if (unit.value == null) {
+          this.result.push(`No value for ${unit.code}`);
+        } else {
+          this._checkUnitCode(unit.value.unit, false);
+        }
       } else if (!this.handlers.exists(unit.code)) {
         this.result.push(`No Handler for ${unit.code}`);
       }
     }
   }
 
+  /**
+   * @param {string} code
+   * @param {boolean} primary
+   */
   _checkUnitCode(code, primary) {
     try {
       const term = new ExpressionParser(this.model).parse(code);
@@ -980,7 +1307,8 @@ class UcumValidator {
       }
       new Converter(this.model, this.handlers).convert(term);
     } catch (e) {
-      this.result.push(`${code}: ${e.message}`);
+      const err = /** @type {Error} */ (e);
+      this.result.push(`${code}: ${err.message}`);
     }
 
     if (primary) {
@@ -1010,8 +1338,9 @@ class UcumValidator {
           }
         }
       } catch (e) {
-        this.log.error(e);
-        this.result.push(e.message);
+        const err = /** @type {Error} */ (e);
+        this.log.error(err);
+        this.result.push(err.message);
       }
     }
   }

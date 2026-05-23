@@ -22,6 +22,7 @@ module.exports = {
   },
   ignorePatterns: [
     'static/assets/js/**/*.js',
+    'static/js/jquery*.js',
     'node_modules/',
     'dist/',
     'build/',

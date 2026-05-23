@@ -2,19 +2,29 @@
 // FHIR Indexer
 // Builds in-memory search indexes using FHIRPath expressions
 //
+// @ts-check
 
 const fhirpath = require('fhirpath');
 
+/** @typedef {{resourceType?: string, id?: string, [key: string]: any}} FhirResource */
+/** @typedef {{code: string, expression?: string, base?: string[], type?: string, description?: string, name?: string, [key: string]: any}} SearchParameterLike */
+
 class FHIRIndexer {
   constructor(fhirModel = null) {
+    /** @type {Map<string, Map<any, FhirResource>>} */
     this.resources = new Map();      // resourceType -> id -> resource
+    /** @type {Map<string, Map<string, Map<any, Set<any>>>>} */
     this.indexes = new Map();        // resourceType -> paramName -> value -> Set<id>
+    /** @type {Map<string, Map<string, SearchParameterLike>>} */
     this.searchParams = new Map();   // resourceType -> paramName -> SearchParameter
+    /** @type {any} */
     this.fhirModel = fhirModel;      // FHIRPath model for type resolution
   }
 
   /**
    * Load resources and search parameters, build all indexes
+   * @param {FhirResource[]} resources
+   * @param {SearchParameterLike[]} searchParameters
    */
   build(resources, searchParameters) {
     this.resources.clear();
@@ -30,7 +40,7 @@ class FHIRIndexer {
         if (!this.searchParams.has(type)) {
           this.searchParams.set(type, new Map());
         }
-        this.searchParams.get(type).set(sp.code, sp);
+        this.searchParams.get(type)?.set(sp.code, sp);
       }
     }
 
@@ -43,7 +53,7 @@ class FHIRIndexer {
       if (!this.resources.has(type)) {
         this.resources.set(type, new Map());
       }
-      this.resources.get(type).set(resource.id, resource);
+      this.resources.get(type)?.set(resource.id, resource);
 
       // Build indexes for this resource
       this.indexResource(resource);
@@ -54,9 +64,12 @@ class FHIRIndexer {
 
   /**
    * Index a single resource against all applicable search parameters
+   * @param {FhirResource} resource
    */
   indexResource(resource) {
     const type = resource.resourceType;
+    if (!type) return;
+
     const params = this.searchParams.get(type);
     if (!params) return;
 
@@ -64,15 +77,17 @@ class FHIRIndexer {
       this.indexes.set(type, new Map());
     }
     const typeIndexes = this.indexes.get(type);
+    if (!typeIndexes) return;
 
     for (const [paramName, searchParam] of params) {
       if (!typeIndexes.has(paramName)) {
         typeIndexes.set(paramName, new Map());
       }
       const paramIndex = typeIndexes.get(paramName);
+      if (!paramIndex) continue;
 
       try {
-        const values = fhirpath.evaluate(resource, searchParam.expression, null, this.fhirModel);
+        const values = /** @type {any[]} */ (fhirpath.evaluate(resource, searchParam.expression || '', /** @type {any} */ (null), this.fhirModel));
         for (const value of values) {
           const normalizedValues = this.normalizeValue(value, searchParam.type);
           for (const normalized of normalizedValues) {
@@ -81,7 +96,7 @@ class FHIRIndexer {
             if (!paramIndex.has(normalized)) {
               paramIndex.set(normalized, new Set());
             }
-            paramIndex.get(normalized).add(resource.id);
+            paramIndex.get(normalized)?.add(resource.id);
           }
         }
       } catch (err) {
@@ -95,6 +110,9 @@ class FHIRIndexer {
   /**
    * Normalize a value based on search parameter type
    * Returns an array of normalized values (some types produce multiple index entries)
+   * @param {any} value
+   * @param {string | undefined} paramType
+   * @returns {any[]}
    */
   normalizeValue(value, paramType) {
     if (value === null || value === undefined) {
@@ -112,7 +130,7 @@ class FHIRIndexer {
         }
         if (value.coding) {
           // CodeableConcept
-          return value.coding.map(c => this.tokenKey(c.system, c.code)).filter(Boolean);
+          return value.coding.map((/** @type {any} */ c) => this.tokenKey(c.system, c.code)).filter(Boolean);
         }
         if (value.system !== undefined || value.code !== undefined || value.value !== undefined) {
           // Coding or Identifier
@@ -166,6 +184,9 @@ class FHIRIndexer {
 
   /**
    * Create a token key from system and code
+   * @param {any} system
+   * @param {any} code
+   * @returns {string | null}
    */
   tokenKey(system, code) {
     if (!code && !system) return null;
@@ -176,6 +197,9 @@ class FHIRIndexer {
 
   /**
    * Read a single resource by type and id
+   * @param {string} resourceType
+   * @param {string} id
+   * @returns {FhirResource | null}
    */
   read(resourceType, id) {
     const typeResources = this.resources.get(resourceType);
@@ -185,6 +209,9 @@ class FHIRIndexer {
 
   /**
    * Search for resources
+   * @param {string} resourceType
+   * @param {Record<string, any>} queryParams
+   * @returns {FhirResource[]}
    */
   search(resourceType, queryParams) {
     const typeResources = this.resources.get(resourceType);
@@ -196,6 +223,7 @@ class FHIRIndexer {
     const typeSearchParams = this.searchParams.get(resourceType);
 
     // Start with all resource IDs
+    /** @type {Set<any> | null} */
     let matchingIds = null;
 
     for (const [paramName, paramValue] of Object.entries(queryParams)) {
@@ -209,6 +237,7 @@ class FHIRIndexer {
 
       const searchParam = typeSearchParams.get(paramName);
       const paramIndex = typeIndexes.get(paramName);
+      if (!searchParam || !paramIndex) continue;
 
       // Find matching IDs for this parameter
       const paramMatchingIds = this.searchParam(paramValue, searchParam, paramIndex);
@@ -217,7 +246,13 @@ class FHIRIndexer {
       if (matchingIds === null) {
         matchingIds = paramMatchingIds;
       } else {
-        matchingIds = new Set([...matchingIds].filter(id => paramMatchingIds.has(id)));
+        const intersection = new Set();
+        for (const id of matchingIds) {
+          if (paramMatchingIds.has(id)) {
+            intersection.add(id);
+          }
+        }
+        matchingIds = intersection;
       }
 
       // Early exit if no matches
@@ -232,11 +267,23 @@ class FHIRIndexer {
     }
 
     // Return matching resources
-    return Array.from(matchingIds).map(id => typeResources.get(id)).filter(Boolean);
+    /** @type {FhirResource[]} */
+    const matches = [];
+    for (const id of matchingIds) {
+      const resource = typeResources.get(id);
+      if (resource) {
+        matches.push(resource);
+      }
+    }
+    return matches;
   }
 
   /**
    * Search a single parameter
+   * @param {any} queryValue
+   * @param {SearchParameterLike} searchParam
+   * @param {Map<any, Set<any>>} paramIndex
+   * @returns {Set<any>}
    */
   searchParam(queryValue, searchParam, paramIndex) {
     const matchingIds = new Set();
@@ -249,7 +296,7 @@ class FHIRIndexer {
       const trimmedValue = value.trim();
 
       switch (paramType) {
-        case 'string':
+        case 'string': {
           // String search: case-insensitive starts-with by default
           const lowerValue = trimmedValue.toLowerCase();
           for (const [indexedValue, ids] of paramIndex) {
@@ -258,22 +305,25 @@ class FHIRIndexer {
             }
           }
           break;
+        }
 
-        case 'token':
+        case 'token': {
           // Token search: exact match on system|code, |code, or code
           const tokenMatches = this.matchToken(trimmedValue, paramIndex);
           tokenMatches.forEach(id => matchingIds.add(id));
           break;
+        }
 
-        case 'reference':
+        case 'reference': {
           // Reference search: exact match
           const refIds = paramIndex.get(trimmedValue);
           if (refIds) {
             refIds.forEach(id => matchingIds.add(id));
           }
           break;
+        }
 
-        case 'date':
+        case 'date': {
           // Simple prefix matching for dates (no range support as specified)
           for (const [indexedValue, ids] of paramIndex) {
             if (indexedValue.startsWith(trimmedValue)) {
@@ -281,9 +331,10 @@ class FHIRIndexer {
             }
           }
           break;
+        }
 
         case 'number':
-        case 'quantity':
+        case 'quantity': {
           // Numeric equality
           const numValue = parseFloat(trimmedValue);
           if (!isNaN(numValue)) {
@@ -293,21 +344,24 @@ class FHIRIndexer {
             }
           }
           break;
+        }
 
-        case 'uri':
+        case 'uri': {
           // Exact match for URI
           const uriIds = paramIndex.get(trimmedValue);
           if (uriIds) {
             uriIds.forEach(id => matchingIds.add(id));
           }
           break;
+        }
 
-        default:
+        default: {
           // Default: exact match (case-insensitive)
           const defaultIds = paramIndex.get(trimmedValue.toLowerCase());
           if (defaultIds) {
             defaultIds.forEach(id => matchingIds.add(id));
           }
+        }
       }
     }
 
@@ -317,6 +371,9 @@ class FHIRIndexer {
   /**
    * Match a token query against the index
    * Supports: system|code, |code, code, system|
+   * @param {string} query
+   * @param {Map<string, Set<any>>} paramIndex
+   * @returns {Set<any>}
    */
   matchToken(query, paramIndex) {
     const matchingIds = new Set();
@@ -351,6 +408,8 @@ class FHIRIndexer {
 
   /**
    * Get search parameters for a resource type
+   * @param {string} resourceType
+   * @returns {SearchParameterLike[]}
    */
   getSearchParams(resourceType) {
     const params = this.searchParams.get(resourceType);
@@ -362,6 +421,7 @@ class FHIRIndexer {
    * Get statistics about the indexed data
    */
   getStats() {
+    /** @type {{resourceTypes: Record<string, any>, totalResources: number, totalIndexEntries: number}} */
     const stats = {
       resourceTypes: {},
       totalResources: 0,

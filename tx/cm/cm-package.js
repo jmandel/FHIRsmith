@@ -1,3 +1,5 @@
+// @ts-check
+
 const path = require('path');
 const { AbstractConceptMapProvider } = require('./cm-api');
 const { PackageContentLoader } = require('../../library/package-manager');
@@ -5,6 +7,8 @@ const { ConceptMapDatabase } = require('./cm-database');
 const { VersionUtilities } = require('../../library/version-utilities');
 const {validateParameter} = require("../../library/utilities");
 const {ConceptMap} = require("../library/conceptmap");
+
+/** @typedef {{name: string, value: string}} SearchParam */
 
 /**
  * Package-based ConceptMap provider using shared database layer
@@ -21,6 +25,7 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
     this.packageLoader = packageLoader;
     this.dbPath = path.join(packageLoader.packageFolder, '.conceptmaps.db');
     this.database = new ConceptMapDatabase(this.dbPath);
+    /** @type {Map<string, any>} */
     this.conceptMapMap = new Map();
     this.initialized = false;
     this.count = 0;
@@ -59,6 +64,7 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
       return; // No concept maps in this package
     }
 
+    /** @type {any[]} */
     const conceptMaps = [];
     for (const entry of conceptMapEntries) {
       const conceptMap = await this.packageLoader.loadFile(entry);
@@ -75,8 +81,8 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
   /**
    * Fetches a concept map by URL and version
    * @param {string} url - The canonical URL of the concept map
-   * @param {string} version - The version of the concept map
-   * @returns {Promise<Object>} The requested concept map
+   * @param {string | null | undefined} version - The version of the concept map
+   * @returns {Promise<any>} The requested concept map
    */
   async fetchConceptMap(url, version) {
     await this.initialize();
@@ -113,8 +119,9 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
 
   /**
    * Searches for concept maps based on criteria
-   * @param {Array<{name: string, value: string}>} searchParams - Search criteria
-   * @returns {Promise<Array<Object>>} List of matching concept maps
+   * @param {SearchParam[]} searchParams - Search criteria
+   * @param {any} [elements]
+   * @returns {Promise<any[]>} List of matching concept maps
    */
   async searchConceptMaps(searchParams, elements = null) {
     await this.initialize();
@@ -123,10 +130,12 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
     if (this.USE_DATABASE_SEARCH) {
       return await this.database.search(this.spaceId, searchParams, elements);
     } else {
+      /** @type {any[]} */
       const matches = [];
       const seen = new Set(); // Track by URL to avoid duplicates from versioned keys
 
       // Convert array format to object for easier access
+      /** @type {Record<string, string>} */
       const params = {};
       for (const {name, value} of searchParams) {
         params[name] = value.toLowerCase();
@@ -199,6 +208,9 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
 
   /**
    * Check if a value matches the search term (partial, case-insensitive)
+   * @param {unknown} propValue
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchValue(propValue, searchValue) {
     if (propValue === undefined || propValue === null) {
@@ -210,6 +222,9 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
 
   /**
    * Check if system matches any compose.include[].system
+   * @param {any} json
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchSystem(json, searchValue) {
     if (!json.compose?.include || !Array.isArray(json.compose.include)) {
@@ -225,6 +240,9 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
 
   /**
    * Check if jurisdiction matches - jurisdiction is an array of CodeableConcept
+   * @param {any} jurisdictions
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchJurisdiction(jurisdictions, searchValue) {
     if (!jurisdictions || !Array.isArray(jurisdictions)) {
@@ -250,6 +268,9 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
 
   /**
    * Check if identifier matches
+   * @param {any} identifiers
+   * @param {string} searchValue
+   * @returns {boolean}
    */
   _matchIdentifier(identifiers, searchValue) {
     if (!identifiers) {
@@ -269,7 +290,7 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
 
   /**
    * Get statistics about the loaded concept maps
-   * @returns {Promise<Object>} Statistics object
+   * @returns {Promise<any>} Statistics object
    */
   async getStatistics() {
     await this.initialize();
@@ -290,23 +311,41 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
     return uniqueUrls.size;
   }
 
+  /**
+   * @param {string} id
+   * @returns {Promise<any>}
+   */
   async fetchConceptMapById(id) {
     if (!this.spaceId) {
       return this.conceptMapMap.get(id);
     } else if (id.startsWith(this.spaceId+"-")) {
-      let key = id.substring(this.spaceId.length + 1);
+      const prefix = String(this.spaceId);
+      let key = id.substring(prefix.length + 1);
       return this.conceptMapMap.get(key);
     } else {
       return null;
     }
   }
 
+  /**
+   * @param {Set<string>} ids
+   * @returns {void}
+   */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
     // nothing - we don't do any assigning.
   }
 
+  /**
+   * @param {any} opContext
+   * @param {any[]} conceptMaps
+   * @param {string | null | undefined} sourceSystem
+   * @param {string | null | undefined} sourceScope
+   * @param {string | null | undefined} targetScope
+   * @param {string | null | undefined} targetSystem
+   */
   async findConceptMapForTranslation(opContext, conceptMaps, sourceSystem, sourceScope, targetScope, targetSystem) {
+    void opContext;
     for (let cm of this.conceptMapMap.values()) {
       if (cm.providesTranslation(sourceSystem, sourceScope, targetScope, targetSystem)) {
         conceptMaps.push(cm);
@@ -314,6 +353,9 @@ class PackageConceptMapProvider extends AbstractConceptMapProvider {
     }
   }
 
+  /**
+   * @returns {number}
+   */
   cmCount() {
     return this.database.cmCount;
 }

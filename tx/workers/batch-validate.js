@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Validate Worker - Handles $validate-code operations
 //
@@ -19,14 +21,15 @@ const {debugLog} = require("../operation-context");
 
 class BatchValidateWorker extends TerminologyWorker {
 
+  /** @type {Set<string>} */
   globalNames = new Set();
 
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -46,11 +49,17 @@ class BatchValidateWorker extends TerminologyWorker {
     return 'batch-validate-code';
   }
 
+  /**
+   * @param {any} req
+   * @param {{json: (body: any) => any, status: (code: number) => {json: (body: any) => any}}} res
+   * @returns {Promise<any>}
+   */
   async handleValueSet(req, res) {
     try {
       let params = req.body;
       this.addHttpParams(req, params);
 
+      /** @type {any[]} */
       let globalParams = [];
       for (const p of params.parameter) {
         if (this.globalNames.has(p.name)) {
@@ -58,6 +67,7 @@ class BatchValidateWorker extends TerminologyWorker {
         }
       }
 
+      /** @type {any[]} */
       let output = [];
 
       for (const p of params.parameter) {
@@ -65,7 +75,7 @@ class BatchValidateWorker extends TerminologyWorker {
           let op = new Parameters();
           op.jsonObj.parameter = [];
           for (const gp of globalParams) {
-            let exists = p.resource.parameter.find(pp => gp.name == pp.name);
+            let exists = p.resource.parameter.find(/** @param {any} pp */ pp => gp.name == pp.name);
             if (gp.name == 'tx-resource' || !exists) {
               op.jsonObj.parameter.push(gp);
             }
@@ -89,24 +99,30 @@ class BatchValidateWorker extends TerminologyWorker {
               op.addIssue(error);
               output.push({name: "validation", resource : op.jsonObj});
             } else {
-              output.push({name: "validation", resource : this.operationOutcome('error', error.issueCode || 'exception', error.message) } );
+              const issueError = /** @type {{issueCode?: string, message?: string}} */ (error);
+              output.push({name: "validation", resource : this.operationOutcome('error', issueError.issueCode || 'exception', issueError.message || String(error)) } );
             }
           }
         }
       }
-      let result = { resourceType : "Parameters", parameter: output}
+      let result = { resourceType : "Parameters", parameter: output};
       req.logInfo = `${output.length} validations`;
       return res.json(result);
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      return res.status(error.statusCode || 500).json(this.operationOutcome(
-        'error', error.issueCode || 'exception', error.message));
+      const statusError = /** @type {{statusCode?: number, issueCode?: string, message?: string}} */ (error);
+      return res.status(statusError.statusCode || 500).json(this.operationOutcome(
+        'error', statusError.issueCode || 'exception', statusError.message || String(error)));
     }
   }
 
   /**
    * Build an OperationOutcome
+   * @param {string} severity
+   * @param {string} code
+   * @param {string} message
+   * @returns {any}
    */
   operationOutcome(severity, code, message) {
     return {
@@ -122,8 +138,12 @@ class BatchValidateWorker extends TerminologyWorker {
     };
   }
 
+  /**
+   * @param {any[]} parameter
+   * @returns {any}
+   */
   hasValueSet(parameter) {
-    return parameter.find(p => p.name == 'url' || p.name == 'valueSet');
+    return parameter.find(/** @param {any} p */ p => p.name == 'url' || p.name == 'valueSet');
   }
 }
 

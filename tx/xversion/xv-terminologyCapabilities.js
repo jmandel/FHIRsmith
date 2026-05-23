@@ -1,11 +1,17 @@
+// @ts-check
+
 const {VersionUtilities} = require("../../library/version-utilities");
 const {Extensions} = require("../library/extensions");
 
 /**
+ * @typedef {Record<string, any>} FhirJson
+ */
+
+/**
  * Converts input TerminologyCapabilities to R5 format (modifies input object for performance)
- * @param {Object} jsonObj - The input TerminologyCapabilities object
- * @param {string} version - Source FHIR version
- * @returns {Object} The same object, potentially modified to R5 format
+ * @param {FhirJson} jsonObj - The input TerminologyCapabilities object
+ * @param {string} sourceVersion - Source FHIR version
+ * @returns {FhirJson} The same object, potentially modified to R5 format
  * @private
  */
 
@@ -41,8 +47,8 @@ function terminologyCapabilitiesToR5(jsonObj, sourceVersion) {
 
 /**
  * Converts R3 Parameters format to R5 TerminologyCapabilities
- * @param {Object} params - The Parameters resource
- * @returns {Object} TerminologyCapabilities in R5 format
+ * @param {FhirJson} params - The Parameters resource
+ * @returns {FhirJson} TerminologyCapabilities in R5 format
  * @private
  */
 function convertParametersToR5(params) {
@@ -50,15 +56,16 @@ function convertParametersToR5(params) {
     throw new Error('R3 TerminologyCapabilities must be a Parameters resource');
   }
 
-  const result = {
+  const result = /** @type {FhirJson} */ ({
     resourceType: 'TerminologyCapabilities',
     id: params.id,
     status: 'active', // Default, as Parameters doesn't carry this
     kind: 'instance', // Default for terminology server capabilities
     codeSystem: []
-  };
+  });
 
   const parameters = params.parameter || [];
+  /** @type {FhirJson | null} */
   let currentSystem = null;
 
   for (const param of parameters) {
@@ -100,9 +107,9 @@ function convertParametersToR5(params) {
 
 /**
  * Converts R5 TerminologyCapabilities to target version format (clones object first)
- * @param {Object} r5Obj - The R5 format TerminologyCapabilities object
+ * @param {FhirJson} r5Obj - The R5 format TerminologyCapabilities object
  * @param {string} targetVersion - Target FHIR version
- * @returns {Object} New object in target version format
+ * @returns {FhirJson} New object in target version format
  * @private
  */
 function terminologyCapabilitiesFromR5(r5Obj, targetVersion) {
@@ -124,8 +131,8 @@ function terminologyCapabilitiesFromR5(r5Obj, targetVersion) {
 
 /**
  * Converts R5 TerminologyCapabilities to R4 format
- * @param {Object} r5Obj - Cloned R5 TerminologyCapabilities object
- * @returns {Object} R4 format TerminologyCapabilities
+ * @param {FhirJson} r5Obj - Cloned R5 TerminologyCapabilities object
+ * @returns {FhirJson} R4 format TerminologyCapabilities
  * @private
  */
 function terminologyCapabilitiesR5ToR4(r5Obj) {
@@ -151,17 +158,17 @@ function terminologyCapabilitiesR5ToR4(r5Obj) {
 
 /**
  * Converts R5 TerminologyCapabilities to R3 format
- * @param {Object} r5Obj - Cloned R5 TerminologyCapabilities object
- * @returns {Object} R3 format TerminologyCapabilities
+ * @param {FhirJson} r5Obj - Cloned R5 TerminologyCapabilities object
+ * @returns {FhirJson} R3 format TerminologyCapabilities
  * @private
  */
 function terminologyCapabilitiesR5ToR3(r5Obj) {
   // In R3, TerminologyCapabilities didn't exist - we represent it as a Parameters resource
-  const params = {
+  const params = /** @type {FhirJson} */ ({
     resourceType: 'Parameters',
     id: r5Obj.id,
     parameter: []
-  };
+  });
 
   // Add url parameter
   if (r5Obj.url) {

@@ -3,23 +3,40 @@
 //
 // Licensed under BSD-3: https://opensource.org/license/bsd-3-clause
 //
+// @ts-check
 
-const express = require('express');
+const express = /** @type {any} */ (require('express'));
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const http = require('http');
-const cron = require('node-cron');
-const sqlite3 = require('sqlite3').verbose();
+const https = /** @type {any} */ (require('https'));
+const http = /** @type {any} */ (require('http'));
+const cron = /** @type {any} */ (require('node-cron'));
+const sqlite3 = /** @type {any} */ (require('sqlite3')).verbose();
 const { EventEmitter } = require('events');
 const zlib = require('zlib');
-const htmlServer = require('../library/html-server');
-const folders = require('../library/folder-setup');
+const htmlServer = /** @type {any} */ (require('../library/html-server'));
+const folders = /** @type {any} */ (require('../library/folder-setup'));
 const escape = require('escape-html');
 
-const Logger = require('../library/logger');
-const {describeCron} = require("../library/cron-utilities");
+const Logger = /** @type {any} */ (require('../library/logger'));
+const {describeCron} = /** @type {any} */ (require("../library/cron-utilities"));
 const xigLog = Logger.getInstance().child({ module: 'xig' });
+
+/**
+ * @param {unknown} error
+ * @returns {any}
+ */
+function errorLike(error) {
+  return /** @type {any} */ (error);
+}
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 const router = express.Router();
 
@@ -29,9 +46,11 @@ const XIG_DB_PATH = folders.filePath('xig', 'xig.db');
 const TEMPLATE_PATH = path.join(__dirname, 'xig-template.html');
 
 // Global database instance
+/** @type {any} */
 let xigDb = null;
 
 // Request tracking
+/** @type {any} */
 let requestStats = {
   total: 0,
   startTime: new Date(),
@@ -39,6 +58,7 @@ let requestStats = {
 };
 
 // Cache object - this is the "atomic" reference that gets replaced
+/** @type {any} */
 let configCache = {
   loaded: false,
   lastUpdated: null,
@@ -53,9 +73,11 @@ let cacheLoadInProgress = false;
 
 // Update history - tracks every download attempt for diagnostics
 const MAX_UPDATE_HISTORY = 20;
+/** @type {any[]} */
 let updateHistory = [];
 let updateInProgress = false;
 
+/** @param {any} entry */
 function recordUpdateAttempt(entry) {
   updateHistory.unshift(entry); // newest first
   if (updateHistory.length > MAX_UPDATE_HISTORY) {
@@ -72,6 +94,7 @@ function getUpdateHistory() {
 }
 
 // URL validation for external requests
+/** @param {any} url */
 function validateExternalUrl(url) {
   try {
     const parsed = new URL(url);
@@ -93,11 +116,12 @@ function validateExternalUrl(url) {
 
     return parsed;
   } catch (error) {
-    throw new Error(`Invalid URL: ${error.message}`);
+    throw new Error(`Invalid URL: ${errorMessage(error)}`);
   }
 }
 
 // Secure SQL query building with parameterized queries
+/** @param {any} queryParams @param {any} offset @param {any} limit */
 function buildSecureResourceQuery(queryParams, offset = 0, limit = 50) {
   const { realm, auth, ver, type, rt, text, pkg, onlyUsed } = queryParams;
 
@@ -112,7 +136,9 @@ function buildSecureResourceQuery(queryParams, offset = 0, limit = 50) {
       WHERE 1=1
   `;
 
+  /** @type {any[]} */
   const conditions = [];
+  /** @type {any[]} */
   const params = [];
 
   // Realm filter
@@ -244,11 +270,14 @@ function buildSecureResourceQuery(queryParams, offset = 0, limit = 50) {
   return { query: fullQuery, params };
 }
 
+/** @param {any} queryParams */
 function buildSecureResourceCountQuery(queryParams) {
   const { realm, auth, ver, type, rt, text, pkg, onlyUsed } = queryParams;
 
   let baseQuery = 'SELECT COUNT(*) as total FROM Resources WHERE 1=1';
+  /** @type {any[]} */
   const conditions = [];
+  /** @type {any[]} */
   const params = [];
 
   // Same conditions as main query but for counting
@@ -361,15 +390,16 @@ function loadTemplate() {
       xigLog.error('Failed to load HTML template via shared framework');
     }
   } catch (error) {
-    xigLog.error(`Failed to load HTML template: ${error.message}`);
+    xigLog.error(`Failed to load HTML template: ${errorMessage(error)}`);
   }
 }
 
+/** @param {any} title @param {any} content @param {any} options */
 function renderPage(title, content, options = {}) {
   try {
     return htmlServer.renderPage('xig', title, content, options);
   } catch (error) {
-    throw new Error(`Failed to render page: ${error.message}`);
+    throw new Error(`Failed to render page: ${errorMessage(error)}`);
   }
 }
 
@@ -402,7 +432,7 @@ async function gatherPageStatistics() {
     };
 
   } catch (error) {
-    xigLog.error(`Error gathering page statistics: ${error.message}`);
+    xigLog.error(`Error gathering page statistics: ${errorMessage(error)}`);
 
     const endTime = Date.now();
     const processingTime = endTime - startTime;
@@ -418,6 +448,7 @@ async function gatherPageStatistics() {
 }
 
 // Function to build simple content HTML
+/** @param {any} contentData */
 function buildContentHtml(contentData) {
   if (typeof contentData === 'string') {
     return contentData;
@@ -431,7 +462,7 @@ function buildContentHtml(contentData) {
 
   if (contentData.data && Array.isArray(contentData.data)) {
     html += '<ul>';
-    contentData.data.forEach(item => {
+    contentData.data.forEach(/** @param {any} item */ item => {
       html += `<li>${escape(item)}</li>`;
     });
     html += '</ul>';
@@ -441,16 +472,16 @@ function buildContentHtml(contentData) {
     html += '<table class="table table-striped">';
     if (contentData.table.headers) {
       html += '<thead><tr>';
-      contentData.table.headers.forEach(header => {
+      contentData.table.headers.forEach(/** @param {any} header */ header => {
         html += `<th>${escape(header)}</th>`;
       });
       html += '</tr></thead>';
     }
     if (contentData.table.rows) {
       html += '<tbody>';
-      contentData.table.rows.forEach(row => {
+      contentData.table.rows.forEach(/** @param {any} row */ row => {
         html += '<tr>';
-        row.forEach(cell => {
+        row.forEach(/** @param {any} cell */ cell => {
           html += `<td>${escape(cell)}</td>`;
         });
         html += '</tr>';
@@ -465,12 +496,14 @@ function buildContentHtml(contentData) {
 
 // SQL Filter Building Functions
 
+/** @param {any} str */
 function sqlEscapeString(str) {
   if (!str) return '';
   // Escape single quotes for SQL
   return str.replace(/'/g, "''");
 }
 
+/** @param {any} queryParams */
 function buildSqlFilter(queryParams) {
   const { realm, auth, ver, type, rt, text, pkg, onlyUsed } = queryParams;
   let filter = '';
@@ -600,12 +633,14 @@ function buildSqlFilter(queryParams) {
 
 // Helper function to check if a terminology source exists
 // This is a placeholder - you might need to implement this based on your data
+/** @param {any} sourceCode */
 function hasTerminologySource(sourceCode) {
   // For now, return true if the source code exists in txSources cache
   // You might need to adjust this logic based on your actual requirements
   return hasCachedValue('txSources', sourceCode);
 }
 
+/** @param {any} queryParams @param {any} offset @param {any} limit */
 function buildResourceListQuery(queryParams, offset = 0, limit = 50) {
   const whereClause = buildSqlFilter(queryParams);
 
@@ -647,6 +682,7 @@ function buildResourceListQuery(queryParams, offset = 0, limit = 50) {
 
 // Resource List Table Functions
 
+/** @param {any} count @param {any} offset @param {any} baseUrl @param {any} queryParams */
 function buildPaginationControls(count, offset, baseUrl, queryParams) {
   if (count <= 200) {
     return ''; // No pagination needed
@@ -684,20 +720,23 @@ function buildPaginationControls(count, offset, baseUrl, queryParams) {
   return html;
 }
 
+/** @param {any} baseUrl @param {any} params */
 function buildPaginationUrl(baseUrl, params) {
   const queryString = Object.keys(params)
-    .filter(key => params[key] && params[key] !== '')
-    .map(key => `${key}=${encodeURIComponent(params[key])}`)
+    .filter(/** @param {any} key */ key => params[key] && params[key] !== '')
+    .map(/** @param {any} key */ key => `${key}=${encodeURIComponent(params[key])}`)
     .join('&');
   return baseUrl + (queryString ? '?' + queryString : '');
 }
 
+/** @param {any} row */
 function showVersion(row) {
   const versions = ['R2', 'R2B', 'R3', 'R4', 'R4B', 'R5', 'R6'];
-  const supportedVersions = versions.filter(v => row[v] === 1);
+  const supportedVersions = versions.filter(/** @param {any} v */ v => row[v] === 1);
   return supportedVersions.join(', ');
 }
 
+/** @param {any} dateString */
 function formatDate(dateString) {
   if (!dateString) return '';
   try {
@@ -710,6 +749,7 @@ function formatDate(dateString) {
   }
 }
 
+/** @param {any} packageKey */
 function getPackage(packageKey) {
   if (!configCache.loaded || !configCache.maps.packages) {
     return null;
@@ -718,6 +758,7 @@ function getPackage(packageKey) {
   return configCache.maps.packages.get(packageKey) || null;
 }
 
+/** @param {any} details */
 function renderExtension(details) {
   if (!details) return '<td></td><td></td><td></td>';
 
@@ -735,6 +776,7 @@ function renderExtension(details) {
   }
 }
 
+/** @param {any} queryParams @param {any} resourceCount @param {any} offset */
 async function buildResourceTable(queryParams, resourceCount, offset = 0) {
   if (!xigDb || resourceCount === 0) {
     return '<p>No resources to display.</p>';
@@ -822,8 +864,8 @@ async function buildResourceTable(queryParams, resourceCount, offset = 0) {
     parts.push('<th>Usage #</th>');
     parts.push('</tr>');
 
-    const resourceRows = await new Promise((resolve, reject) => {
-      xigDb.all(resourceQuery, qp, (err, rows) => {
+    const resourceRows = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      xigDb.all(resourceQuery, qp, /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
@@ -961,25 +1003,28 @@ async function buildResourceTable(queryParams, resourceCount, offset = 0) {
     return parts.join('');
 
   } catch (error) {
-    xigLog.error(`Error building resource table: ${error.message}`);
-    return `<p class="text-danger">Error loading resource list: ${escape(error.message)}</p>`;
+    xigLog.error(`Error building resource table: ${errorMessage(error)}`);
+    return `<p class="text-danger">Error loading resource list: ${escape(errorMessage(error))}</p>`;
   }
 }
 
+/** @param {any} queryParams @param {any} offset @param {any} limit */
 async function fetchResourceRows(queryParams, offset = 0, limit = 200) {
   const { query: resourceQuery, params: qp } = buildSecureResourceQuery(queryParams, offset, limit);
-  return new Promise((resolve, reject) => {
-    xigDb.all(resourceQuery, qp, (err, rows) => {
+  return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+    xigDb.all(resourceQuery, qp, /** @param {any} err @param {any} rows */ (err, rows) => {
       if (err) reject(err);
       else resolve(rows || []);
     });
   });
 }
 
+/** @param {any} row @param {any} queryParams */
 function rowToObject(row, queryParams) {
-  const { ver, realm, auth, type, rt } = queryParams;
+  const { type } = queryParams;
   const packageObj = getPackage(row.PackageKey);
 
+  /** @type {any} */
   const obj = {
     package: packageObj ? packageObj.Id : `Package ${row.PackageKey}`,
     packageWeb: packageObj?.Web || null,
@@ -1028,13 +1073,17 @@ function rowToObject(row, queryParams) {
   return obj;
 }
 
-async function buildResourceJson(queryParams) {
+/** @param {any} queryParams @param {any} offset */
+async function buildResourceJson(queryParams, offset = 0) {
+  void offset;
   if (!xigDb) return [];
   const rows = await fetchResourceRows(queryParams, 0, 1000000);
-  return rows.map(row => rowToObject(row, queryParams));
+  return rows.map(/** @param {any} row */ row => rowToObject(row, queryParams));
 }
 
-async function buildResourceCsv(queryParams) {
+/** @param {any} queryParams @param {any} offset */
+async function buildResourceCsv(queryParams, offset = 0) {
+  void offset;
   if (!xigDb) return '';
   const { type, ver, realm, auth, rt } = queryParams;
 
@@ -1055,7 +1104,7 @@ async function buildResourceCsv(queryParams) {
   }
   headers.push('UsageCount');
 
-  const csvEscape = v => {
+  const csvEscape = /** @param {any} v */ v => {
     if (v === null || v === undefined) return '';
     const s = String(v);
     return s.includes(',') || s.includes('"') || s.includes('\n')
@@ -1091,6 +1140,7 @@ async function buildResourceCsv(queryParams) {
 
 // Summary Statistics Functions
 
+/** @param {any} queryParams @param {any} baseUrl */
 async function buildSummaryStats(queryParams, baseUrl) {
   const { ver, auth, realm } = queryParams;
   const currentFilter = buildSqlFilter(queryParams);
@@ -1117,8 +1167,8 @@ async function buildSummaryStats(queryParams, baseUrl) {
             sql = `SELECT COUNT(*) as count FROM Resources ${currentFilter} AND ${version} = 1`;
           }
 
-          const count = await new Promise((resolve, reject) => {
-            xigDb.get(sql, [], (err, row) => {
+          const count = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+            xigDb.get(sql, [], /** @param {any} err @param {any} row */ (err, row) => {
               if (err) reject(err);
               else resolve(row ? row.count : 0);
             });
@@ -1145,14 +1195,14 @@ async function buildSummaryStats(queryParams, baseUrl) {
         sql = `SELECT Authority, COUNT(*) as count FROM Resources ${currentFilter} GROUP BY Authority ORDER BY Authority`;
       }
 
-      const authorityResults = await new Promise((resolve, reject) => {
-        xigDb.all(sql, [], (err, rows) => {
+      const authorityResults = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+        xigDb.all(sql, [], /** @param {any} err @param {any} rows */ (err, rows) => {
           if (err) reject(err);
           else resolve(rows || []);
         });
       });
 
-      authorityResults.forEach(row => {
+      authorityResults.forEach(/** @param {any} row */ row => {
         const authority = row.Authority;
         const count = row.count;
 
@@ -1178,15 +1228,15 @@ async function buildSummaryStats(queryParams, baseUrl) {
         sql = `SELECT Realm, COUNT(*) as count FROM Resources ${currentFilter} GROUP BY Realm ORDER BY Realm`;
       }
 
-      const realmResults = await new Promise((resolve, reject) => {
-        xigDb.all(sql, [], (err, rows) => {
+      const realmResults = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+        xigDb.all(sql, [], /** @param {any} err @param {any} rows */ (err, rows) => {
           if (err) reject(err);
           else resolve(rows || []);
         });
       });
 
       var c = 0;
-      realmResults.forEach(row => {
+      realmResults.forEach(/** @param {any} row */ row => {
         const realmCode = row.Realm;
         const count = row.count;
 
@@ -1208,43 +1258,47 @@ async function buildSummaryStats(queryParams, baseUrl) {
 
   } catch (error) {
     console.error(error);
-    xigLog.error(`Error building summary stats: ${error.message}`);
-    html += `<p class="text-warning">Error loading summary statistics: ${escape(error.message)}</p>`;
+    xigLog.error(`Error building summary stats: ${errorMessage(error)}`);
+    html += `<p class="text-warning">Error loading summary statistics: ${escape(errorMessage(error))}</p>`;
   }
 
   return html;
 }
 
 // Helper functions to build links for summary stats
+/** @param {any} baseUrl @param {any} currentParams @param {any} version */
 function buildVersionLinkUrl(baseUrl, currentParams, version) {
   const params = { ...currentParams, ver: version };
   const queryString = Object.keys(params)
-    .filter(key => params[key] && params[key] !== '')
-    .map(key => `${key}=${encodeURIComponent(params[key])}`)
+    .filter(/** @param {any} key */ key => params[key] && params[key] !== '')
+    .map(/** @param {any} key */ key => `${key}=${encodeURIComponent(params[key])}`)
     .join('&');
   return baseUrl + (queryString ? '?' + queryString : '');
 }
 
+/** @param {any} baseUrl @param {any} currentParams @param {any} authority */
 function buildAuthorityLinkUrl(baseUrl, currentParams, authority) {
   const params = { ...currentParams, auth: authority };
   const queryString = Object.keys(params)
-    .filter(key => params[key] && params[key] !== '')
-    .map(key => `${key}=${encodeURIComponent(params[key])}`)
+    .filter(/** @param {any} key */ key => params[key] && params[key] !== '')
+    .map(/** @param {any} key */ key => `${key}=${encodeURIComponent(params[key])}`)
     .join('&');
   return baseUrl + (queryString ? '?' + queryString : '');
 }
 
+/** @param {any} baseUrl @param {any} currentParams @param {any} realm */
 function buildRealmLinkUrl(baseUrl, currentParams, realm) {
   const params = { ...currentParams, realm: realm };
   const queryString = Object.keys(params)
-    .filter(key => params[key] && params[key] !== '')
-    .map(key => `${key}=${encodeURIComponent(params[key])}`)
+    .filter(/** @param {any} key */ key => params[key] && params[key] !== '')
+    .map(/** @param {any} key */ key => `${key}=${encodeURIComponent(params[key])}`)
     .join('&');
   return baseUrl + (queryString ? '?' + queryString : '');
 }
 
 // Form Building Functions
 
+/** @param {any} selectedValue @param {any} optionsList @param {any} name */
 function makeSelect(selectedValue, optionsList, name = 'rt') {
   let html = `<select name="${name}" size="1">`;
 
@@ -1256,7 +1310,7 @@ function makeSelect(selectedValue, optionsList, name = 'rt') {
   }
 
   // Add options from list
-  optionsList.forEach(item => {
+  optionsList.forEach(/** @param {any} item */ item => {
     let code, display;
 
     // Handle "code=display" format or just "code"
@@ -1278,6 +1332,7 @@ function makeSelect(selectedValue, optionsList, name = 'rt') {
   return html;
 }
 
+/** @param {any} queryParams */
 function buildAdditionalForm(queryParams) {
   const { ver, realm, auth, type, rt, text, pkg, onlyUsed } = queryParams;
 
@@ -1336,7 +1391,7 @@ function buildAdditionalForm(queryParams) {
       const txSources = getCachedMap('txSources');
       if (Object.keys(txSources).length > 0) {
         // Convert txSources map to "code=display" format
-        const sourceOptions = Object.keys(txSources).map(code => `${code}=${txSources[code]}`);
+        const sourceOptions = Object.keys(txSources).map(/** @param {any} code */ code => `${code}=${txSources[code]}`);
         html += 'Source: ' + makeSelect(rt, sourceOptions, 'rt') + ' ';
         html += '<br/>';
       }
@@ -1347,7 +1402,7 @@ function buildAdditionalForm(queryParams) {
       const txSourcesCM = getCachedMap('txSources');
       if (Object.keys(txSourcesCM).length > 0) {
         // Convert txSources map to "code=display" format
-        const sourceOptionsCM = Object.keys(txSourcesCM).map(code => `${code}=${txSourcesCM[code]}`);
+        const sourceOptionsCM = Object.keys(txSourcesCM).map(/** @param {any} code */ code => `${code}=${txSourcesCM[code]}`);
         html += 'Source: ' + makeSelect(rt, sourceOptionsCM, 'source') + ' ';
         html += '<br/>';
       }
@@ -1380,11 +1435,13 @@ function buildAdditionalForm(queryParams) {
 }
 
 // Helper function to get cached map as object
+/** @param {any} tableName @returns {any} */
 function getCachedMap(tableName) {
   const cache = getCachedTable(tableName);
   if (cache instanceof Map) {
+    /** @type {any} */
     const obj = {};
-    cache.forEach((value, key) => {
+    cache.forEach(/** @param {any} value @param {any} key */ (value, key) => {
       obj[key] = value;
     });
     return obj;
@@ -1394,11 +1451,13 @@ function getCachedMap(tableName) {
 
 // Control Panel Functions
 
+/** @param {any} str */
 function capitalizeFirst(str) {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+/** @param {any} queryParams */
 function buildPageHeading(queryParams) {
   const { type, realm, auth, ver, rt } = queryParams;
 
@@ -1455,18 +1514,20 @@ function buildPageHeading(queryParams) {
   return heading;
 }
 
+/** @param {any} baseUrl @param {any} params @param {any} excludeParam */
 function buildBaseUrl(baseUrl, params, excludeParam) {
   const filteredParams = { ...params };
   delete filteredParams[excludeParam];
 
   const queryString = Object.keys(filteredParams)
-    .filter(key => filteredParams[key] && filteredParams[key] !== '')
-    .map(key => `${key}=${encodeURIComponent(filteredParams[key])}`)
+    .filter(/** @param {any} key */ key => filteredParams[key] && filteredParams[key] !== '')
+    .map(/** @param {any} key */ key => `${key}=${encodeURIComponent(filteredParams[key])}`)
     .join('&');
 
   return baseUrl + (queryString ? '?' + queryString : '');
 }
 
+/** @param {any} baseUrl @param {any} currentParams */
 function buildVersionBar(baseUrl, currentParams) {
   const { ver } = currentParams;
   const baseUrlWithoutVer = buildBaseUrl(baseUrl, currentParams, 'ver');
@@ -1482,7 +1543,7 @@ function buildVersionBar(baseUrl, currentParams) {
 
   // Version links
   const versions = getCachedSet('versions');
-  versions.forEach(version => {
+  versions.forEach(/** @param {any} version */ version => {
     if (version === ver) {
       html += ` | <b>${escape(version)}</b>`;
     } else {
@@ -1494,6 +1555,7 @@ function buildVersionBar(baseUrl, currentParams) {
   return html;
 }
 
+/** @param {any} baseUrl @param {any} currentParams */
 function buildAuthorityBar(baseUrl, currentParams) {
   const { auth } = currentParams;
   const baseUrlWithoutAuth = buildBaseUrl(baseUrl, currentParams, 'auth');
@@ -1509,7 +1571,7 @@ function buildAuthorityBar(baseUrl, currentParams) {
 
   // Authority links
   const authorities = getCachedSet('authorities');
-  authorities.forEach(authority => {
+  authorities.forEach(/** @param {any} authority */ authority => {
     if (authority === auth) {
       html += ` | <b>${escape(authority)}</b>`;
     } else {
@@ -1521,6 +1583,7 @@ function buildAuthorityBar(baseUrl, currentParams) {
   return html;
 }
 
+/** @param {any} baseUrl @param {any} currentParams */
 function buildRealmBar(baseUrl, currentParams) {
   const { realm } = currentParams;
   const baseUrlWithoutRealm = buildBaseUrl(baseUrl, currentParams, 'realm');
@@ -1536,7 +1599,7 @@ function buildRealmBar(baseUrl, currentParams) {
 
   // Realm links
   const realms = getCachedSet('realms');
-  realms.forEach(realmCode => {
+  realms.forEach(/** @param {any} realmCode */ realmCode => {
     if (realmCode === realm) {
       html += ` | <b>${escape(realmCode)}</b>`;
     } else {
@@ -1548,6 +1611,7 @@ function buildRealmBar(baseUrl, currentParams) {
   return html;
 }
 
+/** @param {any} baseUrl @param {any} currentParams */
 function buildTypeBar(baseUrl, currentParams) {
   const { type } = currentParams;
   const baseUrlWithoutType = buildBaseUrl(baseUrl, currentParams, 'type');
@@ -1564,7 +1628,7 @@ function buildTypeBar(baseUrl, currentParams) {
   // Type links - using the types map (rp=Resource Profiles, etc.)
   const typesMap = getCachedTable('types');
   if (typesMap instanceof Map) {
-    typesMap.forEach((display, code) => {
+    typesMap.forEach(/** @param {any} display @param {any} code */ (display, code) => {
       if (code === type) {
         html += ` | <b>${escape(display)}</b>`;
       } else {
@@ -1577,6 +1641,7 @@ function buildTypeBar(baseUrl, currentParams) {
   return html;
 }
 
+/** @param {any} baseUrl @param {any} queryParams */
 function buildControlPanel(baseUrl, queryParams) {
   const versionBar = buildVersionBar(baseUrl, queryParams);
   const authorityBar = buildAuthorityBar(baseUrl, queryParams);
@@ -1597,6 +1662,7 @@ function buildControlPanel(baseUrl, queryParams) {
 
 // Cache Functions
 
+/** @param {any} tableName */
 function getCachedSet(tableName) {
   const cache = getCachedTable(tableName);
   if (cache instanceof Set) {
@@ -1605,6 +1671,7 @@ function getCachedSet(tableName) {
   return [];
 }
 
+/** @param {any} tableName @param {any} key */
 function getCachedValue(tableName, key) {
   if (!configCache.loaded || !configCache.maps[tableName]) {
     return null;
@@ -1617,6 +1684,7 @@ function getCachedValue(tableName, key) {
   return null;
 }
 
+/** @param {any} tableName @param {any} value */
 function hasCachedValue(tableName, value) {
   if (!configCache.loaded || !configCache.maps[tableName]) {
     return false;
@@ -1632,6 +1700,7 @@ function hasCachedValue(tableName, value) {
   return false;
 }
 
+/** @param {any} tableName */
 function getCachedTable(tableName) {
   if (!configCache.loaded || !configCache.maps[tableName]) {
     return null;
@@ -1648,13 +1717,14 @@ function getCacheStats() {
     return { loaded: false };
   }
 
+  /** @type {any} */
   const stats = {
     loaded: true,
     lastUpdated: configCache.lastUpdated,
     tables: {}
   };
 
-  Object.keys(configCache.maps).forEach(tableName => {
+  Object.keys(configCache.maps).forEach(/** @param {any} tableName */ tableName => {
     const cache = configCache.maps[tableName];
     if (cache instanceof Map) {
       stats.tables[tableName] = { type: 'Map', size: cache.size };
@@ -1668,18 +1738,21 @@ function getCacheStats() {
   return stats;
 }
 
+/** @param {any} key */
 function getMetadata(key) {
   return getCachedValue('metadata', key);
 }
 
 // Database Functions
 
+/** @param {any} url @param {any} destination @param {any} maxRedirects */
 function downloadFile(url, destination, maxRedirects = 5) {
-  return new Promise((resolve, reject) => {
+  return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
     xigLog.info(`Starting download from ${url}`);
     if (globalStats) {
       globalStats.task('XIG Download', `Downloading from ${url}`)
     }
+    /** @type {any} */
     const downloadMeta = {
       url: url,
       finalUrl: url,
@@ -1691,6 +1764,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
       startTime: Date.now()
     };
 
+    /** @param {any} currentUrl @param {any} redirectCount */
     function attemptDownload(currentUrl, redirectCount = 0) {
       if (redirectCount > maxRedirects) {
         reject(Object.assign(new Error(`Too many redirects (${maxRedirects})`), { downloadMeta }));
@@ -1701,7 +1775,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
         const validatedUrl = validateExternalUrl(currentUrl);
         const protocol = validatedUrl.protocol === 'https:' ? https : http;
 
-        const request = protocol.get(validatedUrl, (response) => {
+        const request = protocol.get(validatedUrl, /** @param {any} response */ (response) => {
           downloadMeta.httpStatus = response.statusCode;
           downloadMeta.finalUrl = currentUrl;
           downloadMeta.redirectCount = redirectCount;
@@ -1747,7 +1821,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
 
           const fileStream = fs.createWriteStream(destination);
 
-          response.on('data', (chunk) => {
+          response.on('data', /** @param {any} chunk */ (chunk) => {
             downloadMeta.downloadedBytes += chunk.length;
             if (downloadMeta.downloadedBytes > maxSize) {
               request.destroy();
@@ -1772,7 +1846,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
             resolve(downloadMeta);
           });
 
-          fileStream.on('error', (err) => {
+          fileStream.on('error', /** @param {any} err */ (err) => {
             if (globalStats) {
               globalStats.taskError('XIG Download', `Download failed`);
             }
@@ -1781,7 +1855,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
           });
         });
 
-        request.on('error', (err) => {
+        request.on('error', /** @param {any} err */ (err) => {
           if (globalStats) {
             globalStats.taskError('XIG Download', `Download Error`);
           }
@@ -1797,7 +1871,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
         });
 
       } catch (error) {
-        reject(Object.assign(error, { downloadMeta }));
+        reject(Object.assign(errorLike(error), { downloadMeta }));
       }
     }
 
@@ -1805,22 +1879,23 @@ function downloadFile(url, destination, maxRedirects = 5) {
   });
 }
 
+/** @param {any} filePath */
 function validateDatabaseFile(filePath) {
-  return new Promise((resolve, reject) => {
+  return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
     if (!fs.existsSync(filePath)) {
       reject(new Error('Database file does not exist'));
       return;
     }
 
     // Try to open the SQLite database to validate it
-    const testDb = new sqlite3.Database(filePath, sqlite3.OPEN_READONLY, (err) => {
+    const testDb = new sqlite3.Database(filePath, sqlite3.OPEN_READONLY, /** @param {any} err */ (err) => {
       if (err) {
         reject(new Error(`Invalid SQLite database: ${err.message}`));
         return;
       }
 
       // Try a simple query to ensure the database is accessible
-      testDb.get("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1", (err) => {
+      testDb.get("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1", /** @param {any} err */ (err) => {
         testDb.close();
 
         if (err) {
@@ -1847,6 +1922,7 @@ async function loadConfigCache() {
 
   try {
     // Create new cache object (this will be atomically replaced)
+    /** @type {any} */
     const newCache = {
       loaded: false,
       lastUpdated: new Date(),
@@ -1854,9 +1930,9 @@ async function loadConfigCache() {
     };
 
     // Helper function for simple queries
-    const executeQuery = (sql, params = []) => {
-      return new Promise((resolve, reject) => {
-        xigDb.all(sql, params, (err, rows) => {
+    const executeQuery = /** @param {any} sql @param {any} params */ (sql, params = []) => {
+      return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+        xigDb.all(sql, params, /** @param {any} err @param {any} rows */ (err, rows) => {
           if (err) {
             reject(err);
           } else {
@@ -1869,14 +1945,14 @@ async function loadConfigCache() {
     // Load metadata
     const metadataRows = await executeQuery('SELECT Name, Value FROM Metadata');
     newCache.maps.metadata = new Map();
-    metadataRows.forEach(row => {
+    metadataRows.forEach(/** @param {any} row */ row => {
       newCache.maps.metadata.set(row.Name, row.Value);
     });
 
     // Load realms
     const realmRows = await executeQuery('SELECT Code FROM Realms');
     newCache.maps.realms = new Set();
-    realmRows.forEach(row => {
+    realmRows.forEach(/** @param {any} row */ row => {
       if (row.Code.length <= 3) {
         newCache.maps.realms.add(row.Code);
       }
@@ -1885,7 +1961,7 @@ async function loadConfigCache() {
     // Load authorities
     const authRows = await executeQuery('SELECT Code FROM Authorities');
     newCache.maps.authorities = new Set();
-    authRows.forEach(row => {
+    authRows.forEach(/** @param {any} row */ row => {
       newCache.maps.authorities.add(row.Code);
     });
 
@@ -1893,7 +1969,8 @@ async function loadConfigCache() {
     const packageRows = await executeQuery('SELECT PackageKey, Id, PID, Web, Canonical FROM Packages');
     newCache.maps.packages = new Map();
     newCache.maps.packagesById = new Map();
-    packageRows.forEach(row => {
+    packageRows.forEach(/** @param {any} row */ row => {
+      /** @type {any} */
       const packageObj = {
         PackageKey: row.PackageKey,
         Id: row.Id,
@@ -1922,7 +1999,7 @@ async function loadConfigCache() {
         "SELECT DISTINCT Type FROM Resources WHERE ResourceType = 'StructureDefinition' AND Kind = 'resource'"
       );
       newCache.maps.profileResources = new Set();
-      profileResourceRows.forEach(row => {
+      profileResourceRows.forEach(/** @param {any} row */ row => {
         if (row.Type && row.Type.trim() !== '') {  // Filter out null/undefined/empty values
           newCache.maps.profileResources.add(row.Type);
         }
@@ -1932,7 +2009,7 @@ async function loadConfigCache() {
         "SELECT DISTINCT Type FROM Resources WHERE ResourceType = 'StructureDefinition' AND (Kind = 'complex-type' OR Kind = 'primitive-type')"
       );
       newCache.maps.profileTypes = new Set();
-      profileTypeRows.forEach(row => {
+      profileTypeRows.forEach(/** @param {any} row */ row => {
         if (row.Type && row.Type.trim() !== '') {  // Filter out null/undefined/empty values
           newCache.maps.profileTypes.add(row.Type);
         }
@@ -1940,7 +2017,7 @@ async function loadConfigCache() {
 
       const resourceTypeRows = await executeQuery('SELECT DISTINCT ResourceType FROM Resources');
       newCache.maps.resourceTypes = new Set();
-      resourceTypeRows.forEach(row => {
+      resourceTypeRows.forEach(/** @param {any} row */ row => {
         newCache.maps.resourceTypes.add(row.ResourceType);
       });
     } else {
@@ -1952,20 +2029,20 @@ async function loadConfigCache() {
     // Load categories
     const extensionContextRows = await executeQuery('SELECT DISTINCT Code FROM Categories WHERE Mode = 2');
     newCache.maps.extensionContexts = new Set();
-    extensionContextRows.forEach(row => {
+    extensionContextRows.forEach(/** @param {any} row */ row => {
       newCache.maps.extensionContexts.add(row.Code);
     });
 
     const extensionTypeRows = await executeQuery('SELECT DISTINCT Code FROM Categories WHERE Mode = 3');
     newCache.maps.extensionTypes = new Set();
-    extensionTypeRows.forEach(row => {
+    extensionTypeRows.forEach(/** @param {any} row */ row => {
       newCache.maps.extensionTypes.add(row.Code);
     });
 
     // Load TX sources
     const txSourceRows = await executeQuery('SELECT Code, Display FROM TxSource');
     newCache.maps.txSources = new Map();
-    txSourceRows.forEach(row => {
+    txSourceRows.forEach(/** @param {any} row */ row => {
       newCache.maps.txSources.set(row.Code, row.Display);
     });
 
@@ -1994,21 +2071,21 @@ async function loadConfigCache() {
     xigLog.info(`XIG Loaded from database`);
 
   } catch (error) {
-    xigLog.error(`Config cache load failed: ${error.message}`);
+    xigLog.error(`Config cache load failed: ${errorMessage(error)}`);
   } finally {
     cacheLoadInProgress = false;
   }
 }
 
 function initializeDatabase() {
-  return new Promise((resolve, reject) => {
+  return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
     if (!fs.existsSync(XIG_DB_PATH)) {
       xigLog.error('XIG database file not found, will download on first update');
       resolve();
       return;
     }
 
-    xigDb = new sqlite3.Database(XIG_DB_PATH, sqlite3.OPEN_READONLY, async (err) => {
+    xigDb = new sqlite3.Database(XIG_DB_PATH, sqlite3.OPEN_READONLY, /** @param {any} err */ async /** @param {any} err */ (err) => {
       if (err) {
         xigLog.error(`Failed to open XIG database: ${err.message}`);
         reject(err);
@@ -2017,7 +2094,7 @@ function initializeDatabase() {
         try {
           await loadConfigCache();
         } catch (cacheError) {
-          xigLog.warn(`Failed to load config cache: ${cacheError.message}`);
+          xigLog.warn(`Failed to load config cache: ${errorMessage(cacheError)}`);
         }
 
         resolve();
@@ -2033,9 +2110,10 @@ async function updateXigDatabase() {
   }
 
   updateInProgress = true;
+  /** @type {any} */
   const entry = {
     timestamp: new Date(),
-    trigger: new Error().stack.includes('cron') ? 'cron' : 'manual',
+    trigger: (new Error().stack || '').includes('cron') ? 'cron' : 'manual',
     status: 'started',
     sourceUrl: XIG_DB_URL,
     error: null,
@@ -2062,8 +2140,8 @@ async function updateXigDatabase() {
     entry.status = 'validated';
 
     if (xigDb) {
-      await new Promise((resolve) => {
-        xigDb.close((err) => {
+      await new Promise(/** @param {any} resolve */ (resolve) => {
+        xigDb.close(/** @param {any} err */ (err) => {
           if (err) {
             xigLog.warn(`Warning: Error closing existing database: ${err.message}`);
           }
@@ -2086,10 +2164,10 @@ async function updateXigDatabase() {
 
   } catch (error) {
     entry.status = 'failed';
-    entry.error = error.message;
-    entry.downloadMeta = error.downloadMeta || entry.downloadMeta;
+    entry.error = errorMessage(error);
+    entry.downloadMeta = errorLike(error).downloadMeta || entry.downloadMeta;
     entry.durationMs = Date.now() - updateStart;
-    xigLog.error(`XIG database update failed: ${error.message}`);
+    xigLog.error(`XIG database update failed: ${errorMessage(error)}`);
 
     const tempPath = XIG_DB_PATH + '.tmp';
     if (fs.existsSync(tempPath)) {
@@ -2106,6 +2184,7 @@ async function updateXigDatabase() {
 }
 
 // Request tracking middleware
+/** @param {any} req @param {any} res @param {any} next */
 function trackRequest(req, res, next) {
   requestStats.total++;
 
@@ -2130,17 +2209,18 @@ router.use(trackRequest);
 
 // Statistics functions
 function getDatabaseTableCounts() {
-  return new Promise((resolve) => {
+  return new Promise(/** @param {any} resolve */ (resolve) => {
     if (!xigDb) {
       resolve({ packages: 0, resources: 0 });
       return;
     }
 
+    /** @type {any} */
     const counts = {};
     let completedQueries = 0;
     const totalQueries = 2;
 
-    xigDb.get('SELECT COUNT(*) as count FROM Packages', [], (err, row) => {
+    xigDb.get('SELECT COUNT(*) as count FROM Packages', [], /** @param {any} err @param {any} row */ (err, row) => {
       if (err) {
         counts.packages = 0;
       } else {
@@ -2153,7 +2233,7 @@ function getDatabaseTableCounts() {
       }
     });
 
-    xigDb.get('SELECT COUNT(*) as count FROM Resources', [], (err, row) => {
+    xigDb.get('SELECT COUNT(*) as count FROM Resources', [], /** @param {any} err @param {any} row */ (err, row) => {
       if (err) {
         counts.resources = 0;
       } else {
@@ -2170,7 +2250,7 @@ function getDatabaseTableCounts() {
 
 function getRequestStats() {
   const now = new Date();
-  const daysRunning = Math.max(1, Math.ceil((now - requestStats.startTime) / (1000 * 60 * 60 * 24)));
+  const daysRunning = Math.max(1, Math.ceil((now.getTime() - requestStats.startTime.getTime()) / (1000 * 60 * 60 * 24)));
   const averagePerDay = Math.round(requestStats.total / daysRunning);
 
   return {
@@ -2194,7 +2274,7 @@ function getDatabaseAgeInfo() {
   const stats = fs.statSync(XIG_DB_PATH);
   const lastModified = stats.mtime;
   const now = new Date();
-  const ageInDays = Math.floor((now - lastModified) / (1000 * 60 * 60 * 24));
+  const ageInDays = Math.floor((now.getTime() - lastModified.getTime()) / (1000 * 60 * 60 * 24));
 
   return {
     lastDownloaded: lastModified,
@@ -2205,6 +2285,7 @@ function getDatabaseAgeInfo() {
   };
 }
 
+/** @param {any} statsData */
 function buildStatsTable(statsData) {
   let html = '<table class="table table-striped table-bordered">';
   html += '<thead class="table-dark">';
@@ -2216,7 +2297,7 @@ function buildStatsTable(statsData) {
   html += '<tr class="table-info"><td colspan="3"><strong>Cache Statistics</strong></td></tr>';
 
   if (statsData.cache.loaded) {
-    Object.keys(statsData.cache.tables).forEach(tableName => {
+    Object.keys(statsData.cache.tables).forEach(/** @param {any} tableName */ tableName => {
       const tableInfo = statsData.cache.tables[tableName];
       html += `<tr>`;
       html += `<td>Cache: ${escape(tableName)}</td>`;
@@ -2282,7 +2363,7 @@ function buildStatsTable(statsData) {
   if (history.length === 0) {
     html += '<tr><td colspan="3" class="text-muted">No update attempts since server started</td></tr>';
   } else {
-    history.forEach((entry, idx) => {
+    history.forEach(/** @param {any} entry @param {any} idx */ (entry, idx) => {
       const time = new Date(entry.timestamp).toLocaleString();
       const statusIcon = entry.status === 'success' ? '✅' : '❌';
       const statusClass = entry.status === 'success' ? '' : 'table-danger';
@@ -2337,6 +2418,7 @@ function buildStatsTable(statsData) {
   html += `</tr>`;
 
   // Recent daily activity (last 7 days)
+  /** @type {any[]} */
   const recentDays = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
@@ -2359,7 +2441,7 @@ function buildStatsTable(statsData) {
 }
 
 function getDatabaseInfo() {
-  return new Promise((resolve, reject) => {
+  return new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
     if (!xigDb) {
       resolve({
         connected: false,
@@ -2369,7 +2451,7 @@ function getDatabaseInfo() {
       return;
     }
 
-    xigDb.get("SELECT COUNT(*) as tableCount FROM sqlite_master WHERE type='table'", (err, row) => {
+    xigDb.get("SELECT COUNT(*) as tableCount FROM sqlite_master WHERE type='table'", /** @param {any} err @param {any} row */ (err, row) => {
       if (err) {
         reject(err);
       } else {
@@ -2384,6 +2466,7 @@ function getDatabaseInfo() {
   });
 }
 
+/** @param {any} req */
 function getRequestedFormat(req) {
   const fmt = req.query._fmt;
   if (fmt === 'json') return 'json';
@@ -2395,7 +2478,7 @@ function getRequestedFormat(req) {
 }
 
 // Routes
-router.get('/:packagePid/:resourceType/:resourceId', async (req, res) => {
+router.get('/:packagePid/:resourceType/:resourceId', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
   const start = Date.now();
   try {
 
@@ -2421,7 +2504,7 @@ router.get('/:packagePid/:resourceType/:resourceId', async (req, res) => {
 });
 
 // Resources list endpoint with control panel
-router.get('/', async (req, res) => {
+router.get('/', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
   const start = Date.now();
   try {
 
@@ -2431,6 +2514,7 @@ router.get('/', async (req, res) => {
       const title = 'FHIR Resources';
 
       // Parse query parameters
+      /** @type {any} */
       const queryParams = {
         ver: req.query.ver || '',
         auth: req.query.auth || '',
@@ -2475,8 +2559,8 @@ router.get('/', async (req, res) => {
       try {
         if (xigDb) {
           const {query: countQuery, params: countParams} = buildSecureResourceCountQuery(queryParams);
-          resourceCount = await new Promise((resolve, reject) => {
-            xigDb.get(countQuery, countParams, (err, row) => {
+          resourceCount = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+            xigDb.get(countQuery, countParams, /** @param {any} err @param {any} row */ (err, row) => {
               if (err) {
                 reject(err);
               } else {
@@ -2486,8 +2570,8 @@ router.get('/', async (req, res) => {
           });
         }
       } catch (error) {
-        countError = error.message;
-        xigLog.error(`Error getting resource count: ${error.message}`);
+        countError = errorMessage(error);
+        xigLog.error(`Error getting resource count: ${errorMessage(error)}`);
       }
 
       // Build resource count paragraph
@@ -2500,8 +2584,8 @@ router.get('/', async (req, res) => {
       const downloadParams = { ...queryParams };
       delete downloadParams.offset;
       const downloadQs = Object.keys(downloadParams)
-        .filter(key => downloadParams[key] && downloadParams[key] !== '')
-        .map(key => `${key}=${encodeURIComponent(downloadParams[key])}`)
+        .filter(/** @param {any} key */ key => downloadParams[key] && downloadParams[key] !== '')
+        .map(/** @param {any} key */ key => `${key}=${encodeURIComponent(downloadParams[key])}`)
         .join('&');
       const downloadBase = '/xig' + (downloadQs ? '?' + downloadQs + '&' : '?');
       countParagraph += ` (<a href="${downloadBase}_fmt=json">JSON</a>`;
@@ -2534,7 +2618,7 @@ router.get('/', async (req, res) => {
       res.send(html);
 
     } catch (error) {
-      xigLog.error(`Error rendering resources page: ${error.message}`);
+      xigLog.error(`Error rendering resources page: ${errorMessage(error)}`);
       htmlServer.sendErrorResponse(res, 'xig', error);
     }
   } finally {
@@ -2543,7 +2627,7 @@ router.get('/', async (req, res) => {
 });
 
 // Stats endpoint
-router.get('/stats', async (req, res) => {
+router.get('/stats', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
   const start = Date.now();
   try {
 
@@ -2556,6 +2640,7 @@ router.get('/stats', async (req, res) => {
         getDatabaseTableCounts()
       ]);
 
+      /** @type {any} */
       const statsData = {
         cache: getCacheStats(),
         database: dbInfo,
@@ -2612,7 +2697,7 @@ router.get('/stats', async (req, res) => {
       res.send(html);
 
     } catch (error) {
-      xigLog.error(`Error generating stats page: ${error.message}`);
+      xigLog.error(`Error generating stats page: ${errorMessage(error)}`);
       htmlServer.sendErrorResponse(res, 'xig', error);
     }
   } finally {
@@ -2621,7 +2706,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // Resource detail endpoint - handles individual resource pages
-router.get('/resource/:packagePid/:resourceType/:resourceId', async (req, res) => {
+router.get('/resource/:packagePid/:resourceType/:resourceId', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
   const start = Date.now();
   try {
     const startTime = Date.now(); // Add this at the very beginning
@@ -2648,8 +2733,8 @@ router.get('/resource/:packagePid/:resourceType/:resourceId', async (req, res) =
           WHERE PackageKey = ? AND ResourceType = ? AND Id = ?
       `;
 
-      const resourceData = await new Promise((resolve, reject) => {
-        xigDb.get(resourceQuery, [packageObj.PackageKey, resourceType, resourceId], (err, row) => {
+      const resourceData = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+        xigDb.get(resourceQuery, [packageObj.PackageKey, resourceType, resourceId], /** @param {any} err @param {any} row */ (err, row) => {
           if (err) reject(err);
           else resolve(row);
         });
@@ -2671,7 +2756,7 @@ router.get('/resource/:packagePid/:resourceType/:resourceId', async (req, res) =
       res.send(html);
 
     } catch (error) {
-      xigLog.error(`Error rendering resource detail page: ${error.message}`);
+      xigLog.error(`Error rendering resource detail page: ${errorMessage(error)}`);
       htmlServer.sendErrorResponse(res, 'xig', error);
     }
   } finally {
@@ -2680,6 +2765,7 @@ router.get('/resource/:packagePid/:resourceType/:resourceId', async (req, res) =
 });
 
 // Helper function to get package by PID
+/** @param {any} pid */
 function getPackageByPid(pid) {
   if (!configCache.loaded || !configCache.maps.packagesById) {
     return null;
@@ -2693,6 +2779,7 @@ function getPackageByPid(pid) {
 }
 
 // Main function to build resource detail page content
+/** @param {any} packageObj @param {any} resourceData @param {any} secure */
 async function buildResourceDetailPage(packageObj, resourceData, secure = false) {
   let html = '';
 
@@ -2710,14 +2797,15 @@ async function buildResourceDetailPage(packageObj, resourceData, secure = false)
     html += await buildResourceSource(resourceData.ResourceKey);
 
   } catch (error) {
-    xigLog.error(`Error building resource detail content: ${error.message}`);
-    html += `<div class="alert alert-warning">Error loading some content: ${escape(error.message)}</div>`;
+    xigLog.error(`Error building resource detail content: ${errorMessage(error)}`);
+    html += `<div class="alert alert-warning">Error loading some content: ${escape(errorMessage(error))}</div>`;
   }
 
   return html;
 }
 
 // Build the main resource metadata table
+/** @param {any} packageObj @param {any} resourceData */
 async function buildResourceMetadataTable(packageObj, resourceData) {
   let html = '<table class="table table-bordered">';
 
@@ -2768,7 +2856,7 @@ async function buildResourceMetadataTable(packageObj, resourceData) {
     { key: 'Kind', label: 'Kind' }
   ];
 
-  fields.forEach(field => {
+  fields.forEach(/** @param {any} field */ field => {
     const value = resourceData[field.key];
     if (value && value !== '') {
       if (field.key === 'Experimental') {
@@ -2785,6 +2873,7 @@ async function buildResourceMetadataTable(packageObj, resourceData) {
 }
 
 // Build resources that use this resource (dependencies pointing TO this resource)
+/** @param {any} resourceData @param {any} secure */
 async function buildResourceDependencies(resourceData, secure = false) {
   let html = '<hr/><h3>Resources that use this resource</h3>';
 
@@ -2798,8 +2887,8 @@ async function buildResourceDependencies(resourceData, secure = false) {
         ORDER BY ResourceType
     `;
 
-    const dependencies = await new Promise((resolve, reject) => {
-      xigDb.all(dependenciesQuery, [resourceData.ResourceKey], (err, rows) => {
+    const dependencies = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      xigDb.all(dependenciesQuery, [resourceData.ResourceKey], /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
@@ -2823,8 +2912,8 @@ async function buildResourceDependencies(resourceData, secure = false) {
         ORDER BY ResourceType
     `;
 
-    const uses = await new Promise((resolve, reject) => {
-      xigDb.all(usesQuery, [resourceData.ResourceKey], (err, rows) => {
+    const uses = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      xigDb.all(usesQuery, [resourceData.ResourceKey], /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
@@ -2839,11 +2928,12 @@ async function buildResourceDependencies(resourceData, secure = false) {
       html += await buildExtensionExamplesSection(resourceData.Url);
     }
   } catch (error) {
-    html += `<div class="alert alert-warning">Error loading dependencies: ${escape(error.message)}</div>`;
+    html += `<div class="alert alert-warning">Error loading dependencies: ${escape(errorMessage(error))}</div>`;
   }
 
   return html;
 }
+/** @param {any} resourceUrl */
 async function buildExtensionExamplesSection(resourceUrl) {
   let html = '<hr/><h3>Examples of Use for Extension</h3>';
 
@@ -2863,8 +2953,8 @@ async function buildExtensionExamplesSection(resourceUrl) {
         ORDER BY eu.Name
     `;
 
-    const extensionExamples = await new Promise((resolve, reject) => {
-      xigDb.all(extensionExamplesQuery, [resourceUrl], (err, rows) => {
+    const extensionExamples = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      xigDb.all(extensionExamplesQuery, [resourceUrl], /** @param {any} err @param {any} rows */ (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
@@ -2877,7 +2967,8 @@ async function buildExtensionExamplesSection(resourceUrl) {
       html += '<thead><tr><th>Resource</th><th>Version</th></tr></thead>';
       html += '<tbody>';
 
-      extensionExamples.forEach(example => {
+      extensionExamples.forEach(/** @param {any} example */ example => {
+        /** @type {Record<string, string>} */
         const versionMap = { 1: 'R2', 2: 'R2B', 3: 'R3', 4: 'R4', 5: 'R4B', 6: 'R5' };
         const versionName = example.Version ? (versionMap[example.Version] || example.Version.toString()) : '';
 
@@ -2892,18 +2983,20 @@ async function buildExtensionExamplesSection(resourceUrl) {
     }
 
   } catch (error) {
-    xigLog.error(`Error loading extension examples: ${error.message}`);
-    html += `<div class="alert alert-warning">Error loading extension examples: ${escape(error.message)}</div>`;
+    xigLog.error(`Error loading extension examples: ${errorMessage(error)}`);
+    html += `<div class="alert alert-warning">Error loading extension examples: ${escape(errorMessage(error))}</div>`;
   }
 
   return html;
 }
 // Helper function to build dependency tables
-function buildDependencyTable(dependencies) {
+/** @param {any} dependencies @param {any} secure */
+function buildDependencyTable(dependencies, secure = false) {
+  void secure;
   let html = '';
   let currentType = '';
 
-  dependencies.forEach(dep => {
+  dependencies.forEach(/** @param {any} dep */ dep => {
     if (currentType !== dep.ResourceType) {
       if (currentType !== '') {
         html += '</table>';
@@ -2952,6 +3045,7 @@ function buildDependencyTable(dependencies) {
 }
 
 // Build narrative section (simplified - full implementation would need BLOB decompression)
+/** @param {any} resourceKey @param {any} packageObj */
 async function buildResourceNarrative(resourceKey, packageObj) {
   let html = '';
 
@@ -2966,8 +3060,8 @@ async function buildResourceNarrative(resourceKey, packageObj) {
     // Get the BLOB data from Contents table
     const contentsQuery = 'SELECT Json FROM Contents WHERE ResourceKey = ?';
 
-    const blobData = await new Promise((resolve, reject) => {
-      xigDb.get(contentsQuery, [resourceKey], (err, row) => {
+    const blobData = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      xigDb.get(contentsQuery, [resourceKey], /** @param {any} err @param {any} row */ (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -2979,8 +3073,8 @@ async function buildResourceNarrative(resourceKey, packageObj) {
     }
 
     // Decompress the GZIP data
-    const decompressedData = await new Promise((resolve, reject) => {
-      zlib.gunzip(blobData.Json, (err, result) => {
+    const decompressedData = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      zlib.gunzip(blobData.Json, /** @param {any} err @param {any} result */ (err, result) => {
         if (err) reject(err);
         else resolve(result);
       });
@@ -3006,14 +3100,15 @@ async function buildResourceNarrative(resourceKey, packageObj) {
     }
 
   } catch (error) {
-    xigLog.error(`Error loading narrative: ${error.message}`);
-    html += `<div class="alert alert-warning">Error loading narrative: ${escape(error.message)}</div>`;
+    xigLog.error(`Error loading narrative: ${errorMessage(error)}`);
+    html += `<div class="alert alert-warning">Error loading narrative: ${escape(errorMessage(error))}</div>`;
   }
 
   return html;
 }
 
 // Build source section (simplified - full implementation would need BLOB decompression)
+/** @param {any} resourceKey */
 async function buildResourceSource(resourceKey) {
   let html = '';
 
@@ -3028,8 +3123,8 @@ async function buildResourceSource(resourceKey) {
     // Get the BLOB data from Contents table
     const contentsQuery = 'SELECT Json FROM Contents WHERE ResourceKey = ?';
 
-    const blobData = await new Promise((resolve, reject) => {
-      xigDb.get(contentsQuery, [resourceKey], (err, row) => {
+    const blobData = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      xigDb.get(contentsQuery, [resourceKey], /** @param {any} err @param {any} row */ (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -3041,8 +3136,8 @@ async function buildResourceSource(resourceKey) {
     }
 
     // Decompress the GZIP data
-    const decompressedData = await new Promise((resolve, reject) => {
-      zlib.gunzip(blobData.Json, (err, result) => {
+    const decompressedData = await new Promise(/** @param {any} resolve @param {any} reject */ (resolve, reject) => {
+      zlib.gunzip(blobData.Json, /** @param {any} err @param {any} result */ (err, result) => {
         if (err) reject(err);
         else resolve(result);
       });
@@ -3060,13 +3155,14 @@ async function buildResourceSource(resourceKey) {
     html += '</pre>';
 
   } catch (error) {
-    xigLog.error(`Error loading source: ${error.message}`);
-    html += `<div class="alert alert-warning">Error loading source: ${escape(error.message)}</div>`;
+    xigLog.error(`Error loading source: ${errorMessage(error)}`);
+    html += `<div class="alert alert-warning">Error loading source: ${escape(errorMessage(error))}</div>`;
   }
 
   return html;
 }
 
+/** @param {any} narrativeHtml @param {any} baseUrl */
 function fixNarrative(narrativeHtml, baseUrl) {
   if (!narrativeHtml || !baseUrl) {
     return narrativeHtml;
@@ -3081,13 +3177,13 @@ function fixNarrative(narrativeHtml, baseUrl) {
 
     return fixed;
   } catch (error) {
-    xigLog.error(`Error fixing narrative links: ${error.message}`);
+    xigLog.error(`Error fixing narrative links: ${errorMessage(error)}`);
     return narrativeHtml; // Return original if fixing fails
   }
 }
 
 // JSON endpoints
-router.get('/status', async (req, res) => {
+router.get('/status', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
   const start = Date.now();
   try {
 
@@ -3107,7 +3203,7 @@ router.get('/status', async (req, res) => {
     } catch (error) {
       res.status(500).json({
         status: 'ERROR',
-        error: error.message,
+        error: errorMessage(error),
         cache: getCacheStats(),
         updateHistory: getUpdateHistory()
       });
@@ -3117,7 +3213,7 @@ router.get('/status', async (req, res) => {
   }
 });
 
-router.get('/cache', async (req, res) => {
+router.get('/cache', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
   const start = Date.now();
   try {
 
@@ -3127,7 +3223,7 @@ router.get('/cache', async (req, res) => {
   }
 });
 
-router.post('/update', async (req, res) => {
+router.post('/update', /** @param {any} req @param {any} res */ async /** @param {any} req @param {any} res */ (req, res) => {
   try {
     xigLog.info('Manual update triggered via API');
     await updateXigDatabase();
@@ -3139,13 +3235,15 @@ router.post('/update', async (req, res) => {
     res.status(500).json({
       status: 'ERROR',
       message: 'Failed to update XIG database',
-      error: error.message
+      error: errorMessage(error)
     });
   }
 });
 
+/** @type {any} */
 let globalStats;
 // Initialize the XIG module
+/** @param {any} stats @param {any} xigConfig */
 async function initializeXigModule(stats, xigConfig) {
   try {
     globalStats = stats;
@@ -3172,16 +3270,16 @@ async function initializeXigModule(stats, xigConfig) {
     }
 
   } catch (error) {
-    xigLog.error(`XIG module initialization failed: ${error.message}`);
+    xigLog.error(`XIG module initialization failed: ${errorMessage(error)}`);
     throw error; // Re-throw so caller knows about failure
   }
 }
 
 // Graceful shutdown
 function shutdown() {
-  return new Promise((resolve) => {
+  return new Promise(/** @param {any} resolve */ (resolve) => {
     if (xigDb) {
-      xigDb.close((err) => {
+      xigDb.close(/** @param {any} err */ (err) => {
         if (err) {
           xigLog.error(`Error closing XIG database: ${err.message}`);
         } else {

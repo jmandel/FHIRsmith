@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 //
 // tx-stress.js - FHIR Terminology Server Stress Test Client
 //
@@ -21,8 +22,14 @@ const SEARCH_TERMS = [
   'request', 'response', 'priority', 'severity', 'risk', 'method'
 ];
 
+/** @typedef {{serverUrl: string, threads: number, duration: number, mode: string, pick: number, from: number, verbose: boolean, delay: number}} StressConfig */
+/** @typedef {{worker: number, phase: string, url: string, status: number | null, latencyMs: number | null, error: string | null, timestamp: Date}} RequestEntry */
+
 // ── CLI parsing ──────────────────────────────────────────────────────
 
+/**
+ * @returns {StressConfig}
+ */
 function parseArgs() {
   const args = process.argv.slice(2);
 
@@ -91,13 +98,20 @@ Examples:
 
 class StatsCollector {
   constructor() {
+    /** @type {RequestEntry[]} */
     this.requests = [];       // { worker, phase, url, status, latencyMs, error, timestamp }
     this.cycles = 0;
     this.errors = 0;
+    /** @type {number | null} */
     this.startTime = null;
+    /** @type {number | null} */
     this.endTime = null;
+    this.workerCount = 0;
   }
 
+  /**
+   * @param {RequestEntry} entry
+   */
   record(entry) {
     this.requests.push(entry);
     if (entry.error) this.errors++;
@@ -108,7 +122,8 @@ class StatsCollector {
   }
 
   summarize() {
-    const duration = (this.endTime - this.startTime) / 1000;
+    const duration = ((this.endTime || Date.now()) - (this.startTime || Date.now())) / 1000;
+    /** @type {Record<string, {count: number, errors: number, latencies: number[]}>} */
     const phases = {};
 
     for (const req of this.requests) {
@@ -149,7 +164,14 @@ class StatsCollector {
     }
 
     // Overall latency
-    const allLatencies = this.requests.filter(r => r.latencyMs !== null).map(r => r.latencyMs).sort((a, b) => a - b);
+    /** @type {number[]} */
+    const allLatencies = [];
+    for (const req of this.requests) {
+      if (req.latencyMs !== null) {
+        allLatencies.push(req.latencyMs);
+      }
+    }
+    allLatencies.sort((a, b) => a - b);
     if (allLatencies.length > 0) {
       const avg = allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length;
       console.log('  ' + '-'.repeat(70));
@@ -159,6 +181,7 @@ class StatsCollector {
     console.log('═'.repeat(72));
 
     // Error summary
+    /** @type {Record<string, number>} */
     const errorTypes = {};
     for (const req of this.requests) {
       if (req.error) {
@@ -175,6 +198,11 @@ class StatsCollector {
   }
 }
 
+/**
+ * @param {number[]} sorted
+ * @param {number} pct
+ * @returns {number}
+ */
 function percentile(sorted, pct) {
   if (sorted.length === 0) return 0;
   const idx = Math.ceil((pct / 100) * sorted.length) - 1;
@@ -183,6 +211,14 @@ function percentile(sorted, pct) {
 
 // ── HTTP helpers ─────────────────────────────────────────────────────
 
+/**
+ * @param {string} url
+ * @param {StatsCollector} stats
+ * @param {number} worker
+ * @param {string} phase
+ * @param {boolean} verbose
+ * @returns {Promise<any>}
+ */
 async function fhirGet(url, stats, worker, phase, verbose) {
   const start = performance.now();
   let status = null;
@@ -205,7 +241,8 @@ async function fhirGet(url, stats, worker, phase, verbose) {
     return body;
 
   } catch (err) {
-    error = err.name === 'TimeoutError' ? 'Timeout (30s)' : err.message;
+    const errorLike = /** @type {{name?: string, message?: string}} */ (err);
+    error = errorLike.name === 'TimeoutError' ? 'Timeout (30s)' : (errorLike.message || String(err));
     return null;
 
   } finally {
@@ -229,6 +266,9 @@ async function fhirGet(url, stats, worker, phase, verbose) {
   }
 }
 
+/**
+ * @param {string} url
+ */
 function shortenUrl(url) {
   // Trim to last meaningful path segments for readable logging
   try {
@@ -242,6 +282,13 @@ function shortenUrl(url) {
 
 // ── FHIR operations ──────────────────────────────────────────────────
 
+/**
+ * @param {StressConfig} config
+ * @param {StatsCollector} stats
+ * @param {number} worker
+ * @param {string} mode
+ * @returns {Promise<any[]>}
+ */
 async function searchValueSets(config, stats, worker, mode) {
   const baseUrl = config.serverUrl;
   const allEntries = [];
@@ -257,7 +304,7 @@ async function searchValueSets(config, stats, worker, mode) {
     }
     // Get a second page if we need more results and there is one
     if (allEntries.length < config.from && bundle && bundle.link) {
-      const nextLink = bundle.link.find(l => l.relation === 'next');
+      const nextLink = bundle.link.find((/** @type {any} */ l) => l.relation === 'next');
       if (nextLink) {
         const bundle2 = await fhirGet(nextLink.url, stats, worker, 'vs-search', config.verbose);
         if (bundle2 && bundle2.entry) {
@@ -275,7 +322,7 @@ async function searchValueSets(config, stats, worker, mode) {
     }
     // Get a second page
     if (allEntries.length < config.from && bundle && bundle.link) {
-      const nextLink = bundle.link.find(l => l.relation === 'next');
+      const nextLink = bundle.link.find((/** @type {any} */ l) => l.relation === 'next');
       if (nextLink) {
         const bundle2 = await fhirGet(nextLink.url, stats, worker, 'vs-browse', config.verbose);
         if (bundle2 && bundle2.entry) {
@@ -288,8 +335,14 @@ async function searchValueSets(config, stats, worker, mode) {
   return allEntries;
 }
 
+/**
+ * @param {any[]} arr
+ * @param {number} n
+ * @returns {any[]}
+ */
 function pickRandom(arr, n) {
   const copy = arr.slice(0, Math.min(arr.length, 200)); // cap working set
+  /** @type {any[]} */
   const result = [];
   for (let i = 0; i < n && copy.length > 0; i++) {
     const idx = Math.floor(Math.random() * copy.length);
@@ -298,12 +351,26 @@ function pickRandom(arr, n) {
   return result;
 }
 
+/**
+ * @param {StressConfig} config
+ * @param {StatsCollector} stats
+ * @param {number} worker
+ * @param {string} vsUrl
+ */
 async function expandValueSet(config, stats, worker, vsUrl) {
   const url = `${config.serverUrl}/ValueSet/$expand?url=${encodeURIComponent(vsUrl)}&count=20`;
   const result = await fhirGet(url, stats, worker, 'vs-expand', config.verbose);
   return result;
 }
 
+/**
+ * @param {StressConfig} config
+ * @param {StatsCollector} stats
+ * @param {number} worker
+ * @param {string} system
+ * @param {string} code
+ * @param {string} vsUrl
+ */
 async function validateCode(config, stats, worker, system, code, vsUrl) {
   const params = new URLSearchParams();
   params.set('system', system);
@@ -317,6 +384,12 @@ async function validateCode(config, stats, worker, system, code, vsUrl) {
 
 // ── Worker cycle ─────────────────────────────────────────────────────
 
+/**
+ * @param {StressConfig} config
+ * @param {StatsCollector} stats
+ * @param {number} worker
+ * @param {number} deadline
+ */
 async function runWorkerCycle(config, stats, worker, deadline) {
   // 1. Decide mode for this cycle
   let mode;
@@ -365,11 +438,18 @@ async function runWorkerCycle(config, stats, worker, deadline) {
   stats.completeCycle();
 }
 
+/**
+ * @param {StressConfig} config
+ * @param {StatsCollector} stats
+ * @param {number} worker
+ * @param {number} deadline
+ */
 async function runWorker(config, stats, worker, deadline) {
   while (Date.now() < deadline) {
     try {
       await runWorkerCycle(config, stats, worker, deadline);
     } catch (err) {
+      const errorLike = /** @type {{message?: string}} */ (err);
       // Shouldn't happen since fhirGet catches errors, but just in case
       stats.record({
         worker,
@@ -377,19 +457,27 @@ async function runWorker(config, stats, worker, deadline) {
         url: '',
         status: null,
         latencyMs: null,
-        error: err.message,
+        error: errorLike.message || String(err),
         timestamp: new Date()
       });
     }
   }
 }
 
+/**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((/** @type {(value?: void) => void} */ resolve) => setTimeout(resolve, ms));
 }
 
 // ── Connectivity check ───────────────────────────────────────────────
 
+/**
+ * @param {StressConfig} config
+ * @returns {Promise<any>}
+ */
 async function checkServer(config) {
   console.log(`\nChecking server at ${config.serverUrl} ...`);
 
@@ -404,7 +492,7 @@ async function checkServer(config) {
       process.exit(1);
     }
 
-    const cs = await resp.json();
+    const cs = /** @type {any} */ (await resp.json());
     const sw = cs.software ? `${cs.software.name || '?'} ${cs.software.version || ''}` : 'unknown';
     const fhirVer = cs.fhirVersion || '?';
     console.log(`  Server: ${sw} (FHIR ${fhirVer})`);
@@ -412,16 +500,23 @@ async function checkServer(config) {
     return cs;
 
   } catch (err) {
-    console.error(`Cannot reach server: ${err.message}`);
+    const errorLike = /** @type {{message?: string}} */ (err);
+    console.error(`Cannot reach server: ${errorLike.message || String(err)}`);
     process.exit(1);
   }
 }
 
 // ── Live progress ────────────────────────────────────────────────────
 
+/**
+ * @param {StatsCollector} stats
+ * @param {StressConfig} config
+ * @param {number} deadline
+ * @returns {() => void}
+ */
 function startProgressReporter(stats, config, deadline) {
   const interval = setInterval(() => {
-    const elapsed = (Date.now() - stats.startTime) / 1000;
+    const elapsed = (Date.now() - (stats.startTime || Date.now())) / 1000;
     const remaining = Math.max(0, (deadline - Date.now()) / 1000);
     const rps = stats.requests.length / elapsed;
     process.stdout.write(
@@ -464,6 +559,7 @@ async function main() {
   const stopProgress = config.verbose ? () => {} : startProgressReporter(stats, config, deadline);
 
   // Launch all workers concurrently
+  /** @type {Promise<void>[]} */
   const workers = [];
   for (let i = 1; i <= config.threads; i++) {
     workers.push(runWorker(config, stats, i, deadline));
@@ -477,6 +573,7 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error(`Fatal error: ${err.message}`);
+  const errorLike = /** @type {{message?: string}} */ (err);
+  console.error(`Fatal error: ${errorLike.message || String(err)}`);
   process.exit(1);
 });

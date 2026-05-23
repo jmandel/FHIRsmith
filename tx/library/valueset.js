@@ -1,5 +1,12 @@
+// @ts-check
+
 const {CanonicalResource} = require("./canonical-resource");
 const {valueSetToR5, valueSetFromR5} = require("../xversion/xv-valueset");
+
+/**
+ * @typedef {import('../../types/fhirsmith').FhirResource} FhirResource
+ * @typedef {Record<string, any>} FhirJson
+ */
 
 /**
  * Represents a FHIR ValueSet resource with version conversion support
@@ -9,27 +16,20 @@ class ValueSet extends CanonicalResource {
 
   /**
    * Creates a new ValueSet instance
-   * @param {Object} jsonObj - The JSON object containing ValueSet data
+   * @param {FhirResource} jsonObj - The JSON object containing ValueSet data
    * @param {string} [fhirVersion='R5'] - FHIR version ('R3', 'R4', or 'R5')
-   * @param {string} jsonObj.resourceType - Must be "ValueSet"
-   * @param {string} jsonObj.url - Canonical URL for the value set
-   * @param {string} [jsonObj.version] - Version of the value set
-   * @param {string} jsonObj.name - Name for this value set
-   * @param {string} jsonObj.status - Publication status (draft|active|retired|unknown)
-   * @param {Object} [jsonObj.compose] - Content logical definition of the value set
-   * @param {Object} [jsonObj.expansion] - Used when the value set is "expanded"
    */
   constructor(jsonObj, fhirVersion = 'R5') {
     super(jsonObj, fhirVersion);
     // Convert to R5 format internally (modifies input for performance)
-    this.jsonObj = valueSetToR5(jsonObj, fhirVersion);
+    this.jsonObj = /** @type {FhirResource} */ (valueSetToR5(jsonObj, fhirVersion));
     this.validate();
     this.buildMaps();
   }
 
   /**
    * Map of system(#version)|code to expansion contains item for fast lookup
-   * @type {Map<string, Object>}
+   * @type {Map<string, FhirJson>}
    */
   codeMap = new Map();
 
@@ -59,7 +59,7 @@ class ValueSet extends CanonicalResource {
    * @returns {string} FHIR version ('R3', 'R4', or 'R5')
    */
   getFHIRVersion() {
-    return this.version;
+    return this.fhirVersion;
   }
 
   /**
@@ -133,7 +133,7 @@ class ValueSet extends CanonicalResource {
 
   /**
    * Recursively builds expansion map from contains items
-   * @param {Object[]} contains - Array of expansion contains items
+   * @param {FhirJson[]} contains - Array of expansion contains items
    * @private
    */
   _buildExpansionMap(contains) {
@@ -153,7 +153,7 @@ class ValueSet extends CanonicalResource {
   /**
    * Builds a lookup key for system(#version)|code
    * @param {string} system - Code system URL
-   * @param {string} [version] - Code system version
+   * @param {string | null | undefined} version - Code system version
    * @param {string} code - Code value
    * @returns {string} Lookup key
    * @private
@@ -169,8 +169,8 @@ class ValueSet extends CanonicalResource {
    * Gets an expansion item by system and code
    * @param {string} system - Code system URL
    * @param {string} code - Code value
-   * @param {string} [version] - Code system version
-   * @returns {Object|undefined} The expansion contains item or undefined if not found
+   * @param {string | null} [version] - Code system version
+   * @returns {FhirJson|undefined} The expansion contains item or undefined if not found
    */
   getCode(system, code, version = null) {
     const key = this._buildCodeKey(system, version, code);
@@ -181,7 +181,7 @@ class ValueSet extends CanonicalResource {
    * Checks if a code exists in this value set expansion
    * @param {string} system - Code system URL
    * @param {string} code - Code value
-   * @param {string} [version] - Code system version
+   * @param {string | null} [version] - Code system version
    * @returns {boolean} True if the code exists in expansion
    */
   hasCode(system, code, version = null) {
@@ -195,7 +195,7 @@ class ValueSet extends CanonicalResource {
    * @param {string} systemUri - Code system URL
    * @param {string} version - Code system version (can be empty string)
    * @param {string} code - Code value
-   * @returns {Object|null} The contains entry or null if not found
+   * @returns {FhirJson|null} The contains entry or null if not found
    */
   findContains(systemUri, version, code) {
     if (!this.jsonObj.expansion || !this.jsonObj.expansion.contains) {
@@ -206,11 +206,11 @@ class ValueSet extends CanonicalResource {
 
   /**
    * Recursively searches for a contains entry in a list
-   * @param {Object[]} list - Array of contains entries
+   * @param {FhirJson[]} list - Array of contains entries
    * @param {string} systemUri - Code system URL
    * @param {string} version - Code system version
    * @param {string} code - Code value
-   * @returns {Object|null} The contains entry or null
+   * @returns {FhirJson|null} The contains entry or null
    * @private
    */
   _findContainsInList(list, systemUri, version, code) {
@@ -231,7 +231,7 @@ class ValueSet extends CanonicalResource {
 
   /**
    * Gets all codes in this value set expansion
-   * @returns {Object[]} Array of {system, version, code, display} objects
+   * @returns {FhirJson[]} Array of {system, version, code, display} objects
    */
   getAllCodes() {
     return Array.from(this.codeMap.values()).map(item => ({
@@ -245,8 +245,8 @@ class ValueSet extends CanonicalResource {
   /**
    * Gets all codes from a specific system
    * @param {string} system - Code system URL
-   * @param {string} [version] - Code system version
-   * @returns {Object[]} Array of expansion contains items from the system
+   * @param {string | null} [version] - Code system version
+   * @returns {FhirJson[]} Array of expansion contains items from the system
    */
   getCodesFromSystem(system, version = null) {
     return Array.from(this.codeMap.values()).filter(item => {
@@ -262,6 +262,7 @@ class ValueSet extends CanonicalResource {
    * @returns {string[]} Array of system URLs
    */
   getSystems() {
+    /** @type {Set<string>} */
     const systems = new Set();
     this.codeMap.forEach(item => {
       if (item.system) {
@@ -289,7 +290,7 @@ class ValueSet extends CanonicalResource {
 
   /**
    * Gets basic info about this value set
-   * @returns {Object} Basic information object
+   * @returns {FhirJson} Basic information object
    */
   getInfo() {
     return {

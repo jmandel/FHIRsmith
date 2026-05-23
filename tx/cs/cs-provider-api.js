@@ -1,18 +1,24 @@
+// @ts-check
+
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+
 /**
  * Abstract base class for value set providers
  * Defines the interface that all value set providers must implement
  */
 class AbstractCodeSystemProvider {
   /**
-   * {int} Unique number assigned to this provider
+   * Unique number assigned to this provider.
+   * @type {number | null}
    */
-  spaceId;
+  spaceId = null;
 
   /**
    * ensure that the ids on the code systems are unique, if they are
    * in the global namespace
    *
-   * @param {Set<String>} ids
+   * @param {Set<string>} ids
+   * @returns {void}
    */
   // eslint-disable-next-line no-unused-vars
   assignIds(ids) {
@@ -29,8 +35,8 @@ class AbstractCodeSystemProvider {
    * are all preloaded into the kernel (e.g. provider) at start up
    *
   * @param {string} fhirVersion - The FHIRVersion in scope - if relevant (there's always a stated version, though R5 is always used)
-  * @param {string} context - The client's stated context - if provided.
-  * @returns {Map<String, CodeSystem>} The list of CodeSystems
+  * @param {any} context - The client's stated context - if provided.
+  * @returns {Promise<FhirResource[]>} The list of CodeSystems
   * @throws {Error} Must be implemented by subclasses
   */
   // eslint-disable-next-line no-unused-vars
@@ -47,8 +53,8 @@ class AbstractCodeSystemProvider {
    *
    * code systems are identified by url and version
    *
-   * @param fhirVersion
-   * @param context
+   * @param {string} fhirVersion - FHIR version
+   * @param {any} context - Client context
    * @returns {Promise<null>}
    */
   // eslint-disable-next-line no-unused-vars
@@ -56,6 +62,9 @@ class AbstractCodeSystemProvider {
     return null;
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async close() {
 
   }

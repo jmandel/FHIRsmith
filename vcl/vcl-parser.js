@@ -1,3 +1,5 @@
+// @ts-check
+
 //
 // Copyright 2025, Health Intersections Pty Ltd (http://www.healthintersections.com.au)
 //
@@ -10,7 +12,26 @@
  * Compatible with ES6+ and both Node.js and browser environments
  */
 
+/** @typedef {{type: string, value: string, position: number}} TokenLike */
+/** @typedef {{code: string}} ConceptLike */
+/** @typedef {{property: string, op: string, value?: string, _op?: Record<string, any>}} FilterLike */
+/** @typedef {{system: string, version?: string, concept: ConceptLike[], filter: FilterLike[], valueSet: string[]}} ConceptSetLike */
+/** @typedef {{resourceType: string, status: string, experimental?: boolean, id?: string, name?: string, description?: string, url?: string, compose: {include: ConceptSetLike[], exclude: ConceptSetLike[]}}} ValueSetLike */
+/** @typedef {{createValueSet?: () => ValueSetLike}} FhirFactoryLike */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 class VCLParseException extends Error {
+  /**
+   * @param {string} message
+   * @param {number} [position]
+   */
   constructor(message, position = -1) {
     super(position >= 0 ? `${message} at position ${position}` : message);
     this.name = 'VCLParseException';
@@ -60,9 +81,17 @@ const FilterOperator = {
 };
 
 class Token {
+  /**
+   * @param {string} type
+   * @param {string} value
+   * @param {number} position
+   */
   constructor(type, value, position) {
+    /** @type {string} */
     this.type = type;
+    /** @type {string} */
     this.value = value;
+    /** @type {number} */
     this.position = position;
   }
 
@@ -72,15 +101,27 @@ class Token {
 }
 
 class VCLLexer {
+  /**
+   * @param {string} input
+   */
   constructor(input) {
+    /** @type {string} */
     this.input = input.trim();
+    /** @type {number} */
     this.pos = 0;
   }
 
+  /**
+   * @returns {string}
+   */
   current() {
     return this.pos < this.input.length ? this.input[this.pos] : '\0';
   }
 
+  /**
+   * @param {number} [offset]
+   * @returns {string}
+   */
   peek(offset = 0) {
     const peekPos = this.pos + 1 + offset;
     return peekPos < this.input.length ? this.input[peekPos] : '\0';
@@ -92,22 +133,41 @@ class VCLLexer {
     }
   }
 
+  /**
+   * @param {string} c
+   * @returns {boolean}
+   */
   isIdentifierChar(c) {
     return /[a-zA-Z0-9:?&%+\-.@#$!{}_]/.test(c);
   }
 
+  /**
+   * @param {string} c
+   * @returns {boolean}
+   */
   isUriChar(c) {
     return /[a-zA-Z0-9?&%+\-.@#$!{}_/]/.test(c);
   }
 
+  /**
+   * @param {string} c
+   * @returns {boolean}
+   */
   isCodeChar(c) {
     return /[a-zA-Z0-9\-_]/.test(c);
   }
 
+  /**
+   * @param {string} c
+   * @returns {boolean}
+   */
   isVersionChar(c) {
     return /[a-zA-Z0-9\-_.+]/.test(c);
   }
 
+  /**
+   * @returns {string}
+   */
   readIdentifierChars() {
     let result = '';
     while (this.pos < this.input.length && this.isIdentifierChar(this.input[this.pos])) {
@@ -117,6 +177,9 @@ class VCLLexer {
     return result;
   }
 
+  /**
+   * @returns {string}
+   */
   readUriChars() {
     let result = '';
     while (this.pos < this.input.length && this.isUriChar(this.input[this.pos])) {
@@ -126,6 +189,9 @@ class VCLLexer {
     return result;
   }
 
+  /**
+   * @returns {string}
+   */
   readCodeChars() {
     let result = '';
     while (this.pos < this.input.length && this.isCodeChar(this.input[this.pos])) {
@@ -135,6 +201,9 @@ class VCLLexer {
     return result;
   }
 
+  /**
+   * @returns {string}
+   */
   readVersionChars() {
     let result = '';
     while (this.pos < this.input.length && this.isVersionChar(this.input[this.pos])) {
@@ -144,6 +213,10 @@ class VCLLexer {
     return result;
   }
 
+  /**
+   * @param {number} startPos
+   * @returns {Token}
+   */
   readQuotedValue(startPos) {
     let value = '';
     this.pos++; // Skip opening quote
@@ -171,7 +244,11 @@ class VCLLexer {
     throw new VCLParseException('Unterminated quoted string', startPos);
   }
 
+  /**
+   * @returns {Token[]}
+   */
   tokenize() {
+    /** @type {Token[]} */
     const tokens = [];
 
     while (this.pos < this.input.length) {
@@ -310,13 +387,24 @@ class VCLLexer {
 }
 
 class VCLParserClass {
+  /**
+   * @param {Token[]} tokens
+   * @param {FhirFactoryLike|null} [fhirFactory]
+   */
   constructor(tokens, fhirFactory = null) {
+    /** @type {Token[]} */
     this.tokens = tokens;
+    /** @type {number} */
     this.pos = 0;
+    /** @type {FhirFactoryLike|null} */
     this.fhirFactory = fhirFactory;
+    /** @type {ValueSetLike} */
     this.valueSet = this.createValueSet();
   }
 
+  /**
+   * @returns {ValueSetLike}
+   */
   createValueSet() {
     if (this.fhirFactory && typeof this.fhirFactory.createValueSet === 'function') {
       return this.fhirFactory.createValueSet();
@@ -333,14 +421,23 @@ class VCLParserClass {
     };
   }
 
+  /**
+   * @returns {Token}
+   */
   current() {
     return this.pos < this.tokens.length ? this.tokens[this.pos] : new Token(TokenType.EOF, '', -1);
   }
 
+  /**
+   * @returns {Token}
+   */
   peek() {
     return this.pos + 1 < this.tokens.length ? this.tokens[this.pos + 1] : new Token(TokenType.EOF, '', -1);
   }
 
+  /**
+   * @param {string} expected
+   */
   consume(expected) {
     const current = this.current();
     if (current.type !== expected) {
@@ -349,6 +446,9 @@ class VCLParserClass {
     this.pos++;
   }
 
+  /**
+   * @param {string} expected
+   */
   expect(expected) {
     const current = this.current();
     if (current.type !== expected) {
@@ -356,6 +456,10 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {string} tokenType
+   * @returns {boolean}
+   */
   isFilterOperator(tokenType) {
     return [
       TokenType.EQ, TokenType.IS_A, TokenType.IS_NOT_A, TokenType.DESC_OF,
@@ -364,7 +468,12 @@ class VCLParserClass {
     ].includes(tokenType);
   }
 
+  /**
+   * @param {string} tokenType
+   * @returns {string}
+   */
   tokenTypeToFilterOperator(tokenType) {
+    /** @type {Record<string, string>} */
     const mapping = {
       [TokenType.EQ]: FilterOperator.EQUAL,
       [TokenType.IS_A]: FilterOperator.IS_A,
@@ -409,7 +518,13 @@ class VCLParserClass {
     return true;
   }
 
+  /**
+   * @param {string} systemUri
+   * @param {boolean} isExclusion
+   * @returns {ConceptSetLike}
+   */
   createConceptSet(systemUri, isExclusion) {
+    /** @type {ConceptSetLike} */
     const conceptSet = {
       system: '',
       concept: [],
@@ -436,11 +551,20 @@ class VCLParserClass {
     return conceptSet;
   }
 
+  /**
+   * @param {boolean} isExclusion
+   * @returns {ConceptSetLike}
+   */
   getCurrentConceptSet(isExclusion) {
     const list = isExclusion ? this.valueSet.compose.exclude : this.valueSet.compose.include;
     return list.length > 0 ? list[list.length - 1] : this.createConceptSet('', isExclusion);
   }
 
+  /**
+   * @param {string} system
+   * @param {string} expression
+   * @returns {string}
+   */
   toImplicitVcl(system, expression) {
     return 'http://fhir.org/VCL?v1='
       + encodeURIComponent(`(${system})(${expression})`)
@@ -464,6 +588,9 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {boolean} isExclusion
+   */
   parseSubExpr(isExclusion) {
     let systemUri = '';
 
@@ -499,6 +626,10 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {string} systemUri
+   * @param {boolean} isExclusion
+   */
   parseSimpleCodeList(systemUri, isExclusion) {
     const conceptSet = this.createConceptSet(systemUri, isExclusion);
 
@@ -537,6 +668,10 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {string} systemUri
+   * @param {boolean} isExclusion
+   */
   parseSimpleExpr(systemUri, isExclusion) {
     const conceptSet = this.createConceptSet(systemUri, isExclusion);
 
@@ -568,8 +703,13 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {string} systemUri
+   * @param {ConceptSetLike} conceptSet
+   */
   parseOf(systemUri, conceptSet) {
     let isVcl = false;
+    /** @type {string[]} */
     const sb = [];
 
     switch (this.current().type) {
@@ -628,6 +768,9 @@ class VCLParserClass {
     });
   }
 
+  /**
+   * @param {boolean} isExclusion
+   */
   parseExprWithinParentheses(isExclusion) {
     this.parseSubExpr(isExclusion);
 
@@ -646,10 +789,15 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {ConceptSetLike} conceptSet
+   * @param {string} propertyCode
+   */
   parseFilter(conceptSet, propertyCode) {
     const op = this.current().type;
     this.consume(op);
 
+    /** @type {FilterLike} */
     const filter = {
       property: propertyCode,
       op: this.tokenTypeToFilterOperator(op)
@@ -680,9 +828,13 @@ class VCLParserClass {
     conceptSet.filter.push(filter);
   }
 
+  /**
+   * @param {ConceptSetLike} conceptSet
+   */
   parseIncludeVs(conceptSet) {
     this.consume(TokenType.IN);
 
+    /** @type {string} */
     let uri;
     if (this.current().type === TokenType.URI) {
       uri = this.current().value;
@@ -718,6 +870,9 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {boolean} isExclusion
+   */
   parseConjunctionWithFlag(isExclusion) {
     const currentConceptSet = this.getCurrentConceptSet(isExclusion);
 
@@ -744,6 +899,9 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {boolean} isExclusion
+   */
   parseDisjunctionWithFlag(isExclusion) {
     while (this.current().type === TokenType.SEMI) {
       this.consume(TokenType.SEMI);
@@ -780,10 +938,15 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {any} obj
+   * @returns {any}
+   */
   cleanupEmptyArrays(obj) {
     if (Array.isArray(obj)) {
-      return obj.map(item => this.cleanupEmptyArrays(item));
+      return obj.map((/** @type {any} */ item) => this.cleanupEmptyArrays(item));
     } else if (obj && typeof obj === 'object') {
+      /** @type {Record<string, any>} */
       const cleaned = {};
       for (const [key, value] of Object.entries(obj)) {
         if (Array.isArray(value)) {
@@ -801,6 +964,10 @@ class VCLParserClass {
     return obj;
   }
 
+  /**
+   * @param {string} systemUri
+   * @returns {string}
+   */
   parseFilterValue(systemUri) {
     if (this.current().type === TokenType.LCRLY) {
       this.consume(TokenType.LCRLY);
@@ -828,6 +995,9 @@ class VCLParserClass {
     }
   }
 
+  /**
+   * @param {string[]} terms
+   */
   parseFilterList(terms) {
     let depth = 1;
     while (depth > 0) {
@@ -861,13 +1031,18 @@ class VCLParserClass {
       if (error instanceof VCLParseException) {
         throw error;
       } else {
-        throw new VCLParseException(`Parse error: ${error.message}`);
+        throw new VCLParseException(`Parse error: ${errorMessage(error)}`);
       }
     }
   }
 }
 
 // Main parsing functions
+/**
+ * @param {string} vclExpression
+ * @param {FhirFactoryLike|null} [fhirFactory]
+ * @returns {ValueSetLike}
+ */
 function parseVCL(vclExpression, fhirFactory = null) {
   if (!vclExpression || vclExpression.trim() === '') {
     throw new VCLParseException('VCL expression cannot be empty');
@@ -886,6 +1061,11 @@ function parseVCL(vclExpression, fhirFactory = null) {
   return result;
 }
 
+/**
+ * @param {string} vclExpression
+ * @param {FhirFactoryLike|null} [fhirFactory]
+ * @returns {ValueSetLike}
+ */
 function parseVCLAndSetId(vclExpression, fhirFactory = null) {
   // Use the same parsing logic as parseVCL to avoid scope issues
   if (!vclExpression || vclExpression.trim() === '') {
@@ -922,6 +1102,10 @@ function parseVCLAndSetId(vclExpression, fhirFactory = null) {
 }
 
 // Utility functions
+/**
+ * @param {string} vclExpression
+ * @returns {boolean}
+ */
 function validateVCLExpression(vclExpression) {
   if (!vclExpression || vclExpression.trim() === '') {
     return false;
@@ -940,7 +1124,14 @@ function validateVCLExpression(vclExpression) {
   }
 }
 
+/**
+ * @param {string|null|undefined} id
+ * @param {string|null|undefined} name
+ * @param {string|null|undefined} description
+ * @returns {ValueSetLike}
+ */
 function createVCLValueSet(id, name, description) {
+  /** @type {ValueSetLike} */
   const valueSet = {
     resourceType: 'ValueSet',
     status: 'draft',
@@ -958,6 +1149,10 @@ function createVCLValueSet(id, name, description) {
   return valueSet;
 }
 
+/**
+ * @param {string} systemUri
+ * @returns {{system: string, version: string}}
+ */
 function splitSystemUri(systemUri) {
   const pipePos = systemUri.indexOf('|');
   if (pipePos >= 0) {
@@ -972,6 +1167,10 @@ function splitSystemUri(systemUri) {
   };
 }
 
+/**
+ * @param {ValueSetLike} valueSet
+ * @returns {boolean}
+ */
 function isVCLCompatible(valueSet) {
   if (!valueSet.compose) {
     return false;
@@ -1014,6 +1213,10 @@ function isVCLCompatible(valueSet) {
 }
 
 // Simple hash function for generating IDs
+/**
+ * @param {string} str
+ * @returns {number}
+ */
 function simpleHash(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -1043,9 +1246,10 @@ if (typeof module !== 'undefined' && module.exports) {
     // Export utility functions
     simpleHash
   };
-} else if (typeof window !== 'undefined') {
+} else if (typeof (/** @type {any} */ (globalThis)).window !== 'undefined') {
+  const browserWindow = /** @type {any} */ (globalThis).window;
   // Browser - attach everything to window.VCLParser
-  window.VCLParser = {
+  browserWindow.VCLParser = {
     parseVCL,
     parseVCLAndSetId,
     validateVCLExpression,
@@ -1063,8 +1267,8 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 
   // Also make classes available globally for debugging
-  window.VCLLexer = VCLLexer;
-  window.VCLParseException = VCLParseException;
+  browserWindow.VCLLexer = VCLLexer;
+  browserWindow.VCLParseException = VCLParseException;
 }
 
 // Examples of usage:

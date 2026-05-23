@@ -6,6 +6,7 @@
 // GET /CodeSystem/{id}/$subsumes?{params}
 // POST /CodeSystem/{id}/$subsumes
 //
+// @ts-check
 
 const { TerminologyWorker } = require('./worker');
 const { FhirCodeSystemProvider } = require('../cs/cs-cs');
@@ -13,13 +14,17 @@ const {TxParameters} = require("../params");
 const {Parameters} = require("../library/parameters");
 const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const {debugLog} = require("../operation-context");
+
+/** @typedef {{system?: string, version?: string, code?: string}} CodingLike */
+/** @typedef {{statusCode?: number, issueCode?: string, msgId?: string, className?: string, message?: string, stack?: string}} WorkerErrorLike */
+
 class SubsumesWorker extends TerminologyWorker {
   /**
-   * @param {OperationContext} opContext - Operation context
-   * @param {Logger} log - Logger instance
-   * @param {Provider} provider - Provider for code systems and resources
-   * @param {LanguageDefinitions} languages - Language definitions
-   * @param {I18nSupport} i18n - Internationalization support
+   * @param {any} opContext - Operation context
+   * @param {any} log - Logger instance
+   * @param {any} provider - Provider for code systems and resources
+   * @param {any} languages - Language definitions
+   * @param {any} i18n - Internationalization support
    */
   constructor(opContext, log, provider, languages, i18n) {
     super(opContext, log, provider, languages, i18n);
@@ -36,23 +41,24 @@ class SubsumesWorker extends TerminologyWorker {
   /**
    * Handle a type-level $subsumes request
    * GET/POST /CodeSystem/$subsumes
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handle(req, res) {
     try {
       await this.handleTypeLevelSubsumes(req, res);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
-      req.logInfo = "error "+(error.msgId || error.className);
+      req.logInfo = "error "+(workerError.msgId || workerError.className || '');
       if (error instanceof Issue) {
         let oo = new OperationOutcome();
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(workerError.statusCode || 500).json(this.operationOutcome(
+          'error', workerError.issueCode || 'exception', workerError.message || String(error)));
       }
     }
   }
@@ -60,13 +66,14 @@ class SubsumesWorker extends TerminologyWorker {
   /**
    * Handle an instance-level $subsumes request
    * GET/POST /CodeSystem/{id}/$subsumes
-   * @param {express.Request} req - Express request
-   * @param {express.Response} res - Express response
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handleInstance(req, res) {
     try {
       await this.handleInstanceLevelSubsumes(req, res);
     } catch (error) {
+      const workerError = /** @type {WorkerErrorLike} */ (error);
       this.log.error(error);
       debugLog(error);
       if (error instanceof Issue) {
@@ -74,8 +81,8 @@ class SubsumesWorker extends TerminologyWorker {
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(workerError.statusCode || 500).json(this.operationOutcome(
+          'error', workerError.issueCode || 'exception', workerError.message || String(error)));
       }
     }
   }
@@ -83,6 +90,8 @@ class SubsumesWorker extends TerminologyWorker {
   /**
    * Handle type-level subsumes: /CodeSystem/$subsumes
    * CodeSystem identified by system+version params or from codingA/codingB
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handleTypeLevelSubsumes(req, res) {
     this.deadCheck('subsumes-type-level');
@@ -98,39 +107,45 @@ class SubsumesWorker extends TerminologyWorker {
     txp.readParams(params.jsonObj);
 
     // Get the codings and code system provider
-    let codingA, codingB;
+    /** @type {CodingLike} */
+    let codingA;
+    /** @type {CodingLike} */
+    let codingB;
     let csProvider;
 
     if (params.has('codingA') && params.has('codingB')) {
       // Using codingA and codingB (only from Parameters resource)
-      codingA = params.get('codingA');
-      codingB = params.get('codingB');
+      codingA = /** @type {CodingLike} */ (params.get('codingA'));
+      codingB = /** @type {CodingLike} */ (params.get('codingB'));
 
       // Codings must have the same system
       if (codingA.system !== codingB.system) {
         throw new Issue('error', 'not-found', null, null, 'codingA and codingB must have the same system', null, 400);
       }
       // Get the code system provider from the coding's system
-      csProvider = await this.findCodeSystem(codingA.system, codingA.version || '', txp, ['complete'], null, false);
-      this.seeSourceProvider(csProvider, codingA.system);
+      const codingSystem = /** @type {string} */ (codingA.system);
+      csProvider = await this.findCodeSystem(codingSystem, codingA.version || '', txp, ['complete'], null, false);
+      this.seeSourceProvider(csProvider, codingSystem);
     } else if (params.has('codeA') && params.has('codeB')) {
       // Using codeA, codeB - system is required
       if (!params.has('system')) {
         throw new Issue('error', 'not-found', null, null, 'system parameter is required when using codeA and codeB', null, 404);
       }
 
-      csProvider = await this.findCodeSystem(params.get('system'), params.get('version') || '', txp, ['complete'], null, false);
-      this.seeSourceProvider(csProvider, params.get('system'));
+      const system = String(params.get('system'));
+      const version = params.get('version') ? String(params.get('version')) : '';
+      csProvider = await this.findCodeSystem(system, version, txp, ['complete'], null, false);
+      this.seeSourceProvider(csProvider, system);
       // Create codings from the codes
       codingA = {
         system: csProvider.system(),
         version: csProvider.version(),
-        code: params.get('codeA')
+        code: /** @type {string} */ (params.get('codeA'))
       };
       codingB = {
         system: csProvider.system(),
         version: csProvider.version(),
-        code: params.get('codeB')
+        code: /** @type {string} */ (params.get('codeB'))
       };
 
     } else {
@@ -146,6 +161,8 @@ class SubsumesWorker extends TerminologyWorker {
   /**
    * Handle instance-level subsumes: /CodeSystem/{id}/$subsumes
    * CodeSystem identified by resource ID
+   * @param {any} req - Express request
+   * @param {any} res - Express response
    */
   async handleInstanceLevelSubsumes(req, res) {
     this.deadCheck('subsumes-instance-level');
@@ -176,22 +193,25 @@ class SubsumesWorker extends TerminologyWorker {
     const csProvider = new FhirCodeSystemProvider(this.opContext, codeSystem, supplements);
 
     // Get the codings
-    let codingA, codingB;
+    /** @type {CodingLike} */
+    let codingA;
+    /** @type {CodingLike} */
+    let codingB;
 
     if (params.has('codingA') && params.has('codingB')) {
-      codingA = params.get('codingA');
-      codingB = params.get('codingB');
+      codingA = /** @type {CodingLike} */ (params.get('codingA'));
+      codingB = /** @type {CodingLike} */ (params.get('codingB'));
     } else if (params.has('codeA') && params.has('codeB')) {
       // Create codings from the codes using this CodeSystem
       codingA = {
         system: csProvider.system(),
-        version: csProvider.version(),
-        code: params.get('codeA')
+        version: /** @type {string} */ (csProvider.version()),
+        code: /** @type {string} */ (params.get('codeA'))
       };
       codingB = {
         system: csProvider.system(),
-        version: csProvider.version(),
-        code: params.get('codeB')
+        version: /** @type {string} */ (csProvider.version()),
+        code: /** @type {string} */ (params.get('codeB'))
       };
     } else {
       throw new Issue('error', 'invalid', null, null, 'Must provide either codingA and codingB, or codeA and codeB with system', null, 400);
@@ -205,8 +225,8 @@ class SubsumesWorker extends TerminologyWorker {
   /**
    * Parse parameters from request (query params, form body, or Parameters resource)
    * Returns a FHIR Parameters resource
-   * @param {express.Request} req - Express request
-   * @returns {Object} FHIR Parameters resource
+   * @param {any} req - Express request
+   * @returns {any} FHIR Parameters resource
    */
   parseParameters(req) {
     // Check if body is a Parameters resource
@@ -221,10 +241,11 @@ class SubsumesWorker extends TerminologyWorker {
 
   /**
    * Convert simple parameters (query string or form body) to a FHIR Parameters resource
-   * @param {Object} params - Query params or form body
-   * @returns {Object} FHIR Parameters resource
+   * @param {any} params - Query params or form body
+   * @returns {{resourceType: string, parameter: any[]}} FHIR Parameters resource
    */
   simpleParamsToParametersResource(params) {
+    /** @type {{resourceType: string, parameter: any[]}} */
     const result = {
       resourceType: 'Parameters',
       parameter: []
@@ -260,10 +281,10 @@ class SubsumesWorker extends TerminologyWorker {
 
   /**
    * Perform the actual subsumes check
-   * @param {CodeSystemProvider} csProvider - CodeSystem provider
-   * @param {Object} codingA - First coding
-   * @param {Object} codingB - Second coding
-   * @returns {Object} Parameters resource with subsumes result
+   * @param {any} csProvider - CodeSystem provider
+   * @param {CodingLike} codingA - First coding
+   * @param {CodingLike} codingB - Second coding
+   * @returns {Promise<any>} Parameters resource with subsumes result
    */
   async doSubsumes(csProvider, codingA, codingB) {
     this.deadCheck('doSubsumes');
@@ -272,13 +293,13 @@ class SubsumesWorker extends TerminologyWorker {
 
     // Check system uri matches for both codings
     if (csSystem !== codingA.system) {
-      const error = new Error(`System uri / code uri mismatch - not supported at this time (${csSystem}/${codingA.system})`);
+      const error = /** @type {Error & WorkerErrorLike} */ (new Error(`System uri / code uri mismatch - not supported at this time (${csSystem}/${codingA.system})`));
       error.statusCode = 400;
       error.issueCode = 'not-supported';
       throw error;
     }
     if (csSystem !== codingB.system) {
-      const error = new Error(`System uri / code uri mismatch - not supported at this time (${csSystem}/${codingB.system})`);
+      const error = /** @type {Error & WorkerErrorLike} */ (new Error(`System uri / code uri mismatch - not supported at this time (${csSystem}/${codingB.system})`));
       error.statusCode = 400;
       error.issueCode = 'not-supported';
       throw error;
@@ -287,7 +308,7 @@ class SubsumesWorker extends TerminologyWorker {
     // Validate both codes exist
     const locateA = await csProvider.locate(codingA.code);
     if (!locateA || !locateA.context) {
-      const error = new Error(`Invalid code: '${codingA.code}' not found in CodeSystem '${csSystem}'`);
+      const error = /** @type {Error & WorkerErrorLike} */ (new Error(`Invalid code: '${codingA.code}' not found in CodeSystem '${csSystem}'`));
       error.statusCode = 404;
       error.issueCode = 'not-found';
       throw error;
@@ -295,7 +316,7 @@ class SubsumesWorker extends TerminologyWorker {
 
     const locateB = await csProvider.locate(codingB.code);
     if (!locateB || !locateB.context) {
-      const error = new Error(`Invalid code: '${codingB.code}' not found in CodeSystem '${csSystem}'`);
+      const error = /** @type {Error & WorkerErrorLike} */ (new Error(`Invalid code: '${codingB.code}' not found in CodeSystem '${csSystem}'`));
       error.statusCode = 404;
       error.issueCode = 'not-found';
       throw error;
@@ -328,7 +349,7 @@ class SubsumesWorker extends TerminologyWorker {
    * @param {string} severity - error, warning, information
    * @param {string} code - Issue code
    * @param {string} message - Diagnostic message
-   * @returns {Object} OperationOutcome resource
+   * @returns {any} OperationOutcome resource
    */
   operationOutcome(severity, code, message) {
     return {

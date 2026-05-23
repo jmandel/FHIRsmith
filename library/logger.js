@@ -1,6 +1,32 @@
+// @ts-check
+
 const fs = require('fs');
 const path = require('path');
 const folders = require('./folder-setup');
+
+/**
+ * @typedef {'error' | 'warn' | 'info' | 'debug' | 'verbose'} LogLevel
+ * @typedef {{
+ *   level?: string,
+ *   logDir?: string,
+ *   maxFiles?: number,
+ *   maxSize?: number | string,
+ *   console?: boolean,
+ *   consoleErrors?: boolean,
+ *   flushInterval?: number,
+ *   flushSize?: number,
+ *   module?: string,
+ *   stack?: string
+ * }} LoggerOptions
+ * @typedef {{
+ *   error(message: unknown, meta?: LoggerOptions): void,
+ *   warn(message: unknown, meta?: LoggerOptions): void,
+ *   info(message: unknown, meta?: LoggerOptions): void,
+ *   debug(message: unknown, meta?: LoggerOptions): void,
+ *   verbose(message: unknown, meta?: LoggerOptions): void,
+ *   log(level: string, message: unknown, meta?: LoggerOptions): void
+ * }} ChildLogger
+ */
 
 // ---------------------------------------------------------------------------
 // Buffered, daily-rotating logger
@@ -18,11 +44,17 @@ const DEFAULTS = {
   flushSize:      200,          // flush when buffer reaches this many lines
 };
 
+/** @type {Record<string, number>} */
 const LEVELS = { error: 0, warn: 1, info: 2, debug: 3, verbose: 4 };
 
 class Logger {
+  /** @type {Logger | null} */
   static _instance = null;
 
+  /**
+   * @param {LoggerOptions} [options]
+   * @returns {Logger}
+   */
   static getInstance(options = {}) {
     if (!Logger._instance) {
       Logger._instance = new Logger(options);
@@ -45,6 +77,34 @@ class Logger {
   //     }
   //   }
   //
+  /** @type {string} */
+  level;
+  /** @type {string} */
+  logDir;
+  /** @type {number} */
+  maxFiles;
+  /** @type {number} */
+  maxSize;
+  /** @type {boolean} */
+  showConsole;
+  /** @type {boolean} */
+  consoleErrors;
+  /** @type {number} */
+  _flushSize;
+  /** @type {string[]} */
+  _buffer;
+  /** @type {string | null} */
+  _currentDate;
+  /** @type {number | null} */
+  _fd;
+  /** @type {number} */
+  _currentFileSize;
+  /** @type {NodeJS.Timeout} */
+  _flushTimer;
+
+  /**
+   * @param {LoggerOptions} [options]
+   */
   constructor(options = {}) {
     this.level = options.level || DEFAULTS.level;
     this.logDir = options.logDir || folders.logsDir();
@@ -78,12 +138,16 @@ class Logger {
   }
 
   // Parse human-readable size strings: "20m" -> bytes, "1g" -> bytes
+  /**
+   * @param {unknown} value
+   * @returns {number}
+   */
   static _parseSize(value) {
     if (!value) return 0;
     if (typeof value === 'number') return value;
     const m = String(value).match(/^(\d+(?:\.\d+)?)\s*([kmg])?b?$/i);
     if (!m) return 0;
-    const num = parseFloat(m[1]);
+    const num = parseFloat(m[1] || '0');
     switch ((m[2] || '').toLowerCase()) {
       case 'k': return num * 1024;
       case 'm': return num * 1024 * 1024;
@@ -125,6 +189,12 @@ class Logger {
     return `${Y}-${M}-${D}`;
   }
 
+  /**
+   * @param {string} level
+   * @param {string} message
+   * @param {string} [stack]
+   * @returns {string}
+   */
   _formatLine(level, message, stack) {
     const ts = this._timestamp();
     const lv = level.padEnd(7);
@@ -135,6 +205,10 @@ class Logger {
 
   // --- file management ---
 
+  /**
+   * @param {string} dateTag
+   * @returns {void}
+   */
   _openFile(dateTag) {
     // Check if we need to rotate due to size
     if (this._fd !== null && this._currentDate === dateTag) {
@@ -168,13 +242,17 @@ class Logger {
           .sort();
       while (files.length > this.maxFiles) {
         const old = files.shift();
-        fs.unlinkSync(path.join(this.logDir, old));
+        if (old) fs.unlinkSync(path.join(this.logDir, old));
       }
     } catch (_) { /* intentional */ }
   }
 
   // --- buffer + flush ---
 
+  /**
+   * @param {string} line
+   * @returns {void}
+   */
   _enqueue(line) {
     this._buffer.push(line);
     if (this._buffer.length >= this._flushSize) {
@@ -186,6 +264,7 @@ class Logger {
     if (this._buffer.length === 0) return;
     const dateTag = this._dateTag();
     this._openFile(dateTag);
+    if (this._fd === null) return;
     const chunk = this._buffer.join('');
     this._buffer.length = 0;
     // Async write — fire and forget; OS will buffer anyway
@@ -197,7 +276,7 @@ class Logger {
         try {
           this._currentDate = null;
           this._openFile(this._dateTag());
-          fs.writeSync(this._fd, buf, 0, buf.length);
+          if (this._fd !== null) fs.writeSync(this._fd, buf, 0, buf.length);
         } catch (_) { /* intentional */ }
       }
     });
@@ -207,6 +286,7 @@ class Logger {
     if (this._buffer.length === 0) return;
     const dateTag = this._dateTag();
     this._openFile(dateTag);
+    if (this._fd === null) return;
     const chunk = this._buffer.join('');
     this._buffer.length = 0;
     try { fs.writeSync(this._fd, chunk); } catch (_) { /* intentional */ }
@@ -214,10 +294,21 @@ class Logger {
 
   // --- core log ---
 
+  /**
+   * @param {string} level
+   * @returns {boolean}
+   */
   _shouldLog(level) {
     return (LEVELS[level] ?? 99) <= (LEVELS[this.level] ?? 2);
   }
 
+  /**
+   * @param {string} level
+   * @param {unknown} messageOrError
+   * @param {LoggerOptions} meta
+   * @param {LoggerOptions} options
+   * @returns {void}
+   */
   _log(level, messageOrError, meta, options) {
     if (!this._shouldLog(level)) return;
 
@@ -253,24 +344,41 @@ class Logger {
 
   // --- public API (same as before) ---
 
+  /** @param {unknown} message @param {LoggerOptions} [meta] */
   error(message, meta = {}) { this._log('error', message, meta, this); }
+  /** @param {unknown} message @param {LoggerOptions} [meta] */
   warn(message, meta = {})  { this._log('warn', message, meta, this); }
+  /** @param {unknown} message @param {LoggerOptions} [meta] */
   info(message, meta = {})  { this._log('info', message, meta, this); }
+  /** @param {unknown} message @param {LoggerOptions} [meta] */
   debug(message, meta = {}) { this._log('debug', message, meta, this); }
+  /** @param {unknown} message @param {LoggerOptions} [meta] */
   verbose(message, meta = {}) { this._log('verbose', message, meta, this); }
 
+  /** @param {string} level @param {unknown} message @param {LoggerOptions} [meta] */
   log(level, message, meta = {}) { this._log(level, message, meta, this); }
 
+  /**
+   * @param {LoggerOptions} [defaultMeta]
+   * @returns {ChildLogger}
+   */
   child(defaultMeta = {}) {
     const self = this;
 
-    const childOptions = {
+    const childOptions = /** @type {LoggerOptions} */ ({
       consoleErrors: defaultMeta.consoleErrors ?? self.consoleErrors,
-    };
+    });
 
     const modulePrefix = defaultMeta.module ? `{${defaultMeta.module}}` : null;
 
-    const wrap = (level) => (messageOrError, meta = {}) => {
+    /** @param {string} level */
+    const wrap = (level) =>
+      /**
+       * @param {unknown} messageOrError
+       * @param {LoggerOptions} [meta]
+       * @returns {void}
+       */
+      (messageOrError, meta = {}) => {
       if (messageOrError instanceof Error) {
         const prefixed = modulePrefix
             ? Object.assign(new Error(`${modulePrefix}: ${messageOrError.message}`), { stack: messageOrError.stack })
@@ -292,11 +400,19 @@ class Logger {
     };
   }
 
+  /**
+   * @param {string} level
+   * @returns {void}
+   */
   setLevel(level) {
     this.level = level;
     this.info(`Log level changed to ${level}`);
   }
 
+  /**
+   * @param {boolean} enabled
+   * @returns {void}
+   */
   setConsoleErrors(enabled) {
     this.consoleErrors = enabled;
     this.info(`Console errors ${enabled ? 'enabled' : 'disabled'}`);
@@ -304,7 +420,7 @@ class Logger {
 
   stream() {
     return {
-      write: (message) => {
+      write: (/** @type {string} */ message) => {
         this.info(message.trim());
       }
     };

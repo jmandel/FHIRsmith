@@ -1,5 +1,6 @@
 // registry-model.js
 // Data model for terminology server registry
+// @ts-check
 const escape = require('escape-html');
 
 class ServerVersionInformation {
@@ -8,13 +9,19 @@ class ServerVersionInformation {
     this.address = '';
     this.security = '';
     this.error = '';
+    /** @type {Date | null} */
     this.lastSuccess = null; // Date object
     this.lastTat = '';
     this.software = ''; // what software is running
+    /** @type {any[]} */
     this.codeSystems = []; // Array of strings (sorted, unique)
+    /** @type {string[]} */
     this.valueSets = []; // Array of strings (sorted, unique)
   }
 
+  /**
+   * @param {any} source
+   */
   update(source) {
     this.address = source.address;
     this.error = source.error;
@@ -62,6 +69,9 @@ class ServerVersionInformation {
     };
   }
 
+  /**
+   * @param {any} json
+   */
   static fromJSON(json) {
     const instance = new ServerVersionInformation();
     instance.version = json.version || '';
@@ -83,16 +93,27 @@ class ServerInformation {
     this.name = '';
     this.address = '';
     this.accessInfo = '';
+    /** @type {string[]} */
     this.authCSList = []; // Authoritative code systems (with wildcards)
+    /** @type {string[]} */
     this.authVSList = []; // Authoritative value sets (with wildcards)
+    /** @type {string[]} */
     this.usageList = []; // Usage tags
+    /** @type {ServerVersionInformation[]} */
     this.versions = []; // Array of ServerVersionInformation
   }
 
+  /**
+   * @param {string} ver
+   * @returns {ServerVersionInformation | null}
+   */
   getVersion(ver) {
     return this.versions.find(v => v.version === ver) || null;
   }
 
+  /**
+   * @param {any} source
+   */
   update(source) {
     this.name = source.name;
     this.address = source.address;
@@ -101,7 +122,7 @@ class ServerInformation {
     this.authVSList = [...source.authVSList];
     this.usageList = [...source.usageList];
     
-    source.versions.forEach(sourceVersion => {
+    source.versions.forEach((/** @type {ServerVersionInformation} */ sourceVersion) => {
       const existing = this.getVersion(sourceVersion.version);
       if (existing) {
         existing.update(sourceVersion);
@@ -115,14 +136,24 @@ class ServerInformation {
     return this.accessInfo;
   }
 
+  /**
+   * @param {string} codeSystem
+   */
   isAuthCS(codeSystem) {
     return this.authCSList.some(mask => this._passesMask(mask, codeSystem));
   }
 
+  /**
+   * @param {string} valueSet
+   */
   isAuthVS(valueSet) {
     return this.authVSList.some(mask => this._passesMask(mask, valueSet));
   }
 
+  /**
+   * @param {string} mask
+   * @param {string} value
+   */
   _passesMask(mask, value) {
     if (mask.endsWith('*')) {
       return value.startsWith(mask.slice(0, -1));
@@ -140,7 +171,7 @@ class ServerInformation {
     if (this.authCSList.length > 0) {
       if (result) result += '. ';
       result += 'Authoritative for the following CodeSystems: <ul>';
-      this.authCSList.forEach(cs => {
+      this.authCSList.forEach((/** @type {string} */ cs) => {
         const escaped = escape(cs).replace(/\*/g, '<b>*</b>');
         result += `<li>${escaped}</li>`;
       });
@@ -150,7 +181,7 @@ class ServerInformation {
     if (this.authVSList.length > 0) {
       if (result) result += '. ';
       result += 'Authoritative for the following ValueSets: <ul>';
-      this.authVSList.forEach(vs => {
+      this.authVSList.forEach((/** @type {string} */ vs) => {
         const escaped = escape(vs).replace(/\*/g, '<b>*</b>');
         result += `<li>${escaped}</li>`;
       });
@@ -173,6 +204,9 @@ class ServerInformation {
     };
   }
 
+  /**
+   * @param {any} json
+   */
   static fromJSON(json) {
     const instance = new ServerInformation();
     instance.code = json.code || '';
@@ -180,13 +214,13 @@ class ServerInformation {
     instance.address = json.address || '';
     instance.accessInfo = json['access-info'] || '';
     instance.authCSList = json.authoritative 
-      ? json.authoritative.split(',').filter(s => s)
+      ? json.authoritative.split(',').filter((/** @type {string} */ s) => s)
       : [];
     instance.authVSList = json['authoritative-valuesets'] 
-      ? json['authoritative-valuesets'].split(',').filter(s => s)
+      ? json['authoritative-valuesets'].split(',').filter((/** @type {string} */ s) => s)
       : [];
     instance.usageList = json.usageList || [];
-    instance.versions = (json.versions || []).map(v => ServerVersionInformation.fromJSON(v));
+    instance.versions = (json.versions || []).map((/** @type {any} */ v) => ServerVersionInformation.fromJSON(v));
     return instance;
   }
 }
@@ -198,20 +232,28 @@ class ServerRegistry {
     this.address = '';
     this.authority = '';
     this.error = '';
+    /** @type {ServerInformation[]} */
     this.servers = []; // Array of ServerInformation
   }
 
+  /**
+   * @param {string} code
+   * @returns {ServerInformation | null}
+   */
   getServer(code) {
     return this.servers.find(s => s.code === code) || null;
   }
 
+  /**
+   * @param {any} source
+   */
   update(source) {
     this.name = source.name;
     this.address = source.address;
     this.authority = source.authority;
     this.error = source.error;
     
-    source.servers.forEach(sourceServer => {
+    source.servers.forEach((/** @type {ServerInformation} */ sourceServer) => {
       const existing = this.getServer(sourceServer.code);
       if (existing) {
         existing.update(sourceServer);
@@ -232,6 +274,9 @@ class ServerRegistry {
     };
   }
 
+  /**
+   * @param {any} json
+   */
   static fromJSON(json) {
     const instance = new ServerRegistry();
     instance.code = json.code || '';
@@ -239,7 +284,7 @@ class ServerRegistry {
     instance.address = json.address || '';
     instance.authority = json.authority || '';
     instance.error = json.error || '';
-    instance.servers = (json.servers || []).map(s => ServerInformation.fromJSON(s));
+    instance.servers = (json.servers || []).map((/** @type {any} */ s) => ServerInformation.fromJSON(s));
     return instance;
   }
 }
@@ -248,12 +293,18 @@ class ServerRegistries {
   constructor() {
     this.address = '';
     this.doco = '';
+    /** @type {Date | null} */
     this.lastRun = null; // Date object
     this.outcome = '';
+    /** @type {ServerRegistry[]} */
     this.registries = []; // Array of ServerRegistry
+    /** @type {string | null} */
     this._lockName = null; // For tracking lock state
   }
 
+  /**
+   * @param {string} name
+   */
   lock(name) {
     // In Node.js, we might use async locks or mutexes
     // For now, this is a simple flag-based approach
@@ -264,16 +315,23 @@ class ServerRegistries {
     this._lockName = null;
   }
 
+  /**
+   * @param {string} code
+   * @returns {ServerRegistry | null}
+   */
   getRegistry(code) {
     return this.registries.find(r => r.code === code) || null;
   }
 
+  /**
+   * @param {any} source
+   */
   update(source) {
     this.lastRun = source.lastRun;
     this.outcome = source.outcome;
     this.doco = source.doco;
     
-    source.registries.forEach(sourceRegistry => {
+    source.registries.forEach((/** @type {ServerRegistry} */ sourceRegistry) => {
       const existing = this.getRegistry(sourceRegistry.code);
       if (existing) {
         existing.update(sourceRegistry);
@@ -294,6 +352,9 @@ class ServerRegistries {
     };
   }
 
+  /**
+   * @param {any} json
+   */
   static fromJSON(json) {
     if (json.version !== '1') {
       throw new Error(`Unsupported version ${json.version}`);
@@ -304,7 +365,7 @@ class ServerRegistries {
     instance.doco = json.doco || '';
     instance.lastRun = json['last-run'] ? new Date(json['last-run']) : null;
     instance.outcome = json.outcome || '';
-    instance.registries = (json.registries || []).map(r => ServerRegistry.fromJSON(r));
+    instance.registries = (json.registries || []).map((/** @type {any} */ r) => ServerRegistry.fromJSON(r));
     return instance;
   }
 }
@@ -317,7 +378,9 @@ class ServerRow {
     this.registryName = '';
     this.registryCode = '';
     this.registryUrl = '';
+    /** @type {string[]} */
     this.authCSList = [];
+    /** @type {string[]} */
     this.authVSList = [];
     this.version = '';
     this.url = '';
@@ -330,6 +393,7 @@ class ServerRow {
   }
 
   toJSON() {
+    /** @type {Record<string, any>} */
     const json = {
       'server-name': this.serverName,
       'server-code': this.serverCode,
@@ -361,6 +425,9 @@ class ServerRow {
     return json;
   }
 
+  /**
+   * @param {any} json
+   */
   static fromJSON(json) {
     const instance = new ServerRow();
     instance.serverName = json['server-name'] || '';
@@ -385,6 +452,10 @@ class ServerRow {
 
 // Utility functions (similar to TServerRegistryUtilities)
 class ServerRegistryUtilities {
+  /**
+   * @param {string} mask
+   * @param {string} value
+   */
   static passesMask(mask, value) {
     if (mask.endsWith('*')) {
       return value.startsWith(mask.slice(0, -1));
@@ -392,6 +463,13 @@ class ServerRegistryUtilities {
     return value === mask;
   }
 
+  /**
+   * @param {string} cs
+   * @param {any[]} list
+   * @param {boolean} supportMask
+   * @param {any} content
+   * @param {boolean} [noVersionIndependentMatching]
+   */
   static hasMatchingCodeSystem(cs, list, supportMask, content, noVersionIndependentMatching = false) {
     if (!cs || list.length === 0) return false;
 
@@ -401,7 +479,7 @@ class ServerRegistryUtilities {
       baseCs = cs.substring(0, cs.indexOf('|'));
     }
 
-    return list.some(item => {
+    return list.some((/** @type {any} */ item) => {
       // If we support wildcards (masks) and the item ends with "*", do prefix matching
       let vurl = item.uri ? item.version ? item.uri+"|"+item.version : item.uri : item;
       let ok = false;
@@ -419,13 +497,18 @@ class ServerRegistryUtilities {
     });
   }
 
+  /**
+   * @param {string} vs
+   * @param {string[]} list
+   * @param {boolean} supportMask
+   */
   static hasMatchingValueSet(vs, list, supportMask) {
     let baseVs = vs;
     if (vs.includes('|')) {
       baseVs = vs.substring(0, vs.indexOf('|'));
     }
     
-    return list.some(item => {
+    return list.some((/** @type {string} */ item) => {
       if (supportMask && this.passesMask(item, vs)) {
         return true;
       }
@@ -436,6 +519,10 @@ class ServerRegistryUtilities {
     });
   }
 
+  /**
+   * @param {string} requested
+   * @param {string} available
+   */
   static versionMatches(requested, available) {
     // Simple semantic version matching
     if (!requested || !available) return true;
@@ -458,6 +545,12 @@ class ServerRegistryUtilities {
     return true;
   }
 
+  /**
+   * @param {ServerRegistry} registry
+   * @param {ServerInformation} server
+   * @param {ServerVersionInformation} version
+   * @param {boolean} isAuthoritative
+   */
   static createRow(registry, server, version, isAuthoritative) {
     const row = new ServerRow();
     

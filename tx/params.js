@@ -1,13 +1,26 @@
+// @ts-check
+
 const {Languages, LanguageDefinitions} = require("../library/languages");
 const { validateResource, strToBool, getValuePrimitive, validateParameter, Utilities} = require("../library/utilities");
 const {Issue} = require("./library/operation-outcome");
 const {I18nSupport} = require("../library/i18nsupport");
 
 class VersionRule {
-  system;
-  version;
-  mode;
+  /** @type {string} */
+  system = '';
+  /** @type {string} */
+  version = '';
+  /** @type {boolean} */
+  vs = false;
+  /** @type {string | null} */
+  mode = null;
 
+  /**
+   * @param {string} system
+   * @param {string} version
+   * @param {boolean} vs
+   * @param {string | null} [mode]
+   */
   constructor(system, version, vs, mode = null) {
     this.system = system;
     this.version = version;
@@ -38,21 +51,35 @@ class TxParameters {
   inferSystem = false;
   sort = 'design';
 
-  constructor(languages, i18n, validating) {
+  /**
+   * @param {LanguageDefinitions} languages
+   * @param {I18nSupport} i18n
+   * @param {boolean | undefined} [validating]
+   */
+  constructor(languages, i18n, validating = false) {
     validateParameter(languages, 'languages', LanguageDefinitions);
     validateParameter(i18n, 'i18n', I18nSupport);
 
+    /** @type {LanguageDefinitions} */
     this.languageDefinitions = languages;
+    /** @type {I18nSupport} */
     this.i18n = i18n;
     this.validating = validating;
+    /** @type {VersionRule[]} */
     this.FVersionRules = [];
+    /** @type {string[]} */
     this.FProperties = [];
+    /** @type {string[]} */
     this.FDesignations = [];
+    /** @type {Set<string>} */
     this.supplements = new Set;
     this.FGenerateNarrative = true;
 
+    /** @type {any} */
     this.FHTTPLanguages = null;
+    /** @type {any} */
     this.FDisplayLanguages = null;
+    /** @type {VersionRule[] | null} */
     this.FValueSetVersionRules = null;
     this.FUid = '';
 
@@ -81,6 +108,9 @@ class TxParameters {
     this.hasVersionsMatch = false;
   }
 
+  /**
+   * @param {any} params
+   */
   readParams(params) {
     validateResource(params, "params", "Parameters");
 
@@ -98,44 +128,44 @@ class TxParameters {
       switch (p.name) {
         // Version rules
         case 'system-version': {
-          this.seeVersionRule(getValuePrimitive(p), false,'default');
+          this.seeVersionRule(String(getValuePrimitive(p)), false,'default');
           break;
         }
         case 'check-system-version': {
-          this.seeVersionRule(getValuePrimitive(p), false, 'check');
+          this.seeVersionRule(String(getValuePrimitive(p)), false, 'check');
           break;
         }
         case 'force-system-version': {
-          this.seeVersionRule(getValuePrimitive(p), false, 'override');
+          this.seeVersionRule(String(getValuePrimitive(p)), false, 'override');
           break;
         }
         case 'default-valueset-version': {
-          this.seeVersionRule(getValuePrimitive(p), true, 'default');
+          this.seeVersionRule(String(getValuePrimitive(p)), true, 'default');
           break;
         }
         case 'force-valueset-version': {
-          this.seeVersionRule(getValuePrimitive(p), true, 'override');
+          this.seeVersionRule(String(getValuePrimitive(p)), true, 'override');
           break;
         }
         case 'check-valueset-version': {
-          this.seeVersionRule(getValuePrimitive(p), true, 'check');
+          this.seeVersionRule(String(getValuePrimitive(p)), true, 'check');
           break;
         }
 
         case 'displayLanguage': {
           try {
-            this.DisplayLanguages = Languages.fromAcceptLanguage(getValuePrimitive(p), this.languageDefinitions, !this.validating);
+            this.DisplayLanguages = Languages.fromAcceptLanguage(String(getValuePrimitive(p)), this.languageDefinitions, !this.validating);
           } catch (error) {
-            throw new Issue("error", "processing", null, 'INVALID_DISPLAY_NAME', this.i18n.translate('INVALID_DISPLAY_NAME', this.HTTPLanguages, [getValuePrimitive(p)]), "invalid-display").handleAsOO(400);
+            throw new Issue("error", "processing", null, 'INVALID_DISPLAY_NAME', this.i18n.translate('INVALID_DISPLAY_NAME', this.HTTPLanguages, [String(getValuePrimitive(p))]), "invalid-display").handleAsOO(400);
           }
           break;
         }
         case 'designation': {
-          this.designations.push(getValuePrimitive(p));
+          this.designations.push(String(getValuePrimitive(p)));
           break;
         }
         case 'property': {
-          this.properties.push(getValuePrimitive(p));
+          this.properties.push(String(getValuePrimitive(p)));
           break;
         }
         case 'no-cache': {
@@ -215,25 +245,25 @@ class TxParameters {
         // eslint-disable-next-line no-fallthrough
         case 'term': // jQuery support
         case 'filter' : {
-          this.filter = getValuePrimitive(p);
+          this.filter = String(getValuePrimitive(p));
           break;
         }
         case 'count' : {
-          this.count = Utilities.parseIntOrDefault(getValuePrimitive(p), -1);
+          this.count = Utilities.parseIntOrDefault(/** @type {string | number} */ (getValuePrimitive(p)), -1);
           break;
         }
         case 'offset' : {
-          this.offset = Utilities.parseIntOrDefault(getValuePrimitive(p), -1);
+          this.offset = Utilities.parseIntOrDefault(/** @type {string | number} */ (getValuePrimitive(p)), -1);
           break;
         }
 
         case 'limit' : {
-          this.limit = Utilities.parseIntOrDefault(getValuePrimitive(p), -1);
+          this.limit = Utilities.parseIntOrDefault(/** @type {string | number} */ (getValuePrimitive(p)), -1);
           break;
         }
 
         case 'useSupplement' : {
-          this.supplements.add(getValuePrimitive(p));
+          this.supplements.add(String(getValuePrimitive(p)));
           break;
         }
 
@@ -250,7 +280,7 @@ class TxParameters {
           break;
         }
         case 'sort': {
-          this.sort = getValuePrimitive(p);
+          this.sort = String(getValuePrimitive(p));
           break;
         }
         case "exclude-system": {
@@ -261,6 +291,11 @@ class TxParameters {
 
   }
 
+  /**
+   * @param {any} params
+   * @param {string} name
+   * @returns {any}
+   */
   paramstr(params, name) {
     if (params.parameter) {
       for (let p of params.parameter) {
@@ -271,8 +306,13 @@ class TxParameters {
     }
   }
 
+  /**
+   * @param {any} params
+   * @param {string} name
+   * @returns {any}
+   */
   hasParam(params, name) {
-    return params.parameter && params.parameter.find(p => p.name == name);
+    return params.parameter && params.parameter.find((/** @type {any} */ p) => p.name == name);
   }
 
   get HTTPLanguages() {
@@ -401,7 +441,9 @@ class TxParameters {
     this.FVersionsMatch = value;
     this.hasVersionsMatch = true;
   }
-e
+  /** @type {any} */
+  e;
+
   get versionRules() {
     return this.FVersionRules;
   }
@@ -414,18 +456,26 @@ e
     return this.FDesignations;
   }
 
+  /**
+   * @param {LanguageDefinitions} langDefs
+   */
   static defaultProfile(langDefs) {
-    return new TxParameters(langDefs);
+    return new TxParameters(langDefs, /** @type {any} */ (undefined));
   }
 
+  /**
+   * @param {string} name
+   * @param {any} value
+   * @param {boolean} overwrite
+   */
   seeParameter(name, value, overwrite) {
     if (value) {
       if (name === 'displayLanguage' && (!this.FDisplayLanguages || overwrite)) {
-        this.DisplayLanguages = Languages.fromAcceptLanguage(getValuePrimitive(value), this.languageDefinitions, !this.validating)
+        this.DisplayLanguages = Languages.fromAcceptLanguage(String(getValuePrimitive(value)), this.languageDefinitions, !this.validating)
       }
 
       if (name === 'designation') {
-        this.designations.push(getValuePrimitive(value));
+        this.designations.push(String(getValuePrimitive(value)));
       }
 
       if (name === 'versionsMatch') {
@@ -434,6 +484,10 @@ e
     }
   }
 
+  /**
+   * @param {string} systemURI
+   * @param {string} mode
+   */
   getVersionForRule(systemURI, mode) {
     for (let rule of this.FVersionRules) {
       if (rule.system === systemURI && rule.mode === mode) {
@@ -443,7 +497,12 @@ e
     return '';
   }
 
+  /**
+   * @param {string} systemURI
+   * @returns {VersionRule[]}
+   */
   rulesForSystem(systemURI) {
+    /** @type {VersionRule[]} */
     let result = [];
     for (let t of this.FVersionRules) {
       if (t.system === systemURI) {
@@ -453,6 +512,11 @@ e
     return result;
   }
 
+  /**
+   * @param {string} url
+   * @param {boolean} vs
+   * @param {string} mode
+   */
   seeVersionRule(url, vs, mode) {
     let sl = url ? url.split('|') : [];
     if (sl.length === 2) {
@@ -483,18 +547,18 @@ e
   summary() {
     let result = '';
 
-    const commaAdd = (r, s) => {
+    const commaAdd = (/** @type {string} */ r, /** @type {string} */ s) => {
       if (!r) return s;
       return r + ', ' + s;
     };
 
-    const b = (s, v) => {
+    const b = (/** @type {string} */ s, /** @type {any} */ v) => {
       if (v) {
         result = commaAdd(result, s);
       }
     };
 
-    const sv = (s, v) => {
+    const sv = (/** @type {string} */ s, /** @type {any} */ v) => {
       if (v) {
         result = commaAdd(result, s + '=' + v);
       }
@@ -541,7 +605,7 @@ e
   }
 
   hashSource() {
-    const b = (v) => {
+    const b = (/** @type {any} */ v) => {
       return v ? '1|' : '0|';
     };
 
@@ -581,6 +645,9 @@ e
     return result;
   }
 
+  /**
+   * @param {TxParameters} other
+   */
   assign(other) {
     if (other.FVersionRules) {
       this.FVersionRules = [...other.FVersionRules];

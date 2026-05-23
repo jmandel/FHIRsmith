@@ -1,6 +1,10 @@
 //
 // CodeSystem XML Serialization
 //
+// @ts-check
+
+/** @typedef {import('../../types/fhirsmith').FhirResource} FhirResource */
+/** @typedef {import('../../types/fhirsmith').XmlElement} XmlElement */
 
 const { FhirXmlBase } = require('./xml-base');
 
@@ -25,8 +29,7 @@ class CodeSystemXML extends FhirXmlBase {
 
   /**
    * Convert CodeSystem JSON to XML string
-   * @param {Object} json - CodeSystem as JSON
-   * @param {number} fhirVersion - FHIR version (3, 4, or 5)
+   * @param {FhirResource} json - CodeSystem as JSON
    * @returns {string} XML string
    */
   static toXml(json) {
@@ -37,8 +40,7 @@ class CodeSystemXML extends FhirXmlBase {
   /**
    * Convert XML string to CodeSystem JSON
    * @param {string} xml - XML string
-   * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @returns {FhirResource} JSON object
    */
   static fromXml(xml) {
     const element = this.parseXmlString(xml);
@@ -50,9 +52,8 @@ class CodeSystemXML extends FhirXmlBase {
 
   /**
    * Parse from a pre-parsed XML element
-   * @param {Object} element - Parsed element with {name, attributes, children}
-   * @param {number} fhirVersion - FHIR version
-   * @returns {Object} JSON object
+   * @param {XmlElement} element - Parsed element with {name, attributes, children}
+   * @returns {FhirResource} JSON object
    */
   static fromXmlElement(element) {
     return this.convertElementToFhirJson(element, 'CodeSystem');

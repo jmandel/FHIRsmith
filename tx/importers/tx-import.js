@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 
 const { Command } = require('commander');
 const chalk = require('chalk');
@@ -9,6 +10,7 @@ const { getConfigManager } = require('./tx-import-settings');
 class TerminologyImportCLI {
   constructor() {
     this.program = new Command();
+    /** @type {Map<string, any>} */
     this.modules = new Map();
     this.setupMainProgram();
     this.discoverAndLoadModules();
@@ -42,32 +44,32 @@ class TerminologyImportCLI {
       .command('config:show')
       .description('Show saved configuration history')
       .option('-t, --terminology <name>', 'Show config for specific terminology')
-      .action((options) => this.showConfig(options));
+      .action((/** @type {Record<string, any>} */ options) => this.showConfig(options));
 
     this.program
       .command('config:clear')
       .description('Clear saved configuration history')
       .option('-t, --terminology <name>', 'Clear config for specific terminology')
       .option('-a, --all', 'Clear all configuration history')
-      .action((options) => this.clearConfig(options));
+      .action((/** @type {Record<string, any>} */ options) => this.clearConfig(options));
 
     this.program
       .command('config:export')
       .description('Export configuration to file')
       .option('-o, --output <file>', 'Output file path', './tx-import-config.json')
-      .action((options) => this.exportConfig(options));
+      .action((/** @type {Record<string, any>} */ options) => this.exportConfig(options));
 
     this.program
       .command('config:import')
       .description('Import configuration from file')
       .option('-i, --input <file>', 'Input file path')
-      .action((options) => this.importConfig(options));
+      .action((/** @type {Record<string, any>} */ options) => this.importConfig(options));
 
     // Help command
     this.program
       .command('help [command]')
       .description('Display help for command')
-      .action((cmd) => this.showHelp(cmd));
+      .action((/** @type {string | undefined} */ cmd) => this.showHelp(cmd));
   }
 
   discoverAndLoadModules() {
@@ -82,6 +84,7 @@ class TerminologyImportCLI {
         const moduleExports = require(moduleFile);
 
         // Handle different export formats
+        /** @type {any} */
         let ModuleClass;
         if (typeof moduleExports === 'function') {
           // Direct class export: module.exports = UniiModule
@@ -110,11 +113,15 @@ class TerminologyImportCLI {
           console.warn(chalk.yellow(`Warning: Invalid module format in ${moduleFile}`));
         }
       } catch (error) {
-        console.warn(chalk.yellow(`Warning: Failed to load module ${moduleFile}: ${error.message}`));
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(chalk.yellow(`Warning: Failed to load module ${moduleFile}: ${message}`));
       }
     }
   }
 
+  /**
+   * @param {any} module
+   */
   isValidModule(module) {
     return (
       typeof module.getName === 'function' &&
@@ -123,6 +130,9 @@ class TerminologyImportCLI {
     );
   }
 
+  /**
+   * @param {any} module
+   */
   registerModule(module) {
     const name = module.getName();
 
@@ -172,6 +182,9 @@ class TerminologyImportCLI {
     console.log(chalk.gray('Use "tx-import <terminology> --help" for specific options'));
   }
 
+  /**
+   * @param {string | undefined} commandName
+   */
   showHelp(commandName) {
     if (!commandName) {
       this.program.help();
@@ -202,12 +215,15 @@ class TerminologyImportCLI {
     console.log('  tx-import config:export --output my-config.json');
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   showConfig(options) {
     const configManager = getConfigManager();
 
     if (options.terminology) {
       // Show config for specific terminology
-      const config = configManager.getPreviousConfig(options.terminology);
+      const config = /** @type {Record<string, any>} */ (configManager.getPreviousConfig(options.terminology));
 
       if (Object.keys(config).length === 0) {
         console.log(chalk.yellow(`No saved configuration found for ${options.terminology}`));
@@ -232,14 +248,14 @@ class TerminologyImportCLI {
 
       if (config.recentSources && config.recentSources.length > 0) {
         console.log(`\\n  Recent sources:`);
-        config.recentSources.forEach((src, index) => {
+        config.recentSources.forEach((/** @type {string} */ src, /** @type {number} */ index) => {
           console.log(`    ${index + 1}. ${chalk.gray(src)}`);
         });
       }
 
     } else {
       // Show all configurations
-      const allHistory = configManager.history;
+      const allHistory = /** @type {Record<string, any>} */ (configManager.history);
 
       if (Object.keys(allHistory).length === 0) {
         console.log(chalk.yellow('No saved configurations found'));
@@ -264,6 +280,9 @@ class TerminologyImportCLI {
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async clearConfig(options) {
     const configManager = getConfigManager();
     const inquirer = require('inquirer');
@@ -304,6 +323,9 @@ class TerminologyImportCLI {
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   exportConfig(options) {
     const configManager = getConfigManager();
     const data = configManager.exportConfig();
@@ -312,10 +334,13 @@ class TerminologyImportCLI {
       fs.writeFileSync(options.output, JSON.stringify(data, null, 2));
       console.log(chalk.green(`✓ Configuration exported to ${options.output}`));
     } catch (error) {
-      console.log(chalk.red(`✗ Export failed: ${error.message}`));
+      console.log(chalk.red(`✗ Export failed: ${error instanceof Error ? error.message : String(error)}`));
     }
   }
 
+  /**
+   * @param {Record<string, any>} options
+   */
   async importConfig(options) {
     if (!options.input) {
       const inquirer = require('inquirer');
@@ -323,7 +348,7 @@ class TerminologyImportCLI {
         type: 'input',
         name: 'input',
         message: 'Configuration file to import:',
-        validate: (input) => fs.existsSync(input) ? true : 'File does not exist'
+        validate: (/** @type {string} */ input) => fs.existsSync(input) ? true : 'File does not exist'
       });
       options.input = input;
     }
@@ -335,7 +360,7 @@ class TerminologyImportCLI {
       configManager.importConfig(data);
       console.log(chalk.green(`✓ Configuration imported from ${options.input}`));
     } catch (error) {
-      console.log(chalk.red(`✗ Import failed: ${error.message}`));
+      console.log(chalk.red(`✗ Import failed: ${error instanceof Error ? error.message : String(error)}`));
     }
   }
 

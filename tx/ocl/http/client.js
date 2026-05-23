@@ -1,2 +1,3 @@
-﻿module.exports = require('./client.cjs');
+// @ts-check
 
+module.exports = require('./client.cjs');
