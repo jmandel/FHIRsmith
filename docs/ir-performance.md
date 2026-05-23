@@ -138,7 +138,66 @@ npm run test:perf:terminology:full -- \
 Harness output is written under `tmp/` by default. The perf report links each
 row to input JSON, response JSON, trace payloads, and server logs.
 
-## Current Spot Results
+## Current Matrix Snapshot
+
+A focused PR-readiness terminology matrix was run with one sqlite-v0 SNOMED
+database, one sqlite-v0 LOINC database, one sqlite-v0 RxNorm database, and the
+corresponding upstream-provider legacy caches where available.
+
+Command shape:
+
+```bash
+source ~/.nvm/nvm.sh
+nvm use 25.9.0
+
+V0_DB_DIR=/path/to/sqlite-v0-dbs \
+UPSTREAM_DB_DIR=/path/to/upstream-provider-cache \
+TX_HARNESS_OUT_DIR=tmp/tx-harness-full-perf \
+PERF_RUNS=1 \
+npm run test:perf:terminology:full
+```
+
+Result: 325 harness rows passed, with zero failures. The matrix compared:
+
+- sqlite-v0 IR worker
+- sqlite-v0 legacy compatibility worker
+- upstream-provider legacy worker, where the provider column supported the case
+
+Median timings from that local run:
+
+| Terminology rows | Rows | All-three comparable | sqlite-v0 IR | sqlite-v0 legacy compatibility | upstream-provider legacy |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| SNOMED-focused | 39 | 29 | 22 ms | 88 ms | 29 ms |
+| LOINC-focused | 27 | 17 | 437 ms | 2687 ms | 2302 ms |
+| RxNorm-focused | 14 | 11 | 83 ms | 1390 ms | 169 ms |
+
+Exact/count-heavy and no-exact-total subsets should be read separately:
+
+| Terminology rows | Subset | Rows | sqlite-v0 IR | sqlite-v0 legacy compatibility | upstream-provider legacy |
+| --- | --- | ---: | ---: | ---: | ---: |
+| SNOMED-focused | exact/count-like | 3 | 109 ms | 2016 ms | 515 ms |
+| SNOMED-focused | no exact total | 2 | 281 ms | 1173 ms | 3407 ms |
+| LOINC-focused | exact/count-like | 4 | 539 ms | 3746 ms | 2302 ms |
+| LOINC-focused | no exact total | 4 | 154 ms | 2082 ms | 2829 ms |
+| RxNorm-focused | no exact total | 1 | 302 ms | 3912 ms | - |
+
+These are local-machine measurements with `PERF_RUNS=1`. They are useful as
+regression sentinels and outlier guides, not as service-level commitments.
+
+Selected rows from the same run:
+
+| Case | sqlite-v0 IR | sqlite-v0 legacy compatibility | upstream-provider legacy | Trace reading |
+| --- | ---: | ---: | ---: | --- |
+| LOINC `STATUS=ACTIVE` high offset with exact total | 2093 ms | 5570 ms | - | Page SQL was about 34 ms; `countForIR` was about 2040 ms. |
+| LOINC `STATUS=ACTIVE` high offset without exact total | 51 ms | 6965 ms | - | Page SQL was about 22 ms; total was omitted and no `countForIR` ran. |
+| LOINC `CLASSTYPE=1` later page without exact total | 20 ms | 2082 ms | 2843 ms | Early-stop completed; total was omitted. |
+| LOINC text `creatinine` later page without exact total | 257 ms | 1864 ms | 2815 ms | Early-stop budget tripped and fell back; no count ran. |
+| Deep LOINC text filter with exact total | 1433 ms | - | - | Generic page query plus about 679 ms `countForIR`. |
+| LOINC active quantitative later page without exact total | 807 ms | - | - | No count ran; remaining cost is the generic intersect/order/page query. |
+| SNOMED diagnosis search `pain` first 50 | 542 ms | 1472 ms | 2788 ms | Early-stop fell back; lazy count was about 214 ms. |
+| RxNorm text aspirin plus `TTY=IN` | 108 ms | 1576 ms | 264 ms | Native IR text/property filtering. |
+
+## Focused Spike Results
 
 The no-exact-total LOINC focused run after the early-stop work showed:
 

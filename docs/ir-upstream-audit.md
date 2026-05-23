@@ -41,6 +41,8 @@ The PR-facing documentation is split by audience:
 - [IR Performance And Verification](ir-performance.md): exact-total behavior,
   budgeted early-stop materialization, progress limiting, perf harness commands,
   and optimization policy.
+- [IR PR Readiness Notes](ir-pr-readiness.md): PR-facing summary, current test
+  gates, terminology matrix snapshot, coverage boundary, and review focus.
 
 ## Shared File Audit
 
