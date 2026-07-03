@@ -21,6 +21,9 @@ const { Language } = require('../../library/languages');
 const { CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api');
 const { BaseCSServices } = require('./cs-base');
 const regexUtilities = require('../../library/regex-utilities');
+const { evaluateEcl, parseEcl } = require('./sqlite-ecl');
+const { Issue } = require('../library/operation-outcome');
+const { debugLog } = require('../operation-context');
 
 // The provider's EXACT total for a paged expansion (or null when it chooses to
 // defer for cost). Never an estimate. Whether the total is actually emitted in
@@ -589,6 +592,11 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (op === 'in' && (prop === 'concept' || prop === 'code')) {
       return this.factory.hasValueSets;
     }
+    // SNOMED CT ECL constraint: concept/code satisfying an ECL expression. Same
+    // filter shape the binary reference provider (cs-snomed) registers.
+    if (prop === 'constraint' && op === '=') {
+      return this.factory.hasHierarchy;
+    }
     // Property operators on any defined property (after alias mapping).
     if (['=', 'in', 'exists', 'regex'].includes(op)) {
       const { def } = this._resolveProp(prop);
@@ -615,6 +623,15 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     // Intrinsic value-set membership (SNOMED refsets): concept in <refset id>.
     if (op === 'in' && (prop === 'concept' || prop === 'code') && this.factory.hasValueSets) {
       filterContext.clauses.push(new FilterClause('vs-member', { value }));
+      return;
+    }
+
+    // SNOMED CT ECL constraint. Parse eagerly (mirrors cs-snomed, which parses
+    // in filter()) so syntax errors surface as INVALID_ECL up front; evaluation
+    // is deferred to _runClause.
+    if (prop === 'constraint' && op === '=') {
+      const ast = this._parseEclOrThrow(value);
+      filterContext.clauses.push(new FilterClause('ecl', { value, ast }));
       return;
     }
 
@@ -652,6 +669,7 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (clause.kind === 'property') return this._propertyIds(clause.spec);
     if (clause.kind === 'search') return this._searchIds(clause.spec.text);
     if (clause.kind === 'vs-member') return this._valueSetMemberIds(clause.spec.value);
+    if (clause.kind === 'ecl') return this._evalEclOrThrow(clause.spec.value, clause.spec.ast);
     return [];
   }
 
@@ -681,6 +699,147 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   _locateConceptId(code) {
     const row = this._lookupRow(code);
     return row ? row.concept_id : null;
+  }
+
+  // ---- ECL (SNOMED CT Expression Constraint Language) --------------------
+  //
+  // Parsing and evaluation are split to mirror cs-snomed's two-phase error
+  // classification: a syntax error is INVALID_ECL; a well-formed expression the
+  // evaluator cannot resolve (unknown concept, unsupported construct) is
+  // UNSUPPORTED_ECL. Both surface as an `invalid`/`vs-invalid` OperationOutcome,
+  // byte-for-byte the same shape the binary reference provider produces.
+
+  _parseEclOrThrow(value) {
+    try {
+      return parseEcl(value);
+    } catch (err) {
+      debugLog(err);
+      throw new Issue('error', 'invalid', null, 'INVALID_ECL',
+        this.opContext.i18n.translate('INVALID_ECL', this.opContext.langs, [value, err.message]),
+        'vs-invalid').handleAsOO(400);
+    }
+  }
+
+  _evalEclOrThrow(value, ast) {
+    if (!ast) ast = this._parseEclOrThrow(value);
+    try {
+      return evaluateEcl(this._eclIface(), ast);
+    } catch (err) {
+      if (err instanceof Issue || err.isOperationOutcome) throw err;
+      debugLog(err);
+      throw new Issue('error', 'invalid', null, 'UNSUPPORTED_ECL',
+        this.opContext.i18n.translate('UNSUPPORTED_ECL', this.opContext.langs, [value, err.message]),
+        'vs-invalid').handleAsOO(400);
+    }
+  }
+
+  // The small data-access object the ECL evaluator (tx/cs/sqlite-ecl.js) walks
+  // the AST against. Every method is backed by a sqlite-v1 query; ids are
+  // numeric concept_ids.
+  _eclIface() {
+    const self = this;
+    const hp = this.factory.hierPropPlaceholders;
+    const hpIds = this.factory.hierPropIds;
+    const edge = this.factory.hierarchyEdgeSet;
+    return {
+      locateId: (code) => self._locateConceptId(code),
+
+      closureDescendants: (id) => self.db.prepare(
+        `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ?`
+      ).all(id).map((r) => r.id),
+
+      closureAncestors: (id) => self.db.prepare(
+        `SELECT ancestor_id AS id FROM closure WHERE descendant_id = ?`
+      ).all(id).map((r) => r.id),
+
+      directChildren: (id) => self.db.prepare(
+        `SELECT DISTINCT source_concept_id AS id FROM concept_link
+          WHERE target_concept_id = ? AND property_id IN (${hp})
+            AND edge_set_id = ? AND active = 1`
+      ).all(id, ...hpIds, edge).map((r) => r.id),
+
+      directParents: (id) => self.db.prepare(
+        `SELECT DISTINCT target_concept_id AS id FROM concept_link
+          WHERE source_concept_id = ? AND property_id IN (${hp})
+            AND edge_set_id = ? AND active = 1`
+      ).all(id, ...hpIds, edge).map((r) => r.id),
+
+      refsetMembers: (id) => self._eclRefsetMembers(id),
+
+      allIds: () => self._eclActiveIds(),
+
+      linkTargets: (sourceIds, attrCode) => self._eclLinkTargets(sourceIds, attrCode),
+
+      attrRows: (attrCode, valueIds) => self._eclAttrRows(attrCode, valueIds),
+    };
+  }
+
+  // Map an ECL attribute SCTID (relationship type) to its property_def id. A
+  // concept that is not a defined relationship type has no property_id, so it
+  // can have no attribute links — the evaluator gets an empty row set (0 matches),
+  // matching the reference (no relationships of that type).
+  _eclAttrPropId(attrCode) {
+    const def = this.propByCode.get(String(attrCode));
+    return def ? def.property_id : null;
+  }
+
+  // Active concept ids (the ECL wildcard universe), cached on the factory.
+  _eclActiveIds() {
+    if (!this.factory._eclActiveIds) {
+      this.factory._eclActiveIds = this.db.prepare(
+        `SELECT concept_id AS id FROM concept WHERE cs_id = ? AND active = 1 ORDER BY id`
+      ).all(this.csId).map((r) => r.id);
+    }
+    return this.factory._eclActiveIds;
+  }
+
+  // Refset members for `^ id`. Returns null when `id` is not a known reference
+  // set (no value_set row) — the evaluator turns that into the reference's
+  // "is not a reference set" error for a bare operand. An imported-but-empty
+  // refset returns []. Refset membership is sourced from value_set_member; a
+  // refset not imported as a value set is treated as a non-refset.
+  _eclRefsetMembers(id) {
+    const row = this._rowById(id);
+    if (!row) return null;
+    const vsId = this._valueSetIdFor(row.code);
+    if (vsId == null) return null;
+    return this.db.prepare(
+      `SELECT concept_id AS id FROM value_set_member WHERE vs_id = ? AND active = 1`
+    ).all(vsId).map((r) => r.id);
+  }
+
+  // Distinct active relationship targets of `attrId` from a set of source
+  // concepts (dotted expressions). Batched to stay under SQLite's parameter cap.
+  _eclLinkTargets(sourceIds, attrCode) {
+    const propId = this._eclAttrPropId(attrCode);
+    if (propId == null) return [];
+    const out = new Set();
+    for (let i = 0; i < sourceIds.length; i += 900) {
+      const chunk = sourceIds.slice(i, i + 900);
+      const ph = chunk.map(() => '?').join(',');
+      for (const r of this.db.prepare(
+        `SELECT DISTINCT target_concept_id AS id FROM concept_link
+          WHERE property_id = ? AND active = 1 AND source_concept_id IN (${ph})`
+      ).all(propId, ...chunk)) out.add(r.id);
+    }
+    return [...out];
+  }
+
+  // Active attribute-relationship rows for `attrId`, as {source, group, target}.
+  // When `valueIds` is a small array the target filter is pushed into SQL;
+  // otherwise all rows are returned and the evaluator filters by value in JS
+  // (it re-checks membership regardless, so correctness never depends on this).
+  _eclAttrRows(attrCode, valueIds) {
+    const propId = this._eclAttrPropId(attrCode);
+    if (propId == null) return [];
+    let sql = `SELECT source_concept_id AS source, group_id AS grp, target_concept_id AS target
+                 FROM concept_link WHERE property_id = ? AND active = 1`;
+    const args = [propId];
+    if (Array.isArray(valueIds) && valueIds.length > 0 && valueIds.length <= 900) {
+      sql += ` AND target_concept_id IN (${valueIds.map(() => '?').join(',')})`;
+      args.push(...valueIds);
+    }
+    return this.db.prepare(sql).all(...args).map((r) => ({ source: r.source, group: r.grp, target: r.target }));
   }
 
   _hierarchyIds(op, value) {
@@ -1030,6 +1189,9 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     }
     if (op === 'in' && (prop === 'concept' || prop === 'code') && this.factory.hasValueSets) {
       return this._valueSetMemberIds(value);
+    }
+    if (prop === 'constraint' && op === '=') {
+      return this._evalEclOrThrow(value);
     }
     const { name, def } = this._resolveProp(prop);
     if (!def || !['=', 'in', 'exists', 'regex'].includes(op)) {
