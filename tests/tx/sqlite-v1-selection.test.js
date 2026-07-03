@@ -333,11 +333,15 @@ describeIfDb(SCT_DB, 'sqlite-v1 pushdown parity: SNOMED', () => {
   });
 
   // 7. descendent-of differs from is-a by exactly the seed concept.
-  test('descendent-of 404684003 == is-a total - 1 (differs by the seed)', async () => {
-    const iaVs = vsOf({ include: [{ system: SCT, filter: [isaFilter('404684003')] }] });
-    const doVs = vsOf({ include: [{ system: SCT, filter: [{ property: 'concept', op: 'descendent-of', value: '404684003' }] }] });
-    const iaExpected = sql.isaIds('404684003').size;
-    const doExpected = sql.descOfIds('404684003').size;
+  test('descendent-of == is-a total - 1 (differs by the seed)', async () => {
+    // A modest subtree whose total is under the paging limit, so the exact total
+    // is emitted on a normal paged request (larger subtrees omit it — see the
+    // limit-gate test). 22298006 (Myocardial infarction) has ~130 descendants.
+    const SEED = '22298006';
+    const iaVs = vsOf({ include: [{ system: SCT, filter: [isaFilter(SEED)] }] });
+    const doVs = vsOf({ include: [{ system: SCT, filter: [{ property: 'concept', op: 'descendent-of', value: SEED }] }] });
+    const iaExpected = sql.isaIds(SEED).size;
+    const doExpected = sql.descOfIds(SEED).size;
     expect(iaExpected).toBe(doExpected + 1); // SQL-level sanity on the seed relationship
 
     const ia = await assertParity(ctx, factory, iaVs, params({ count: 10 }), iaExpected);

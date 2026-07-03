@@ -121,7 +121,9 @@ describeIf('sqlite-v1 three-engine parity (legacy/pushdown/ir)', () => {
 
   test('refset-as-filter membership is non-empty (closes the IR-draft gap)', async () => {
     const compose = { include: [{ system: SCT, filter: [{ property: 'concept', op: 'in', value: '723264001' }] }] };
-    const ir = await expand(compose, 'ir', { count: 10 });
+    // count=0 is a total-only request (ungated by the paging limit), so the
+    // exact membership size comes back even though it exceeds the limit.
+    const ir = await expand(compose, 'ir', { count: 0 });
     expect(ir.err).toBeNull();
     expect(ir.total).toBeGreaterThan(1000);
   });
@@ -148,9 +150,16 @@ describeIf('sqlite-v1 three-engine parity (legacy/pushdown/ir)', () => {
       expect(ir.total).toBe(push.total);
     });
 
-    test('non-active bounded page provides an exact (cheap) total', async () => {
-      const ir = await expand(bigIsA, 'ir', { count: 50 });
-      expect(ir.total).toBe(132173);
+    test('large paged filter OMITS total (limit gate); count=0 gives it exactly', async () => {
+      // A paged request whose full set exceeds the expansion limit: the total is
+      // omitted (matching the reference, e.g. loinc-expand-prop-order-obs).
+      const paged = await expand(bigIsA, 'ir', { count: 50 });
+      const pagedP = await expand(bigIsA, 'pushdown', { count: 50 });
+      expect(paged.total == null).toBe(true);
+      expect(pagedP.total == null).toBe(true);
+      // But an explicit total-only request returns the exact count.
+      const totalOnly = await expand(bigIsA, 'ir', { count: 0 });
+      expect(totalOnly.total).toBe(132173);
     });
 
     test('short activeOnly page provides an exact inferred total', async () => {

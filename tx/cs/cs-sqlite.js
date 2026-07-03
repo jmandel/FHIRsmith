@@ -22,6 +22,25 @@ const { CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api'
 const { BaseCSServices } = require('./cs-base');
 const regexUtilities = require('../../library/regex-utilities');
 
+// The provider's EXACT total for a paged expansion (or null when it chooses to
+// defer for cost). Never an estimate. Whether the total is actually emitted in
+// the response is a separate, limit-based decision the worker makes (see the
+// limitCount gate in expand.js) — matching the reference server, which emits a
+// total only when the full set fit under the effective limit.
+//   - count === 0 (total-only request): the exact total is the ask.
+//   - unbounded / short page (pageLen < count): the end was reached, so
+//     total = offset + pageLen, exact and free.
+//   - full non-active page: an exact count is cheap (index COUNT / free from the
+//     materialised set).
+//   - full activeOnly page: defer (null) — an exact active count is a full
+//     member scan (cost), and a deferred total is never emitted anyway.
+function pageTotalPolicy(count, from, pageLen, activeOnly, exactCountFn) {
+  if (count === 0) return exactCountFn();
+  if (count === -1 || pageLen < count) return from + pageLen;
+  if (!activeOnly) return exactCountFn();
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Small value objects
 // ---------------------------------------------------------------------------
@@ -952,11 +971,12 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       const act = this._activeIdSet();
       ids = ids.filter((id) => act.has(id));
     }
-    const total = ids.length;
     const from = offset > 0 ? offset : 0;
     const page = count > -1 ? ids.slice(from, from + count) : (from > 0 ? ids.slice(from) : ids);
     const set = new SqliteFilterSet(page);
-    set.totalCount = total;
+    // Same total policy as the fast path: exact when complete/requested, else
+    // omitted (the full set is materialised here, so the exact count is free).
+    set.totalCount = pageTotalPolicy(count, from, page.length, activeOnly, () => ids.length);
     return [set];
   }
 
@@ -1116,10 +1136,10 @@ class SqliteCodeSystemProvider extends BaseCSServices {
         const act = this._activeIdSet();
         ids = ids.filter((id) => act.has(id));
       }
-      total = ids.length;
       const from = opts.offset > 0 ? opts.offset : 0;
       const count = opts.count != null && opts.count > -1 ? opts.count : -1;
       const page = count > -1 ? ids.slice(from, from + count) : (from > 0 ? ids.slice(from) : ids);
+      total = pageTotalPolicy(count, from, page.length, activeOnly, () => ids.length);
       candidates = page.map((id) => this._candidateFromId(id));
     }
     return { candidates, total, unclosed: null };
@@ -1232,19 +1252,8 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return { rows, total };
   }
 
-  // FHIR `expansion.total` is optional (SHOULD): we return an EXACT total or
-  // omit it (null), never an estimate. Compute it only when cheap or required:
-  //   - count === 0 (total-only request): it is the ask — compute it.
-  //   - page shorter than requested / unbounded: we reached the end, so
-  //     total = offset + pageLen for free.
-  //   - non-active: a fast COUNT over the closure/value-set index is cheap.
-  //   - else (activeOnly, full page): omit — an exact active count is a full
-  //     member scan, and legacy likewise omits the total for large sets.
   _pageTotal(subtree, { from, count, activeOnly, pageLen }) {
-    if (count === 0) return this._tryFastCount(subtree, activeOnly);
-    if (count === -1 || pageLen < count) return from + pageLen;
-    if (!activeOnly) return this._tryFastCount(subtree, false);
-    return null;
+    return pageTotalPolicy(count, from, pageLen, activeOnly, () => this._tryFastCount(subtree, activeOnly));
   }
 
   // Exact total for a fast-source subtree. Under activeOnly the concept join is

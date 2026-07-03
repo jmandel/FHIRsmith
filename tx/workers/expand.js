@@ -739,11 +739,7 @@ class ValueSetExpander {
     if (paged) {
       vsInfo.csDoOffset = true;
     }
-    if (total != null) {
-      this.addToTotal(total);
-    } else {
-      this.noTotal();
-    }
+    this.emitProviderTotal(total);
 
     this.worker.opContext.log('provider selection: total=' + total);
     const prep = await cs.getPrepContext(true);
@@ -839,7 +835,7 @@ class ValueSetExpander {
 
     this.canBeHierarchy = false;
     if (paged) vsInfo.csDoOffset = true;
-    if (total != null) this.addToTotal(total); else this.noTotal();
+    this.emitProviderTotal(total);
 
     this.worker.opContext.log('IR engine: total=' + total + ' page=' + result.candidates.length);
     const cds = new Designations(this.worker.i18n.languageDefinitions);
@@ -1835,6 +1831,23 @@ class ValueSetExpander {
     if (this.total > -1 && this.totalStatus != "off") {
       this.total = this.total - t;
       this.totalStatus = 'set';
+    }
+  }
+
+  // A provider-driven engine (pushdown/IR) hands back the EXACT total (or null).
+  // FHIR expansion.total is optional, and the reference server emits it only
+  // when the full set fit under the effective expansion limit — if the set is
+  // larger than the server would enumerate, it does not claim a total. Legacy
+  // gets this for free (it stops counting at the limit); we reproduce it by
+  // emitting the exact total only when it is within limitCount.
+  emitProviderTotal(total) {
+    // count=0 is a total-only request — the total is the explicit ask, not a
+    // paging nicety, so it is not gated by the paging limit.
+    const totalOnly = this.count === 0;
+    if (total != null && (totalOnly || this.limitCount <= 0 || total <= this.limitCount)) {
+      this.addToTotal(total);
+    } else {
+      this.noTotal();
     }
   }
 
