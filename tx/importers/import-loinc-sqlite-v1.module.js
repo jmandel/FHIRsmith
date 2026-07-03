@@ -31,89 +31,93 @@ const BASE_URI = 'http://loinc.org';
 const PROPERTY_URI_BASE = 'http://loinc.org/property';
 const DESIGNATION_USE_SYSTEM = BASE_URI;
 const PARENT_PROPERTY_CODE = 'parent';
+const CHILD_PROPERTY_CODE = 'child';
 const EDGE_SET_PRIMARY = 1;
 const DEFAULT_LANGUAGE = 'en-US';
 const DEFAULT_VERSION = '2.82';
 
-// LOINC main-file columns that carry a link to a Part concept (LoincPartLink).
-// These are the concept-valued (code) properties. Order mirrors v0.
-const PART_TYPE_PROPERTIES = [
-  'COMPONENT',
-  'PROPERTY',
-  'TIME_ASPCT',
-  'SYSTEM',
-  'SCALE_TYP',
-  'METHOD_TYP',
-  'CLASS',
-  'DOCUMENT.TYPEOFSETTING',
-  'DOCUMENT.TYPEOFSERVICE',
-  'DOCUMENT.ROLE',
-  'DOCUMENT.SUBJECT',
-  'DOCUMENT.KIND',
-  'SUPER.SYSTEM',
-  'RAD.ANATOMIC.LOCATION',
-  'RAD.ANATOMIC.LOCATION.LATERALITY',
-  'RAD.ANATOMIC.LOCATION.REGION.IMAGED',
-  'RAD.GUIDANCE.FOR.ACTION',
-  'RAD.GUIDANCE.FOR.APPROACH',
-  'RAD.MANEUVER.MANEUVER.TYPE',
-  'RAD.MODALITY.MODALITY.SUBTYPE',
-  'RAD.MODALITY.MODALITY.TYPE',
-  'RAD.PHARMACEUTICAL.ROUTE',
-  'RAD.PHARMACEUTICAL.SUBSTANCE.GIVEN',
-  'RAD.REASON.FOR.EXAM',
-  'RAD.TIMING',
-  'RAD.VIEW.AGGREGATION',
-  'RAD.VIEW.VIEW.TYPE',
-  'CHALLENGE',
-  'ADJUSTMENT',
-  'COUNT',
-  'DIVISOR',
-  'TIME.MODIFIER',
-  'SUFFIX'
-];
-
-// LoincPartLink PartTypeName values that need mapping onto the Loinc.csv
-// column property codes.
-const PART_TYPE_NORMALIZATION = {
-  TIME: 'TIME_ASPCT',
-  SCALE: 'SCALE_TYP',
-  METHOD: 'METHOD_TYP'
+// LoincPartLink_Primary PartTypeName -> property code. The names mirror the
+// reference server's LOINC relationship vocabulary exactly (tx.fhir.org /
+// Loinc_2.82.db RelationshipTypes), which is what the tx-ecosystem test
+// valuesets filter on (e.g. `document-kind exists true`).
+const PART_LINK_PROPERTY_BY_TYPE = {
+  'COMPONENT': 'COMPONENT',
+  'PROPERTY': 'PROPERTY',
+  'TIME': 'TIME_ASPCT',
+  'SYSTEM': 'SYSTEM',
+  'SCALE': 'SCALE_TYP',
+  'METHOD': 'METHOD_TYP',
+  'Document.Kind': 'document-kind',
+  'Document.Role': 'document-role',
+  'Document.Setting': 'document-setting',
+  'Document.SubjectMatterDomain': 'document-subject-matter-domain',
+  'Document.TypeOfService': 'document-type-of-service',
+  'Rad.Anatomic Location.Imaging Focus': 'rad-anatomic-location-imaging-focus',
+  'Rad.Anatomic Location.Laterality': 'rad-anatomic-location-laterality',
+  'Rad.Anatomic Location.Laterality.Presence': 'rad-anatomic-location-laterality-presence',
+  'Rad.Anatomic Location.Region Imaged': 'rad-anatomic-location-region-imaged',
+  'Rad.Guidance for.Action': 'rad-guidance-for-action',
+  'Rad.Guidance for.Approach': 'rad-guidance-for-approach',
+  'Rad.Guidance for.Object': 'rad-guidance-for-object',
+  'Rad.Guidance for.Presence': 'rad-guidance-for-presence',
+  'Rad.Maneuver.Maneuver Type': 'rad-maneuver-maneuver-type',
+  'Rad.Modality.Modality Subtype': 'rad-modality-modality-subtype',
+  'Rad.Modality.Modality Type': 'rad-modality-modality-type',
+  'Rad.Pharmaceutical.Route': 'rad-pharmaceutical-route',
+  'Rad.Pharmaceutical.Substance Given': 'rad-pharmaceutical-substance-given',
+  'Rad.Reason for Exam': 'rad-reason-for-exam',
+  'Rad.Subject': 'rad-subject',
+  'Rad.Timing': 'rad-timing',
+  'Rad.View.Aggregation': 'rad-view-aggregation',
+  'Rad.View.View Type': 'rad-view-view-type'
 };
 
-// Loinc.csv columns copied verbatim as literal properties, with their v1
-// fhir_type. Everything is `string` except the small typed set below; the
-// typed projections (value_num / value_bool) fall out of fhir_type in the
-// writer (sqlite-v1-core addLiteral).
-const LITERAL_COLUMN_MAP = [
-  { property: 'CLASS', column: 'CLASS', fhirType: 'string' },
-  { property: 'COMPONENT', column: 'COMPONENT', fhirType: 'string' },
-  { property: 'PROPERTY', column: 'PROPERTY', fhirType: 'string' },
-  { property: 'TIME_ASPCT', column: 'TIME_ASPCT', fhirType: 'string' },
-  { property: 'SYSTEM', column: 'SYSTEM', fhirType: 'string' },
-  { property: 'SCALE_TYP', column: 'SCALE_TYP', fhirType: 'string' },
-  { property: 'METHOD_TYP', column: 'METHOD_TYP', fhirType: 'string' },
-  { property: 'ORDER_OBS', column: 'ORDER_OBS', fhirType: 'string' },
-  { property: 'CLASSTYPE', column: 'CLASSTYPE', fhirType: 'integer' },
-  { property: 'STATUS', column: 'STATUS', fhirType: 'code' },
-  { property: 'EXAMPLE_UNITS', column: 'EXAMPLE_UNITS', fhirType: 'string' },
-  { property: 'EXAMPLE_UCUM_UNITS', column: 'EXAMPLE_UCUM_UNITS', fhirType: 'string' },
-  { property: 'UNITSREQUIRED', column: 'UNITSREQUIRED', fhirType: 'boolean' },
-  { property: 'FORMULA', column: 'FORMULA', fhirType: 'string' },
-  { property: 'SURVEY_QUEST_TEXT', column: 'SURVEY_QUEST_TEXT', fhirType: 'string' },
-  { property: 'DefinitionDescription', column: 'DefinitionDescription', fhirType: 'string' },
-  { property: 'EXTERNAL_COPYRIGHT_NOTICE', column: 'EXTERNAL_COPYRIGHT_NOTICE', fhirType: 'string' },
-  { property: 'RELATEDNAMES2', column: 'RELATEDNAMES2', fhirType: 'string' }
+// Concept-valued (code) property registry: the part-link property codes plus
+// CLASS (Loinc.csv CLASS name -> CLASS part). Order is stable but not
+// semantically significant.
+const PART_TYPE_PROPERTIES = [
+  ...new Set(Object.values(PART_LINK_PROPERTY_BY_TYPE)),
+  'CLASS'
 ];
 
-// Designation "use" codes (LOINC-defined), mapped to a full coding via
-// DESIGNATION_USE_SYSTEM so the v1 designation.use_system survives.
+// Loinc.csv columns copied as literal properties. This is exactly the
+// reference server's LOINC property set (Loinc_2.82.db PropertyTypes) plus the
+// derived STATUS property; everything is a plain string, which is how the
+// reference emits them in $lookup ('1', 'Y', ... as valueString).
+// EXTERNAL_COPYRIGHT_NOTICE surfaces under the reference's name 'Copyright'.
+const LITERAL_COLUMN_MAP = [
+  { property: 'CLASSTYPE', column: 'CLASSTYPE', fhirType: 'string' },
+  { property: 'ORDER_OBS', column: 'ORDER_OBS', fhirType: 'string' },
+  { property: 'EXAMPLE_UNITS', column: 'EXAMPLE_UNITS', fhirType: 'string' },
+  { property: 'EXAMPLE_UCUM_UNITS', column: 'EXAMPLE_UCUM_UNITS', fhirType: 'string' },
+  { property: 'PanelType', column: 'PanelType', fhirType: 'string' },
+  { property: 'AskAtOrderEntry', column: 'AskAtOrderEntry', fhirType: 'string' },
+  { property: 'UNITSREQUIRED', column: 'UNITSREQUIRED', fhirType: 'string' },
+  { property: 'Copyright', column: 'EXTERNAL_COPYRIGHT_NOTICE', fhirType: 'string' },
+  { property: 'ValidHL7AttachmentRequest', column: 'ValidHL7AttachmentRequest', fhirType: 'string' },
+  { property: 'STATUS', column: 'STATUS', fhirType: 'string' }
+];
+
+// CLASSTYPE value meanings (LOINC-defined). Emitted as the `description` part
+// of the CLASSTYPE property in $lookup (value stays '1'..'4'), and accepted as
+// alternate filter values, matching the reference server.
+const CLASSTYPE_MEANINGS = {
+  '1': 'Laboratory class',
+  '2': 'Clinical class',
+  '3': 'Claims attachments',
+  '4': 'Surveys'
+};
+
+// Designation "use" codes (LOINC-defined). The value is the use coding's
+// display; the reference server displays the code itself (use.display ==
+// use.code) in $lookup designations.
 const DESIGNATION_USES = {
-  LONG_COMMON_NAME: 'Long common name',
-  SHORTNAME: 'Short name',
-  DisplayName: 'Display name',
-  ConsumerName: 'Consumer name',
-  LinguisticVariantDisplayName: 'Linguistic variant display name'
+  LONG_COMMON_NAME: 'LONG_COMMON_NAME',
+  SHORTNAME: 'SHORTNAME',
+  DisplayName: 'DisplayName',
+  ConsumerName: 'ConsumerName',
+  LinguisticVariantDisplayName: 'LinguisticVariantDisplayName',
+  RELATEDNAMES2: 'RELATEDNAMES2'
 };
 
 // --------------------------------------------------------------------------
@@ -366,8 +370,11 @@ class LoincV1Importer {
       this.createCodeSystem();
       this.defineProperties();
 
-      await this.importPartConcepts(files);
+      // Concept insertion order is semantic (paged expansions iterate in
+      // concept_id order): main LOINC codes first, in Loinc.csv row order,
+      // matching the reference server's enumeration (Type asc, then key).
       await this.importMainConcepts(files);
+      await this.importPartConcepts(files);
       await this.importAnswerConcepts(files);
       await this.importHierarchyNodes(files);
 
@@ -381,8 +388,8 @@ class LoincV1Importer {
 
       this.writeCsConfig(files);
 
-      this.log('Building transitive closure...');
-      this.stats.closureRows = this.writer.buildClosure(this.csId, { edgeSetId: EDGE_SET_PRIMARY });
+      this.log('Building hierarchy closure from PATH_TO_ROOT...');
+      this.stats.closureRows = await this.buildPathClosure(files);
       this.log(`Closure complete: ${this.stats.closureRows.toLocaleString()} rows`);
 
       this.log('Building search index...');
@@ -463,11 +470,17 @@ class LoincV1Importer {
   }
 
   defineProperties() {
-    // Hierarchy edge property (child -> parent).
+    // Hierarchy edge property (child -> parent), plus the reciprocal `child`
+    // property the reference server exposes in $lookup.
     this.hierarchyPropertyId = this.defineProp({
       code: PARENT_PROPERTY_CODE,
       uri: `${PROPERTY_URI_BASE}/${PARENT_PROPERTY_CODE}`,
       fhirType: 'code', valueKind: 'concept', isHierarchy: true, display: 'parent'
+    });
+    this.childPropertyId = this.defineProp({
+      code: CHILD_PROPERTY_CODE,
+      uri: `${PROPERTY_URI_BASE}/${CHILD_PROPERTY_CODE}`,
+      fhirType: 'code', valueKind: 'concept', isHierarchy: false, display: 'child'
     });
 
     // Concept-valued part-type properties.
@@ -486,11 +499,9 @@ class LoincV1Importer {
       });
     }
 
-    // Answer-list machinery.
-    this.defineProp({
-      code: 'LIST', uri: `${PROPERTY_URI_BASE}/LIST`,
-      fhirType: 'string', valueKind: 'literal', isHierarchy: false, display: 'LIST'
-    });
+    // Answer-list machinery (all concept-valued, mirroring the reference
+    // relationship vocabulary: list -Answer-> answer, list -answers-for->
+    // loinc code, answer/loinc code -AnswerList-> list).
     this.defineProp({
       code: 'Answer', uri: `${PROPERTY_URI_BASE}/Answer`,
       fhirType: 'code', valueKind: 'concept', isHierarchy: false, display: 'Answer'
@@ -553,13 +564,12 @@ class LoincV1Importer {
       n += 1;
 
       const display = trim(row.LONG_COMMON_NAME) || trim(row.DisplayName) || trim(row.SHORTNAME) || code;
-      const definition = trim(row.DefinitionDescription) || null;
       const status = normalizeLoincStatus(row.STATUS, 'ACTIVE');
       const active = isActiveLoincStatus(status);
 
       // A LOINC_NUM should not collide with a Part number, but guard anyway.
       if (this.writer.conceptId(this.csId, code) === undefined) {
-        this.addConceptOnce(code, { active, display, definition });
+        this.addConceptOnce(code, { active, display });
         this.stats.mainCodes += 1;
       }
 
@@ -574,19 +584,21 @@ class LoincV1Importer {
   async importAnswerConcepts(files) {
     if (!files.answerList) return;
     this.log('Importing answer-list + answer concepts...');
+    // Two passes: all answer lists first, then all answers, so concept_id
+    // (iteration) order groups by kind like the reference server.
     for await (const row of readCsv(files.answerList)) {
       const listCode = trim(row.AnswerListId);
       if (listCode && this.writer.conceptId(this.csId, listCode) === undefined) {
         const display = trim(row.AnswerListName) || listCode;
-        const definition = trim(row.Description) || null;
-        this.addConceptOnce(listCode, { active: true, display, definition });
+        this.addConceptOnce(listCode, { active: true, display });
         this.stats.answerLists += 1;
       }
+    }
+    for await (const row of readCsv(files.answerList)) {
       const answerCode = trim(row.AnswerStringId);
       if (answerCode && this.writer.conceptId(this.csId, answerCode) === undefined) {
         const display = trim(row.DisplayText) || answerCode;
-        const definition = trim(row.Description) || null;
-        this.addConceptOnce(answerCode, { active: true, display, definition });
+        this.addConceptOnce(answerCode, { active: true, display });
         this.stats.answers += 1;
       }
     }
@@ -619,7 +631,7 @@ class LoincV1Importer {
 
   async importHierarchyLinks(files) {
     if (!files.hierarchy) return;
-    this.log('Importing multiaxial hierarchy links (child -> parent)...');
+    this.log('Importing multiaxial hierarchy links (child -> parent, parent -> child)...');
     let n = 0;
     for await (const row of readCsv(files.hierarchy)) {
       const childCode = trim(row.CODE);
@@ -632,7 +644,13 @@ class LoincV1Importer {
         sourceId: childId, propertyId: this.hierarchyPropertyId, targetId: parentId,
         edgeSetId: EDGE_SET_PRIMARY
       });
-      this.stats.links += 1;
+      // Reciprocal child link (parent -> child), exposed as the `child`
+      // property in $lookup, matching the reference server.
+      this.writer.addLink({
+        sourceId: parentId, propertyId: this.childPropertyId, targetId: childId,
+        edgeSetId: EDGE_SET_PRIMARY
+      });
+      this.stats.links += 2;
       n += 1;
     }
     this.log(`Hierarchy links: ${n.toLocaleString()}`);
@@ -645,8 +663,7 @@ class LoincV1Importer {
     for await (const row of readCsv(files.partLink)) {
       const sourceCode = trim(row.LoincNumber);
       const targetCode = trim(row.PartNumber);
-      const partTypeRaw = trim(row.PartTypeName);
-      const partType = PART_TYPE_NORMALIZATION[partTypeRaw] || partTypeRaw;
+      const partType = PART_LINK_PROPERTY_BY_TYPE[trim(row.PartTypeName)];
       if (!sourceCode || !targetCode || !partType) continue;
       const propertyId = this.propByCode.get(partType);
       if (!propertyId) continue;
@@ -678,9 +695,14 @@ class LoincV1Importer {
   }
 
   async importAnswerLinksAndValueSets(files) {
-    // list -> answer links, plus a value_set per answer list with its answers
-    // as members (implicit VS http://loinc.org/vs/{AnswerListId}).
+    // Mirrors the reference server's relationship rows exactly:
+    //   list --Answer--> answer          (one per AnswerList.csv row)
+    //   answer --AnswerList--> list      (one per AnswerList.csv row)
+    //   list --answers-for--> loinc code (one per LoincAnswerListLink.csv row)
+    //   loinc code --AnswerList--> list  (one per LoincAnswerListLink.csv row)
+    // plus a value_set per answer list (implicit VS http://loinc.org/vs/{id}).
     const answerPropertyId = this.propByCode.get('Answer');
+    const answerListPropertyId = this.propByCode.get('AnswerList');
     if (answerPropertyId && files.answerList) {
       this.log('Importing answer-list membership (links + value sets)...');
       const vsByList = new Map(); // listCode -> vsId
@@ -693,12 +715,15 @@ class LoincV1Importer {
         const answerId = this.writer.conceptId(this.csId, answerCode);
         if (listId === undefined || answerId === undefined) continue;
 
-        // list --Answer--> answer link (parity with v0).
         this.writer.addLink({
           sourceId: listId, propertyId: answerPropertyId, targetId: answerId,
           edgeSetId: EDGE_SET_PRIMARY
         });
-        this.stats.links += 1;
+        this.writer.addLink({
+          sourceId: answerId, propertyId: answerListPropertyId, targetId: listId,
+          edgeSetId: EDGE_SET_PRIMARY
+        });
+        this.stats.links += 2;
         links += 1;
 
         // Materialize the answer list as a value set.
@@ -718,7 +743,7 @@ class LoincV1Importer {
       this.log(`Answer links: ${links.toLocaleString()}, value sets: ${this.stats.valueSets.toLocaleString()}`);
     }
 
-    // answer list --answers-for--> loinc code, and LIST literal on each answer.
+    // answer list --answers-for--> loinc code, loinc code --AnswerList--> list.
     const answersForPropertyId = this.propByCode.get('answers-for');
     if (answersForPropertyId && files.answerListLink) {
       let n = 0;
@@ -729,12 +754,15 @@ class LoincV1Importer {
         const loincId = this.writer.conceptId(this.csId, loincCode);
         const listId = this.writer.conceptId(this.csId, listCode);
         if (loincId === undefined || listId === undefined) continue;
-        // Convention (parity with v0): source = answer list, target = loinc code.
         this.writer.addLink({
           sourceId: listId, propertyId: answersForPropertyId, targetId: loincId,
           edgeSetId: EDGE_SET_PRIMARY
         });
-        this.stats.links += 1;
+        this.writer.addLink({
+          sourceId: loincId, propertyId: answerListPropertyId, targetId: listId,
+          edgeSetId: EDGE_SET_PRIMARY
+        });
+        this.stats.links += 2;
         n += 1;
       }
       if (n) this.log(`answers-for links: ${n.toLocaleString()}`);
@@ -760,6 +788,10 @@ class LoincV1Importer {
     this.log('Importing designations + linguistic variants...');
 
     // Main file: en-US designations. LONG_COMMON_NAME is the preferred term.
+    // RELATEDNAMES2 is stored as a language-tagged designation but surfaced as
+    // a per-language string PROPERTY (cs_config designationsAsProperties),
+    // matching the reference server. The main-file DisplayName column is NOT
+    // loaded: the reference keeps DisplayName designations for Parts only.
     let n = 0;
     for await (const row of readCsv(files.loinc)) {
       if (this.config.maxRows && n >= this.config.maxRows) break;
@@ -773,11 +805,8 @@ class LoincV1Importer {
       const longName = trim(row.LONG_COMMON_NAME);
       this.addDesignation(conceptId, active, DEFAULT_LANGUAGE, 'LONG_COMMON_NAME', longName, true);
       this.addDesignation(conceptId, active, DEFAULT_LANGUAGE, 'SHORTNAME', trim(row.SHORTNAME), false);
-      const displayName = trim(row.DisplayName);
-      if (displayName && displayName !== longName) {
-        this.addDesignation(conceptId, active, DEFAULT_LANGUAGE, 'DisplayName', displayName, false);
-      }
       this.addDesignation(conceptId, active, DEFAULT_LANGUAGE, 'ConsumerName', trim(row.CONSUMER_NAME), false);
+      this.addDesignation(conceptId, active, DEFAULT_LANGUAGE, 'RELATEDNAMES2', trim(row.RELATEDNAMES2), false);
     }
 
     // ConsumerName accessory file.
@@ -804,17 +833,19 @@ class LoincV1Importer {
         this.addDesignation(conceptId, active, lang, 'SHORTNAME', trim(row.SHORTNAME), false);
         this.addDesignation(conceptId, active, lang, 'LinguisticVariantDisplayName',
           trim(row.LinguisticVariantDisplayName), false);
+        this.addDesignation(conceptId, active, lang, 'RELATEDNAMES2', trim(row.RELATEDNAMES2), false);
       }
     }
 
-    // Part display names as en-US designations.
+    // Part display names as en-US designations (PartDisplayName only; the
+    // reference does not fall back to PartName here).
     if (files.part) {
       for await (const row of readCsv(files.part)) {
         const code = trim(row.PartNumber);
         const conceptId = this.writer.conceptId(this.csId, code);
         if (conceptId === undefined) continue;
-        const display = trim(row.PartDisplayName) || trim(row.PartName);
-        this.addDesignation(conceptId, this.conceptActive(code), DEFAULT_LANGUAGE, 'DisplayName', display, false);
+        this.addDesignation(conceptId, this.conceptActive(code), DEFAULT_LANGUAGE, 'DisplayName',
+          trim(row.PartDisplayName), false);
       }
     }
 
@@ -869,22 +900,53 @@ class LoincV1Importer {
       }
     }
 
-    // LIST literal on each answer: which answer list it belongs to.
-    const listPropertyId = this.propByCode.get('LIST');
-    if (listPropertyId && files.answerList) {
-      for await (const row of readCsv(files.answerList)) {
-        const answerCode = trim(row.AnswerStringId);
-        const listCode = trim(row.AnswerListId);
-        const conceptId = this.writer.conceptId(this.csId, answerCode);
-        if (conceptId === undefined || !listCode) continue;
-        this.writer.addLiteral({
-          sourceId: conceptId, propertyId: listPropertyId, value: listCode, edgeSetId: EDGE_SET_PRIMARY
-        });
-        this.stats.literals += 1;
+    this.log(`Literals: ${this.stats.literals.toLocaleString()}`);
+  }
+
+  // ---- closure --------------------------------------------------------------
+
+  /**
+   * Build the hierarchy closure from ComponentHierarchyBySystem PATH_TO_ROOT
+   * rather than the transitive closure of parent edges. The two differ: a node
+   * (e.g. a Part) can be placed under several parents, but each row's CODE is
+   * an ancestor of exactly its own path's components. The reference server's
+   * Closure table is path-based; edge-transitive closure would over-connect
+   * shared subtrees (verified: path-based reproduces the reference row count
+   * and per-seed is-a results exactly).
+   *
+   * @returns {number} closure rows inserted
+   */
+  async buildPathClosure(files) {
+    if (!files.hierarchy) return 0;
+    this.writer.flush();
+    const db = this.db;
+    db.exec('DELETE FROM closure');
+    const ins = db.prepare('INSERT OR IGNORE INTO closure (ancestor_id, descendant_id) VALUES (?, ?)');
+    let total = 0;
+    let batch = 0;
+    db.exec('BEGIN');
+    for await (const row of readCsv(files.hierarchy)) {
+      const code = trim(row.CODE);
+      const pathToRoot = trim(row.PATH_TO_ROOT);
+      if (!code || !pathToRoot) continue;
+      const descId = this.writer.conceptId(this.csId, code);
+      if (descId === undefined) continue;
+      for (const ancCode of pathToRoot.split('.')) {
+        const anc = ancCode.trim();
+        if (!anc || anc === code) continue;
+        const ancId = this.writer.conceptId(this.csId, anc);
+        if (ancId === undefined) continue;
+        total += ins.run(ancId, descId).changes; // PK dedups repeats
+        batch += 1;
+        if (batch >= 100000) {
+          db.exec('COMMIT');
+          db.exec('BEGIN');
+          batch = 0;
+        }
       }
     }
-
-    this.log(`Literals: ${this.stats.literals.toLocaleString()}`);
+    db.exec('COMMIT');
+    return total;
   }
 
   // ---- cs_config ----------------------------------------------------------
@@ -898,6 +960,19 @@ class LoincV1Importer {
     w.setConfig(this.csId, 'hierarchyEdgeSet', EDGE_SET_PRIMARY);
     w.setConfig(this.csId, 'statusProperty', 'STATUS');
 
+    // Human name used in $lookup's `name` output parameter (reference: 'LOINC').
+    w.setConfig(this.csId, 'name', 'LOINC');
+
+    // The reference LOINC provider reports a bare miss from locate() (no
+    // message), so no extra `information` issue is added by $validate-code.
+    // Same for filter misses (no "not in the specified filter" message).
+    w.setConfig(this.csId, 'locateMissMessage', '');
+    w.setConfig(this.csId, 'filterLocateMiss', 'silent');
+
+    // LOINC's `is-a` filter returns strict descendants (the seed concept is
+    // NOT included), matching the reference server.
+    w.setConfig(this.csId, 'isAIncludesSelf', 0);
+
     // Text search surfaces populated by buildSearchIndex.
     w.setConfig(this.csId, 'searchSources', ['display', 'designation', 'literal']);
 
@@ -907,10 +982,34 @@ class LoincV1Importer {
     // (SCALE_TYP=Qn, PROPERTY=Mass, ...); published ValueSets depend on it.
     w.setConfig(this.csId, 'conceptFilterMatch', 'code-or-display');
 
-    // Implicit value sets: all-of-LOINC + one vs-table per answer list.
+    // Collection-membership filters: `LIST = <list>` selects the answers of
+    // the list; `answers-for = <X>` selects the answers of X itself (when X is
+    // a list) or of the lists linked to X via answers-for (when X is a code).
+    w.setConfig(this.csId, 'membershipFilters', {
+      LIST: { member: 'Answer' },
+      'answers-for': { member: 'Answer' }
+    });
+
+    // copyright = LOINC|3rdParty maps onto (not) exists of the Copyright
+    // (external copyright notice) property.
+    w.setConfig(this.csId, 'existsFilters', {
+      copyright: { property: 'Copyright', values: { '3rdParty': true, 'LOINC': false } }
+    });
+
+    // CLASSTYPE value meanings: description part in $lookup + alternate
+    // filter values ('Laboratory class' == '1').
+    w.setConfig(this.csId, 'propertyValueDescriptions', { CLASSTYPE: CLASSTYPE_MEANINGS });
+
+    // RELATEDNAMES2 is stored as designations but emitted as per-language
+    // string properties in $lookup (never as designations).
+    w.setConfig(this.csId, 'designationsAsProperties', ['RELATEDNAMES2']);
+
+    // Implicit value sets: all-of-LOINC + one vs-table per answer list. The
+    // vs-table FHIR name follows the reference convention
+    // (LOINCAnswerListLL361_7 for LL361-7).
     const implicit = [
       { pattern: `${BASE_URI}/vs`, kind: 'all' },
-      { pattern: `${BASE_URI}/vs/{code}`, kind: 'vs-table' }
+      { pattern: `${BASE_URI}/vs/{code}`, kind: 'vs-table', nameTemplate: 'LOINCAnswerList{code}' }
     ];
     if (files.hierarchy || files.partLink) {
       implicit.push({ pattern: `${BASE_URI}/vs?fhir_vs=isa/{code}`, kind: 'isa' });
@@ -941,8 +1040,10 @@ function detectVersionFromPath(value) {
   return match ? match[1] : null;
 }
 
-// LOINC status vocabulary (preserved as the STATUS literal). Only ACTIVE and
-// TRIAL are considered active for concept.active (parity with v0/cs-loinc).
+// LOINC status vocabulary (preserved as the STATUS literal). Only DISCOURAGED
+// codes are considered inactive for concept.active — DEPRECATED and TRIAL
+// codes stay active — matching the reference server (and cs-loinc's
+// isInactive), which drives the `inactive` flag in $lookup/$expand output.
 const LOINC_STATUS_BY_KEY = new Map([
   ['NOTSTATED', 'NotStated'],
   ['ACTIVE', 'ACTIVE'],
@@ -964,7 +1065,7 @@ function normalizeLoincStatus(status, fallback) {
 }
 
 function isActiveLoincStatus(status) {
-  return status === 'ACTIVE' || status === 'TRIAL';
+  return status !== 'DISCOURAGED';
 }
 
 function trim(value) {
@@ -1125,10 +1226,12 @@ module.exports = {
   constants: {
     BASE_URI,
     PARENT_PROPERTY_CODE,
+    CHILD_PROPERTY_CODE,
     EDGE_SET_PRIMARY,
     PART_TYPE_PROPERTIES,
-    PART_TYPE_NORMALIZATION,
+    PART_LINK_PROPERTY_BY_TYPE,
     LITERAL_COLUMN_MAP,
+    CLASSTYPE_MEANINGS,
     DESIGNATION_USES
   }
 };

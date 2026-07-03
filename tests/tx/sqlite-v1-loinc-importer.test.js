@@ -94,6 +94,10 @@ function buildSyntheticSource(root) {
       LOINC_NUM: '5000-1', COMPONENT: 'Color', SYSTEM: 'Urine', CLASS: 'UA',
       STATUS: 'ACTIVE', CLASSTYPE: '1', LONG_COMMON_NAME: 'Color of Urine',
       CONSUMER_NAME: 'Urine color'
+    },
+    {
+      LOINC_NUM: '6000-2', COMPONENT: 'Frowned upon', CLASS: 'CHEM',
+      STATUS: 'DISCOURAGED', CLASSTYPE: '1', LONG_COMMON_NAME: 'Discouraged analyte in Serum'
     }
   ]);
 
@@ -203,10 +207,10 @@ describe('loinc-sqlite-v1 importer', () => {
   });
 
   test('concept counts: main codes + parts + answer machinery + hierarchy root', () => {
-    // 6 main + 2 parts + 1 answer list + 2 answers + ROOT-1 = 12.
+    // 7 main + 2 parts + 1 answer list + 2 answers + ROOT-1 = 13.
     const total = db.prepare('SELECT COUNT(*) AS n FROM concept').get().n;
-    expect(total).toBe(12);
-    expect(result.stats.mainCodes).toBe(6);
+    expect(total).toBe(13);
+    expect(result.stats.mainCodes).toBe(7);
     expect(result.stats.parts).toBe(2);
     expect(result.stats.answerLists).toBe(1);
     expect(result.stats.answers).toBe(2);
@@ -215,11 +219,12 @@ describe('loinc-sqlite-v1 importer', () => {
     expect(codeId['ROOT-1']).toBeDefined();
   });
 
-  test('status normalization: DEPRECATED inactive, TRIAL + ACTIVE active', () => {
+  test('status normalization: only DISCOURAGED is inactive (reference parity)', () => {
     const active = (code) => db.prepare('SELECT active FROM concept WHERE code = ?').get(code).active;
     expect(active('1000-1')).toBe(1);   // ACTIVE
     expect(active('4000-5')).toBe(1);   // TRIAL counts active
-    expect(active('3000-8')).toBe(0);   // DEPRECATED inactive
+    expect(active('3000-8')).toBe(1);   // DEPRECATED stays active (like tx.fhir.org)
+    expect(active('6000-2')).toBe(0);   // DISCOURAGED inactive
   });
 
   test('STATUS preserved as a literal property (statusProperty)', () => {
@@ -234,26 +239,33 @@ describe('loinc-sqlite-v1 importer', () => {
     expect(lit.value_raw).toBe('DEPRECATED');
   });
 
-  test('CLASSTYPE literal is typed integer (value_num populated)', () => {
+  test('CLASSTYPE literal is a string (reference emits valueString "1")', () => {
     const row = db.prepare(
       `SELECT value_raw, value_text, value_num FROM concept_literal
         WHERE source_concept_id = ? AND property_id = ?`
     ).get(codeId['1000-1'], propId.CLASSTYPE);
     expect(row.value_raw).toBe('1');
-    expect(row.value_num).toBe(1);
-    expect(row.value_text).toBeNull();
+    expect(row.value_text).toBe('1');
+    expect(row.value_num).toBeNull();
 
     const def = db.prepare(`SELECT fhir_type FROM property_def WHERE property_code = 'CLASSTYPE'`).get();
-    expect(def.fhir_type).toBe('integer');
+    expect(def.fhir_type).toBe('string');
+
+    // Value meanings surface via cs_config for the $lookup description part.
+    const meanings = JSON.parse(db.prepare(
+      `SELECT value FROM cs_config WHERE key = 'propertyValueDescriptions'`
+    ).get().value);
+    expect(meanings.CLASSTYPE['1']).toBe('Laboratory class');
   });
 
-  test('UNITSREQUIRED literal is typed boolean (Y -> value_bool 1)', () => {
+  test('UNITSREQUIRED literal is a string (reference emits valueString "Y")', () => {
     const row = db.prepare(
-      `SELECT value_raw, value_bool FROM concept_literal
+      `SELECT value_raw, value_text, value_bool FROM concept_literal
         WHERE source_concept_id = ? AND property_id = ?`
     ).get(codeId['1000-1'], propId.UNITSREQUIRED);
     expect(row.value_raw).toBe('Y');
-    expect(row.value_bool).toBe(1);
+    expect(row.value_text).toBe('Y');
+    expect(row.value_bool).toBeNull();
   });
 
   test('designations: preferred LONG_COMMON_NAME with use_system, and a linguistic variant', () => {
@@ -322,7 +334,7 @@ describe('loinc-sqlite-v1 importer', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM value_set_member').get().n).toBe(2);
   });
 
-  test('answer machinery links: list -Answer-> answer, and list -answers-for-> loinc', () => {
+  test('answer machinery links: Answer / answers-for / AnswerList orientations', () => {
     // AL-1 -Answer-> LA-1
     const ans = db.prepare(
       `SELECT 1 AS ok FROM concept_link WHERE source_concept_id = ? AND target_concept_id = ? AND property_id = ?`
@@ -335,11 +347,28 @@ describe('loinc-sqlite-v1 importer', () => {
     ).get(codeId['AL-1'], codeId['5000-1'], propId['answers-for']);
     expect(af).toBeTruthy();
 
-    // LIST literal on the answer.
-    const list = db.prepare(
-      `SELECT value_raw FROM concept_literal WHERE source_concept_id = ? AND property_id = ?`
-    ).get(codeId['LA-1'], propId.LIST);
-    expect(list.value_raw).toBe('AL-1');
+    // Reciprocal AnswerList links: LA-1 -AnswerList-> AL-1 (answer to list)
+    // and 5000-1 -AnswerList-> AL-1 (loinc code to list).
+    const alAnswer = db.prepare(
+      `SELECT 1 AS ok FROM concept_link WHERE source_concept_id = ? AND target_concept_id = ? AND property_id = ?`
+    ).get(codeId['LA-1'], codeId['AL-1'], propId.AnswerList);
+    expect(alAnswer).toBeTruthy();
+    const alCode = db.prepare(
+      `SELECT 1 AS ok FROM concept_link WHERE source_concept_id = ? AND target_concept_id = ? AND property_id = ?`
+    ).get(codeId['5000-1'], codeId['AL-1'], propId.AnswerList);
+    expect(alCode).toBeTruthy();
+  });
+
+  test('hierarchy child links are reciprocal to parent links', () => {
+    const childProp = db.prepare(
+      `SELECT property_id, is_hierarchy FROM property_def WHERE property_code = 'child'`
+    ).get();
+    expect(childProp.is_hierarchy).toBe(0);
+    const link = db.prepare(
+      `SELECT 1 AS ok FROM concept_link
+        WHERE source_concept_id = ? AND target_concept_id = ? AND property_id = ?`
+    ).get(codeId['ROOT-1'], codeId['1000-1'], childProp.property_id);
+    expect(link).toBeTruthy();
   });
 
   test('closure: ROOT-1 is an ancestor of 1000-1 and 2000-0, with no self-rows', () => {
@@ -376,8 +405,19 @@ describe('loinc-sqlite-v1 importer', () => {
     const ivs = JSON.parse(cfg.implicitValueSets);
     expect(ivs).toEqual(expect.arrayContaining([
       { pattern: 'http://loinc.org/vs', kind: 'all' },
-      { pattern: 'http://loinc.org/vs/{code}', kind: 'vs-table' }
+      { pattern: 'http://loinc.org/vs/{code}', kind: 'vs-table', nameTemplate: 'LOINCAnswerList{code}' }
     ]));
+
+    // Reference-parity behavior knobs.
+    expect(cfg.name).toBe('LOINC');
+    expect(cfg.isAIncludesSelf).toBe('0');
+    expect(cfg.locateMissMessage).toBe('');
+    expect(cfg.filterLocateMiss).toBe('silent');
+    expect(JSON.parse(cfg.membershipFilters)).toEqual({
+      LIST: { member: 'Answer' }, 'answers-for': { member: 'Answer' }
+    });
+    expect(JSON.parse(cfg.existsFilters).copyright.property).toBe('Copyright');
+    expect(JSON.parse(cfg.designationsAsProperties)).toEqual(['RELATEDNAMES2']);
   });
 
   test('search index (FTS) finds a display substring', () => {
@@ -391,7 +431,7 @@ describe('loinc-sqlite-v1 importer', () => {
     expect(row.terminology).toBe('loinc');
     expect(row.completed_at).toBeTruthy();
     const stats = JSON.parse(row.stats_json);
-    expect(stats.concepts).toBe(12);
+    expect(stats.concepts).toBe(13);
   });
 
   test('maxRows caps the number of main concepts loaded', async () => {
@@ -417,7 +457,8 @@ describe('loinc-sqlite-v1 importer', () => {
     expect(normalizeLoincStatus('active', 'ACTIVE')).toBe('ACTIVE');
     expect(normalizeLoincStatus('deprecated', 'ACTIVE')).toBe('DEPRECATED');
     expect(isActiveLoincStatus('ACTIVE')).toBe(true);
-    expect(isActiveLoincStatus('DEPRECATED')).toBe(false);
+    expect(isActiveLoincStatus('DEPRECATED')).toBe(true);   // deprecated stays active
+    expect(isActiveLoincStatus('DISCOURAGED')).toBe(false); // only DISCOURAGED is inactive
     expect(detectVersionFromPath('/data/Loinc_2.82')).toBe('2.82');
   });
 
