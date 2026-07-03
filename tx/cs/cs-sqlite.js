@@ -1038,7 +1038,7 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
     const members = this.db.prepare(
       `SELECT c.code AS code, c.display AS display
          FROM value_set_member m JOIN concept c ON c.concept_id = m.concept_id
-        WHERE m.vs_id = ? ORDER BY c.code`
+        WHERE m.vs_id = ? ORDER BY m.member_id`
     ).all(vs.vs_id);
     return this._vs(url, vs.name || url, {
       include: [{ system: this.system(), concept: members.map((m) => ({ code: m.code, display: m.display || undefined })) }],

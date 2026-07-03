@@ -344,6 +344,8 @@ async function main() {
   const srcListCodes = new Set();
   const srcAnswerCodes = new Set();
   const srcAnswersByList = new Map(); // listId -> Set(answerId)
+  const srcAnswerRowsByList = new Map(); // listId -> [{answerId, seq, idx}] (for sequence-order check)
+  let answerRowIdx = 0;
   for await (const row of csvRows(SRC.answerList)) {
     const listId = t(row.AnswerListId);
     const answerId = t(row.AnswerStringId);
@@ -354,9 +356,29 @@ async function main() {
       if (!set) {
         set = new Set();
         srcAnswersByList.set(listId, set);
+        srcAnswerRowsByList.set(listId, []);
+      }
+      if (!set.has(answerId)) {
+        const seqRaw = t(row.SequenceNumber);
+        const seq = seqRaw === '' || Number.isNaN(Number(seqRaw)) ? null : Number(seqRaw);
+        srcAnswerRowsByList.get(listId).push({ answerId, seq, idx: answerRowIdx });
       }
       set.add(answerId);
+      answerRowIdx += 1;
     }
+  }
+  // Authoritative member order: SequenceNumber ascending (nulls last), file
+  // order as tiebreak. Member order is semantic (tier-1 in the ordering
+  // contract) — the DB must reproduce it via member_id order.
+  const srcAnswerOrderByList = new Map();
+  for (const [listId, rows] of srcAnswerRowsByList) {
+    const sorted = rows.slice().sort((a, b) => {
+      if (a.seq === null && b.seq === null) return a.idx - b.idx;
+      if (a.seq === null) return 1;
+      if (b.seq === null) return -1;
+      return a.seq - b.seq || a.idx - b.idx;
+    });
+    srcAnswerOrderByList.set(listId, sorted.map((r) => r.answerId));
   }
 
   // ComponentHierarchyBySystem.csv: child (CODE) -> parent (IMMEDIATE_PARENT).
@@ -631,23 +653,36 @@ async function main() {
     }
 
     const memberStmt = db.prepare(
-      `SELECT c.code AS code FROM value_set_member m JOIN concept c ON c.concept_id = m.concept_id WHERE m.vs_id = ?`
+      `SELECT c.code AS code FROM value_set_member m JOIN concept c ON c.concept_id = m.concept_id WHERE m.vs_id = ? ORDER BY m.member_id`
     );
     const sampled = sampleFrom(vsByList.keys(), opts.samples, mulberry32(opts.seed ^ 0x0a15));
     let okCount = 0;
+    let orderOk = 0;
     for (const listId of sampled) {
       const expected = srcAnswersByList.get(listId) || new Set();
-      const got = new Set(memberStmt.all(vsByList.get(listId)).map((r) => r.code));
+      const gotOrdered = memberStmt.all(vsByList.get(listId)).map((r) => r.code);
+      const got = new Set(gotOrdered);
       if (got.size !== expected.size || [...expected].some((c) => !got.has(c))) {
         pass = false;
         lines.push(`${listId}: expected ${expected.size} members, got ${got.size}` +
           `; missing e.g. ${firstFew([...expected].filter((c) => !got.has(c))).join(', ') || '-'}` +
           `; extra e.g. ${firstFew([...got].filter((c) => !expected.has(c))).join(', ') || '-'}`);
+        continue;
+      }
+      okCount += 1;
+      // Tier-1 ordering: DB member_id order must equal SequenceNumber order.
+      const expectedOrder = srcAnswerOrderByList.get(listId) || [];
+      const mismatchAt = expectedOrder.findIndex((c, i) => gotOrdered[i] !== c);
+      if (mismatchAt !== -1) {
+        pass = false;
+        lines.push(`${listId}: member ORDER mismatch at index ${mismatchAt}: ` +
+          `expected ${expectedOrder[mismatchAt]}, got ${gotOrdered[mismatchAt]}`);
       } else {
-        okCount += 1;
+        orderOk += 1;
       }
     }
     lines.push(`${okCount}/${sampled.length} sampled answer lists: member sets exactly equal`);
+    lines.push(`${orderOk}/${sampled.length} sampled answer lists: SequenceNumber order preserved`);
     return { pass, lines };
   });
 

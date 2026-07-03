@@ -113,9 +113,11 @@ function buildMainFixture(dbPath) {
 
   // Value set (a "refset") with 3 members, exposed via implicit vs-table.
   const vsId = writer.addValueSet(csId, { url: `${SYSTEM}?fhir_vs=refset/123`, name: 'Diamond refset' });
+  // Insertion order (E, A, D) is deliberately NOT code order: member order is
+  // semantic (source sequence, e.g. LOINC answer lists) and must be preserved.
+  writer.addValueSetMember(vsId, cid.E);
   writer.addValueSetMember(vsId, cid.A);
   writer.addValueSetMember(vsId, cid.D);
-  writer.addValueSetMember(vsId, cid.E);
 
   const runId = writer.beginAudit({
     sourcePath: '/dev/null', targetDb: dbPath, terminology: 'synth', editionCode: 'X1', version: VERSION,
@@ -541,10 +543,10 @@ describe('SqliteCodeSystemProvider (sqlite-v1 contract)', () => {
       expect(vs.compose.include[0].filter).toEqual([{ property: 'concept', op: 'is-a', value: 'E' }]);
     });
 
-    test('kind vs-table enumerates members', async () => {
+    test('kind vs-table enumerates members in source (member_id) order', async () => {
       const vs = await factory.buildKnownValueSet(`${SYSTEM}?fhir_vs=refset/123`, null);
-      const codes = vs.compose.include[0].concept.map((c) => c.code).sort();
-      expect(codes).toEqual(['A', 'D', 'E']);
+      const codes = vs.compose.include[0].concept.map((c) => c.code);
+      expect(codes).toEqual(['E', 'A', 'D']);
     });
 
     test('unknown url returns null', async () => {
