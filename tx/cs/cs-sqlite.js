@@ -752,14 +752,23 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     const values = op === 'in' ? this._splitList(value) : [value];
     if (values.length === 0) return [];
     const ph = values.map(() => '?').join(',');
-    // Compare against value_text (typed text projection) with NOCASE, like the
-    // legacy providers do for property value comparison; fall back to value_raw.
+    // A value can live in value_text (typed text projection for code/string
+    // types) or value_raw (lexical form, incl. numeric/boolean types), matched
+    // case-insensitively like the legacy providers. Splitting into a UNION of
+    // two `COLLATE NOCASE IN` seeks lets each arm use its dedicated NOCASE
+    // index (idx_concept_literal_prop_active_{text,raw}_nocase); the earlier
+    // single `text OR raw` predicate defeated both and scanned the whole
+    // property partition. UNION dedups, so no separate DISTINCT is needed.
+    // (A type-directed single-column seek was measured — marginal, and it makes
+    // correctness depend on fhir_type; the robust two-arm UNION is kept.)
     return this.db.prepare(
-      `SELECT DISTINCT source_concept_id AS id FROM concept_literal
-        WHERE property_id = ? AND active = 1
-          AND (value_text IN (${ph}) COLLATE NOCASE OR value_raw IN (${ph}) COLLATE NOCASE)
-        ORDER BY id`
-    ).all(def.property_id, ...values, ...values).map((r) => r.id);
+      `SELECT source_concept_id AS id FROM concept_literal
+        WHERE property_id = ? AND active = 1 AND value_text COLLATE NOCASE IN (${ph})
+       UNION
+       SELECT source_concept_id AS id FROM concept_literal
+        WHERE property_id = ? AND active = 1 AND value_raw COLLATE NOCASE IN (${ph})
+       ORDER BY id`
+    ).all(def.property_id, ...values, def.property_id, ...values).map((r) => r.id);
   }
 
   _literalRegexIds(def, pattern) {
@@ -1072,9 +1081,12 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   // Page terminal: { candidates: [...], total } for a scoped subtree.
   async executeIR(subtree, opts = {}) {
     const activeOnly = !!opts.activeOnly;
-    // Fast path: single hierarchy/property selector, paged, no activeOnly —
-    // push membership + LIMIT into one SQL statement (the IR speed win).
-    const fast = (!activeOnly) ? this._tryFastPage(subtree, opts) : null;
+    // Fast path: single hierarchy/value-set selector in one SQL statement.
+    // Under activeOnly the exact total needs the concept join either way, and
+    // measuring across sizes, SQL COUNT over the active-join (~17ms at 94k)
+    // beats materialising every id into JS and filtering through the active-id
+    // set (~39ms) — so we keep the fast path for activeOnly too.
+    const fast = this._tryFastPage(subtree, opts, activeOnly);
     let candidates, total;
     if (fast) {
       ({ candidates, total } = fast);
@@ -1094,10 +1106,8 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   }
 
   async countForIR(subtree, opts = {}) {
-    if (!opts.activeOnly) {
-      const c = this._tryFastCount(subtree);
-      if (c != null) return c;
-    }
+    const c = this._tryFastCount(subtree, !!opts.activeOnly);
+    if (c != null) return c;
     let ids = this._evalIR(subtree);
     if (opts.activeOnly) {
       const act = this._activeIdSet();
@@ -1144,10 +1154,13 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       if (op === 'descendent-of') {
         return { sql: `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ?`, args: [seed] };
       }
+      // UNION ALL (not UNION): the closure stores no self-rows, so the seed is
+      // never among its own descendants/ancestors — no dedup needed, which
+      // avoids materialising the whole set into a dedup temp b-tree.
       if (op === 'is-a') {
-        return { sql: `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ? UNION SELECT ? AS id`, args: [seed, seed] };
+        return { sql: `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ? UNION ALL SELECT ? AS id`, args: [seed, seed] };
       }
-      return { sql: `SELECT ancestor_id AS id FROM closure WHERE descendant_id = ? UNION SELECT ? AS id`, args: [seed, seed] };
+      return { sql: `SELECT ancestor_id AS id FROM closure WHERE descendant_id = ? UNION ALL SELECT ? AS id`, args: [seed, seed] };
     }
     if (op === 'in' && (fc.property === 'concept' || fc.property === 'code') && this.factory.hasValueSets) {
       const vsId = this._valueSetIdFor(value);
@@ -1157,29 +1170,51 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return null;
   }
 
-  _tryFastPage(subtree, opts) {
+  _tryFastPage(subtree, opts, activeOnly = false) {
     const src = this._fastSource(subtree);
     if (!src) return null;
     const from = opts.offset > 0 ? opts.offset : 0;
     const count = opts.count != null && opts.count > -1 ? opts.count : -1;
-    // Page via LIMIT (ORDER BY concept_id lets SQLite early-stop) plus a
-    // separate COUNT for the exact total. A COUNT(*) OVER () window was tried
-    // and is slower — it materializes the full window before LIMIT.
     const limitClause = count > -1 ? 'LIMIT ? OFFSET ?' : (from > 0 ? 'LIMIT -1 OFFSET ?' : '');
     const limitArgs = count > -1 ? [count, from] : (from > 0 ? [from] : []);
-    const rows = this.db.prepare(
-      `SELECT c.code AS code, c.display AS display, c.active AS active
-         FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
-        ORDER BY c.concept_id ${limitClause}`
-    ).all(...src.args, ...limitArgs);
-    const total = this.db.prepare(`SELECT COUNT(*) AS n FROM (${src.sql})`).get(...src.args).n;
+    let rows;
+    if (activeOnly) {
+      // Active filter is a concept-column predicate, so the concept join must
+      // precede paging. The id source is index-ordered, so for descendent-of /
+      // value-set sources the join streams in concept_id order and the LIMIT
+      // early-stops; is-a's UNION ALL forces a bounded top-N sort.
+      rows = this.db.prepare(
+        `SELECT c.code AS code, c.display AS display, c.active AS active
+           FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
+          WHERE c.active = 1 ORDER BY c.concept_id ${limitClause}`
+      ).all(...src.args, ...limitArgs);
+    } else {
+      // Order + page the id set BEFORE joining concept, so only the page's worth
+      // of ids reach the join. For an index-ordered source SQLite satisfies
+      // `ORDER BY id LIMIT` from the index and early-stops.
+      const pagedIds = `SELECT id FROM (${src.sql}) ORDER BY id ${limitClause}`;
+      rows = this.db.prepare(
+        `SELECT c.code AS code, c.display AS display, c.active AS active
+           FROM (${pagedIds}) s JOIN concept c ON c.concept_id = s.id
+          ORDER BY c.concept_id`
+      ).all(...src.args, ...limitArgs);
+    }
+    const total = this._tryFastCount(subtree, activeOnly);
     const candidates = rows.map((r) => ({ code: r.code, display: r.display || undefined, active: r.active !== 0 }));
     return { candidates, total };
   }
 
-  _tryFastCount(subtree) {
+  // Exact total for a fast-source subtree. Under activeOnly the concept join is
+  // required (must touch every member to know which are active) — SQL COUNT
+  // over the join beats materialising every id into JS to filter and count.
+  _tryFastCount(subtree, activeOnly = false) {
     const src = this._fastSource(subtree);
     if (!src) return null;
+    if (activeOnly) {
+      return this.db.prepare(
+        `SELECT COUNT(*) AS n FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id WHERE c.active = 1`
+      ).get(...src.args).n;
+    }
     return this.db.prepare(`SELECT COUNT(*) AS n FROM (${src.sql})`).get(...src.args).n;
   }
 
