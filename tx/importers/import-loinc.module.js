@@ -575,6 +575,15 @@ class LoincDataMigrator {
 
     const db = new sqlite3.Database(destFile);
 
+    // Bulk-load settings: without these every INSERT autocommits with its own
+    // fsync, and a full LOINC import takes >24h instead of minutes. The DB is
+    // built from scratch, so durability during the build adds nothing — a
+    // crashed import is rerun, not recovered.
+    await new Promise((resolve, reject) => {
+      db.exec('PRAGMA journal_mode = MEMORY; PRAGMA synchronous = OFF; PRAGMA temp_store = MEMORY; BEGIN',
+        (err) => err ? reject(err) : resolve());
+    });
+
     try {
       // Initialize tracking variables
       this.codeKey = 0;
@@ -641,6 +650,10 @@ class LoincDataMigrator {
           await this.processLanguage(db, sourceDir, 12 + i, languageVariants[i], options);
         }
       }
+
+      await new Promise((resolve, reject) => {
+        db.exec('COMMIT; PRAGMA synchronous = NORMAL', (err) => err ? reject(err) : resolve());
+      });
 
       if (options.verbose) console.log('LOINC data migration completed successfully');
     } finally {
