@@ -206,8 +206,10 @@ function expectedStatusLiteral(rawStatus, fallback) {
 }
 
 function expectedActive(rawStatus, fallback) {
+  // Reference (tx.fhir.org / cs-loinc) semantics: only DISCOURAGED is inactive;
+  // ACTIVE / TRIAL / DEPRECATED are all active.
   const s = expectedStatusLiteral(rawStatus, fallback);
-  return s === 'ACTIVE' || s === 'TRIAL';
+  return s !== 'DISCOURAGED';
 }
 
 // Code shape classes.
@@ -468,7 +470,7 @@ async function main() {
     return { pass, lines };
   });
 
-  await check('2. active mapping: STATUS in {ACTIVE, TRIAL} <=> concept.active=1 (main codes)', () => {
+  await check('2. active mapping: STATUS != DISCOURAGED <=> concept.active=1 (main codes)', () => {
     const lines = [];
     let pass = true;
 
@@ -547,10 +549,13 @@ async function main() {
         byProp.get(l.prop).push(l);
       }
 
+      // CLASSTYPE / UNITSREQUIRED are string properties (reference emits '1',
+      // 'Y', ... as valueString), stored in value_text/value_raw.
+      const litStr = (l) => (l.value_text != null ? l.value_text : l.value_raw);
       const classType = byProp.get('CLASSTYPE') || [];
       if (src.classType) {
-        if (classType.length !== 1 || classType[0].value_num !== Number(src.classType)) {
-          problems.push(`CLASSTYPE expected value_num=${Number(src.classType)} got ${JSON.stringify(classType.map((l) => l.value_num))}`);
+        if (classType.length !== 1 || String(litStr(classType[0])) !== String(src.classType)) {
+          problems.push(`CLASSTYPE expected '${src.classType}' got ${JSON.stringify(classType.map(litStr))}`);
         }
       } else if (classType.length !== 0) {
         problems.push(`CLASSTYPE literal present but source empty`);
@@ -558,9 +563,8 @@ async function main() {
 
       const unitsReq = byProp.get('UNITSREQUIRED') || [];
       if (src.unitsRequired) {
-        const expBool = src.unitsRequired === 'Y' ? 1 : 0;
-        if (unitsReq.length !== 1 || unitsReq[0].value_bool !== expBool) {
-          problems.push(`UNITSREQUIRED expected value_bool=${expBool} got ${JSON.stringify(unitsReq.map((l) => l.value_bool))}`);
+        if (unitsReq.length !== 1 || String(litStr(unitsReq[0])) !== String(src.unitsRequired)) {
+          problems.push(`UNITSREQUIRED expected '${src.unitsRequired}' got ${JSON.stringify(unitsReq.map(litStr))}`);
         }
       } else if (unitsReq.length !== 0) {
         problems.push(`UNITSREQUIRED literal present but source empty`);

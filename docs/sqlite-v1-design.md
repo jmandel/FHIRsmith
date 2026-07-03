@@ -193,7 +193,7 @@ semantic:
 | 11 | locate() not-found message | empty/undefined | populated "unknown code" message | contract expects a message |
 | 12 | SCT all-inactive refsets | n/a (no old sqlite baseline) | refsets whose members are all inactive produce no value_set row (vs empty set) | importer imports active members only |
 | 13 | LOINC axis filters (SCALE_TYP, PROPERTY, …) | value matches the target Part's NAME only (`Qn`); part codes not accepted | accepts name **and** part code (cs_config conceptFilterMatch=code-or-display); parity: SCALE_TYP=Qn → 43,658 both | published ValueSets use the name form |
-| 14 | LOINC isInactive | true only for DISCOURAGED — DEPRECATED codes served as active (cs-loinc.js:246) | inactive when STATUS ∉ {ACTIVE, TRIAL} | deprecated codes should not be active |
+| 14 | LOINC isInactive | true only for DISCOURAGED (cs-loinc.js:246) | true only for DISCOURAGED (reverted to match the reference during official-suite conformance — an earlier draft treated DEPRECATED as inactive too, which diverged) | conformance: match tx.fhir.org exactly |
 | 15 | LOINC subsumesTest | unimplemented — returns not-subsumed even for equal codes | closure-based; equal → equivalent | new capability |
 | 16 | LOINC iterator(null) | all 252k concepts, flat | 70,777 true hierarchy roots | affects whole-system *nested* expansion shape only (whole-LOINC expansion is too-costly in practice); flagged for HTTP-level parity |
 | 17 | LOINC text filter | LIKE over Codes.Description (glucose → 1,821) | FTS over display+designations+literals (glucose → 1,878, superset) | richer surface; strict superset in sampling |
