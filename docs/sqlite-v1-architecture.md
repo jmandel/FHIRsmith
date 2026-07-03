@@ -344,20 +344,40 @@ bug to fix; it is never left unexplained.
 
 ## 9. Performance: where the cost actually lives
 
-Two facts shape all of it:
+Broad SQL profiling on the real vocabularies (`sqlite-v1-sql-profile.md`)
+sharpened — and in one place corrected — our intuition:
 
 1. **Decoration dominates a decorated page.** For a 50-row page with full
    properties, the per-concept display/designations/properties cost swamps the
    membership-execution cost. This is why the engines converge on decorated
-   pages and why the biggest single lever is decoration batching, not a cleverer
-   membership query.
-2. **The JS-materialization tax is the "perf left on the table."** Both pushdown
-   and the thin IR, for anything past a single selector, materialize full sorted
-   `concept_id` arrays into JS and do set ops there. A fully SQL-native engine
-   (the draft's SQL-AST) keeps it all in one statement with `LIMIT` and never
-   materializes. The SQL profiling (`sqlite-v1-sql-profile.md`) quantifies this
-   gap and identifies the shapes where it hurts — that is the roadmap for any
-   future push of set algebra into SQL.
+   pages and why a big lever is decoration batching, not a cleverer membership
+   query.
+2. **The JS set-merge is essentially free — that was not where the tax lived.**
+   `intersect`/`diff`/`union` over 90k–130k sorted `concept_id` arrays cost
+   0.4–7.6 ms; for SNOMED closure set-ops the per-clause-SQL-plus-JS path is
+   actually *faster* than a single all-SQL `INTERSECT`/`UNION`. The real costs
+   are elsewhere:
+   - **Literal value filters don't use their index.** The generated predicate
+     ORs `value_text … OR value_raw … COLLATE NOCASE`, which defeats both value
+     indexes and scans the whole property partition plus a `DISTINCT`
+     temp-b-tree — so cost tracks partition size, not selectivity. Splitting
+     the OR into a `UNION` of two indexed seeks is the biggest, broadest win
+     (measured 5–190×; e.g. LOINC `CLASSTYPE=3` 75 ms → 0.4 ms).
+   - **Paging never early-stops.** The single-selector page sorts the full
+     membership (`ORDER BY concept_id`) before `LIMIT`; pushing the `LIMIT`
+     into the ordered closure/value-set subquery takes a first page from 22 ms
+     to ~0.1 ms.
+   - **Non-fast paths materialize the full set even for a 100-row page** — and
+     `activeOnly` drops off the fast path and forces a full materialize.
+   The hierarchy, refset, FTS, and selective concept-property queries are
+   already index-tight (a 132k-descendant closure page in 52 ms, its `COUNT` in
+   3.7 ms); there is not one un-indexed base-table scan in the matrix. So the
+   near-term roadmap is SQL-shape fixes (indexed value seeks, `LIMIT`
+   pushdown), not a wholesale port of the draft's SQL-AST.
+3. **A few shapes are unbounded and belong to the governor, not the optimizer:**
+   literal `regex` (pulls the whole partition into JS to `RegExp.test`),
+   `NOT EXISTS`/whole-system scans, `<3`-char text (LIKE fallback), and deep
+   offsets. These are the residual the resource governor exists to catch.
 
 The old-vs-new matrix (`sqlite-v1-perf.md`) shows the new provider winning on
 the true async-vs-sync comparison (RxNorm: locate 7×, membership probes
