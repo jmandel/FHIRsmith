@@ -507,6 +507,20 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return { name: aliased, def: this.propByCode.get(aliased) };
   }
 
+  // Rewrite legacy filter value forms per cs_config filterValueRewrites
+  // (array of {pattern, replace}, first match wins) — e.g. RxNorm clients
+  // send "CUI:854979" where the stored target code is "854979".
+  _rewriteFilterValue(value) {
+    const rules = this.cfg.filterValueRewrites;
+    if (!Array.isArray(rules) || typeof value !== 'string') return value;
+    for (const rule of rules) {
+      if (!rule || typeof rule.pattern !== 'string') continue;
+      const rx = new RegExp(rule.pattern);
+      if (rx.test(value)) return value.replace(rx, rule.replace ?? '');
+    }
+    return value;
+  }
+
   // eslint-disable-next-line no-unused-vars
   async doesFilter(prop, op, value) {
     // Hierarchy operators require a hierarchy.
@@ -530,6 +544,7 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   }
 
   async filter(filterContext, forIteration, prop, op, value) {
+    value = this._rewriteFilterValue(value);
     // Hierarchy ops.
     if (['is-a', 'descendent-of', 'child-of', 'generalizes'].includes(op)) {
       if (!this.hasParents()) {
@@ -878,6 +893,7 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
       case 'implicitValueSets':
       case 'filterAliases':
       case 'searchSources':
+      case 'filterValueRewrites':
         try { return JSON.parse(value); } catch { return value; }
       default:
         return value;

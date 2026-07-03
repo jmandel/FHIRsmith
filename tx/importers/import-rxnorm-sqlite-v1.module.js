@@ -306,6 +306,11 @@ class RxNormSqliteV1Importer {
     // flag ('N' if any atom is unsuppressed, else the first suppressed value
     // seen). concept.active is the normalized form of the same flag.
     this.writer.setConfig(this.csId, 'statusProperty', SUPPRESS_PROPERTY_CODE);
+    // Legacy clients write relationship filter values as "CUI:<rxcui>"
+    // (the old provider's required form); stored target codes are bare RXCUIs.
+    // AUI-form values are not supported (atom ids are not modeled in v1).
+    this.writer.setConfig(this.csId, 'filterValueRewrites',
+      JSON.stringify([{ pattern: '^CUI:(\\d+)$', replace: '$1' }]));
     this.writer.setConfig(this.csId, 'webSource', 'https://mor.nlm.nih.gov/RxNav/search?searchBy=RXCUI&searchTerm={code}');
 
     // Literal property definitions.

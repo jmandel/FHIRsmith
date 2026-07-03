@@ -51,6 +51,8 @@ function buildMainFixture(dbPath) {
   writer.setConfig(csId, 'webSource', 'http://example.org/synth/{code}');
   writer.setConfig(csId, 'searchSources', ['display', 'designation', 'literal']);
   writer.setConfig(csId, 'filterAliases', { 'vsac-parent': 'is-a-prop' });
+  writer.setConfig(csId, 'filterValueRewrites',
+    JSON.stringify([{ pattern: '^CUI:(\\w+)$', replace: '$1' }]));
   writer.setConfig(csId, 'implicitValueSets', [
     { pattern: '?fhir_vs', kind: 'all' },
     { pattern: '?fhir_vs=isa/{code}', kind: 'isa' },
@@ -454,6 +456,11 @@ describe('SqliteCodeSystemProvider (sqlite-v1 contract)', () => {
       expect(lit.codes).toEqual(['A']);
       const conc = await runFilter('associated-with', '=', 'H');
       expect(conc.codes).toEqual(['G']);
+    });
+
+    test('filterValueRewrites maps legacy value forms (CUI: prefix)', async () => {
+      const rewritten = await runFilter('associated-with', '=', 'CUI:H');
+      expect(rewritten.codes).toEqual(['G']);
     });
 
     test('in / exists / regex', async () => {

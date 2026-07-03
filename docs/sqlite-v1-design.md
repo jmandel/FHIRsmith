@@ -125,4 +125,14 @@ written justification.
 | # | Area | Old behavior | New behavior | Why |
 |---|---|---|---|---|
 | 1 | LOINC `is-a` filter | identical to `descendent-of` (cs-loinc.js Closure query; no self-row) | `is-a` includes the seed concept | FHIR filter-operator semantics |
-| (add entries as parity runs surface them) | | | | |
+| 2 | RxNorm totalCount / iteration | 294,596 — counts one row per non-SY TTY, so multi-TTY CUIs count repeatedly | 228,626 distinct RXCUIs (matches source) | old over-count is a bug |
+| 3 | RxNorm version | `??` — old importer never populates RXNVer | `05042026` from RXNSAB SVER | old is a bug |
+| 4 | RxNorm isInactive/getStatus | always active / null — provider compares SUPPRESS to `'1'` but the table stores N/O/E (cs-rxnorm.js:159,181), so 152k suppressed concepts serve as active | active = any RXNORM atom with SUPPRESS ∉ {O,E}; getStatus returns the per-CUI SUPPRESS flag | old comparison can never match |
+| 5 | RxNorm display | first non-SY RRF row (RRF file order) | TTY-priority (PSN>SCD>SBD>…; may surface Tallman casing) | deliberate; NLM prescribable-name preference; switchable in importer if upstream prefers old rule |
+| 6 | RxNorm designations | terms only (display + null-use extras) | each atom carries a TTY use coding; per-language preferred flags | richer, contract-conformant |
+| 7 | RxNorm properties | `properties()` returned nothing; no propertyDefinitions | TTY/STY/SAB/SUPPRESS literals + RELA concept links, all in property_def | additive |
+| 8 | RxNorm relationship filter value form | requires `CUI:<id>` / `AUI:<id>` | accepts `CUI:<id>` (cs_config filterValueRewrites) and bare code; `AUI:` unsupported (atoms not modeled) | compatibility kept for CUI form |
+| 9 | RxNorm REL-only filters (RB/RN/RO… without RELA) | supported via RXNREL.REL | not imported/supported | pending: quantify real-world use before deciding to import ~5.7M REL rows |
+| 10 | RxNorm hasParents | hardcoded `true`, but `iteratorAll()` throws "Must override" — hierarchy unusable | `false` (no is_hierarchy properties) | old flag was wrong |
+| 11 | locate() not-found message | empty/undefined | populated "unknown code" message | contract expects a message |
+| 12 | SCT all-inactive refsets | n/a (no old sqlite baseline) | refsets whose members are all inactive produce no value_set row (vs empty set) | importer imports active members only |
