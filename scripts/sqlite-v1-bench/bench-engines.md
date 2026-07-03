@@ -1,33 +1,19 @@
 # Reproducing the three-engine comparison
 
+All three engines run **in this branch**, selected by the `_engine` parameter.
 Results and analysis: `docs/sqlite-v1-engine-comparison.md`.
-
-## legacy vs pushdown (this branch)
-
-Both run in this PR against the sqlite-v1 DBs; the same `cs-sqlite` provider is
-toggled between paths via `handlesSelecting()`.
 
 ```sh
 cd ~/work/fs2
-node scripts/sqlite-v1-bench/bench-legacy-pushdown.mjs \
-  scripts/sqlite-v1-bench/engine-bench-queries.json /tmp/results-legacy-pushdown.json
+node scripts/sqlite-v1-bench/bench-engines.mjs \
+  scripts/sqlite-v1-bench/engine-bench-queries.json /tmp/results-3engine.json
+npx jest tests/tx/sqlite-v1-ir-parity.test.js --runInBand
 ```
-Needs `~/work/tx-dbs/{sct-v1,loinc-v1}.db` (produced by the v1 importers).
 
-## IR (separate draft branch)
+Needs `~/work/tx-dbs/{sct-v1,loinc-v1}.db` (built by the v1 importers).
 
-The IR engine is NOT in this PR. `bench-ir.mjs.reference` is the exact script
-used, kept for reproducibility; run it from the `ir-sqlite-v0-pr-ready` checkout
-against content-matched v0 DBs:
-
-```sh
-cd ~/hobby/fhirsmith-ir-pr
-node /path/to/bench-ir.mjs.reference \
-  ~/work/fs2/scripts/sqlite-v1-bench/engine-bench-queries.json /tmp/results-ir.json
-```
-Needs the v0-schema DBs (`snomed-2026us-v0.db`, `loinc-v0.db`).
-
-## Notes
-- Same query file drives all three, so totals cross-check across schemas/engines.
+Notes:
+- `_engine=legacy|pushdown|ir` picks the engine; the harness runs all three and
+  checks their pages/totals agree.
 - total-only (`count:0`) and deep-offset queries make the legacy path throw
   `VALUESET_TOO_COSTLY` — that is the recorded outcome, not a harness error.

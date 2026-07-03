@@ -1160,23 +1160,19 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   _tryFastPage(subtree, opts) {
     const src = this._fastSource(subtree);
     if (!src) return null;
-    const total = this.db.prepare(`SELECT COUNT(*) AS n FROM (${src.sql})`).get(...src.args).n;
     const from = opts.offset > 0 ? opts.offset : 0;
     const count = opts.count != null && opts.count > -1 ? opts.count : -1;
-    let rows;
-    if (count > -1) {
-      rows = this.db.prepare(
-        `SELECT c.concept_id AS id, c.code AS code, c.display AS display, c.active AS active
-           FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
-          ORDER BY c.concept_id LIMIT ? OFFSET ?`
-      ).all(...src.args, count, from);
-    } else {
-      rows = this.db.prepare(
-        `SELECT c.concept_id AS id, c.code AS code, c.display AS display, c.active AS active
-           FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
-          ORDER BY c.concept_id ${from > 0 ? 'LIMIT -1 OFFSET ?' : ''}`
-      ).all(...src.args, ...(from > 0 ? [from] : []));
-    }
+    // Page via LIMIT (ORDER BY concept_id lets SQLite early-stop) plus a
+    // separate COUNT for the exact total. A COUNT(*) OVER () window was tried
+    // and is slower — it materializes the full window before LIMIT.
+    const limitClause = count > -1 ? 'LIMIT ? OFFSET ?' : (from > 0 ? 'LIMIT -1 OFFSET ?' : '');
+    const limitArgs = count > -1 ? [count, from] : (from > 0 ? [from] : []);
+    const rows = this.db.prepare(
+      `SELECT c.code AS code, c.display AS display, c.active AS active
+         FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
+        ORDER BY c.concept_id ${limitClause}`
+    ).all(...src.args, ...limitArgs);
+    const total = this.db.prepare(`SELECT COUNT(*) AS n FROM (${src.sql})`).get(...src.args).n;
     const candidates = rows.map((r) => ({ code: r.code, display: r.display || undefined, active: r.active !== 0 }));
     return { candidates, total };
   }
