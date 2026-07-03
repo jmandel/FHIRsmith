@@ -99,6 +99,13 @@ async function startServer() {
         throw new Error(`Failed to load test config: ${error.message}`);
     }
 
+    // Optional override: run the official suite against an alternate library
+    // (e.g. sqlite-v1 fixtures) without editing the committed config. Used to
+    // validate the new provider/engines against the conformance suite.
+    if (process.env.TX_TEST_LIBRARY) {
+        config.librarySource = process.env.TX_TEST_LIBRARY;
+    }
+
     // Middleware
     app.use(express.raw({ type: 'application/fhir+json', limit: '50mb' }));
     app.use(express.raw({ type: 'application/fhir+xml', limit: '50mb' }));

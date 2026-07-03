@@ -2281,6 +2281,14 @@ class ExpandWorker extends TerminologyWorker {
     // Store params for worker methods
     this.params = params;
 
+    // Server-level default engine (TX_EXPAND_ENGINE=legacy|pushdown|ir) applies
+    // only when the request did not select one via _engine. Used to run a whole
+    // suite through one engine; per-request _engine always wins.
+    if (!this.params.engine && process.env.TX_EXPAND_ENGINE) {
+      const e = String(process.env.TX_EXPAND_ENGINE).trim().toLowerCase();
+      if (e === 'legacy' || e === 'pushdown' || e === 'ir') this.params.engine = e;
+    }
+
     if (params.limit < -1) {
       params.limit = -1;
     } else if (params.limit > this.externalLimit) {
