@@ -152,11 +152,23 @@ semantic:
 - **Tier 1 — must match:** explicit `compose.include.concept` listing order;
   the `sort` parameter (`code`/`display`/`prop:*`); LOINC answer-list member
   order (AnswerList SEQUENCE). Sequence-compared in parity.
-- **Tier 2 — implementation-defined, deliberately NOT matched:** filter and
-  whole-system traversal order. Legacy order is incidental (RRF file order,
-  LOINC CodeKey insertion order, SNOMED cache array order; old RxNorm has no
-  ORDER BY at all and is unstable in principle). The v1 provider returns
-  deterministic code order, documented here. Set-compared in parity.
+- **Tier 1.5 — first-page composition under the default sort.** The official
+  test suites sort *within* a page but multi-page cases implicitly require
+  the first page's *contents* to match the reference server — so default
+  traversal order is load-bearing even though no test asserts a sequence.
+  The v1 provider therefore iterates and materializes everything in **source
+  (concept_id) order**, which provably equals each legacy provider's
+  effective order: SNOMED's binary cache iterates in numeric SCTID order and
+  RF2 concept files are numerically sorted; RxNorm legacy iterates in rowid =
+  RRF file order = numeric RXCUI order; LOINC legacy iterates in CodeKey =
+  csv insertion order (parts before main codes in both importers). A
+  `defaultOrder` cs_config key is reserved for future systems whose source
+  order does not match their legacy order.
+- **Tier 2 — implementation-defined, deliberately NOT matched:** the exact
+  order is uniform source order rather than each legacy engine's incidental
+  order in corners where those differ (e.g. old RxNorm has no ORDER BY at
+  all and is unstable in principle). Set-compared in parity; first-page
+  composition spot-checked for the official-test surfaces.
 - **Paging consequence (operator-visible):** offset/count slices differ across
   the old→new migration boundary because tier-2 order differs; after
   migration they are stable across requests (stronger than legacy RxNorm).

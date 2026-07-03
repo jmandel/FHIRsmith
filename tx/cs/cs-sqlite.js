@@ -483,7 +483,7 @@ class SqliteCodeSystemProvider extends BaseCSServices {
           AND cl.property_id IN (${this.factory.hierPropPlaceholders})
           AND cl.edge_set_id = ?
           AND cl.active = 1
-        ORDER BY sc.code`
+        ORDER BY sc.concept_id`
     ).all(c.conceptId, ...this.factory.hierPropIds, this.factory.hierarchyEdgeSet);
     return new SqliteIterator(rows.map((r) => r.id));
   }
@@ -903,7 +903,12 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
   allConceptIds() {
     if (!this._allIds) {
       this._allIds = this.db.prepare(
-        `SELECT concept_id FROM concept WHERE cs_id = ? ORDER BY code`
+        // Source (concept_id) order everywhere: importers insert in source-file
+        // order, which reproduces each legacy provider's iteration order
+        // (SNOMED numeric SCTID, RxNorm RRF/RXCUI, LOINC CodeKey). Page
+        // composition under the default sort depends on this — see the
+        // ordering contract in docs/sqlite-v1-design.md.
+        `SELECT concept_id FROM concept WHERE cs_id = ? ORDER BY concept_id`
       ).all(this.csId).map((r) => r.concept_id);
     }
     return this._allIds;
@@ -921,7 +926,7 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
                  AND cl.property_id IN (${this.hierPropPlaceholders})
                  AND cl.edge_set_id = ?
                  AND cl.active = 1)
-          ORDER BY c.code`
+          ORDER BY c.concept_id`
       ).all(this.csId, ...this.hierPropIds, this.hierarchyEdgeSet).map((r) => r.concept_id);
     }
     return this._roots;

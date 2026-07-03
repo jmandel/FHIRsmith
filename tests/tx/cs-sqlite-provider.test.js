@@ -144,6 +144,9 @@ function buildCaseInsensitiveFixture(dbPath) {
   writer.setConfig(csId, 'defaultLanguage', 'en');
   writer.addConcept(csId, { code: 'AbC', display: 'Mixed case concept' });
   writer.addConcept(csId, { code: 'xyz', display: 'Lower concept' });
+  // Inserted last but sorts between the others in code order: pins that
+  // iteration is source (concept_id) order, not code order (tier 1.5).
+  writer.addConcept(csId, { code: 'aaa', display: 'Late-inserted concept' });
   const runId = writer.beginAudit({ targetDb: dbPath, terminology: 'ci', version: '1' });
   writer.buildClosure(csId, { edgeSetId: 1 });
   writer.buildSearchIndex(csId);
@@ -399,12 +402,13 @@ describe('SqliteCodeSystemProvider (sqlite-v1 contract)', () => {
       expect(eKids).toEqual(['D']);
     });
 
-    test('ci fixture iterator(null) = all concepts (no hierarchy)', async () => {
+    test('ci fixture iterator(null) = all concepts, in source (insertion) order', async () => {
       const iter = await ciProvider.iterator(null);
       const out = [];
       let c;
       while ((c = await ciProvider.nextContext(iter)) !== null) out.push(c.code);
-      expect(out.sort()).toEqual(['AbC', 'xyz']);
+      // Source order, NOT code order (which would put 'aaa' second).
+      expect(out).toEqual(['AbC', 'xyz', 'aaa']);
     });
   });
 
