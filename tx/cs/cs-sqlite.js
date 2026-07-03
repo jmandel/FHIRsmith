@@ -94,6 +94,17 @@ function intersectSorted(a, b) {
   return out;
 }
 
+function diffSorted(a, b) {
+  const out = [];
+  let i = 0, j = 0;
+  while (i < a.length) {
+    if (j >= b.length || a[i] < b[j]) out.push(a[i++]);
+    else if (a[i] > b[j]) j++;
+    else { i++; j++; }
+  }
+  return out;
+}
+
 function unionSorted(arrays) {
   const nonEmpty = arrays.filter((a) => a && a.length);
   if (nonEmpty.length === 0) return [];
@@ -986,6 +997,210 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       ).all(this.csId).map((r) => r.id));
     }
     return this.factory._activeIdSetCache;
+  }
+
+  // ---- native IR terminals (tx/engine orchestrator seam) ------------------
+  //
+  // The orchestrator scopes an IR subtree to ONE (system, version) before
+  // calling these. Nodes seen here: selector | union | intersect | diff |
+  // empty. Import nodes are resolved away by the orchestrator. Every node
+  // lowers to a sorted concept_id array via the same primitives the filter
+  // protocol and processSelection use, so IR / legacy / pushdown share one
+  // membership definition.
+
+  hasExecuteIR() {
+    return true;
+  }
+
+  // Evaluate an IR subtree to a sorted, deduped concept_id array.
+  _evalIR(node) {
+    if (!node || node.kind === 'empty') return [];
+    switch (node.kind) {
+      case 'selector':
+        return this._selectorIds(node);
+      case 'union':
+        return unionSorted((node.items || []).map((it) => this._evalIR(it)));
+      case 'intersect': {
+        const parts = (node.items || []).map((it) => this._evalIR(it));
+        if (parts.length === 0) return [];
+        parts.sort((a, b) => a.length - b.length); // smallest first
+        let acc = parts[0];
+        for (let i = 1; i < parts.length && acc.length; i++) acc = intersectSorted(acc, parts[i]);
+        return acc;
+      }
+      case 'diff':
+        return diffSorted(this._evalIR(node.left), this._evalIR(node.right));
+      default:
+        throw new Error(`cs-sqlite IR: unsupported node kind '${node.kind}'`);
+    }
+  }
+
+  // One IR selector -> sorted concept_id array.
+  _selectorIds(sel) {
+    let ids;
+    if (sel.shape === 'concept') {
+      const arr = [];
+      for (const cc of sel.conceptCodes || []) {
+        const id = this._locateConceptId(cc.code);
+        if (id != null) arr.push(id);
+      }
+      ids = unionSorted([arr.sort((a, b) => a - b)]);
+    } else if (sel.shape === 'filter') {
+      ids = null;
+      for (const fc of sel.filterClauses || []) {
+        const clauseIds = this._idsForFilter(fc.property, fc.op, fc.value);
+        ids = ids == null ? clauseIds : intersectSorted(ids, clauseIds);
+        if (ids.length === 0) break;
+      }
+      ids = ids || [];
+    } else {
+      // whole code system
+      ids = this.factory.allConceptIds();
+    }
+    // Codes pushed into the selector by rewrite coalescing (intersectCodes).
+    if (Array.isArray(sel.intersectCodes) && sel.intersectCodes.length) {
+      const codeIds = [];
+      for (const code of sel.intersectCodes) {
+        const id = this._locateConceptId(code);
+        if (id != null) codeIds.push(id);
+      }
+      ids = intersectSorted(ids, unionSorted([codeIds.sort((a, b) => a - b)]));
+    }
+    return ids;
+  }
+
+  // Page terminal: { candidates: [...], total } for a scoped subtree.
+  async executeIR(subtree, opts = {}) {
+    const activeOnly = !!opts.activeOnly;
+    // Fast path: single hierarchy/property selector, paged, no activeOnly —
+    // push membership + LIMIT into one SQL statement (the IR speed win).
+    const fast = (!activeOnly) ? this._tryFastPage(subtree, opts) : null;
+    let candidates, total;
+    if (fast) {
+      ({ candidates, total } = fast);
+    } else {
+      let ids = this._evalIR(subtree);
+      if (activeOnly) {
+        const act = this._activeIdSet();
+        ids = ids.filter((id) => act.has(id));
+      }
+      total = ids.length;
+      const from = opts.offset > 0 ? opts.offset : 0;
+      const count = opts.count != null && opts.count > -1 ? opts.count : -1;
+      const page = count > -1 ? ids.slice(from, from + count) : (from > 0 ? ids.slice(from) : ids);
+      candidates = page.map((id) => this._candidateFromId(id));
+    }
+    return { candidates, total, unclosed: null };
+  }
+
+  async countForIR(subtree, opts = {}) {
+    if (!opts.activeOnly) {
+      const c = this._tryFastCount(subtree);
+      if (c != null) return c;
+    }
+    let ids = this._evalIR(subtree);
+    if (opts.activeOnly) {
+      const act = this._activeIdSet();
+      ids = ids.filter((id) => act.has(id));
+    }
+    return ids.length;
+  }
+
+  async membershipForIR(subtree, opts = {}) {
+    let ids = this._evalIR(subtree);
+    if (opts && opts.activeOnly) {
+      const act = this._activeIdSet();
+      ids = ids.filter((id) => act.has(id));
+    }
+    const set = new Set(ids);
+    const self = this;
+    return {
+      has(code) {
+        const id = self._locateConceptId(code);
+        return id != null && set.has(id);
+      },
+    };
+  }
+
+  _candidateFromId(id) {
+    const row = this._rowById(id);
+    if (!row) return { code: String(id), active: true };
+    return { code: row.code, display: row.display || undefined, active: row.active !== 0 };
+  }
+
+  // Returns a single sorted-id SQL source (sub-SELECT + params) for a lone
+  // selector with exactly one supported clause, else null. Used only to add
+  // ORDER BY concept_id LIMIT/OFFSET at the SQL layer.
+  _fastSource(subtree) {
+    if (!subtree || subtree.kind !== 'selector') return null;
+    if (Array.isArray(subtree.intersectCodes) && subtree.intersectCodes.length) return null;
+    if (subtree.shape !== 'filter' || (subtree.filterClauses || []).length !== 1) return null;
+    const fc = subtree.filterClauses[0];
+    const op = fc.op;
+    const value = this._rewriteFilterValue(fc.value);
+    if (['is-a', 'descendent-of', 'generalizes'].includes(op) && (fc.property === 'concept' || fc.property === 'code')) {
+      const seed = this._locateConceptId(value);
+      if (seed == null) return { sql: `SELECT 0 AS id WHERE 0`, args: [] };
+      if (op === 'descendent-of') {
+        return { sql: `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ?`, args: [seed] };
+      }
+      if (op === 'is-a') {
+        return { sql: `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ? UNION SELECT ? AS id`, args: [seed, seed] };
+      }
+      return { sql: `SELECT ancestor_id AS id FROM closure WHERE descendant_id = ? UNION SELECT ? AS id`, args: [seed, seed] };
+    }
+    if (op === 'in' && (fc.property === 'concept' || fc.property === 'code') && this.factory.hasValueSets) {
+      const vsId = this._valueSetIdFor(value);
+      if (vsId == null) return { sql: `SELECT 0 AS id WHERE 0`, args: [] };
+      return { sql: `SELECT concept_id AS id FROM value_set_member WHERE vs_id = ? AND active = 1`, args: [vsId] };
+    }
+    return null;
+  }
+
+  _tryFastPage(subtree, opts) {
+    const src = this._fastSource(subtree);
+    if (!src) return null;
+    const total = this.db.prepare(`SELECT COUNT(*) AS n FROM (${src.sql})`).get(...src.args).n;
+    const from = opts.offset > 0 ? opts.offset : 0;
+    const count = opts.count != null && opts.count > -1 ? opts.count : -1;
+    let rows;
+    if (count > -1) {
+      rows = this.db.prepare(
+        `SELECT c.concept_id AS id, c.code AS code, c.display AS display, c.active AS active
+           FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
+          ORDER BY c.concept_id LIMIT ? OFFSET ?`
+      ).all(...src.args, count, from);
+    } else {
+      rows = this.db.prepare(
+        `SELECT c.concept_id AS id, c.code AS code, c.display AS display, c.active AS active
+           FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
+          ORDER BY c.concept_id ${from > 0 ? 'LIMIT -1 OFFSET ?' : ''}`
+      ).all(...src.args, ...(from > 0 ? [from] : []));
+    }
+    const candidates = rows.map((r) => ({ code: r.code, display: r.display || undefined, active: r.active !== 0 }));
+    return { candidates, total };
+  }
+
+  _tryFastCount(subtree) {
+    const src = this._fastSource(subtree);
+    if (!src) return null;
+    return this.db.prepare(`SELECT COUNT(*) AS n FROM (${src.sql})`).get(...src.args).n;
+  }
+
+  _valueSetIdFor(value) {
+    const urls = [String(value)];
+    const patterns = Array.isArray(this.cfg.implicitValueSets) ? this.cfg.implicitValueSets : [];
+    for (const p of patterns) {
+      if (p.kind !== 'vs-table' || !p.pattern) continue;
+      const filled = p.pattern.replace('{id}', String(value)).replace('{code}', String(value));
+      urls.push(filled, this.system() + filled);
+    }
+    const stmt = this.db.prepare(`SELECT vs_id FROM value_set WHERE cs_id = ? AND url = ?`);
+    for (const url of urls) {
+      const row = stmt.get(this.csId, url);
+      if (row) return row.vs_id;
+    }
+    return null;
   }
 }
 
