@@ -120,6 +120,50 @@ representative ValueSets, plus import wall-time and DB size. Budget: new
 provider must be ≥ old on every measured operation class or the delta gets a
 written justification.
 
+## Version-pinned tests
+
+Official/upstream tests overfit to specific terminology releases are handled
+by content, not by version-string games:
+
+1. **Frozen fixture DBs.** The v1 analog of upstream's `tx/data/snomed-testing.cache`:
+   convert that binary cache into a v1 SQLite DB (reader already exists in the
+   TS port: `import-sct-cache-to-sqlite-v0.ts`, adapt to v1) so version-pinned
+   SNOMED tests run against content-identical data on both providers forever.
+   LOINC analog: a curated subset DB generated deterministically and stamped
+   with the version the tests expect.
+2. **Import the real edition when a test needs it.** DBs are cheap (~10 min for
+   a SNOMED edition) and factories register per `system|version`, so editions
+   coexist. Most historical releases are fetchable from the public bucket
+   (`https://storage.googleapis.com/tx-fhir-org`); CPT and NLM-gated sources
+   come from local archives (UMLS RRF slices), with draft loaders in the TS
+   port to adapt.
+3. **Loud skips.** A manifest of available editions (read from the DB files'
+   own `code_system` rows) gates version-pinned suites; a missing edition is a
+   reported skip, never a silent green.
+4. **Structure vs content.** New tests assert structural invariants against
+   synthetic fixtures; only frozen-fixture suites assert real-content
+   expectations.
+
+## Ordering contract
+
+Three tiers; the parity harness compares sequences only where order is
+semantic:
+
+- **Tier 1 — must match:** explicit `compose.include.concept` listing order;
+  the `sort` parameter (`code`/`display`/`prop:*`); LOINC answer-list member
+  order (AnswerList SEQUENCE). Sequence-compared in parity.
+- **Tier 2 — implementation-defined, deliberately NOT matched:** filter and
+  whole-system traversal order. Legacy order is incidental (RRF file order,
+  LOINC CodeKey insertion order, SNOMED cache array order; old RxNorm has no
+  ORDER BY at all and is unstable in principle). The v1 provider returns
+  deterministic code order, documented here. Set-compared in parity.
+- **Paging consequence (operator-visible):** offset/count slices differ across
+  the old→new migration boundary because tier-2 order differs; after
+  migration they are stable across requests (stronger than legacy RxNorm).
+  Provider choice is per-system config, wholesale — no client sees mixed
+  pages within one deployment, and expansion-cache keys already isolate
+  parameter sets.
+
 ## Known-divergence ledger
 
 | # | Area | Old behavior | New behavior | Why |
