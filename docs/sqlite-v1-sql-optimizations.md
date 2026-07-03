@@ -57,6 +57,45 @@ materialised every id and filtered through a cached active-id set at ~39 ms.
 | SCT is-a (94k) activeOnly count | 39 ms | 19 ms | 2.1× |
 | SCT descendent-of (94k) activeOnly count | 35 ms | 17.5 ms | 2.0× |
 
+### E. Lazy / inferred exact total (a FHIR-optional field, an internal contract change)
+
+`executeIR` / `processSelection` / `_pageTotal`. `expansion.total` is optional in
+FHIR (SHOULD, not SHALL) — legacy already omits it for large sets. We return an
+**exact** total or omit it (`null`), **never an estimate**. It is computed only
+when cheap or required: `count=0` (total-only — it is the ask); a short/unbounded
+page (`offset + pageLen`, free); a non-active fast `COUNT` over the closure/
+value-set index (cheap); otherwise (activeOnly full page — an exact active count
+is a full member scan) it is omitted. To keep pushdown and IR identical, a
+single-filter-only include with no excludes now runs through the *same* fast page
+in `processSelection` as in `executeIR`, so both agree on page and total by
+construction. Paging and the too-costly check are unaffected (deferral only
+happens on bounded pages, where too-costly does not apply).
+
+| query | before | after | speedup |
+|---|---|---|---|
+| SCT is-a (94k) activeOnly page 50 | 39 ms | 20 ms | 2.0× |
+| SCT descendent-of (94k) activeOnly page 50 | 35 ms | (see F) | |
+
+count=0 still returns the exact total (deliberately paying for it).
+
+### F. Order active pages by the source id, not the joined concept id
+
+`_tryFastPage`. An `activeOnly` page must join `concept` to test `active`, so the
+page cannot be pre-limited on the id source. Ordering the result by `s.id` (the
+source's own index-ordered id, `== c.concept_id` on the join, so identical order)
+rather than `c.concept_id` lets SQLite recognise the stream is already ordered
+and early-stop at the `LIMIT` with no sort.
+
+| query | before | after | speedup |
+|---|---|---|---|
+| SCT descendent-of (94k) activeOnly page 50 | 19 ms | 0.1 ms | ~190× |
+| SCT refset (21k) activeOnly page 50 | 9.4 ms | 0.1 ms | ~90× |
+
+is-a's `UNION ALL` seed is not fully ordered, so its active page still does a
+bounded sort (~21 ms); making it stream would need closure self-rows (flips a
+verified invariant + reimport) or JS seed-merging — not worth the clarity cost
+for one filter's active page.
+
 ## Rejected (measured, then reverted)
 
 ### D. Type-directed single-column literal seek
@@ -94,19 +133,14 @@ silently miss matches). The robust two-arm `UNION` (A) is kept.
 
 ## Remaining opportunities (deliberately not taken here)
 
-These show real impact but need a contract or schema change, so they are their
-own considered work, not a query-shape tweak:
-
-- **Lazy / inferred total.** For `activeOnly` big sets and large property
-  filters, the page is cheap but the exact total is a full scan. Legacy already
-  returns no total for these, so omitting it (or inferring `offset + pageLen`
-  when the page is short) would be legacy-consistent and drop those pages to a
-  few ms — but it changes the total policy across pushdown and IR together and
-  needs the parity suite reworked to match. The single highest-value remaining
-  win.
 - **`(property_id, active, source_concept_id)` index** to make `exists` and the
   property `DISTINCT` index-only (drops the temp b-tree) — a one-line schema
-  addition, but needs a reimport.
+  addition, but needs a reimport, and `exists` alone is a rare filter.
+- **Closure self-rows** would make is-a a pure ordered scan (streamable active
+  page, 21 ms → ~0.1 ms) at +~7% closure size, but flips the verified
+  no-self-row invariant across schema/importer/core/verify and needs a reimport.
+  Reasonable, but a bigger design change than its single-case benefit warrants
+  right now.
 - **Regex pre-filtering** (extract a required literal substring → FTS/index
   probe before the JS `RegExp`) — the one unbounded property shape; otherwise
   governor territory.

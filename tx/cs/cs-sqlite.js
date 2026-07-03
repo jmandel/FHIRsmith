@@ -924,6 +924,25 @@ class SqliteCodeSystemProvider extends BaseCSServices {
    */
   async processSelection(params, includes, excludes, excludeInactive, offset, count) {
     const activeOnly = excludeInactive || !!(params && params.activeOnly);
+
+    // Fast path: a single filter-only include with no excludes is a fast-source
+    // subtree. Page it with early-stop + the shared lazy-total policy, the same
+    // way the IR engine's executeIR does — so pushdown and IR return identical
+    // pages and totals for this (very common) shape instead of pushdown
+    // materialising the whole set.
+    const only = includes.length === 1 ? includes[0] : null;
+    if (only && (!excludes || excludes.length === 0) &&
+        !(only.concept && only.concept.length) && (only.filter && only.filter.length)) {
+      const sub = { kind: 'selector', shape: 'filter',
+        filterClauses: only.filter.map((f) => ({ property: f.property, op: f.op, value: f.value })) };
+      const fast = this._tryFastPage(sub, { offset, count }, activeOnly);
+      if (fast) {
+        const set = new SqliteFilterSet(fast.rows.map((r) => r.id));
+        set.totalCount = fast.total;   // exact, or null when deferred (FHIR-optional)
+        return [set];
+      }
+    }
+
     let ids = this._selectionUnion(includes);
     if (excludes && excludes.length) {
       const ex = new Set(this._selectionUnion(excludes));
@@ -1089,7 +1108,8 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     const fast = this._tryFastPage(subtree, opts, activeOnly);
     let candidates, total;
     if (fast) {
-      ({ candidates, total } = fast);
+      total = fast.total;
+      candidates = fast.rows.map((r) => ({ code: r.code, display: r.display || undefined, active: r.active !== 0 }));
     } else {
       let ids = this._evalIR(subtree);
       if (activeOnly) {
@@ -1170,6 +1190,11 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return null;
   }
 
+  // Page a fast-source subtree. Returns { rows: [{id, code, display, active}],
+  // total } where `total` follows the lazy policy of `_pageTotal` — an exact
+  // count or null (never an estimate). Shared by executeIR (IR engine) and
+  // processSelection (pushdown), so both agree on page and total by
+  // construction.
   _tryFastPage(subtree, opts, activeOnly = false) {
     const src = this._fastSource(subtree);
     if (!src) return null;
@@ -1180,13 +1205,17 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     let rows;
     if (activeOnly) {
       // Active filter is a concept-column predicate, so the concept join must
-      // precede paging. The id source is index-ordered, so for descendent-of /
-      // value-set sources the join streams in concept_id order and the LIMIT
-      // early-stops; is-a's UNION ALL forces a bounded top-N sort.
+      // precede paging. Order by the SOURCE's own id (`s.id`, == c.concept_id
+      // on the join, so identical order) rather than `c.concept_id`: for an
+      // index-ordered source (closure by descendant_id, value_set_member by
+      // concept_id) SQLite then recognises the stream is already ordered, so it
+      // streams the join, filters active, and early-stops at the LIMIT with NO
+      // sort — the active page goes from a full 94k scan (~28ms) to ~0.1ms.
+      // is-a's UNION ALL is not fully ordered, so it still does a bounded sort.
       rows = this.db.prepare(
-        `SELECT c.code AS code, c.display AS display, c.active AS active
+        `SELECT c.concept_id AS id, c.code AS code, c.display AS display, c.active AS active
            FROM (${src.sql}) s JOIN concept c ON c.concept_id = s.id
-          WHERE c.active = 1 ORDER BY c.concept_id ${limitClause}`
+          WHERE c.active = 1 ORDER BY s.id ${limitClause}`
       ).all(...src.args, ...limitArgs);
     } else {
       // Order + page the id set BEFORE joining concept, so only the page's worth
@@ -1194,14 +1223,28 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       // `ORDER BY id LIMIT` from the index and early-stops.
       const pagedIds = `SELECT id FROM (${src.sql}) ORDER BY id ${limitClause}`;
       rows = this.db.prepare(
-        `SELECT c.code AS code, c.display AS display, c.active AS active
+        `SELECT c.concept_id AS id, c.code AS code, c.display AS display, c.active AS active
            FROM (${pagedIds}) s JOIN concept c ON c.concept_id = s.id
           ORDER BY c.concept_id`
       ).all(...src.args, ...limitArgs);
     }
-    const total = this._tryFastCount(subtree, activeOnly);
-    const candidates = rows.map((r) => ({ code: r.code, display: r.display || undefined, active: r.active !== 0 }));
-    return { candidates, total };
+    const total = this._pageTotal(subtree, { from, count, activeOnly, pageLen: rows.length });
+    return { rows, total };
+  }
+
+  // FHIR `expansion.total` is optional (SHOULD): we return an EXACT total or
+  // omit it (null), never an estimate. Compute it only when cheap or required:
+  //   - count === 0 (total-only request): it is the ask — compute it.
+  //   - page shorter than requested / unbounded: we reached the end, so
+  //     total = offset + pageLen for free.
+  //   - non-active: a fast COUNT over the closure/value-set index is cheap.
+  //   - else (activeOnly, full page): omit — an exact active count is a full
+  //     member scan, and legacy likewise omits the total for large sets.
+  _pageTotal(subtree, { from, count, activeOnly, pageLen }) {
+    if (count === 0) return this._tryFastCount(subtree, activeOnly);
+    if (count === -1 || pageLen < count) return from + pageLen;
+    if (!activeOnly) return this._tryFastCount(subtree, false);
+    return null;
   }
 
   // Exact total for a fast-source subtree. Under activeOnly the concept join is

@@ -125,13 +125,14 @@ async function assertParity(ctx, factory, vsJson, paramsJson, expectedTotal) {
   const lCodes = codesOf(legacy);
   expect(pCodes).toEqual(lCodes);
 
-  if (legacy.expansion.total != null) {
-    // Legacy provides a total: pushdown must match it exactly.
-    expect(push.expansion.total).toBe(legacy.expansion.total);
-  }
-  if (expectedTotal != null) {
-    // Independent SQL-derived total: pushdown must match it exactly.
-    expect(push.expansion.total).toBe(expectedTotal);
+  // FHIR expansion.total is OPTIONAL (SHOULD): pushdown may omit it when it
+  // would be expensive (e.g. an exact activeOnly count is a full member scan) —
+  // legacy omits it too. The contract we enforce is: if pushdown provides a
+  // total, it must be EXACT; it may never be wrong. When present it must equal
+  // legacy's total (when legacy gives one) and the independent DB-derived total.
+  if (push.expansion.total != null) {
+    if (legacy.expansion.total != null) expect(push.expansion.total).toBe(legacy.expansion.total);
+    if (expectedTotal != null) expect(push.expansion.total).toBe(expectedTotal);
   }
   return { push, legacy };
 }

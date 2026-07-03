@@ -125,4 +125,41 @@ describeIf('sqlite-v1 three-engine parity (legacy/pushdown/ir)', () => {
     expect(ir.err).toBeNull();
     expect(ir.total).toBeGreaterThan(1000);
   });
+
+  // FHIR expansion.total is optional: exact-or-omitted, never estimated. The
+  // lazy policy omits the expensive activeOnly count on a bounded page but
+  // still computes it exactly when explicitly requested (count=0), and both
+  // engines agree.
+  describe('lazy total policy', () => {
+    const bigIsA = { include: [{ system: SCT, filter: [{ property: 'concept', op: 'is-a', value: '404684003' }] }] };
+
+    test('bounded activeOnly page OMITS the total (both engines)', async () => {
+      const ir = await expand(bigIsA, 'ir', { count: 50, activeOnly: true });
+      const push = await expand(bigIsA, 'pushdown', { count: 50, activeOnly: true });
+      expect(ir.codes).toEqual(push.codes);
+      expect(ir.total == null).toBe(true);
+      expect(push.total == null).toBe(true);
+    });
+
+    test('count=0 activeOnly COMPUTES the exact total (both engines agree)', async () => {
+      const ir = await expand(bigIsA, 'ir', { count: 0, activeOnly: true });
+      const push = await expand(bigIsA, 'pushdown', { count: 0, activeOnly: true });
+      expect(ir.total).toBeGreaterThan(0);
+      expect(ir.total).toBe(push.total);
+    });
+
+    test('non-active bounded page provides an exact (cheap) total', async () => {
+      const ir = await expand(bigIsA, 'ir', { count: 50 });
+      expect(ir.total).toBe(132173);
+    });
+
+    test('short activeOnly page provides an exact inferred total', async () => {
+      // A small subtree: the page does not fill, so total = offset + pageLen.
+      const small = { include: [{ system: SCT, filter: [{ property: 'concept', op: 'is-a', value: '22298006' }] }] };
+      const ir = await expand(small, 'ir', { count: 100000, activeOnly: true });
+      const push = await expand(small, 'pushdown', { count: 100000, activeOnly: true });
+      expect(ir.total).toBe(ir.codes.length);
+      expect(ir.total).toBe(push.total);
+    });
+  });
 });
