@@ -651,7 +651,7 @@ class SnomedSqliteV1Importer {
   _concreteProperty(typeId, fhirType) {
     // Key the property by (typeId, fhirType) so a typeId that carries both a
     // numeric and a string value across concepts keeps a coherent projection.
-    const key = `${typeId} ${fhirType}`;
+    const key = `${typeId}|${fhirType}`;
     let id = this.literalPropIds.get(key);
     if (id === undefined) {
       id = this.writer.defineProperty(this.csId, {
@@ -717,10 +717,12 @@ class SnomedSqliteV1Importer {
     set('hierarchyEdgeSet', String(EDGE_SET_INFERRED));
     set('statusProperty', PROP_INACTIVE);
     set('inactiveProperty', PROP_INACTIVE);
+    // Leading '?' matters: the provider matches pattern or system()+pattern
+    // against the full implicit-VS URL (http://snomed.info/sct?fhir_vs=...).
     set('implicitValueSets', [
-      { pattern: 'fhir_vs', kind: 'all' },
-      { pattern: 'fhir_vs=isa/{code}', kind: 'isa' },
-      { pattern: 'fhir_vs=refset/{id}', kind: 'vs-table' },
+      { pattern: '?fhir_vs', kind: 'all' },
+      { pattern: '?fhir_vs=isa/{code}', kind: 'isa' },
+      { pattern: '?fhir_vs=refset/{id}', kind: 'vs-table' },
     ]);
     set('searchSources', ['display', 'designation', 'literal']);
     set('webSource', 'https://browser.ihtsdotools.org/?perspective=full&conceptId1={code}');
