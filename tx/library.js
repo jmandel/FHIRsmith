@@ -21,6 +21,7 @@ const {RxNormServicesFactory} = require("./cs/cs-rxnorm");
 const {NdcServicesFactory} = require("./cs/cs-ndc");
 const {UniiServicesFactory} = require("./cs/cs-unii");
 const {SnomedServicesFactory} = require("./cs/cs-snomed");
+const {SqliteCodeSystemFactory} = require("./cs/cs-sqlite");
 const {CPTServicesFactory} = require("./cs/cs-cpt");
 const {OMOPServicesFactory} = require("./cs/cs-omop");
 const {PackageValueSetProvider} = require("./vs/vs-package");
@@ -267,6 +268,10 @@ class Library {
 
       case 'snomed':
         await this.loadSnomed(details, isDefault, mode);
+        break;
+
+      case 'sqlite':
+        await this.loadSqlite(details, isDefault, mode);
         break;
 
       case 'cpt':
@@ -555,6 +560,21 @@ class Library {
     const unii = new UniiServicesFactory(this.i18n, uniFN);
     await unii.load();
     this.registerProvider(uniFN, unii, isDefault);
+  }
+
+  async loadSqlite(details, isDefault, mode) {
+    // details is a path to a sqlite-v1 .db file, or a comma-separated list of
+    // paths; each file becomes one generic sqlite CodeSystem factory.
+    const specs = String(details).split(',').map(s => s.trim()).filter(Boolean);
+    for (const spec of specs) {
+      const dbFN = await this.getOrDownloadFile(spec);
+      if (mode === "fetch" || mode === "npm") {
+        continue;
+      }
+      const factory = new SqliteCodeSystemFactory(this.i18n, dbFN);
+      await factory.load();
+      this.registerProvider(dbFN, factory, isDefault);
+    }
   }
 
   async loadSnomed(details, isDefault, mode) {
