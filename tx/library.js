@@ -567,7 +567,17 @@ class Library {
     // paths; each file becomes one generic sqlite CodeSystem factory.
     const specs = String(details).split(',').map(s => s.trim()).filter(Boolean);
     for (const spec of specs) {
-      const dbFN = await this.getOrDownloadFile(spec);
+      // An absolute path (or an existing relative file) is used directly; a
+      // bare name resolves against the terminology-cache dir / bucket like the
+      // other loaders.
+      let dbFN;
+      if (path.isAbsolute(spec) && require('fs').existsSync(spec)) {
+        dbFN = spec;
+      } else if (require('fs').existsSync(spec)) {
+        dbFN = require('path').resolve(spec);
+      } else {
+        dbFN = await this.getOrDownloadFile(spec);
+      }
       if (mode === "fetch" || mode === "npm") {
         continue;
       }
