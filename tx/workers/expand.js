@@ -678,15 +678,92 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * Provider-driven bulk selection (cs-api handlesSelecting/processSelection).
+   * Only runs for "simple" composes (one system|version, no imported value
+   * sets — see scanValueSet). Returns true when handled; false to route the
+   * request through the legacy per-include path instead. Falls back when:
+   * - a request-level text filter is present (legacy text-match semantics
+   *   stay authoritative until search parity is established), or
+   * - any include enumerates concepts (page order = listing order, which is
+   *   semantic — tier 1 in the ordering contract), or
+   * - the output could legitimately be a nested hierarchy (single
+   *   whole-system or single-filter include, unpaged, nesting not excluded):
+   *   the provider page is flat, and hierarchy shape must not change.
+   */
   async processCodes(path, vsSrc, compose, filter, expansion, excludeInactive, notClosed, vsInfo) {
+    const includes = compose.include || [];
+    const excludes = compose.exclude || [];
+
+    if (!filter.isNull) return false;
+    if (includes.some(inc => inc.concept && inc.concept.length > 0)) return false;
+
     const cs = await this.worker.findCodeSystem(vsInfo.system, vsInfo.version, this.params, ['complete', 'fragment'],
       false, false, true, null, this.requiredSupplements);
-    if (cs != null) {
+    if (cs == null) return false;
 
-      // set up the call to the provider
-      // call the provider
-      // include the codes
+    const flatAnyway = this.params.excludeNested || this.offset > 0 || !cs.hasParents() ||
+      includes.every(inc => (inc.filter || []).length > 1);
+    const paged = this.offset > -1 || this.count > -1;
+    if (!flatAnyway && !paged) return false;
+
+    for (const cset of [...includes, ...excludes]) {
+      this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
     }
+    this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
+    this.addParamUri(expansion, 'used-codesystem', this.canonical(cs.system(), cs.version()));
+
+    const offset = paged ? Math.max(this.offset, 0) : -1;
+    const count = this.count > -1 ? this.count : -1;
+    const sets = await cs.processSelection(this.params, includes, excludes, excludeInactive, offset, count);
+    if (!sets || sets.length === 0) return false;
+    const set = sets[0];
+    const total = set.totalCount != null ? set.totalCount : null;
+
+    // If legacy would have produced a NESTED expansion here (result smaller
+    // than the requested count, hierarchy present), keep its shape: fall back.
+    // Nothing emitted yet, and the params/supplement bookkeeping above is
+    // idempotent with the legacy path.
+    if (!flatAnyway && !(this.count > -1 && total != null && this.count < total)) {
+      return false;
+    }
+
+    // Legacy semantics: a whole-set request beyond the expansion limit fails.
+    if (this.limitCount > 0 && total != null && total > this.limitCount && !(this.count > -1)) {
+      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY',
+        this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [vsSrc.vurl, '>' + this.limitCount]),
+        null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+    }
+
+    this.canBeHierarchy = false;
+    if (paged) {
+      vsInfo.csDoOffset = true;
+    }
+    if (total != null) {
+      this.addToTotal(total);
+    } else {
+      this.noTotal();
+    }
+
+    this.worker.opContext.log('provider selection: total=' + total);
+    const prep = await cs.getPrepContext(true);
+    const cds = new Designations(this.worker.i18n.languageDefinitions);
+    while (await cs.filterMore(prep, set)) {
+      this.worker.deadCheck('processCodes-selection');
+      const c = await cs.filterConcept(prep, set);
+      cds.clear();
+      if (this.noDetails) {
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          null, null, cds, null, null, expansion, null, null, null, null, null, excludeInactive, vsSrc.url);
+      } else {
+        await this.listDisplaysFromProvider(cds, cs, c);
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
+          expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+      }
+    }
+    await cs.filterFinish(prep);
+    return true;
   }
 
   async includeCodes(cset, path, vsSrc, compose, filter, expansion, excludeInactive, notClosed) {
@@ -1180,8 +1257,11 @@ class ValueSetExpander {
 
     this.worker.opContext.log('compose #2');
 
-    if (vsInfo.handleByCS) {
-      await this.processCodes("ValueSet.compose", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo);
+    // processCodes returns false when the provider-driven path can't reproduce
+    // legacy-visible behavior for this request; the legacy path then runs.
+    if (vsInfo.handleByCS &&
+        await this.processCodes("ValueSet.compose", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo)) {
+      // handled by the code system provider
     } else {
       this.checkForExclusionVersionSpecialCase(source, expansion);
 
@@ -1697,13 +1777,21 @@ class ValueSetExpander {
     }
     if (simple && result.csset.size == 1) {
       result.isSimple = true;
+      const first = (compose.include || compose.exclude || [])[0];
+      if (first) {
+        result.system = first.system;
+        result.version = first.version;
+      }
     }
     return result;
   }
 
   isSimpleSelect(inc, set) {
     set.add(inc.system+"|"+inc.version);
-    return !inc.valueset || inc.valueset.length == 0;
+    // FHIR field is valueSet (the lowercase spelling never matched, so composes
+    // with imports were classified simple; harmless while processCodes was a
+    // stub, wrong once a provider handles selecting).
+    return (inc.valueSet || inc.valueset || []).length == 0;
   }
 
   excludeFilterList(exc) {

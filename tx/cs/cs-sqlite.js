@@ -82,6 +82,30 @@ class SqlitePrep extends FilterExecutionContext {
   }
 }
 
+// Sorted-id-array set algebra (all inputs/outputs ascending, deduped).
+function intersectSorted(a, b) {
+  const out = [];
+  let i = 0, j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] < b[j]) i++;
+    else if (a[i] > b[j]) j++;
+    else { out.push(a[i]); i++; j++; }
+  }
+  return out;
+}
+
+function unionSorted(arrays) {
+  const nonEmpty = arrays.filter((a) => a && a.length);
+  if (nonEmpty.length === 0) return [];
+  if (nonEmpty.length === 1) return nonEmpty[0];
+  const merged = [].concat(...nonEmpty).sort((x, y) => x - y);
+  const out = [];
+  for (const v of merged) {
+    if (out.length === 0 || out[out.length - 1] !== v) out.push(v);
+  }
+  return out;
+}
+
 // Binary search: is `id` present in the sorted array `ids`?
 function sortedIncludes(ids, id) {
   let lo = 0;
@@ -531,6 +555,10 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       const { def } = this._resolveProp(prop);
       return !!(def && def.is_hierarchy);
     }
+    // Intrinsic value-set membership (SNOMED refsets): concept in <refset id>.
+    if (op === 'in' && (prop === 'concept' || prop === 'code')) {
+      return this.factory.hasValueSets;
+    }
     // Property operators on any defined property (after alias mapping).
     if (['=', 'in', 'exists', 'regex'].includes(op)) {
       const { def } = this._resolveProp(prop);
@@ -551,6 +579,12 @@ class SqliteCodeSystemProvider extends BaseCSServices {
         throw new Error(`The filter "${prop} ${op} ${value}" is not supported for ${this.system()} (no hierarchy)`);
       }
       filterContext.clauses.push(new FilterClause('hierarchy', { op, value }));
+      return;
+    }
+
+    // Intrinsic value-set membership (SNOMED refsets): concept in <refset id>.
+    if (op === 'in' && (prop === 'concept' || prop === 'code') && this.factory.hasValueSets) {
+      filterContext.clauses.push(new FilterClause('vs-member', { value }));
       return;
     }
 
@@ -587,6 +621,30 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (clause.kind === 'hierarchy') return this._hierarchyIds(clause.spec.op, clause.spec.value);
     if (clause.kind === 'property') return this._propertyIds(clause.spec);
     if (clause.kind === 'search') return this._searchIds(clause.spec.text);
+    if (clause.kind === 'vs-member') return this._valueSetMemberIds(clause.spec.value);
+    return [];
+  }
+
+  // Members of an intrinsic value set (e.g. a SNOMED refset), identified by
+  // full URL or by the bare id via the vs-table implicitValueSets patterns.
+  _valueSetMemberIds(value) {
+    const urls = [String(value)];
+    const patterns = Array.isArray(this.cfg.implicitValueSets) ? this.cfg.implicitValueSets : [];
+    for (const p of patterns) {
+      if (p.kind !== 'vs-table' || !p.pattern) continue;
+      const filled = p.pattern.replace('{id}', String(value)).replace('{code}', String(value));
+      urls.push(filled, this.system() + filled);
+    }
+    const vsStmt = this.db.prepare(`SELECT vs_id FROM value_set WHERE cs_id = ? AND url = ?`);
+    for (const url of urls) {
+      const row = vsStmt.get(this.csId, url);
+      if (row) {
+        return this.db.prepare(
+          `SELECT concept_id AS id FROM value_set_member
+            WHERE vs_id = ? AND active = 1 ORDER BY id`
+        ).all(row.vs_id).map((r) => r.id);
+      }
+    }
     return [];
   }
 
@@ -829,6 +887,106 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     }
     filterContext.clauses = [];
   }
+
+  // ---- provider-driven bulk selection (cs-api handlesSelecting seam) -------
+
+  handlesSelecting() {
+    return true;
+  }
+
+  /**
+   * Evaluate whole includes/excludes as set algebra over sorted concept_id
+   * arrays, with offset/count pushdown. Returns one FilterConceptSet whose
+   * `ids` are the requested page (source order) and whose `totalCount` is the
+   * exact pre-page total. Enumerated-concept INCLUDES are routed to the
+   * legacy path by the worker (listing order is semantic); enumerated
+   * excludes are fine (set semantics).
+   */
+  async processSelection(params, includes, excludes, excludeInactive, offset, count) {
+    const activeOnly = excludeInactive || !!(params && params.activeOnly);
+    let ids = this._selectionUnion(includes);
+    if (excludes && excludes.length) {
+      const ex = new Set(this._selectionUnion(excludes));
+      ids = ids.filter((id) => !ex.has(id));
+    }
+    if (activeOnly) {
+      const act = this._activeIdSet();
+      ids = ids.filter((id) => act.has(id));
+    }
+    const total = ids.length;
+    const from = offset > 0 ? offset : 0;
+    const page = count > -1 ? ids.slice(from, from + count) : (from > 0 ? ids.slice(from) : ids);
+    const set = new SqliteFilterSet(page);
+    set.totalCount = total;
+    return [set];
+  }
+
+  // Include-order concatenation, deduped on first occurrence: legacy emits
+  // multi-include composes include-by-include, and page composition under
+  // the default sort is tier-1.5 in the ordering contract. Within one
+  // include the ids are source-ordered. NOTE: the result is NOT globally
+  // sorted when there are multiple includes — do not binary-search it.
+  _selectionUnion(csets) {
+    if (!csets || csets.length === 0) return [];
+    if (csets.length === 1) return this._selectionIds(csets[0]);
+    const seen = new Set();
+    const out = [];
+    for (const cset of csets) {
+      for (const id of this._selectionIds(cset)) {
+        if (!seen.has(id)) { seen.add(id); out.push(id); }
+      }
+    }
+    return out;
+  }
+
+  _selectionIds(cset) {
+    if (cset.concept && cset.concept.length) {
+      const ids = [];
+      for (const cc of cset.concept) {
+        const id = this._locateConceptId(cc.code);
+        if (id != null) ids.push(id);
+      }
+      return unionSorted([ids.sort((a, b) => a - b)]);
+    }
+    if (cset.filter && cset.filter.length) {
+      let ids = null;
+      for (const fc of cset.filter) {
+        const clauseIds = this._idsForFilter(fc.property, fc.op, fc.value);
+        ids = ids == null ? clauseIds : intersectSorted(ids, clauseIds);
+        if (ids.length === 0) break;
+      }
+      return ids || [];
+    }
+    return this.factory.allConceptIds();
+  }
+
+  // One filter triple -> sorted concept_ids; same routing as filter(), no prep.
+  _idsForFilter(prop, op, value) {
+    value = this._rewriteFilterValue(value);
+    if (['is-a', 'descendent-of', 'child-of', 'generalizes'].includes(op)) {
+      if (!this.hasParents()) {
+        throw new Error(`The filter "${prop} ${op} ${value}" is not supported for ${this.system()} (no hierarchy)`);
+      }
+      return this._hierarchyIds(op, value);
+    }
+    if (op === 'in' && (prop === 'concept' || prop === 'code') && this.factory.hasValueSets) {
+      return this._valueSetMemberIds(value);
+    }
+    const { name, def } = this._resolveProp(prop);
+    if (!def || !['=', 'in', 'exists', 'regex'].includes(op)) {
+      throw new Error(`The filter "${prop} ${op} ${value}" is not supported for ${this.system()}`);
+    }
+    return this._propertyIds({ name, def, op, value });
+  }
+
+  _activeIdSet() {
+    if (!this.factory._activeIdSetCache) {
+      this.factory._activeIdSetCache = new Set(this.db.prepare(
+        `SELECT concept_id AS id FROM concept WHERE cs_id = ? AND active = 1`
+      ).all(this.csId).map((r) => r.id));
+    }
+    return this.factory._activeIdSetCache;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -882,6 +1040,10 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
     this.totalCount = this.db.prepare(
       `SELECT COUNT(*) AS n FROM concept WHERE cs_id = ?`
     ).get(this.csId).n;
+
+    this.hasValueSets = !!this.db.prepare(
+      `SELECT 1 FROM value_set WHERE cs_id = ? LIMIT 1`
+    ).get(this.csId);
 
     // Root concept_ids (no active hierarchy parent) — cached if hierarchy exists.
     this._roots = null;
