@@ -188,6 +188,11 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   versionAlgorithm() { return this.cfg.versionAlgorithm || null; }
   hasParents() { return this.factory.hasHierarchy; }
 
+  // Human name for the code system when the DB provides one (cs_config
+  // `name`, e.g. 'LOINC' — surfaced as $lookup's `name` output parameter);
+  // otherwise the base system|version form.
+  name() { return this.cfg.name || super.name(); }
+
   status() {
     const s = {};
     if (this.cfg.status) s.status = this.cfg.status;
@@ -271,10 +276,13 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (row) {
       return { context: new SqliteConceptContext(row), message: null };
     }
-    return {
-      context: null,
-      message: `Unknown code '${code}' in the CodeSystem ${this.vurl()}`,
-    };
+    // cs_config locateMissMessage overrides the default miss message; the
+    // empty string means "no message" (the reference LOINC provider reports a
+    // bare miss, so $validate-code adds no extra information issue).
+    const msg = this.cfg.locateMissMessage !== undefined
+      ? (this.cfg.locateMissMessage || null)
+      : `Unknown code '${code}' in the CodeSystem ${this.vurl()}`;
+    return { context: null, message: msg };
   }
 
   async code(context) {
@@ -300,15 +308,19 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   }
 
   _bestDesignationForLangs(conceptId) {
+    const asProps = this._designationsAsProperties();
     const rows = this.db.prepare(
-      `SELECT language_code, term, preferred
+      `SELECT language_code, use_code, term, preferred
          FROM designation WHERE concept_id = ? AND active = 1
-        ORDER BY preferred DESC`
+        ORDER BY preferred DESC, designation_id`
     ).all(conceptId);
     for (const requested of this.opContext.langs) {
       // preferred first (rows already ordered), exact/for-display match
       for (const r of rows) {
         if (!r.language_code) continue;
+        // designation rows that are really property values (cs_config
+        // designationsAsProperties, e.g. LOINC RELATEDNAMES2) are not displays
+        if (r.use_code && asProps.has(r.use_code)) continue;
         const dl = new Language(r.language_code);
         if (dl.matchesForDisplay(requested)) return r.term;
       }
@@ -367,19 +379,100 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       displays.addDesignation(true, 'active', this.defLang(), CodeSystem.makeUseForDisplay(), c.display);
     }
 
+    // Designation rows whose use is listed in cs_config
+    // designationsAsProperties (e.g. LOINC RELATEDNAMES2) are per-language
+    // property values, not designations — extendLookup emits them.
+    const asProps = this._designationsAsProperties();
+    const uses = this.cfg.designationUses || {};
     const rows = this.db.prepare(
       `SELECT language_code, use_system, use_code, term, active, preferred
          FROM designation WHERE concept_id = ?`
     ).all(c.conceptId);
     for (const r of rows) {
+      if (r.use_code && asProps.has(r.use_code)) continue;
       let use = null;
       if (r.use_system || r.use_code) {
         use = { system: r.use_system || undefined, code: r.use_code || undefined };
+        if (r.use_code && uses[r.use_code]) use.display = uses[r.use_code];
       }
       displays.addDesignation(false, r.active ? 'active' : 'inactive', r.language_code || null, use, r.term);
     }
 
     this._listSupplementDesignations(c.code, displays);
+  }
+
+  _designationsAsProperties() {
+    if (!this._asPropsCache) {
+      this._asPropsCache = new Set(Array.isArray(this.cfg.designationsAsProperties)
+        ? this.cfg.designationsAsProperties : []);
+    }
+    return this._asPropsCache;
+  }
+
+  /**
+   * $lookup property emission, all metadata-driven:
+   *   - concept_link rows -> code properties (target concept's code);
+   *   - concept_literal rows (for literal-kind property defs) -> typed values,
+   *     with a `description` part from cs_config propertyValueDescriptions;
+   *   - designationsAsProperties rows -> language-tagged string properties.
+   * Property codes requested via `props` are honored (_hasProp semantics).
+   */
+  async extendLookup(ctxt, props, params) {
+    const c = await this._ensure(ctxt);
+    if (!c) return;
+
+    const links = this.db.prepare(
+      `SELECT pd.property_code AS code, tc.code AS target_code
+         FROM concept_link cl
+         JOIN property_def pd ON pd.property_id = cl.property_id
+         JOIN concept tc ON tc.concept_id = cl.target_concept_id
+        WHERE cl.source_concept_id = ? AND cl.active = 1
+        ORDER BY cl.edge_id`
+    ).all(c.conceptId);
+    for (const l of links) {
+      if (this._hasProp(props, l.code, true)) {
+        this._addCodeProperty(params, 'property', l.code, l.target_code);
+      }
+    }
+
+    const descriptions = this.cfg.propertyValueDescriptions || {};
+    const lits = this.db.prepare(
+      `SELECT pd.property_code AS code, pd.fhir_type AS fhir_type, pd.value_kind AS value_kind,
+              cl.value_raw, cl.value_text, cl.value_num, cl.value_bool
+         FROM concept_literal cl
+         JOIN property_def pd ON pd.property_id = cl.property_id
+        WHERE cl.source_concept_id = ? AND cl.active = 1
+        ORDER BY cl.literal_id`
+    ).all(c.conceptId);
+    for (const l of lits) {
+      // Literal rows under a concept-kind def are filter-only duplicates of a
+      // link (e.g. the textual part name); the link emission above covers them.
+      if (l.value_kind !== 'literal') continue;
+      if (!this._hasProp(props, l.code, true)) continue;
+      const typed = this._literalToProperty(l);
+      const part = [{ name: 'code', valueCode: l.code }];
+      const meanings = descriptions[l.code];
+      const rawValue = l.value_text != null ? l.value_text : l.value_raw;
+      if (meanings && rawValue != null && meanings[rawValue]) {
+        part.push({ name: 'description', valueString: meanings[rawValue] });
+      }
+      for (const [k, v] of Object.entries(typed)) {
+        if (k !== 'code') part.push({ name: 'value', [k]: v });
+      }
+      params.push({ name: 'property', part });
+    }
+
+    for (const useCode of this._designationsAsProperties()) {
+      if (!this._hasProp(props, useCode, true)) continue;
+      const rows = this.db.prepare(
+        `SELECT language_code, term FROM designation
+          WHERE concept_id = ? AND active = 1 AND use_code = ?
+          ORDER BY designation_id`
+      ).all(c.conceptId, useCode);
+      for (const r of rows) {
+        this._addProperty(params, 'property', useCode, r.term, r.language_code || null);
+      }
+    }
   }
 
   // ---- properties --------------------------------------------------------
@@ -487,6 +580,12 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return !!row;
   }
 
+  // cs_config isAIncludesSelf=0: the is-a filter yields strict descendants
+  // (the reference LOINC behavior); default is FHIR's is-a (self included).
+  _isAIncludesSelf() {
+    return this.cfg.isAIncludesSelf !== false;
+  }
+
   async locateIsA(code, parent, disallowParent) {
     if (!this.hasParents()) {
       return { context: null, message: `The CodeSystem ${this.name()} does not have parents` };
@@ -499,7 +598,7 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     }
     const cId = located.context.conceptId;
     const pId = parentRow.concept_id;
-    if (!disallowParent && cId === pId) {
+    if (!disallowParent && cId === pId && this._isAIncludesSelf()) {
       return { context: located.context, message: null };
     }
     if (this._closureHas(pId, cId)) {
@@ -578,6 +677,27 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return value;
   }
 
+  // Config-declared filter families beyond plain property matching:
+  //   membershipFilters[prop] = { member } — collection membership (LOINC
+  //     LIST / answers-for): the value resolves to collection concepts and the
+  //     result is the targets of their `member` links.
+  //   existsFilters[prop] = { property, values: {v: bool} } — enumerated value
+  //     mapping onto (not-)exists of another property (LOINC copyright).
+  _membershipFilterSpec(prop, op) {
+    if (!['=', 'in'].includes(op)) return null;
+    const mf = this.cfg.membershipFilters;
+    return (mf && typeof mf === 'object' && mf[prop]) ? mf[prop] : null;
+  }
+
+  _existsFilterSpec(prop, op, value) {
+    if (op !== '=') return null;
+    const ef = this.cfg.existsFilters;
+    const spec = (ef && typeof ef === 'object') ? ef[prop] : null;
+    if (!spec || !spec.values || !(value in spec.values)) return null;
+    const def = this.propByCode.get(spec.property);
+    return def ? { def, want: !!spec.values[value] } : null;
+  }
+
   // eslint-disable-next-line no-unused-vars
   async doesFilter(prop, op, value) {
     // Hierarchy operators require a hierarchy.
@@ -597,6 +717,9 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (prop === 'constraint' && op === '=') {
       return this.factory.hasHierarchy;
     }
+    // Config-declared filter families.
+    if (this._membershipFilterSpec(prop, op)) return true;
+    if (this._existsFilterSpec(prop, op, value)) return true;
     // Property operators on any defined property (after alias mapping).
     if (['=', 'in', 'exists', 'regex'].includes(op)) {
       const { def } = this._resolveProp(prop);
@@ -635,6 +758,20 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       return;
     }
 
+    // Config-declared filter families (see doesFilter).
+    const membership = this._membershipFilterSpec(prop, op);
+    if (membership) {
+      filterContext.clauses.push(new FilterClause('membership', { prop, spec: membership, op, value }));
+      return;
+    }
+    const existsMap = this._existsFilterSpec(prop, op, value);
+    if (existsMap) {
+      filterContext.clauses.push(new FilterClause('property', {
+        name: existsMap.def.property_code, def: existsMap.def, op: 'exists', value: String(existsMap.want)
+      }));
+      return;
+    }
+
     const { name, def } = this._resolveProp(prop);
     if (!def) {
       throw new Error(`The filter "${prop} ${op} ${value}" is not supported for ${this.system()}`);
@@ -670,7 +807,43 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (clause.kind === 'search') return this._searchIds(clause.spec.text);
     if (clause.kind === 'vs-member') return this._valueSetMemberIds(clause.spec.value);
     if (clause.kind === 'ecl') return this._evalEclOrThrow(clause.spec.value, clause.spec.ast);
+    if (clause.kind === 'membership') {
+      return this._membershipIds(clause.spec.prop, clause.spec.spec, clause.spec.op, clause.spec.value);
+    }
     return [];
+  }
+
+  // Collection-membership filter (cs_config membershipFilters): resolve the
+  // value(s) to collection concepts — the value itself when it has outgoing
+  // `member` links, plus the sources of <prop> links targeting the value —
+  // then return the targets of the collections' `member` links.
+  _membershipIds(prop, spec, op, value) {
+    const memberDef = this.propByCode.get(spec.member);
+    if (!memberDef) return [];
+    const values = op === 'in' ? this._splitList(value) : [value];
+    const collections = new Set();
+    const propDef = this.propByCode.get(prop) || null;
+    for (const v of values) {
+      const id = this._locateConceptId(v);
+      if (id == null) continue;
+      const hasMembers = this.db.prepare(
+        `SELECT 1 FROM concept_link WHERE source_concept_id = ? AND property_id = ? AND active = 1 LIMIT 1`
+      ).get(id, memberDef.property_id);
+      if (hasMembers) collections.add(id);
+      if (propDef) {
+        for (const r of this.db.prepare(
+          `SELECT DISTINCT source_concept_id AS id FROM concept_link
+            WHERE property_id = ? AND active = 1 AND target_concept_id = ?`
+        ).all(propDef.property_id, id)) collections.add(r.id);
+      }
+    }
+    if (collections.size === 0) return [];
+    const ph = [...collections].map(() => '?').join(',');
+    return this.db.prepare(
+      `SELECT DISTINCT target_concept_id AS id FROM concept_link
+        WHERE property_id = ? AND active = 1 AND source_concept_id IN (${ph})
+        ORDER BY id`
+    ).all(memberDef.property_id, ...collections).map((r) => r.id);
   }
 
   // Members of an intrinsic value set (e.g. a SNOMED refset), identified by
@@ -848,10 +1021,15 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     let sql;
     let args;
     if (op === 'is-a') {
-      // descendants ∪ self
-      sql = `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ?
-             UNION SELECT ? AS id ORDER BY id`;
-      args = [id, id];
+      if (this._isAIncludesSelf()) {
+        // descendants ∪ self
+        sql = `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ?
+               UNION SELECT ? AS id ORDER BY id`;
+        args = [id, id];
+      } else {
+        sql = `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ? ORDER BY id`;
+        args = [id];
+      }
     } else if (op === 'descendent-of') {
       sql = `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ? ORDER BY id`;
       args = [id];
@@ -898,37 +1076,62 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     }
 
     if (isConcept) {
+      if (op === 'regex') {
+        // Regex on a concept-valued property matches the TARGET concept's
+        // display (the legacy providers regex over the part names), unioned
+        // with any filter-only literal duplicates stored under the same
+        // property (e.g. the LOINC CLASS column text).
+        return unionSorted([this._conceptRegexIds(def, value), this._literalRegexIds(def, value)]);
+      }
       // value(s) identify target concepts by code — and, when cs_config
-      // conceptFilterMatch = 'code-or-display', also by exact display/name.
-      // The legacy LOINC provider matches relationship filter values against
-      // the target Part's name (SCALE_TYP=Qn etc.), and published ValueSets
-      // rely on that form.
+      // conceptFilterMatch = 'code-or-display', also by case-insensitive
+      // display/name. The legacy LOINC provider matches relationship filter
+      // values against the target Part's name (SCALE_TYP=Qn etc., value case
+      // varies in published ValueSets), and dual-stored literal rows under the
+      // same property participate too.
       const codes = op === 'in' ? this._splitList(value) : [value];
       let targetIds = codes.map((cd) => this._locateConceptId(cd)).filter((x) => x != null);
       if (this.cfg.conceptFilterMatch === 'code-or-display') {
         const byName = this.db.prepare(
-          `SELECT concept_id FROM concept WHERE cs_id = ? AND display = ?`
+          `SELECT concept_id FROM concept WHERE cs_id = ? AND display = ? COLLATE NOCASE`
         );
         for (const cd of codes) {
           for (const row of byName.all(this.csId, cd)) targetIds.push(row.concept_id);
         }
         targetIds = [...new Set(targetIds)];
       }
-      if (targetIds.length === 0) return [];
-      const ph = targetIds.map(() => '?').join(',');
-      return this.db.prepare(
-        `SELECT DISTINCT source_concept_id AS id FROM concept_link
-          WHERE property_id = ? AND active = 1 AND target_concept_id IN (${ph})
-          ORDER BY id`
-      ).all(def.property_id, ...targetIds).map((r) => r.id);
+      let linkIds = [];
+      if (targetIds.length > 0) {
+        const ph = targetIds.map(() => '?').join(',');
+        linkIds = this.db.prepare(
+          `SELECT DISTINCT source_concept_id AS id FROM concept_link
+            WHERE property_id = ? AND active = 1 AND target_concept_id IN (${ph})
+            ORDER BY id`
+        ).all(def.property_id, ...targetIds).map((r) => r.id);
+      }
+      return unionSorted([linkIds, this._literalValueIds(def, codes)]);
     }
 
     // Literal-valued property.
     if (op === 'regex') {
       return this._literalRegexIds(def, value);
     }
-    const values = op === 'in' ? this._splitList(value) : [value];
+    let values = op === 'in' ? this._splitList(value) : [value];
     if (values.length === 0) return [];
+    // cs_config propertyValueDescriptions maps stored values to their coded
+    // meanings (LOINC CLASSTYPE '1' <-> 'Laboratory class'); accept either
+    // form as the filter value, like the reference server.
+    const meanings = (this.cfg.propertyValueDescriptions || {})[def.property_code];
+    if (meanings) {
+      const extra = [];
+      for (const v of values) {
+        if (meanings[v]) extra.push(meanings[v]);
+        for (const [stored, meaning] of Object.entries(meanings)) {
+          if (String(meaning).toLowerCase() === String(v).toLowerCase()) extra.push(stored);
+        }
+      }
+      values = [...new Set([...values, ...extra])];
+    }
     const ph = values.map(() => '?').join(',');
     // A value can live in value_text (typed text projection for code/string
     // types) or value_raw (lexical form, incl. numeric/boolean types), matched
@@ -962,6 +1165,43 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       if (v != null && regex.test(v)) ids.add(r.id);
     }
     return [...ids].sort((a, b) => a - b);
+  }
+
+  // Sources of links under `def` whose TARGET's display matches the regex.
+  _conceptRegexIds(def, pattern) {
+    const regex = regexUtilities.compile(pattern);
+    const targets = this.db.prepare(
+      `SELECT DISTINCT tc.concept_id AS id, tc.display AS display
+         FROM concept_link cl JOIN concept tc ON tc.concept_id = cl.target_concept_id
+        WHERE cl.property_id = ? AND cl.active = 1`
+    ).all(def.property_id);
+    const hit = [];
+    for (const t of targets) {
+      if (this.opContext) this.opContext.deadCheck('cs-sqlite:concept-regex');
+      if (t.display != null && regex.test(t.display)) hit.push(t.id);
+    }
+    if (hit.length === 0) return [];
+    const ph = hit.map(() => '?').join(',');
+    return this.db.prepare(
+      `SELECT DISTINCT source_concept_id AS id FROM concept_link
+        WHERE property_id = ? AND active = 1 AND target_concept_id IN (${ph})
+        ORDER BY id`
+    ).all(def.property_id, ...hit).map((r) => r.id);
+  }
+
+  // Case-insensitive exact matches over any literal rows stored under `def`
+  // (dual-stored filter text for concept-valued properties).
+  _literalValueIds(def, values) {
+    if (!values || values.length === 0) return [];
+    const ph = values.map(() => '?').join(',');
+    return this.db.prepare(
+      `SELECT source_concept_id AS id FROM concept_literal
+        WHERE property_id = ? AND active = 1 AND value_text COLLATE NOCASE IN (${ph})
+       UNION
+       SELECT source_concept_id AS id FROM concept_literal
+        WHERE property_id = ? AND active = 1 AND value_raw COLLATE NOCASE IN (${ph})
+        ORDER BY id`
+    ).all(def.property_id, ...values, def.property_id, ...values).map((r) => r.id);
   }
 
   _splitList(value) {
@@ -1064,14 +1304,18 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   }
 
   async filterLocate(filterContext, set, code) {
+    // cs_config filterLocateMiss='silent': report a bare miss (null) instead
+    // of a message string — the reference LOINC provider adds no
+    // "not in the specified filter" text to $validate-code messages.
+    const silent = this.cfg.filterLocateMiss === 'silent';
     const located = await this.locate(code);
     if (!located.context) {
-      return located.message || `Not a valid code: ${code}`;
+      return silent ? null : (located.message || `Not a valid code: ${code}`);
     }
     if (sortedIncludes(set.ids, located.context.conceptId)) {
       return located.context;
     }
-    return `Code ${code} is not in the specified filter`;
+    return silent ? null : `Code ${code} is not in the specified filter`;
   }
 
   async filterCheck(filterContext, set, concept) {
@@ -1192,6 +1436,16 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     }
     if (prop === 'constraint' && op === '=') {
       return this._evalEclOrThrow(value);
+    }
+    const membership = this._membershipFilterSpec(prop, op);
+    if (membership) {
+      return this._membershipIds(prop, membership, op, value);
+    }
+    const existsMap = this._existsFilterSpec(prop, op, value);
+    if (existsMap) {
+      return this._propertyIds({
+        name: existsMap.def.property_code, def: existsMap.def, op: 'exists', value: String(existsMap.want)
+      });
     }
     const { name, def } = this._resolveProp(prop);
     if (!def || !['=', 'in', 'exists', 'regex'].includes(op)) {
@@ -1360,6 +1614,9 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       // never among its own descendants/ancestors — no dedup needed, which
       // avoids materialising the whole set into a dedup temp b-tree.
       if (op === 'is-a') {
+        if (!this._isAIncludesSelf()) {
+          return { sql: `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ?`, args: [seed] };
+        }
         return { sql: `SELECT descendant_id AS id FROM closure WHERE ancestor_id = ? UNION ALL SELECT ? AS id`, args: [seed, seed] };
       }
       return { sql: `SELECT ancestor_id AS id FROM closure WHERE descendant_id = ? UNION ALL SELECT ? AS id`, args: [seed, seed] };
@@ -1522,13 +1779,18 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
   _parseConfig(key, value) {
     switch (key) {
       case 'caseSensitive':
-        return value === '1' || value === 'true';
       case 'experimental':
+      case 'isAIncludesSelf':
         return value === '1' || value === 'true';
       case 'implicitValueSets':
       case 'filterAliases':
       case 'searchSources':
       case 'filterValueRewrites':
+      case 'membershipFilters':
+      case 'existsFilters':
+      case 'propertyValueDescriptions':
+      case 'designationsAsProperties':
+      case 'designationUses':
         try { return JSON.parse(value); } catch { return value; }
       default:
         return value;
@@ -1637,7 +1899,7 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
         });
       }
       if (p.kind === 'vs-table') {
-        return this._buildVsTable(url, version);
+        return this._buildVsTable(url, version, p, extracted);
       }
     }
     return null;
@@ -1662,7 +1924,7 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
     return null;
   }
 
-  _buildVsTable(url, version) {
+  _buildVsTable(url, version, pattern = null, extracted = null) {
     const vs = this.db.prepare(
       `SELECT * FROM value_set WHERE cs_id = ? AND url = ?
         ORDER BY (version IS NULL) DESC LIMIT 1`
@@ -1680,7 +1942,14 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
          FROM value_set_member m JOIN concept c ON c.concept_id = m.concept_id
         WHERE m.vs_id = ? ORDER BY m.member_id`
     ).all(vs.vs_id);
-    return this._vs(url, vs.name || url, {
+    // FHIR name: nameTemplate from the implicitValueSets entry when present
+    // ({code} = extracted code, sanitized to a valid FHIR name), else the
+    // stored source name.
+    let name = vs.name || url;
+    if (pattern && pattern.nameTemplate && extracted && extracted.code) {
+      name = pattern.nameTemplate.replace('{code}', extracted.code.replace(/[^A-Za-z0-9]/g, '_'));
+    }
+    return this._vs(url, name, {
       include: [{ system: this.system(), concept: members.map((m) => ({ code: m.code, display: m.display || undefined })) }],
     }, vs.version || version);
   }
