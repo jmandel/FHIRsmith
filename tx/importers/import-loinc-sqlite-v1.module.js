@@ -903,6 +903,9 @@ class LoincV1Importer {
 
     // VSAC-style filter aliases: LOINC `code`/`parent` map onto the hierarchy.
     w.setConfig(this.csId, 'filterAliases', { code: PARENT_PROPERTY_CODE });
+    // Legacy LOINC relationship filters match the target Part's NAME
+    // (SCALE_TYP=Qn, PROPERTY=Mass, ...); published ValueSets depend on it.
+    w.setConfig(this.csId, 'conceptFilterMatch', 'code-or-display');
 
     // Implicit value sets: all-of-LOINC + one vs-table per answer list.
     const implicit = [

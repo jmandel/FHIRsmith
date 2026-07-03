@@ -651,9 +651,22 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     }
 
     if (isConcept) {
-      // value(s) identify target concepts by code.
+      // value(s) identify target concepts by code — and, when cs_config
+      // conceptFilterMatch = 'code-or-display', also by exact display/name.
+      // The legacy LOINC provider matches relationship filter values against
+      // the target Part's name (SCALE_TYP=Qn etc.), and published ValueSets
+      // rely on that form.
       const codes = op === 'in' ? this._splitList(value) : [value];
-      const targetIds = codes.map((cd) => this._locateConceptId(cd)).filter((x) => x != null);
+      let targetIds = codes.map((cd) => this._locateConceptId(cd)).filter((x) => x != null);
+      if (this.cfg.conceptFilterMatch === 'code-or-display') {
+        const byName = this.db.prepare(
+          `SELECT concept_id FROM concept WHERE cs_id = ? AND display = ?`
+        );
+        for (const cd of codes) {
+          for (const row of byName.all(this.csId, cd)) targetIds.push(row.concept_id);
+        }
+        targetIds = [...new Set(targetIds)];
+      }
       if (targetIds.length === 0) return [];
       const ph = targetIds.map(() => '?').join(',');
       return this.db.prepare(

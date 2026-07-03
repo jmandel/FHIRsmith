@@ -53,6 +53,7 @@ function buildMainFixture(dbPath) {
   writer.setConfig(csId, 'filterAliases', { 'vsac-parent': 'is-a-prop' });
   writer.setConfig(csId, 'filterValueRewrites',
     JSON.stringify([{ pattern: '^CUI:(\\w+)$', replace: '$1' }]));
+  writer.setConfig(csId, 'conceptFilterMatch', 'code-or-display');
   writer.setConfig(csId, 'implicitValueSets', [
     { pattern: '?fhir_vs', kind: 'all' },
     { pattern: '?fhir_vs=isa/{code}', kind: 'isa' },
@@ -467,6 +468,11 @@ describe('SqliteCodeSystemProvider (sqlite-v1 contract)', () => {
     test('filterValueRewrites maps legacy value forms (CUI: prefix)', async () => {
       const rewritten = await runFilter('associated-with', '=', 'CUI:H');
       expect(rewritten.codes).toEqual(['G']);
+    });
+
+    test('conceptFilterMatch code-or-display matches target by display name', async () => {
+      const byName = await runFilter('associated-with', '=', 'Concept H');
+      expect(byName.codes).toEqual(['G']);
     });
 
     test('in / exists / regex', async () => {
