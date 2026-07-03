@@ -80,6 +80,38 @@ This case surfaced two layered issues:
    arguably *less* correct than the page-scoped behavior. So pushdown/IR keep
    page-scoped `expansion.property`; the delta is recorded, not chased.
 
+## Update: after ECL + LOINC conformance work
+
+Two follow-up tracks (SNOMED ECL on sqlite; LOINC $lookup/$validate/$expand
+output) moved the numbers substantially, with **zero regressions**:
+
+| engine | before | after | Δ |
+|---|---|---|---|
+| legacy (on sqlite fixtures) | 1944 / 559 | **2019 / 484** | +75 pass |
+| pushdown | 1941 / 562 | **2007 / 496** | +66 pass |
+| IR | 1941 / 562 | **2007 / 496** | +66 pass |
+
+The full three-engine differential now:
+
+- **pushdown and IR are byte-identical across all 2,503 official cases — 0
+  disagreements.** The two provider-driven engines behave identically.
+- **18 legacy-vs-(pushdown/IR) differences, all explained:**
+  - **3** where pushdown/IR are *better* than legacy (`loinc-expand-all-limited`
+    ×R5/R4/cached — legacy's hierarchical whole-system iteration diverges on a
+    paged whole-system expansion; pushdown/IR page it correctly).
+  - **15** = the frozen `expansion.property` delta (ledger #19): 5 LOINC cases
+    (`class-regex`, `prop-order-obs`, `copyright`, `scale-type`, `filter-dockind`)
+    × R5/R4/cached, where pushdown/IR declare `expansion.property` from the page
+    and legacy from the full set. Deliberately not chased.
+
+ECL: the SNOMED constraint cases now pass (was ~90 failing) — ECL is in scope for
+the sqlite provider, evaluated identically by all three engines.
+
+The remaining ~484 shared failures: ~99 `$related`/`$compare` (upstream operation
+rename, pre-existing on main — not this work), plus SNOMED `$validate-code`
+message-wording and assorted version/language cases — the next conformance
+increment.
+
 ## Takeaways
 
 - The engines are effectively in lockstep on the official suite: 1,935 identical
