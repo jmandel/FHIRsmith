@@ -76,6 +76,8 @@ class TxParameters {
     this.hasActiveOnly = false;
     this.hasExcludeNested = false;
     this.hasGenerateNarrative = false;
+
+    this.engine = null; // expansion engine selection ('ir'|'pushdown'|'legacy')
     this.hasExcludeNotForUI = false;
     this.hasExcludePostCoordinated = false;
     this.hasIncludeDesignations = false;
@@ -205,6 +207,13 @@ class TxParameters {
         case 'diagnostics': {
           let value = getValuePrimitive(p);
           this.diagnostics = strToBool(value, false);
+          break;
+        }
+        case '_engine': {
+          // Expansion engine selection: 'ir' | 'pushdown' | 'legacy'.
+          // Opt-in; unrecognised values ignored (legacy stays default).
+          const v = String(getValuePrimitive(p) || '').trim().toLowerCase();
+          if (v === 'ir' || v === 'pushdown' || v === 'legacy') this.engine = v;
           break;
         }
         case 'lenient-display-validation': {
@@ -560,7 +569,7 @@ e
       return v ? '1|' : '0|';
     };
 
-    let s = '|'+this.count+'|'+this.limit+'|'+this.offset+
+    let s = '|'+this.count+'|'+this.limit+'|'+this.offset+ '|engine='+(this.engine||'')+'|'+
       this.FUid + '|' + b(this.FMembershipOnly) + '|' + b(this.FVersionsMatch)+'|' + this.FProperties.join(',') + '|' +
       b(this.FActiveOnly) + b(this.FDisplayWarning) + b(this.FExcludeNested) + b(this.FGenerateNarrative) + b(this.FExcludeNotForUI) + b(this.FExcludePostCoordinated) +
       b(this.FIncludeDesignations) + b(this.FIncludeDefinition) + b(this.hasActiveOnly) + b(this.hasExcludeNested) + b(this.hasGenerateNarrative) +
@@ -638,6 +647,7 @@ e
     this.hasVersionsMatch = other.hasVersionsMatch;
     this.hasDisplayWarning = other.hasDisplayWarning;
     this.sort = other.sort;
+    this.engine = other.engine;
 
     if (other.FProperties) {
       this.FProperties = [...other.FProperties];

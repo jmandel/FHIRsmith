@@ -766,6 +766,104 @@ class ValueSetExpander {
     return true;
   }
 
+  /**
+   * _engine=ir path. Builds the IR from the compose, runs the tx/engine
+   * orchestrator over native sqlite providers, and decorates the resulting
+   * page through the SAME includeCode path pushdown/legacy use — so the three
+   * engines share one decoration surface and stay at parity. Returns true when
+   * handled; false (emitting nothing) to fall through to pushdown/legacy.
+   *
+   * Fallback gates mirror processCodes (text filters, enumerated-concept
+   * includes whose order is semantic, nested-hierarchy output). Additionally
+   * bails on any orchestrator "bail" (non-native provider, imports, unhandled
+   * shape) so those keep their legacy behavior.
+   */
+  async processViaIR(source, compose, filter, expansion, excludeInactive, notClosed, vsInfo) {
+    const includes = compose.include || [];
+    const excludes = compose.exclude || [];
+    if (!filter.isNull) return false;
+    if (includes.some(inc => inc.concept && inc.concept.length > 0)) return false;
+    // Multiple includes: legacy/pushdown page in include-by-include order
+    // (tier-1.5 of the ordering contract), but IR's rewrite merges the union
+    // into concept_id order. Cede multi-include composes so first-page
+    // composition stays identical; single-include is where IR earns its keep.
+    if (includes.length > 1) return false;
+
+    // Resolve every referenced provider once; require all native (else bail so
+    // legacy owns it). Also drives supplement/status/used-codesystem bookkeeping
+    // identically to the pushdown path.
+    const csBySystem = new Map();
+    for (const cset of [...includes, ...excludes]) {
+      if (!cset.system) return false; // pure-import component: let legacy handle
+      const key = cset.system + '|' + (cset.version || '');
+      if (!csBySystem.has(key)) {
+        const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params, ['complete', 'fragment'],
+          false, false, true, null, this.requiredSupplements);
+        if (cs == null || typeof cs.hasExecuteIR !== 'function' || !cs.hasExecuteIR()) return false;
+        csBySystem.set(key, cs);
+        this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
+        this.addParamUri(expansion, 'used-codesystem', this.canonical(cs.system(), cs.version()));
+      }
+      this.worker.checkSupplements(csBySystem.get(key), cset, this.requiredSupplements, this.usedSupplements);
+    }
+
+    // Nested-hierarchy shape: same gate as processCodes (single whole/simple
+    // include, hierarchy present, unpaged, nesting not excluded -> legacy).
+    const anyHierarchy = [...csBySystem.values()].some(cs => cs.hasParents());
+    const paged = this.offset > -1 || this.count > -1;
+    const flatAnyway = this.params.excludeNested || this.offset > 0 || !anyHierarchy ||
+      includes.every(inc => (inc.filter || []).length > 1);
+    if (!flatAnyway && !paged) return false;
+
+    const { expandViaIR } = require('../engine/orchestrator');
+    const offset = paged ? Math.max(this.offset, 0) : 0;
+    const count = this.count > -1 ? this.count : -1;
+
+    const result = await expandViaIR(source.jsonObj, {
+      findProvider: async (system, version) => {
+        const cs = csBySystem.get(system + '|' + (version || '')) ||
+          [...csBySystem.values()].find(c => c.system() === system);
+        return cs || null;
+      },
+      activeOnly: !!this.params.activeOnly || excludeInactive,
+      offset, count,
+    });
+    if (!result || result.expansion === null || !Array.isArray(result.candidates)) return false;
+
+    const total = result.total != null ? result.total : null;
+    if (this.limitCount > 0 && total != null && total > this.limitCount && !(this.count > -1)) {
+      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY',
+        this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [source.vurl, '>' + this.limitCount]),
+        null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+    }
+
+    this.canBeHierarchy = false;
+    if (paged) vsInfo.csDoOffset = true;
+    if (total != null) this.addToTotal(total); else this.noTotal();
+
+    this.worker.opContext.log('IR engine: total=' + total + ' page=' + result.candidates.length);
+    const cds = new Designations(this.worker.i18n.languageDefinitions);
+    for (const cand of result.candidates) {
+      this.worker.deadCheck('processViaIR');
+      const cs = [...csBySystem.values()].find(c => c.system() === cand.system);
+      if (!cs) continue;
+      const loc = await cs.locate(cand.code, this.allAltCodes);
+      if (!loc || !loc.context) continue;
+      const c = loc.context;
+      cds.clear();
+      if (this.noDetails) {
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          null, null, cds, null, null, expansion, null, null, null, null, null, excludeInactive, source.url);
+      } else {
+        await this.listDisplaysFromProvider(cds, cs, c);
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
+          expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, source.url);
+      }
+    }
+    return true;
+  }
+
   async includeCodes(cset, path, vsSrc, compose, filter, expansion, excludeInactive, notClosed) {
     this.worker.deadCheck('processCodes#1');
     const valueSets = [];
@@ -1257,11 +1355,15 @@ class ValueSetExpander {
 
     this.worker.opContext.log('compose #2');
 
-    // processCodes returns false when the provider-driven path can't reproduce
-    // legacy-visible behavior for this request; the legacy path then runs.
-    if (vsInfo.handleByCS &&
+    // Explicit _engine=ir opt-in: try the IR orchestrator first. Like
+    // processCodes it returns false (and emits nothing) when it can't
+    // reproduce legacy-visible behavior, so the normal path then runs.
+    if (this.params.engine === 'ir' &&
+        await this.processViaIR(source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo)) {
+      // handled by the IR engine
+    } else if (this.params.engine !== 'legacy' && vsInfo.handleByCS &&
         await this.processCodes("ValueSet.compose", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo)) {
-      // handled by the code system provider
+      // handled by the code system provider (pushdown)
     } else {
       this.checkForExclusionVersionSpecialCase(source, expansion);
 
