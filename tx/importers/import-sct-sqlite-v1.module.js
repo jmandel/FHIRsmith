@@ -713,6 +713,9 @@ class SnomedSqliteV1Importer {
     set('caseSensitive', '1');
     set('defaultLanguage', 'en');
     set('versionAlgorithm', 'date');
+    // SNOMED CT supports post-coordinated expressions (focus : attr = value).
+    // Only SNOMED sets this; the provider gates all expression parsing on it.
+    set('supportsExpressions', '1');
     set('hierarchyMeaning', 'is-a');
     set('hierarchyEdgeSet', String(EDGE_SET_INFERRED));
     set('statusProperty', PROP_INACTIVE);
