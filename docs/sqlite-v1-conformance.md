@@ -80,18 +80,20 @@ This case surfaced two layered issues:
    arguably *less* correct than the page-scoped behavior. So pushdown/IR keep
    page-scoped `expansion.property`; the delta is recorded, not chased.
 
-## Update: after ECL + LOINC conformance work
+## Final state (after ECL, LOINC, post-coordination, and SNOMED display/version)
 
-Two follow-up tracks (SNOMED ECL on sqlite; LOINC $lookup/$validate/$expand
-output) moved the numbers substantially, with **zero regressions**:
+Successive tracks — SNOMED ECL; LOINC $lookup/$validate/$expand output; SNOMED
+post-coordinated expressions; and matching the binary provider's SNOMED display
+(smallest-id active description) and version (full edition URI) — moved the
+numbers here, every step with **zero regressions**:
 
-| engine | before | after | Δ |
+| engine | session start | final | Δ |
 |---|---|---|---|
-| legacy (on sqlite fixtures) | 1944 / 559 | **2019 / 484** | +75 pass |
-| pushdown | 1941 / 562 | **2007 / 496** | +66 pass |
-| IR | 1941 / 562 | **2007 / 496** | +66 pass |
+| legacy (on sqlite fixtures) | 1944 / 559 | **2073 / 430** | +129 pass |
+| pushdown | 1941 / 562 | **2061 / 442** | +120 pass |
+| IR | 1941 / 562 | **2061 / 442** | +120 pass |
 
-The full three-engine differential now:
+The full three-engine differential:
 
 - **pushdown and IR are byte-identical across all 2,503 official cases — 0
   disagreements.** The two provider-driven engines behave identically.
@@ -104,13 +106,16 @@ The full three-engine differential now:
     × R5/R4/cached, where pushdown/IR declare `expansion.property` from the page
     and legacy from the full set. Deliberately not chased.
 
-ECL: the SNOMED constraint cases now pass (was ~90 failing) — ECL is in scope for
-the sqlite provider, evaluated identically by all three engines.
+ECL and post-coordinated expressions are now in scope for the sqlite SNOMED
+provider (constraint cases and expression validate/subsume/membership pass,
+evaluated identically by all three engines). Matching the binary provider's
+display (smallest-id active description) and full version URI flipped ~54 SNOMED
+lookup/validate cases green on its own.
 
-The remaining ~484 shared failures: ~99 `$related`/`$compare` (upstream operation
+The remaining ~430 shared failures: ~99 `$related`/`$compare` (upstream operation
 rename, pre-existing on main — not this work), plus SNOMED `$validate-code`
-message-wording and assorted version/language cases — the next conformance
-increment.
+message-wording, a few `expansion.property` cases, and assorted language cases —
+the next conformance increment.
 
 ## Takeaways
 
