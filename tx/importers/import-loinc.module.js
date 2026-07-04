@@ -575,12 +575,17 @@ class LoincDataMigrator {
 
     const db = new sqlite3.Database(destFile);
 
-    // Bulk-load settings: without these every INSERT autocommits with its own
-    // fsync, and a full LOINC import takes >24h instead of minutes. The DB is
-    // built from scratch, so durability during the build adds nothing — a
-    // crashed import is rerun, not recovered.
+    // Bulk-load settings: the whole import runs inside ONE transaction, so the
+    // per-INSERT autocommit+fsync that made a full LOINC import take >24h is
+    // gone (the single commit is the entire speed win). We keep durability
+    // (default rollback journal on disk, synchronous=NORMAL): journal_mode=MEMORY
+    // temp_store=MEMORY keeps transient sort/index scratch in RAM. We do NOT
+    // wrap the CREATE TABLE / reference-data DDL in the bulk transaction: those
+    // run under autocommit (as before this change) so the schema is durably
+    // visible before anything reads it; the single BEGIN..COMMIT below wraps only
+    // the high-volume data load, which is the entire source of the speed win.
     await new Promise((resolve, reject) => {
-      db.exec('PRAGMA journal_mode = MEMORY; PRAGMA synchronous = OFF; PRAGMA temp_store = MEMORY; BEGIN',
+      db.exec('PRAGMA temp_store = MEMORY',
         (err) => err ? reject(err) : resolve());
     });
 
@@ -603,8 +608,13 @@ class LoincDataMigrator {
       this.propValues = new Map();
       this.partNames = new Map();
 
-      // Create tables and initial data
+      // Create tables and initial data under autocommit (schema visible now).
       await this.createTables(db, version, options.verbose);
+
+      // Now wrap only the bulk data load in a single transaction for speed.
+      await new Promise((resolve, reject) => {
+        db.exec('BEGIN', (err) => err ? reject(err) : resolve());
+      });
 
       // Discover language variants first
       const languageVariants = await this.discoverLanguageVariants(sourceDir);
@@ -652,7 +662,7 @@ class LoincDataMigrator {
       }
 
       await new Promise((resolve, reject) => {
-        db.exec('COMMIT; PRAGMA synchronous = NORMAL', (err) => err ? reject(err) : resolve());
+        db.exec('COMMIT', (err) => err ? reject(err) : resolve());
       });
 
       if (options.verbose) console.log('LOINC data migration completed successfully');
