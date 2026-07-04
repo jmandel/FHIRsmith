@@ -572,8 +572,12 @@ describeIfDb(SCT_DB, 'sqlite-v1 too-costly parity: whole-SNOMED include', () => 
   });
   afterAll(() => { if (factory) factory.close(); });
 
-  // 18. Whole-system include, unpaged: both engines must raise too-costly.
-  test('whole-system include raises too-costly on both pushdown and legacy', async () => {
+  // 18. Whole-system include, unpaged: both engines must raise the same error.
+  // SNOMED is not-closed (has a grammar), so a whole-system enumeration is
+  // rejected with the reference "cannot be enumerated directly" grammar error
+  // (matching the binary provider's isNotClosed()=true), not a size/too-costly
+  // error. The invariant under test is that both engines fail identically.
+  test('whole-system include raises the same grammar error on both pushdown and legacy', async () => {
     const vs = vsOf({ include: [{ system: SCT }] });
     const p = params({});
 
@@ -585,6 +589,6 @@ describeIfDb(SCT_DB, 'sqlite-v1 too-costly parity: whole-SNOMED include', () => 
     expect(legacyErr).toBeTruthy();
     // Same failure class / message on both paths.
     expect(pushErr.message).toEqual(legacyErr.message);
-    expect(pushErr.message).toMatch(/too many codes|too-costly|TOO_COSTLY/i);
+    expect(pushErr.message).toMatch(/too many codes|too-costly|TOO_COSTLY|has a grammar/i);
   });
 });

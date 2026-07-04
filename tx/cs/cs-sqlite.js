@@ -211,6 +211,13 @@ class SqliteCodeSystemProvider extends BaseCSServices {
 
   defLang() { return this.cfg.defaultLanguage || 'en'; }
   isCaseSensitive() { return this.cfg.caseSensitive !== false; }
+
+  // A code system with a grammar (post-coordination) cannot be fully
+  // enumerated, so filter/hierarchy expansions are "unclosed" — the reference
+  // marks every SNOMED expansion with the valueset-unclosed extension and pages
+  // a flat list. Config-gated: true exactly when the CS composes expressions
+  // (SNOMED), matching the binary provider's unconditional isNotClosed()=true.
+  isNotClosed() { return this.cfg.notClosed === true || this._supportsExpressions(); }
   versionAlgorithm() { return this.cfg.versionAlgorithm || null; }
   hasParents() { return this.factory.hasHierarchy; }
 
@@ -428,11 +435,25 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return c ? !c.active : false;
   }
 
+  // The status property is "boolean" when the cs_config statusProperty IS the
+  // inactiveProperty (SNOMED: both are `inactive`). Then status is not a stored
+  // enum literal but the concept's active flag, and the reference emits the
+  // standard status codes 'active'/'inactive' — surfacing `status` in an
+  // expansion ONLY for genuinely inactive concepts (includeCode skips the
+  // property when getStatus()==='active'). An enum status property (LOINC
+  // STATUS) keeps returning its stored literal value.
+  _isBooleanStatusProperty() {
+    return !!(this.cfg.inactiveProperty && this.cfg.inactiveProperty === this.cfg.statusProperty);
+  }
+
   async getStatus(context) {
     const prop = this.cfg.statusProperty;
     if (!prop) return null;
     const c = await this._ensure(context);
     if (!c || c.isExpression) return null;
+    if (this._isBooleanStatusProperty()) {
+      return c.active ? 'active' : 'inactive';
+    }
     const def = this.propByCode.get(prop);
     if (!def) return null;
     const row = this.db.prepare(
@@ -782,6 +803,27 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return { name: aliased, def: this.propByCode.get(aliased) };
   }
 
+  // A filter on the boolean status property (SNOMED `inactive = true|false`)
+  // must map to concept.active, NOT a stored literal: active concepts carry no
+  // `inactive=false` row, so a literal match would yield the empty set (the
+  // reference resolves `inactive=false` to the active concepts). Returns the
+  // wanted active flag (true/false) or null when this is not that filter.
+  _statusFilterActive(prop, op, value) {
+    if (op !== '=' || !this._isBooleanStatusProperty()) return null;
+    const { name } = this._resolveProp(prop);
+    if (name !== this.cfg.inactiveProperty) return null;
+    const v = String(value).trim().toLowerCase();
+    return !(v === 'true' || v === '1');
+  }
+
+  // Concept ids by active flag (sorted), for the boolean status filter.
+  _statusActiveIds(wantActive) {
+    return this.db.prepare(
+      `SELECT concept_id AS id FROM concept
+        WHERE cs_id = ? AND active = ? ORDER BY id`
+    ).all(this.csId, wantActive ? 1 : 0).map((r) => r.id);
+  }
+
   // Rewrite legacy filter value forms per cs_config filterValueRewrites
   // (array of {pattern, replace}, first match wins) — e.g. RxNorm clients
   // send "CUI:854979" where the stored target code is "854979".
@@ -858,6 +900,12 @@ class SqliteCodeSystemProvider extends BaseCSServices {
 
   async filter(filterContext, forIteration, prop, op, value) {
     value = this._rewriteFilterValue(value);
+    // Boolean status property (SNOMED `inactive = true|false`) -> concept.active.
+    const wantActive = this._statusFilterActive(prop, op, value);
+    if (wantActive !== null) {
+      filterContext.clauses.push(new FilterClause('active', { active: wantActive }));
+      return;
+    }
     // Hierarchy ops.
     if (['is-a', 'descendent-of', 'child-of', 'generalizes'].includes(op)) {
       if (!this.hasParents()) {
@@ -941,6 +989,7 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   }
 
   _runClause(clause) {
+    if (clause.kind === 'active') return this._statusActiveIds(clause.spec.active);
     if (clause.kind === 'hierarchy') return this._hierarchyIds(clause.spec.op, clause.spec.value);
     if (clause.kind === 'property') return this._propertyIds(clause.spec);
     if (clause.kind === 'search') return this._searchIds(clause.spec.text);
@@ -1420,7 +1469,19 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     return set.ids.length;
   }
 
-  async filtersNotClosed() { return false; }
+  // A grammar-bearing code system (SNOMED) yields an unclosed filter set unless
+  // the include explicitly excludes post-coordinated expressions
+  // (`expressions = false`), which bounds it. Mirrors the binary provider.
+  async filtersNotClosed(filterContext) {
+    if (!this.isNotClosed()) return false;
+    const clauses = filterContext && filterContext.clauses;
+    if (Array.isArray(clauses)) {
+      for (const c of clauses) {
+        if (c.kind === 'expressions' && c.spec && c.spec.want === false) return false;
+      }
+    }
+    return true;
+  }
 
   async filterMore(filterContext, set) {
     set.cursor += 1;
@@ -1594,6 +1655,8 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   // One filter triple -> sorted concept_ids; same routing as filter(), no prep.
   _idsForFilter(prop, op, value) {
     value = this._rewriteFilterValue(value);
+    const wantActive = this._statusFilterActive(prop, op, value);
+    if (wantActive !== null) return this._statusActiveIds(wantActive);
     if (['is-a', 'descendent-of', 'child-of', 'generalizes'].includes(op)) {
       if (!this.hasParents()) {
         throw new Error(`The filter "${prop} ${op} ${value}" is not supported for ${this.system()} (no hierarchy)`);

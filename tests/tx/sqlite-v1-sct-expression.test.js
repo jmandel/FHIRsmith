@@ -68,7 +68,7 @@ describeIf('sqlite-v1 SNOMED post-coordinated expressions', () => {
     expect(loc.context.isExpression).toBe(true);
     expect(await prov.code(loc.context)).toBe(code);
     expect(await prov.display(loc.context)).toBe(
-      '22298006|Myocardial infarction|:363698007|Finding site|=80891009|Heart structure|'
+      '22298006|Myocardial infarction|:363698007|Finding site|=80891009|Heart|'
     );
     // Grammatically-valid-but-unchecked (MRCM) process note.
     expect(await prov.incompleteValidationMessage(loc.context)).toMatch(/MRCM/);
@@ -81,7 +81,7 @@ describeIf('sqlite-v1 SNOMED post-coordinated expressions', () => {
     const loc = await prov.locate(code);
     expect(loc.context).toBeTruthy();
     expect(await prov.display(loc.context)).toBe(
-      '128241005|Inflammatory disease of liver|:{363698007|Finding site|=181268008|Entire liver|}'
+      '128241005|Inflammatory disorder of liver|:{363698007|Finding site|=181268008|Entire liver|}'
     );
   });
 
@@ -90,7 +90,7 @@ describeIf('sqlite-v1 SNOMED post-coordinated expressions', () => {
     const loc = await prov.locate(code);
     expect(loc.context).toBeTruthy();
     expect(await prov.display(loc.context)).toBe(
-      '10200004|Liver structure|+22298006|Myocardial infarction|'
+      '10200004|Liver|+22298006|Myocardial infarction|'
     );
     expect(await prov.code(loc.context)).toBe('10200004+22298006');
   });

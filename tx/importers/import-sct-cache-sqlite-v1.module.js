@@ -52,6 +52,7 @@ const BASE_URI = 'http://snomed.info/sct';
 
 const IS_A_TYPE_ID = '116680003';
 const FSN_TYPE_ID = '900000000000003001';
+const SYNONYM_TYPE_ID = '900000000000013009';
 const TEXT_DEFINITION_TYPE_ID = '900000000000550004';
 
 const EN_US_LANGUAGE_REFSET = '900000000000509007';
@@ -425,15 +426,18 @@ class SnomedCacheSqliteV1Importer {
       const primitive = (c.flags & 0x10) !== 0;
 
       // Read this concept's descriptions once: derive designations + display +
-      // definition. Display = the FIRST active description in cache order, which
-      // is exactly what the binary provider's getDisplayName returns (it walks
-      // this same description-reference list and returns the first active term).
-      // The cache already orders descriptions preferred-term-first; an earlier
-      // attempt to re-derive the "preferred" term from the en-US language refset
-      // mis-selected a different synonym (e.g. 128241005 -> "Inflammatory disease
-      // of liver" instead of the binary's "Inflammatory disorder of liver").
+      // definition. Display = the concept's preferred term = the FIRST active
+      // SYNONYM (type 900000000000013009) in description order — the tag-free
+      // term the reference tx server returns (e.g. 730807009 -> "Entire canal of
+      // Hering", not the FSN "... (body structure)"; 10200004 -> "Liver", not
+      // the FSN nor the refset-"preferred" "Liver structure"). Verified against
+      // the official SNOMED expand fixtures: every returned display is the first
+      // active synonym, independent of the en-US language-refset PREFERRED flag.
+      // Falls back to the FSN, then the first active description, then the code.
       const descSpecs = [];
       let firstActive = null;
+      let firstSynonym = null;
+      let fsn = null;
       let definition = null;
 
       const descRefs = c.descriptions ? (sct.refs.getReferences(c.descriptions) || []) : [];
@@ -456,11 +460,13 @@ class SnomedCacheSqliteV1Importer {
 
         if (d.active) {
           if (firstActive === null) firstActive = term;
+          if (firstSynonym === null && typeId === SYNONYM_TYPE_ID) firstSynonym = term;
+          if (fsn === null && isFsn) fsn = term;
           if (typeId === TEXT_DEFINITION_TYPE_ID && definition === null) definition = term;
         }
       }
 
-      const display = firstActive ?? code;
+      const display = firstSynonym ?? fsn ?? firstActive ?? code;
 
       const conceptId = this.writer.addConcept(this.csId, {
         code, active, display, definition,
@@ -622,6 +628,10 @@ class SnomedCacheSqliteV1Importer {
     set('hierarchyEdgeSet', String(EDGE_SET_INFERRED));
     set('statusProperty', PROP_INACTIVE);
     set('inactiveProperty', PROP_INACTIVE);
+    // The reference reports a filter/hierarchy miss on $validate-code as a bare
+    // "not found in the value set" message, with no "not in the specified
+    // filter" preamble — same as LOINC. Silence the filter-locate-miss text.
+    set('filterLocateMiss', 'silent');
     // Leading '?' matters: the provider matches pattern or system()+pattern
     // against the full implicit-VS URL (http://snomed.info/sct?fhir_vs=...).
     set('implicitValueSets', [
