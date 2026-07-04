@@ -22,8 +22,14 @@ const { CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api'
 const { BaseCSServices } = require('./cs-base');
 const regexUtilities = require('../../library/regex-utilities');
 const { evaluateEcl, parseEcl } = require('./sqlite-ecl');
+const { SqliteSctExpressionService, isSnomedExpression } = require('./sqlite-sct-expression');
+const { SnomedServicesRenderOption, NO_REFERENCE } = require('../sct/expressions');
 const { Issue } = require('../library/operation-outcome');
 const { debugLog } = require('../operation-context');
+
+// SNOMED CT base URI — the fallback trigger for post-coordinated expression
+// support when a fixture DB predates the cs_config `supportsExpressions` flag.
+const SNOMED_URI = 'http://snomed.info/sct';
 
 // The provider's EXACT total for a paged expansion (or null when it chooses to
 // defer for cost). Never an estimate. Whether the total is actually emitted in
@@ -60,6 +66,26 @@ class SqliteConceptContext {
     this.display = row.display;
     this.active = row.active !== 0;
     this.definition = row.definition;
+  }
+}
+
+/**
+ * Context for a validated SNOMED CT post-coordinated expression (as opposed to
+ * a single located concept). Carries the source string and the validated AST
+ * (all concepts resolved to concept_ids). Shaped so the per-concept getters
+ * that only read `.active`/`.definition` behave sensibly: an expression is
+ * treated as active with no definition; methods that need real per-concept data
+ * branch on `isExpression`.
+ */
+class SqliteExpressionContext {
+  constructor(source, expression) {
+    this.conceptId = null;
+    this.code = source;
+    this.display = null;
+    this.active = true;
+    this.definition = null;
+    this.isExpression = true;
+    this.expression = expression;
   }
 }
 
@@ -263,7 +289,31 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       return res.context;
     }
     if (context instanceof SqliteConceptContext) return context;
+    if (context instanceof SqliteExpressionContext) return context;
     throw new Error('Unknown context type in cs-sqlite: ' + (typeof context));
+  }
+
+  // ---- SNOMED post-coordinated expressions -------------------------------
+  //
+  // Gated so ONLY SNOMED composes/validates expressions: the cs_config
+  // `supportsExpressions` flag is the real mechanism (set by the SNOMED
+  // importers); the base-URI check is a fallback so fixture DBs imported before
+  // the flag existed still work. A ':'/'+' code in any other system stays an
+  // unknown code — the gate short-circuits before any parsing.
+  _supportsExpressions() {
+    if (this._supportsExpr === undefined) {
+      this._supportsExpr = this.cfg.supportsExpressions === true ||
+        this.meta.base_uri === SNOMED_URI;
+    }
+    return this._supportsExpr;
+  }
+
+  // Per-factory expression service (prepared statements built once).
+  _exprService() {
+    if (!this.factory._sctExprService) {
+      this.factory._sctExprService = new SqliteSctExpressionService(this.factory);
+    }
+    return this.factory._sctExprService;
   }
 
   // ---- lookup ------------------------------------------------------------
@@ -276,6 +326,21 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (row) {
       return { context: new SqliteConceptContext(row), message: null };
     }
+
+    // SNOMED post-coordinated expression: not a plain code, but may be a
+    // composed expression. Parse + validate all referenced concepts. On
+    // success carry the validated AST; on failure return the same not-found
+    // shape locate uses, with the parser/validator message (mirrors cs-snomed
+    // locate's "Not a valid expression: ..." information issue).
+    if (this._supportsExpressions() && isSnomedExpression(code)) {
+      try {
+        const expr = this._exprService().parseAndValidate(code);
+        return { context: new SqliteExpressionContext(code, expr), message: null };
+      } catch (err) {
+        return { context: null, message: `Not a valid expression: ${err.message}` };
+      }
+    }
+
     // cs_config locateMissMessage overrides the default miss message; the
     // empty string means "no message" (the reference LOINC provider reports a
     // bare miss, so $validate-code adds no extra information issue).
@@ -287,12 +352,20 @@ class SqliteCodeSystemProvider extends BaseCSServices {
 
   async code(context) {
     const c = await this._ensure(context);
-    return c ? c.code : null;
+    if (!c) return null;
+    if (c.isExpression) {
+      return this._exprService().render(c.expression, SnomedServicesRenderOption.Minimal);
+    }
+    return c.code;
   }
 
   async display(context) {
     const c = await this._ensure(context);
     if (!c) return null;
+
+    if (c.isExpression) {
+      return this._exprService().render(c.expression, SnomedServicesRenderOption.FillMissing);
+    }
 
     // Supplements override first (per cs-api base helper semantics).
     const supp = this._displayFromSupplements(c.code);
@@ -337,7 +410,18 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   async isDeprecated() { return false; }
   async itemWeight() { return null; }
   async extensions() { return null; }
-  async incompleteValidationMessage() { return null; }
+
+  async incompleteValidationMessage(context) {
+    const c = await this._ensure(context);
+    if (c && c.isExpression) {
+      // Same process-note the binary provider emits: the expression is
+      // grammatically valid and its concepts exist, but it has not been checked
+      // against the SNOMED concept model (MRCM).
+      return 'The expression is grammatically correct and the concepts are valid, ' +
+        'but the expression has not been checked against the SNOMED CT concept model (MRCM)';
+    }
+    return null;
+  }
 
   async isInactive(context) {
     const c = await this._ensure(context);
@@ -348,7 +432,7 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     const prop = this.cfg.statusProperty;
     if (!prop) return null;
     const c = await this._ensure(context);
-    if (!c) return null;
+    if (!c || c.isExpression) return null;
     const def = this.propByCode.get(prop);
     if (!def) return null;
     const row = this.db.prepare(
@@ -363,6 +447,16 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     const ca = await this._ensure(a);
     const cb = await this._ensure(b);
     if (!ca || !cb) return false;
+    // Post-coordinated expressions compare by STRUCTURAL equivalence, not by
+    // string: `128241005:{363698007=181268008}` equals a whitespace- or
+    // order-different rendering of the same composition. Falls back to code
+    // comparison when neither side is an expression.
+    if (this._supportsExpressions() && (ca.isExpression || cb.isExpression)) {
+      const svc = this._exprService();
+      const ea = ca.isExpression ? ca.expression : svc.parseAndValidate(ca.code);
+      const eb = cb.isExpression ? cb.expression : svc.parseAndValidate(cb.code);
+      return svc.expressionsEquivalent(ea, eb);
+    }
     if (this.isCaseSensitive()) return ca.code === cb.code;
     return ca.code.toLowerCase() === cb.code.toLowerCase();
   }
@@ -372,6 +466,14 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   async designations(context, displays) {
     const c = await this._ensure(context);
     if (!c) return;
+
+    if (c.isExpression) {
+      // No stored designations for a composed expression; surface the rendered
+      // (FillMissing) form as the display designation, like the binary provider.
+      const disp = this._exprService().render(c.expression, SnomedServicesRenderOption.FillMissing);
+      if (disp) displays.addDesignation(true, 'active', this.defLang(), CodeSystem.makeUseForDisplay(), disp);
+      return;
+    }
 
     // The denormalized display counts as a display-use designation in the
     // code system's default language.
@@ -420,6 +522,9 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   async extendLookup(ctxt, props, params) {
     const c = await this._ensure(ctxt);
     if (!c) return;
+    // A composed expression has no concept row; its refinements are rendered
+    // via display()/designations(). Skip the concept-scoped property queries.
+    if (c.isExpression) return;
 
     const links = this.db.prepare(
       `SELECT pd.property_code AS code, tc.code AS target_code
@@ -480,6 +585,7 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   async properties(context) {
     const c = await this._ensure(context);
     if (!c) return [];
+    if (c.isExpression) return [];
     const result = [];
 
     // Concept-valued properties (concept_link): target concept code.
@@ -608,6 +714,19 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   }
 
   async subsumesTest(codeA, codeB) {
+    // Post-coordinated expressions: normalise + compare structurally via the
+    // expression service (mirrors cs-snomed subsumesTest's complex branch).
+    if (this._supportsExpressions() && (isSnomedExpression(codeA) || isSnomedExpression(codeB))) {
+      const svc = this._exprService();
+      const exprA = svc.parseAndValidate(codeA);
+      const exprB = svc.parseAndValidate(codeB);
+      const b1 = svc.expressionSubsumes(exprA, exprB);
+      const b2 = svc.expressionSubsumes(exprB, exprA);
+      if (b1 && b2) return 'equivalent';
+      if (b1) return 'subsumes';
+      if (b2) return 'subsumed-by';
+      return 'not-subsumed';
+    }
     const a = await this._ensure(codeA);
     const b = await this._ensure(codeB);
     if (!a || !b) return 'not-subsumed';
@@ -717,6 +836,11 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (prop === 'constraint' && op === '=') {
       return this.factory.hasHierarchy;
     }
+    // SNOMED CT `expressions = true|false`: whether an include permits
+    // post-coordinated expressions as members. A no-op for enumeration (it
+    // never adds/removes plain concepts); it only gates expression membership
+    // in validate. Gated on SNOMED expression support.
+    if (prop === 'expressions' && op === '=' && this._supportsExpressions()) return true;
     // Config-declared filter families.
     if (this._membershipFilterSpec(prop, op)) return true;
     if (this._existsFilterSpec(prop, op, value)) return true;
@@ -758,6 +882,17 @@ class SqliteCodeSystemProvider extends BaseCSServices {
       return;
     }
 
+    // SNOMED CT `expressions = true|false`: gates post-coordinated expression
+    // membership. For plain-concept enumeration it matches everything (a no-op
+    // that intersects to the other clauses); the want flag is consumed by
+    // filterLocate/filterCheck for expression contexts.
+    if (prop === 'expressions' && op === '=' && this._supportsExpressions()) {
+      filterContext.clauses.push(new FilterClause('expressions', {
+        want: String(value).toLowerCase() === 'true',
+      }));
+      return;
+    }
+
     // Config-declared filter families (see doesFilter).
     const membership = this._membershipFilterSpec(prop, op);
     if (membership) {
@@ -796,7 +931,11 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     const sets = [];
     for (const clause of filterContext.clauses) {
       const ids = this._runClause(clause);
-      sets.push(new SqliteFilterSet(ids));
+      const set = new SqliteFilterSet(ids);
+      // Tag expression-membership sets so filterCheck/filterLocate can gate
+      // post-coordinated expression contexts (which carry no concept_id).
+      if (clause.kind === 'expressions') set.expressionsWant = clause.spec.want;
+      sets.push(set);
     }
     return sets;
   }
@@ -807,6 +946,9 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (clause.kind === 'search') return this._searchIds(clause.spec.text);
     if (clause.kind === 'vs-member') return this._valueSetMemberIds(clause.spec.value);
     if (clause.kind === 'ecl') return this._evalEclOrThrow(clause.spec.value, clause.spec.ast);
+    // Expressions filter is a no-op over plain concepts (matches all); the
+    // want flag rides on the set for expression-context gating.
+    if (clause.kind === 'expressions') return this.factory.allConceptIds();
     if (clause.kind === 'membership') {
       return this._membershipIds(clause.spec.prop, clause.spec.spec, clause.spec.op, clause.spec.value);
     }
@@ -1312,6 +1454,11 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     if (!located.context) {
       return silent ? null : (located.message || `Not a valid code: ${code}`);
     }
+    if (located.context.isExpression) {
+      return this._expressionInFilter(filterContext, set, located.context)
+        ? located.context
+        : (silent ? null : `Code ${code} is not in the specified filter`);
+    }
     if (sortedIncludes(set.ids, located.context.conceptId)) {
       return located.context;
     }
@@ -1319,8 +1466,30 @@ class SqliteCodeSystemProvider extends BaseCSServices {
   }
 
   async filterCheck(filterContext, set, concept) {
+    if (concept instanceof SqliteExpressionContext) {
+      return this._expressionInFilter(filterContext, set, concept);
+    }
     if (!(concept instanceof SqliteConceptContext)) return false;
     return sortedIncludes(set.ids, concept.conceptId);
+  }
+
+  // Membership of a post-coordinated expression in one resolved filter set.
+  // A PC expression is a member of an include ONLY when the include explicitly
+  // permits expressions (an `expressions = true` clause); an `expressions =
+  // false` clause (or the absence of any `expressions` clause) rejects it —
+  // mirroring the binary provider's pc-filter/pc-none semantics. Against a
+  // plain concept_id set (is-a / refset / ECL), the expression matches when
+  // every focus concept is in the set (focus subsumed by the constraint).
+  _expressionInFilter(filterContext, set, ctx) {
+    const clauses = (filterContext && filterContext.clauses) || [];
+    const denies = clauses.some((c) => c.kind === 'expressions' && c.spec && c.spec.want === false);
+    const permits = clauses.some((c) => c.kind === 'expressions' && c.spec && c.spec.want === true);
+    if (denies || !permits) return false;
+    if (set.expressionsWant !== undefined) return set.expressionsWant;
+    for (const c of ctx.expression.concepts) {
+      if (c.reference === NO_REFERENCE || !sortedIncludes(set.ids, c.reference)) return false;
+    }
+    return true;
   }
 
   async filterFinish(filterContext) {
@@ -1436,6 +1605,11 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     }
     if (prop === 'constraint' && op === '=') {
       return this._evalEclOrThrow(value);
+    }
+    // Expressions filter is a no-op for plain-concept enumeration (matches all,
+    // so intersects to the sibling clauses).
+    if (prop === 'expressions' && op === '=' && this._supportsExpressions()) {
+      return this.factory.allConceptIds();
     }
     const membership = this._membershipFilterSpec(prop, op);
     if (membership) {
@@ -1781,6 +1955,7 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
       case 'caseSensitive':
       case 'experimental':
       case 'isAIncludesSelf':
+      case 'supportsExpressions':
         return value === '1' || value === 'true';
       case 'implicitValueSets':
       case 'filterAliases':
@@ -1973,4 +2148,5 @@ module.exports = {
   SqliteCodeSystemFactory,
   SqliteCodeSystemProvider,
   SqliteConceptContext,
+  SqliteExpressionContext,
 };
