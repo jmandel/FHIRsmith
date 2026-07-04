@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { SqliteCodeSystemFactory } = require('../../tx/cs/cs-sqlite.js');
+const { SnomedSqliteCodeSystemProvider } = require('../../tx/cs/cs-sqlite-snomed.js');
 const { ValidateWorker } = require('../../tx/workers/validate.js');
 const { OperationContext } = require('../../tx/operation-context.js');
 const { LanguageDefinitions } = require('../../library/languages.js');
@@ -194,7 +195,7 @@ describeIf('sqlite-v1 SNOMED post-coordinated expressions', () => {
 
   // ---- gate: only SNOMED composes expressions ----------------------------
 
-  test('expression support is enabled for SNOMED (flag or base-URI fallback)', () => {
-    expect(prov._supportsExpressions()).toBe(true);
+  test('the factory selects the SNOMED subclass for a SNOMED DB', () => {
+    expect(prov).toBeInstanceOf(SnomedSqliteCodeSystemProvider);
   });
 });

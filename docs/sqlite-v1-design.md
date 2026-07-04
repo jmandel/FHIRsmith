@@ -60,10 +60,34 @@ ancestor queries (`generalizes`, `subsumesTest` both directions).
    `cs_config versionAlgorithm` ∈ `semver|date|integer|natural`.
 6. **Designations.** `preferred` is per-language. The display for the code
    system's `defaultLanguage` is denormalized into `concept.display`.
-7. **Out of scope.** Grammar systems (UCUM), SCT post-coordination and full
-   ECL. The binary SNOMED provider remains the engine of record for ECL; the
-   sqlite SNOMED build covers enumeration, is-a/descendent-of, refset
-   membership (`in`), module/property filters.
+7. **Out of scope for the GENERIC provider.** Grammar systems (UCUM) and any
+   behavior that cannot be expressed as metadata. SCT post-coordinated
+   expressions + ECL ARE supported for the sqlite SNOMED build, but as CODE in a
+   subclass (see "Provider-class selection"), never in the generic base.
+
+## Provider-class selection (metadata vs. code)
+
+The design's central rule:
+
+> The **generic** `SqliteCodeSystemProvider` is driven ENTIRELY by database
+> metadata (`cs_config` / `property_def`). Anything that needs terminology-
+> specific **CODE** — logic that cannot be expressed as metadata — lives in a
+> **subclass**, which the factory selects AT RUNTIME.
+
+SNOMED CT post-coordinated expression parsing/validation/rendering/equivalence/
+subsumption and ECL (`constraint`) + `expressions` filters are exactly such
+code: they live in `SnomedSqliteCodeSystemProvider` (`tx/cs/cs-sqlite-snomed.js`),
+which `extends SqliteCodeSystemProvider`, overrides the relevant hook methods
+(each handling the SNOMED case and delegating everything generic to `super`),
+and reuses `sqlite-ecl.js` / `sqlite-sct-expression.js` unchanged.
+
+Selection is by the DB's **natural identity**, never by a value stored in the
+data: each subclass declares a `static handledSystems = [...baseUris]`, registers
+itself via `registerSqliteProviderClass(Class)`, and the factory's `build()`
+matches `code_system.base_uri` against the registry (first match wins; no match ⇒
+the generic base). SNOMED DBs are recognized purely by
+`base_uri = 'http://snomed.info/sct'`. There is NO class name in `cs_config` and
+NO hardcoded system URI in the generic base class.
 
 ## `cs_config` key registry
 
@@ -76,6 +100,7 @@ ancestor queries (`generalizes`, `subsumesTest` both directions).
 | `hierarchyEdgeSet` | integer, default `1` | closure builder, is-a filters |
 | `statusProperty` | property_code | `getStatus()` |
 | `inactiveProperty` | property_code (optional) | `inactive` property emission |
+| `notClosed` | `0`/`1` (SCT `1`) | `isNotClosed()`: the CS is grammar-bearing (cannot be fully enumerated), so filter/hierarchy expansions are marked unclosed. Pure metadata — the SNOMED importers set it; expression/ECL support itself is CODE in a subclass (see below), not this flag |
 | `filterAliases` | JSON `{alias: property_code}` (e.g. LOINC VSAC `code` → hierarchy) | filter resolution |
 | `implicitValueSets` | JSON array of `{pattern, kind}` where kind ∈ `all\|isa\|vs-table` (e.g. SCT `?fhir_vs=isa/{code}`, `?fhir_vs=refset/{id}`, LOINC `/vs/{code}` answer lists) | `buildKnownValueSet()` |
 | `searchSources` | JSON, which FTS surfaces text `filter` uses | `searchFilter()` |
