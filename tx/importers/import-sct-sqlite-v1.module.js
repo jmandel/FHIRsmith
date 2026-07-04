@@ -12,12 +12,12 @@
 // Data semantics mirror the v0 importer (import-sct-sqlite-v0.module.js), the
 // normative reference for WHAT to import:
 //   * concepts: active + inactive, active flag from RF2 `active`.
-//   * displays: preferred US-English synonym (en-US language refset
-//     900000000000509007, acceptability preferred 900000000000548007), falling
-//     back to FSN, then first active designation, then the code.
+//   * displays: the active description with the smallest description id, which
+//     is exactly what the reference binary provider returns (its cache sorts
+//     descriptions by id and takes the first active one). Falls back to the code.
 //   * designations: FSN / synonym / text-definition with use_system
 //     http://snomed.info/sct and use_code = the RF2 description typeId; preferred
-//     flag from the language refset (FSN always preferred).
+//     flag from the en-US language refset (FSN always preferred).
 //   * relationships: only the inferred set (sct2_Relationship, edge_set 1) is
 //     imported -- v0 deliberately skips sct2_StatedRelationship. is-a
 //     (116680003) rows are hierarchy links (child->parent) with an is_hierarchy
@@ -494,13 +494,14 @@ class SnomedSqliteV1Importer {
   // Descriptions and text definitions are streamed sequentially.
 
   async _importDescriptions(files) {
-    // Accumulate the best display candidate per concept without holding all
-    // designations: display selection only needs, per concept, the preferred
-    // synonym term (if any), the FSN term, and the first active term.
-    // We compute these incrementally and update concept.display at the end.
-    const bestPreferred = new Map(); // conceptCode -> preferred-synonym term
-    const bestFsn = new Map();       // conceptCode -> FSN term
-    const firstActive = new Map();   // conceptCode -> first active term seen
+    // Display selection matches the reference binary provider EXACTLY: its cache
+    // sorts descriptions by description id and getDisplayName returns the first
+    // active one, i.e. the active description with the SMALLEST description id.
+    // (Verified 15/15 against the binary; e.g. 128241005 -> "Inflammatory
+    // disorder of liver".) So per concept we track only the smallest-id active
+    // description. The cache converter (import-sct-cache-sqlite-v1) reaches the
+    // same result by reading the cache's already-id-sorted description list.
+    const displayByCode = new Map(); // conceptCode -> { id: BigInt, term }
 
     for (const file of files) {
       await forEachRow(file, (cols) => {
@@ -536,42 +537,28 @@ class SnomedSqliteV1Importer {
             .run(term, conceptId);
         }
 
-        // Display candidates (active rows only).
+        // Display = the active description with the smallest description id
+        // (matches the binary provider; see the header comment above).
         if (active) {
-          if (preferred && !isFsn && !bestPreferred.has(conceptCode)) {
-            bestPreferred.set(conceptCode, term);
-          }
-          if (isFsn && !bestFsn.has(conceptCode)) {
-            bestFsn.set(conceptCode, term);
-          }
-          if (!firstActive.has(conceptCode)) {
-            firstActive.set(conceptCode, term);
+          const prev = displayByCode.get(conceptCode);
+          if (!prev || descIdLess(descriptionId, prev.id)) {
+            displayByCode.set(conceptCode, { id: descriptionId, term });
           }
         }
       });
     }
 
-    // Apply display selection: preferred synonym > FSN > first active > code.
-    // NOTE: this from-RF2 path uses the SNOMED-conventional US-English preferred
-    // synonym as the display. The cache converter (import-sct-cache-sqlite-v1),
-    // by contrast, takes the FIRST ACTIVE description in the binary cache's
-    // storage order, which is exactly what the reference binary provider's
-    // getDisplayName returns. The two can differ for concepts with multiple
-    // synonyms (e.g. 128241005: cache/binary -> "Inflammatory disorder of liver";
-    // refset-preferred -> "Inflammatory disease of liver"), because RF2 carries
-    // no equivalent of the cache's storage order. The cache path is the
-    // binary-faithful one used for the conformance fixtures; this path is for
-    // from-source builds where the SNOMED-conventional preferred term is wanted.
+    // Apply display selection: the smallest-id active description (binary-
+    // faithful; see the header comment on _importDescriptions). Both SNOMED
+    // loaders — this from-RF2 path and the cache converter — resolve to the same
+    // display the reference binary provider returns.
     this.writer.flush();
     const upd = this.db.prepare('UPDATE concept SET display = ? WHERE concept_id = ?');
     this.db.exec('BEGIN');
     let n = 0;
     for (const code of this.conceptIds) {
       const conceptId = this.writer.conceptId(this.csId, code);
-      const display = bestPreferred.get(code)
-        ?? bestFsn.get(code)
-        ?? firstActive.get(code)
-        ?? code;
+      const display = displayByCode.get(code)?.term ?? code;
       upd.run(display, conceptId);
       if (++n % 50000 === 0) { this.db.exec('COMMIT'); this.db.exec('BEGIN'); }
     }
@@ -759,6 +746,20 @@ function snomedName(editionCode) {
 function releaseDateFromYyyymmdd(v) {
   if (!v || !/^\d{8}$/.test(v)) return null;
   return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+}
+
+// True if description id `a` sorts before `b`. Real SNOMED description ids are
+// numeric SCTIDs; compare those numerically (shorter number = smaller, then
+// lexically), which matches the binary cache's id sort. Non-numeric ids (only
+// used by synthetic test fixtures) fall back to a plain string compare so the
+// importer never throws on them.
+function descIdLess(a, b) {
+  const an = /^\d+$/.test(a);
+  const bn = /^\d+$/.test(b);
+  if (an && bn) {
+    return a.length !== b.length ? a.length < b.length : a < b;
+  }
+  return String(a) < String(b);
 }
 
 // Classify an RF2 concrete value lexical form into a fhir_type + a value string

@@ -57,21 +57,23 @@ const CONCEPTS = [
 ];
 
 // description rows: [descId, active, conceptId, typeId, term]
-// C gets an FSN and a synonym; the synonym is marked preferred in the lang refset
-// so it should win the display over the FSN.
-const C_FSN_ID = 'd-c-fsn';
-const C_SYN_ID = 'd-c-syn';
+// Display = the active description with the smallest description id (matches the
+// binary provider). Ids are chosen to exercise that rule: concept C's synonym
+// has a SMALLER id than its FSN (so the synonym wins); concept A's FSN has a
+// smaller id than its synonym (so the FSN wins).
+const C_FSN_ID = '1000041';
+const C_SYN_ID = '1000040';
 const DESCRIPTIONS = [
-  ['d-root-fsn', '1', ROOT, FSN, 'SNOMED CT Concept (SNOMED RT+CTV3)'],
-  ['d-a-fsn', '1', A, FSN, 'Concept A (finding)'],
-  ['d-a-syn', '1', A, SYN, 'Concept A'],
-  ['d-b-fsn', '1', B, FSN, 'Concept B (finding)'],
+  ['1000010', '1', ROOT, FSN, 'SNOMED CT Concept (SNOMED RT+CTV3)'],
+  ['1000020', '1', A, FSN, 'Concept A (finding)'],
+  ['1000021', '1', A, SYN, 'Concept A'],
+  ['1000030', '1', B, FSN, 'Concept B (finding)'],
   [C_FSN_ID, '1', C, FSN, 'Concept C (finding)'],
   [C_SYN_ID, '1', C, SYN, 'Preferred C synonym'],
-  ['d-x-fsn', '1', X, FSN, 'Concept X (finding)'],
-  ['d-site-fsn', '1', SITE, FSN, 'Body site (body structure)'],
-  ['d-inact-fsn', '1', INACT, FSN, 'Retired concept (finding)'],
-  ['d-num-fsn', '1', NUMHOLDER, FSN, 'Numeric holder (finding)'],
+  ['1000050', '1', X, FSN, 'Concept X (finding)'],
+  ['1000060', '1', SITE, FSN, 'Body site (body structure)'],
+  ['1000070', '1', INACT, FSN, 'Retired concept (finding)'],
+  ['1000080', '1', NUMHOLDER, FSN, 'Numeric holder (finding)'],
 ];
 
 // language refset rows: [active, refsetId, referencedComponentId(descId), acceptabilityId]
@@ -220,10 +222,11 @@ describe('SNOMED CT sqlite-v1 importer', () => {
     expect(cs.release_date).toBe('2026-03-01');
   });
 
-  test('preferred synonym is chosen for display over FSN', () => {
+  test('display is the smallest-id active description (matches binary provider)', () => {
+    // C's synonym has the smaller description id -> it wins over the FSN.
     const c = db.prepare('SELECT display FROM concept WHERE code = ?').get(C);
     expect(c.display).toBe('Preferred C synonym');
-    // A has no preferred synonym marker -> falls back to FSN.
+    // A's FSN has the smaller id than A's synonym -> the FSN wins.
     const a = db.prepare('SELECT display FROM concept WHERE code = ?').get(A);
     expect(a.display).toBe('Concept A (finding)');
   });
