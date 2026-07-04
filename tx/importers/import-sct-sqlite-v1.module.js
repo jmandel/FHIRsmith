@@ -374,7 +374,11 @@ class SnomedSqliteV1Importer {
     this.csId = this.writer.codeSystem({
       baseUri: BASE_URI,
       editionCode: this.config.edition,
-      version: this.config.version,
+      // FHIR `version` for SNOMED is the full versioned edition URI
+      // (http://snomed.info/sct/<module>/version/<date>), matching the binary
+      // provider's versionUri — not the bare date. Same convention as the
+      // cache converter (import-sct-cache-sqlite-v1).
+      version: this.config.uri,
       canonicalUri: this.config.uri,
       releaseDate: releaseDateFromYyyymmdd(this.config.version),
       name: snomedName(this.config.edition),
@@ -548,6 +552,16 @@ class SnomedSqliteV1Importer {
     }
 
     // Apply display selection: preferred synonym > FSN > first active > code.
+    // NOTE: this from-RF2 path uses the SNOMED-conventional US-English preferred
+    // synonym as the display. The cache converter (import-sct-cache-sqlite-v1),
+    // by contrast, takes the FIRST ACTIVE description in the binary cache's
+    // storage order, which is exactly what the reference binary provider's
+    // getDisplayName returns. The two can differ for concepts with multiple
+    // synonyms (e.g. 128241005: cache/binary -> "Inflammatory disorder of liver";
+    // refset-preferred -> "Inflammatory disease of liver"), because RF2 carries
+    // no equivalent of the cache's storage order. The cache path is the
+    // binary-faithful one used for the conformance fixtures; this path is for
+    // from-source builds where the SNOMED-conventional preferred term is wanted.
     this.writer.flush();
     const upd = this.db.prepare('UPDATE concept SET display = ? WHERE concept_id = ?');
     this.db.exec('BEGIN');

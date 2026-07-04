@@ -213,7 +213,9 @@ describe('SNOMED CT sqlite-v1 importer', () => {
     const cs = db.prepare('SELECT * FROM code_system').get();
     expect(cs.base_uri).toBe('http://snomed.info/sct');
     expect(cs.edition_code).toBe(MODULE);
-    expect(cs.version).toBe(VERSION);
+    // FHIR version for SNOMED is the full versioned edition URI (matches the
+    // binary provider's versionUri), not the bare date.
+    expect(cs.version).toBe(`http://snomed.info/sct/${MODULE}/version/${VERSION}`);
     expect(cs.canonical_uri).toBe(`http://snomed.info/sct/${MODULE}/version/${VERSION}`);
     expect(cs.release_date).toBe('2026-03-01');
   });
