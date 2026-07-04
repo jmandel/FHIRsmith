@@ -436,9 +436,17 @@ ledger records any observable difference.
   supplement machinery doubles the test surface.
 - **Non-native IR execution** (generic executor + legacy adapter) — the
   orchestrator bails to legacy for non-sqlite providers instead.
-- **Grammar/ECL/post-coordination** — stays with the binary SNOMED provider.
-- **CPT / NLM-gated imports and the binary-cache→v1 fixture converter** — staged
-  as follow-ups; draft loaders exist.
+- **CPT / NLM-gated imports** — staged as follow-ups; draft loaders exist.
+
+Since the first draft of this doc, three items listed here as out of scope were
+brought **in**: SNOMED **ECL** and **post-coordinated expressions** are now
+evaluated by the sqlite provider itself (against `closure` / `concept_link` /
+`value_set_member`, reusing the existing parsers — see `sqlite-v1-conformance.md`),
+and the **binary-cache→v1 fixture converter** (`import-sct-cache-sqlite-v1`) is
+built and is what produces the SNOMED conformance fixtures. What still remains
+with the binary provider are the ECL/expression corners neither side needs here
+(reverse attributes, `!=` refinements, numeric/string comparison) — the sqlite
+provider raises the same informative "unsupported" the binary one does.
 
 ---
 
