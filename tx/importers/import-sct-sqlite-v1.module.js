@@ -12,9 +12,9 @@
 // Data semantics mirror the v0 importer (import-sct-sqlite-v0.module.js), the
 // normative reference for WHAT to import:
 //   * concepts: active + inactive, active flag from RF2 `active`.
-//   * displays: the active description with the smallest description id, which
-//     is exactly what the reference binary provider returns (its cache sorts
-//     descriptions by id and takes the first active one). Falls back to the code.
+//   * displays: the first active SYNONYM in description-id order (the tag-free
+//     preferred term the reference tx server returns in $lookup/$expand),
+//     falling back to the FSN, then any active description, then the code.
 //   * designations: FSN / synonym / text-definition with use_system
 //     http://snomed.info/sct and use_code = the RF2 description typeId; preferred
 //     flag from the en-US language refset (FSN always preferred).
@@ -494,14 +494,17 @@ class SnomedSqliteV1Importer {
   // Descriptions and text definitions are streamed sequentially.
 
   async _importDescriptions(files) {
-    // Display selection matches the reference binary provider EXACTLY: its cache
-    // sorts descriptions by description id and getDisplayName returns the first
-    // active one, i.e. the active description with the SMALLEST description id.
-    // (Verified 15/15 against the binary; e.g. 128241005 -> "Inflammatory
-    // disorder of liver".) So per concept we track only the smallest-id active
-    // description. The cache converter (import-sct-cache-sqlite-v1) reaches the
-    // same result by reading the cache's already-id-sorted description list.
-    const displayByCode = new Map(); // conceptCode -> { id: BigInt, term }
+    // Display = the concept's preferred term as the reference tx server returns
+    // it in $lookup/$expand: the FIRST active SYNONYM in description-id order
+    // (tag-free), falling back to the FSN, then any active description, then the
+    // code. Verified against the official SNOMED fixtures (e.g. 10200004 ->
+    // "Liver", not the FSN "Liver structure"; 730807009 -> "Entire canal of
+    // Hering"). This is the SAME rule the cache converter uses (it reads the
+    // cache's already-id-sorted description list); here we pick the smallest-id
+    // active description per type category since RF2 file order is not relied on.
+    const synByCode = new Map();  // conceptCode -> { id, term } smallest-id active synonym
+    const fsnByCode = new Map();  // conceptCode -> { id, term } smallest-id active FSN
+    const anyByCode = new Map();  // conceptCode -> { id, term } smallest-id active (any type)
 
     for (const file of files) {
       await forEachRow(file, (cols) => {
@@ -537,28 +540,34 @@ class SnomedSqliteV1Importer {
             .run(term, conceptId);
         }
 
-        // Display = the active description with the smallest description id
-        // (matches the binary provider; see the header comment above).
+        // Display candidates (active only): smallest-id synonym / FSN / any,
+        // per the rule in the header comment.
         if (active) {
-          const prev = displayByCode.get(conceptCode);
-          if (!prev || descIdLess(descriptionId, prev.id)) {
-            displayByCode.set(conceptCode, { id: descriptionId, term });
+          const bucket = isFsn ? fsnByCode : (typeId === SYNONYM_TYPE_ID ? synByCode : null);
+          for (const m of [bucket, anyByCode]) {
+            if (!m) continue;
+            const prev = m.get(conceptCode);
+            if (!prev || descIdLess(descriptionId, prev.id)) {
+              m.set(conceptCode, { id: descriptionId, term });
+            }
           }
         }
       });
     }
 
-    // Apply display selection: the smallest-id active description (binary-
-    // faithful; see the header comment on _importDescriptions). Both SNOMED
-    // loaders — this from-RF2 path and the cache converter — resolve to the same
-    // display the reference binary provider returns.
+    // Apply display selection: first active synonym > FSN > any active > code
+    // (binary-faithful; see the header comment on _importDescriptions). Both
+    // SNOMED loaders resolve to the same display the reference server returns.
     this.writer.flush();
     const upd = this.db.prepare('UPDATE concept SET display = ? WHERE concept_id = ?');
     this.db.exec('BEGIN');
     let n = 0;
     for (const code of this.conceptIds) {
       const conceptId = this.writer.conceptId(this.csId, code);
-      const display = displayByCode.get(code)?.term ?? code;
+      const display = synByCode.get(code)?.term
+        ?? fsnByCode.get(code)?.term
+        ?? anyByCode.get(code)?.term
+        ?? code;
       upd.run(display, conceptId);
       if (++n % 50000 === 0) { this.db.exec('COMMIT'); this.db.exec('BEGIN'); }
     }

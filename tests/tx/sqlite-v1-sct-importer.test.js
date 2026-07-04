@@ -222,13 +222,15 @@ describe('SNOMED CT sqlite-v1 importer', () => {
     expect(cs.release_date).toBe('2026-03-01');
   });
 
-  test('display is the smallest-id active description (matches binary provider)', () => {
-    // C's synonym has the smaller description id -> it wins over the FSN.
+  test('display is the first active synonym, else FSN (matches binary provider)', () => {
+    // C and A each have an active synonym -> the synonym is the display.
     const c = db.prepare('SELECT display FROM concept WHERE code = ?').get(C);
     expect(c.display).toBe('Preferred C synonym');
-    // A's FSN has the smaller id than A's synonym -> the FSN wins.
     const a = db.prepare('SELECT display FROM concept WHERE code = ?').get(A);
-    expect(a.display).toBe('Concept A (finding)');
+    expect(a.display).toBe('Concept A');
+    // B has only an FSN -> it falls back to the FSN.
+    const b = db.prepare('SELECT display FROM concept WHERE code = ?').get(B);
+    expect(b.display).toBe('Concept B (finding)');
   });
 
   test('designations carry use_system and typeId as use_code, preferred flag', () => {

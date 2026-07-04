@@ -21,7 +21,7 @@
 // per-concept metadata (moduleId / definitionStatusId / effectiveTime / inactive)
 // as typed literals; designations with use_system http://snomed.info/sct and
 // use_code = the description typeId, preferred = FSN OR PREFERRED in the en-US
-// language refset; display = preferred en synonym > FSN > first active > code;
+// language refset; display = first active synonym > FSN > first active > code;
 // simple refsets -> value_set at ?fhir_vs=refset/{id}; identical cs_config
 // (implicitValueSets '?'-prefixed patterns, status/inactive property, etc.).
 //
