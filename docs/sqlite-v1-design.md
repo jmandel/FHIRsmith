@@ -80,6 +80,17 @@ ancestor queries (`generalizes`, `subsumesTest` both directions).
 | `implicitValueSets` | JSON array of `{pattern, kind}` where kind ∈ `all\|isa\|vs-table` (e.g. SCT `?fhir_vs=isa/{code}`, `?fhir_vs=refset/{id}`, LOINC `/vs/{code}` answer lists) | `buildKnownValueSet()` |
 | `searchSources` | JSON, which FTS surfaces text `filter` uses | `searchFilter()` |
 | `webSource` | URL template | factory `webSource()`/`codeLink()` |
+| `lookupLinkDescriptions` | `0`/`1` (SCT `1`) | `extendLookup()`: link properties carry `description` (target's first-active-designation display) and non-hierarchy ones `code-display` |
+| `lookupLinkDistinct` | `0`/`1` (SCT `1`) | `extendLookup()`: non-hierarchy links emit DISTINCT (attribute, target) pairs over ALL rows incl. inactive (reference SNOMED); default = active rows with duplicates (reference LOINC) |
+| `lookupPropertyOverrides` | JSON `{code: false \| {as, descriptionFromConcept}}` (SCT `moduleId`→`module`+display, `definitionStatusId` hidden) | `extendLookup()` literal emission |
+| `displayDesignation` | `0`/`1` default `1` (SCT `0`) | `designations()`: whether to synthesize a display-use designation beside the stored ones |
+| `designationUseDisplays` | `0`/`1` (SCT `1`) | `designations()`: decorate same-system use codings with the use concept's display |
+| `expressionLanguage` | BCP-47 (SCT `en-US`) | `designations()`: language tag on a post-coordinated expression's rendered designation |
+
+`$lookup` always surfaces hierarchy edges as the standard concept-properties
+`parent` (outbound) / `child` (inbound, derived only when the DB defines no
+explicit `child` property — LOINC stores child edges itself); the raw hierarchy
+property code (SCT `116680003`) never appears in `$lookup` output.
 
 Keys are optional with safe defaults; unknown keys are ignored (forward
 compatibility). Importers own writing them; the provider only reads.

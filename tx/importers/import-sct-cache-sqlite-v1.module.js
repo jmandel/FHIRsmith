@@ -641,6 +641,21 @@ class SnomedCacheSqliteV1Importer {
     ]);
     set('searchSources', ['display', 'designation', 'literal']);
     set('webSource', 'https://browser.ihtsdotools.org/?perspective=full&conceptId1={code}');
+    this._writeLookupConfig(set);
+  }
+
+  // $lookup shape parity with the reference binary provider — identical to
+  // import-sct-sqlite-v1._writeLookupConfig; see the comment there.
+  _writeLookupConfig(set) {
+    set('lookupLinkDescriptions', '1');
+    set('lookupLinkDistinct', '1');
+    set('lookupPropertyOverrides', {
+      moduleId: { as: 'module', descriptionFromConcept: true },
+      definitionStatusId: false,
+    });
+    set('displayDesignation', '0');
+    set('designationUseDisplays', '1');
+    set('expressionLanguage', 'en-US');
   }
 }
 
