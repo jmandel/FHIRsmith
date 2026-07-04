@@ -739,6 +739,28 @@ class SnomedSqliteV1Importer {
     ]);
     set('searchSources', ['display', 'designation', 'literal']);
     set('webSource', 'https://browser.ihtsdotools.org/?perspective=full&conceptId1={code}');
+    this._writeLookupConfig(set);
+  }
+
+  // $lookup shape parity with the reference binary provider (shared verbatim
+  // with import-sct-cache-sqlite-v1._writeCsConfig):
+  //  - link properties carry description/code-display, DISTINCT over all
+  //    (historical included) relationship rows;
+  //  - moduleId surfaces as `module` with the module concept's display,
+  //    definitionStatusId stays out of $lookup;
+  //  - designations are the RF2 descriptions only (no synthesized display
+  //    designation), use codings decorated with the description-type concept's
+  //    display; a composed expression's designation is tagged en-US.
+  _writeLookupConfig(set) {
+    set('lookupLinkDescriptions', '1');
+    set('lookupLinkDistinct', '1');
+    set('lookupPropertyOverrides', {
+      moduleId: { as: 'module', descriptionFromConcept: true },
+      definitionStatusId: false,
+    });
+    set('displayDesignation', '0');
+    set('designationUseDisplays', '1');
+    set('expressionLanguage', 'en-US');
   }
 }
 

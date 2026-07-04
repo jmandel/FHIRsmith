@@ -207,7 +207,7 @@ done
 (`filterLocateMiss` is also written by the importer now; the fixtures used for
 these numbers had it set directly on cs_config, equivalent to a re-import.)
 
-### The 27 still failing (categorised, none a further provider regression)
+### The 27 still failing (categorised, none a further provider regression; 26 after the $lookup parity work below)
 
 - **9 reference-server url bug** (`ecl-or`, `-term-match`, `-term-mismatch`,
   `-term-with-operator`, `-wildcard-minus`, `-nested-parens`, `-refinement-simple`,
@@ -221,13 +221,74 @@ these numbers had it set directly on cs_config, equivalent to a re-import.)
 - **3 total off-by-one** (`expand-property-1/2`, `ecl-refinement-cardinality`):
   a single member difference — edition drift (fixture 20250201 vs generation) or
   a minor property-filter detail.
-- **2 `$lookup`** (`lookup`, `lookup-pc`): `extendLookup` must emit parent/child
-  + attribute relationships with `code-display`/`description` (structure known
-  from binary `cs-snomed.extendLookup`), and the REQUIRED `effectiveTime` is a
-  reference off-by-one date (`20050131` → fixture `2005-01-30`) — a reference
-  artifact, not a data value we hold.
+- **2 `$lookup`** (`lookup`, `lookup-pc`): ~~`extendLookup` must emit parent/child
+  + attribute relationships~~ DONE (see the $lookup parity section below); the
+  sole remaining diff is the REQUIRED `effectiveTime`: the fixture says
+  `2005-01-30`, one day BEFORE the RF2 date `20050131`, because the reference
+  converts its day-count via a LOCAL-time `Date` + `toISOString()`
+  (`cs-snomed.extendLookup`) and the fixtures were generated in a UTC+
+  timezone. Run in a UTC- timezone the reference itself emits `2005-01-31` —
+  which is what we emit (the actual RF2 date). Not reproducible without
+  deliberately mis-rendering the date.
 - **1 `$translate`**: needs an implicit SNOMED `?fhir_cm=` ConceptMap.
 - **misc**: `ecl-memberOf-nonRefset` (ECL `^ <non-refset>` returns total 1 at the
-  reference, we raise INVALID_ECL), `snomed-expand-inactive` (designation
-  `use.display` names), `bugs/sct-ver-ex` (US edition 731000124108 absent from
+  reference, we raise INVALID_ECL), ~~`snomed-expand-inactive` (designation
+  `use.display` names)~~ fixed by `designationUseDisplays` (below),
+  `bugs/sct-ver-ex` (US edition 731000124108 absent from
   the fixtures), `bugs/sct-isa` ($cache-control cache id the harness never creates).
+
+## SNOMED $lookup drop-in (branch sqlite-v1-sctlookup)
+
+Closes the `$lookup` conformance gap above: the sqlite provider's `$lookup`
+output for the official `snomed/lookup` + `snomed/lookup-pc` fixtures now
+matches the expected responses parameter-for-parameter — the only remaining
+diff is the `effectiveTime` fixture timezone artifact documented above.
+Harness totals: 57 → 58 (`snomed-expand-inactive` flips to pass;
+`lookup`/`lookup-pc` still count as failing solely on that date artifact).
+Pinned by `tests/tx/sqlite-v1-sct-lookup.test.js` (full-fixture comparison with
+the date normalized, plus targeted shape assertions).
+
+Gaps and fixes (all in `cs-sqlite.js` extendLookup/designations + cs_config
+keys written by both SNOMED importers; the new keys were applied directly to
+the existing fixture DBs' cs_config — equivalent to a re-import, no data
+change):
+
+1. **`parent`/`child` properties missing** (provider, generic). Hierarchy
+   edges now surface as the standard concept-properties: outbound is-a →
+   `parent`, inbound is-a → `child` (derived only when the DB defines no
+   explicit `child` property — LOINC stores child edges). The raw is-a code
+   (116680003) no longer leaks into `$lookup`. LOINC output byte-identical
+   before/after (its hierarchy property is already named `parent`).
+2. **attribute properties incomplete + undecorated** (cs_config
+   `lookupLinkDistinct`, `lookupLinkDescriptions`). Reference SNOMED lists
+   every DISTINCT (attribute, target) pair over ALL relationship rows —
+   historical/inactive included, deduplicated across relationship groups — with
+   `code-display` (attribute concept's display) and `description` (target's
+   display). Default stays active-rows-with-duplicates (reference LOINC emits
+   duplicate relationship rows, 5792 dup pairs in loinc-v1.db).
+3. **descriptions use the reference's getDisplayName rule** (provider
+   `_lookupDisplay`): the FIRST ACTIVE designation in designation_id order
+   (which preserves RF2 description-id order) — NOT `concept.display` — so an
+   FSN can surface (e.g. child 18701002 → "…with graft (procedure)",
+   code-display 405813007 → "Procedure site - Direct (attribute)").
+4. **moduleId/definitionStatusId/inactive literals shaped wrong** (cs_config
+   `lookupPropertyOverrides` + generic). `moduleId` → emitted as `module` with
+   the module concept's display as `description`; `definitionStatusId` kept
+   out of `$lookup`; the stored `inactive` literal suppressed generically
+   whenever it names cs_config `inactiveProperty` (the worker already emits
+   the standard `inactive` property — it was being duplicated).
+5. **effectiveTime not a valid FHIR dateTime** (provider, generic). Compact
+   `yyyymmdd` dateTime literals normalize to `yyyy-mm-dd` on emission.
+6. **designation shape** (cs_config `displayDesignation=0`,
+   `designationUseDisplays=1`, `expressionLanguage=en-US`). The reference
+   emits ONLY the RF2 descriptions (no synthesized preferredForLanguage
+   display designation — the preferred synonym is picked by the worker via
+   `_isPreferred` on the SNOMED synonym use), decorates use codings with the
+   description-type concept's display ("Synonym (core metadata concept)" /
+   "Fully specified name" — the getDisplayName rule again), and tags a
+   post-coordinated expression's rendered designation `en-US`.
+7. **expression `$lookup` had no properties** (provider). A single-focus
+   post-coordinated expression now surfaces the focus concept's full property
+   set (parent/child/attributes/literals) plus each refinement as an attribute
+   property with `code-display`/`description` — matching binary
+   `cs-snomed.extendLookup`.

@@ -490,15 +490,22 @@ class SqliteCodeSystemProvider extends BaseCSServices {
 
     if (c.isExpression) {
       // No stored designations for a composed expression; surface the rendered
-      // (FillMissing) form as the display designation, like the binary provider.
+      // (FillMissing) form as the display designation, like the binary provider
+      // (which tags it with a fixed language — cs_config expressionLanguage).
       const disp = this._exprService().render(c.expression, SnomedServicesRenderOption.FillMissing);
-      if (disp) displays.addDesignation(true, 'active', this.defLang(), CodeSystem.makeUseForDisplay(), disp);
+      if (disp) {
+        displays.addDesignation(true, 'active', this.cfg.expressionLanguage || this.defLang(),
+          CodeSystem.makeUseForDisplay(), disp);
+      }
       return;
     }
 
     // The denormalized display counts as a display-use designation in the
-    // code system's default language.
-    if (c.display) {
+    // code system's default language. cs_config displayDesignation=0 turns
+    // this off for systems whose stored designations are already the complete
+    // reference set (SNOMED: the reference emits ONLY the RF2 descriptions,
+    // and its display is one of them).
+    if (c.display && this.cfg.displayDesignation !== false) {
       displays.addDesignation(true, 'active', this.defLang(), CodeSystem.makeUseForDisplay(), c.display);
     }
 
@@ -509,14 +516,22 @@ class SqliteCodeSystemProvider extends BaseCSServices {
     const uses = this.cfg.designationUses || {};
     const rows = this.db.prepare(
       `SELECT language_code, use_system, use_code, term, active, preferred
-         FROM designation WHERE concept_id = ?`
+         FROM designation WHERE concept_id = ? ORDER BY designation_id`
     ).all(c.conceptId);
     for (const r of rows) {
       if (r.use_code && asProps.has(r.use_code)) continue;
       let use = null;
       if (r.use_system || r.use_code) {
         use = { system: r.use_system || undefined, code: r.use_code || undefined };
-        if (r.use_code && uses[r.use_code]) use.display = uses[r.use_code];
+        if (r.use_code && uses[r.use_code]) {
+          use.display = uses[r.use_code];
+        } else if (this.cfg.designationUseDisplays === true && r.use_code && r.use_system === this.system()) {
+          // The use code names a concept of this system (SNOMED description
+          // type); the reference decorates the use coding with that concept's
+          // lookup display.
+          const d = this._lookupDisplayByCode(r.use_code);
+          if (d) use.display = d;
+        }
       }
       displays.addDesignation(false, r.active ? 'active' : 'inactive', r.language_code || null, use, r.term);
     }
@@ -534,34 +549,115 @@ class SqliteCodeSystemProvider extends BaseCSServices {
 
   /**
    * $lookup property emission, all metadata-driven:
-   *   - concept_link rows -> code properties (target concept's code);
+   *   - hierarchy concept_link rows -> the standard concept-properties
+   *     `parent` (outbound) and `child` (inbound; only derived when the DB has
+   *     no explicit `child` property_def — LOINC stores child edges itself);
+   *   - non-hierarchy concept_link rows -> code properties (target concept's
+   *     code), optionally decorated (`description`/`code-display`) and
+   *     deduplicated per the cs_config keys below;
    *   - concept_literal rows (for literal-kind property defs) -> typed values,
-   *     with a `description` part from cs_config propertyValueDescriptions;
+   *     with a `description` part from cs_config propertyValueDescriptions,
+   *     renamed/suppressed/described per cs_config lookupPropertyOverrides;
    *   - designationsAsProperties rows -> language-tagged string properties.
    * Property codes requested via `props` are honored (_hasProp semantics).
+   *
+   * cs_config keys (all default off = pre-existing behavior):
+   *   - lookupLinkDescriptions=1: parent/child/attribute properties carry a
+   *     `description` (target's lookup display) and non-hierarchy ones a
+   *     `code-display` (the attribute concept's lookup display) — the
+   *     reference SNOMED shape.
+   *   - lookupLinkDistinct=1: non-hierarchy links emit DISTINCT
+   *     (attribute, target) pairs over ALL rows, historical/inactive
+   *     relationships included (reference SNOMED lists every relationship
+   *     target ever asserted, once). Default: active rows only, duplicates
+   *     preserved (reference LOINC emits duplicate relationship rows).
+   *   - lookupPropertyOverrides={code: false | {as, descriptionFromConcept}}:
+   *     literal suppression/rename (SNOMED moduleId -> module + display,
+   *     definitionStatusId hidden from $lookup).
    */
   async extendLookup(ctxt, props, params) {
     const c = await this._ensure(ctxt);
     if (!c) return;
-    // A composed expression has no concept row; its refinements are rendered
-    // via display()/designations(). Skip the concept-scoped property queries.
-    if (c.isExpression) return;
+    if (c.isExpression) {
+      this._extendLookupExpression(c, props, params);
+      return;
+    }
+    this._extendLookupConcept(c.conceptId, props, params);
+  }
 
-    const links = this.db.prepare(
-      `SELECT pd.property_code AS code, tc.code AS target_code
-         FROM concept_link cl
-         JOIN property_def pd ON pd.property_id = cl.property_id
-         JOIN concept tc ON tc.concept_id = cl.target_concept_id
-        WHERE cl.source_concept_id = ? AND cl.active = 1
-        ORDER BY cl.edge_id`
-    ).all(c.conceptId);
-    for (const l of links) {
-      if (this._hasProp(props, l.code, true)) {
-        this._addCodeProperty(params, 'property', l.code, l.target_code);
+  _extendLookupConcept(conceptId, props, params) {
+    const withDescriptions = this.cfg.lookupLinkDescriptions === true;
+
+    // Hierarchy edges surface under FHIR's standard property codes. For DBs
+    // whose hierarchy property is already named `parent` (LOINC) this is a
+    // no-op rename; for SNOMED it maps the raw is-a code (116680003).
+    if (this.hasParents()) {
+      if (this._hasProp(props, 'parent', true)) {
+        const parents = this.db.prepare(
+          `SELECT tc.code AS code, tc.concept_id AS cid
+             FROM concept_link cl
+             JOIN concept tc ON tc.concept_id = cl.target_concept_id
+            WHERE cl.source_concept_id = ?
+              AND cl.property_id IN (${this.factory.hierPropPlaceholders})
+              AND cl.edge_set_id = ? AND cl.active = 1
+            ORDER BY tc.code`
+        ).all(conceptId, ...this.factory.hierPropIds, this.factory.hierarchyEdgeSet);
+        for (const p of parents) {
+          this._addCodeProperty(params, 'property', 'parent', p.code, null,
+            withDescriptions ? this._lookupDisplay(p.cid) : null);
+        }
+      }
+      // Inbound hierarchy edges are the concept's children.
+      if (!this.propByCode.has('child') && this._hasProp(props, 'child', true)) {
+        const children = this.db.prepare(
+          `SELECT sc.code AS code, sc.concept_id AS cid
+             FROM concept_link cl
+             JOIN concept sc ON sc.concept_id = cl.source_concept_id
+            WHERE cl.target_concept_id = ?
+              AND cl.property_id IN (${this.factory.hierPropPlaceholders})
+              AND cl.edge_set_id = ? AND cl.active = 1
+            ORDER BY sc.code`
+        ).all(conceptId, ...this.factory.hierPropIds, this.factory.hierarchyEdgeSet);
+        for (const ch of children) {
+          this._addCodeProperty(params, 'property', 'child', ch.code, null,
+            withDescriptions ? this._lookupDisplay(ch.cid) : null);
+        }
       }
     }
 
+    // Non-hierarchy concept-valued properties (see cs_config notes above).
+    const distinct = this.cfg.lookupLinkDistinct === true;
+    const links = this.db.prepare(
+      `SELECT pd.property_code AS code, tc.code AS target_code, tc.concept_id AS target_id
+         FROM concept_link cl
+         JOIN property_def pd ON pd.property_id = cl.property_id
+         JOIN concept tc ON tc.concept_id = cl.target_concept_id
+        WHERE cl.source_concept_id = ? AND pd.is_hierarchy = 0${distinct ? '' : ' AND cl.active = 1'}
+        ORDER BY ${distinct ? 'pd.property_code, tc.code' : 'cl.edge_id'}`
+    ).all(conceptId);
+    const seen = distinct ? new Set() : null;
+    for (const l of links) {
+      if (!this._hasProp(props, l.code, true)) continue;
+      if (seen) {
+        const key = l.code + '|' + l.target_code;
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
+      const p = this._addCodeProperty(params, 'property', l.code, l.target_code, null,
+        withDescriptions ? this._lookupDisplay(l.target_id) : null);
+      if (withDescriptions) {
+        const cd = this._propCodeDisplay(l.code);
+        if (cd) p.part.push({ name: 'code-display', valueString: cd });
+      }
+    }
+
+    this._extendLookupLiterals(conceptId, props, params);
+    this._extendLookupDesignationProps(conceptId, props, params);
+  }
+
+  _extendLookupLiterals(conceptId, props, params) {
     const descriptions = this.cfg.propertyValueDescriptions || {};
+    const overrides = this.cfg.lookupPropertyOverrides || {};
     const lits = this.db.prepare(
       `SELECT pd.property_code AS code, pd.fhir_type AS fhir_type, pd.value_kind AS value_kind,
               cl.value_raw, cl.value_text, cl.value_num, cl.value_bool
@@ -569,36 +665,109 @@ class SqliteCodeSystemProvider extends BaseCSServices {
          JOIN property_def pd ON pd.property_id = cl.property_id
         WHERE cl.source_concept_id = ? AND cl.active = 1
         ORDER BY cl.literal_id`
-    ).all(c.conceptId);
+    ).all(conceptId);
     for (const l of lits) {
       // Literal rows under a concept-kind def are filter-only duplicates of a
       // link (e.g. the textual part name); the link emission above covers them.
       if (l.value_kind !== 'literal') continue;
-      if (!this._hasProp(props, l.code, true)) continue;
+      // The worker itself emits the standard `inactive` property (from
+      // isInactive()); re-emitting the stored inactive literal would duplicate it.
+      if (this.cfg.inactiveProperty && l.code === this.cfg.inactiveProperty) continue;
+      const ov = overrides[l.code];
+      if (ov === false) continue;
+      const emitAs = (ov && ov.as) || l.code;
+      if (!this._hasProp(props, emitAs, true)) continue;
       const typed = this._literalToProperty(l);
-      const part = [{ name: 'code', valueCode: l.code }];
-      const meanings = descriptions[l.code];
+      const part = [{ name: 'code', valueCode: emitAs }];
       const rawValue = l.value_text != null ? l.value_text : l.value_raw;
-      if (meanings && rawValue != null && meanings[rawValue]) {
-        part.push({ name: 'description', valueString: meanings[rawValue] });
+      const meanings = descriptions[l.code];
+      let desc = (meanings && rawValue != null && meanings[rawValue]) ? meanings[rawValue] : null;
+      if (!desc && ov && ov.descriptionFromConcept && rawValue != null) {
+        // The literal's value names a concept of this system (SNOMED
+        // moduleId); describe it with that concept's lookup display.
+        desc = this._lookupDisplayByCode(rawValue);
       }
+      if (desc) part.push({ name: 'description', valueString: desc });
       for (const [k, v] of Object.entries(typed)) {
         if (k !== 'code') part.push({ name: 'value', [k]: v });
       }
       params.push({ name: 'property', part });
     }
+  }
 
+  _extendLookupDesignationProps(conceptId, props, params) {
     for (const useCode of this._designationsAsProperties()) {
       if (!this._hasProp(props, useCode, true)) continue;
       const rows = this.db.prepare(
         `SELECT language_code, term FROM designation
           WHERE concept_id = ? AND active = 1 AND use_code = ?
           ORDER BY designation_id`
-      ).all(c.conceptId, useCode);
+      ).all(conceptId, useCode);
       for (const r of rows) {
         this._addProperty(params, 'property', useCode, r.term, r.language_code || null);
       }
     }
+  }
+
+  // Post-coordinated expression $lookup: the reference surfaces the FOCUS
+  // concept's own lookup properties (single-focus expressions only), then each
+  // refinement as an attribute property with code-display + description.
+  _extendLookupExpression(c, props, params) {
+    const expr = c.expression;
+    if (expr.concepts.length === 1 && expr.concepts[0].reference !== NO_REFERENCE) {
+      this._extendLookupConcept(expr.concepts[0].reference, props, params);
+    }
+    const addRefinement = (refinement) => {
+      const valueCode = refinement.value.describe();
+      const value = refinement.value;
+      const simple = value.concepts.length === 1 &&
+        !value.hasRefinements() && !value.hasRefinementGroups();
+      const description = simple && value.concepts[0].reference !== NO_REFERENCE
+        ? this._lookupDisplay(value.concepts[0].reference)
+        : this._exprService().render(value, SnomedServicesRenderOption.FillMissing);
+      const p = this._addCodeProperty(params, 'property', refinement.name.code, valueCode, null, description);
+      const cd = refinement.name.reference !== NO_REFERENCE
+        ? this._lookupDisplay(refinement.name.reference) : null;
+      if (cd) p.part.push({ name: 'code-display', valueString: cd });
+    };
+    for (const refinement of expr.refinements) addRefinement(refinement);
+    for (const group of expr.refinementGroups) {
+      for (const refinement of group.refinements) addRefinement(refinement);
+    }
+  }
+
+  // The reference binary's getDisplayName(): the FIRST ACTIVE stored
+  // designation in source order (designation_id preserves RF2 description-id
+  // order), falling back to the denormalized display. Lookup property
+  // descriptions use this rule — which is why they can surface an FSN even
+  // though the concept display is the preferred synonym.
+  _lookupDisplay(conceptId) {
+    const row = this.db.prepare(
+      `SELECT term FROM designation WHERE concept_id = ? AND active = 1
+        ORDER BY designation_id LIMIT 1`
+    ).get(conceptId);
+    if (row && row.term) return row.term.trim();
+    const c = this.db.prepare(`SELECT display FROM concept WHERE concept_id = ?`).get(conceptId);
+    return c ? c.display : null;
+  }
+
+  _lookupDisplayByCode(code) {
+    const row = this.db.prepare(
+      `SELECT concept_id FROM concept WHERE cs_id = ? AND code = ?`
+    ).get(this.csId, code);
+    return row ? this._lookupDisplay(row.concept_id) : null;
+  }
+
+  // code-display for a concept-valued property: the property_def's own display
+  // when the importer recorded one, else the display of the concept the
+  // property code names (SNOMED attribute concepts). Cached per provider.
+  _propCodeDisplay(code) {
+    if (!this._propDisplayCache) this._propDisplayCache = new Map();
+    if (!this._propDisplayCache.has(code)) {
+      const pd = this.propByCode.get(code);
+      this._propDisplayCache.set(code, (pd && pd.display) || this._lookupDisplayByCode(code));
+    }
+    return this._propDisplayCache.get(code);
   }
 
   // ---- properties --------------------------------------------------------
@@ -652,9 +821,14 @@ class SqliteCodeSystemProvider extends BaseCSServices {
         p.valueBoolean = l.value_bool != null ? l.value_bool === 1
           : (l.value_raw === 'true' || l.value_raw === 'Y' || l.value_raw === '1');
         break;
-      case 'dateTime':
-        p.valueDateTime = l.value_text != null ? l.value_text : l.value_raw;
+      case 'dateTime': {
+        // Compact yyyymmdd source dates (SNOMED RF2 effectiveTime) are not
+        // valid FHIR dateTime values; normalize to yyyy-mm-dd on the way out.
+        const raw = l.value_text != null ? l.value_text : l.value_raw;
+        p.valueDateTime = (typeof raw === 'string' && /^\d{8}$/.test(raw))
+          ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}` : raw;
         break;
+      }
       case 'code':
         p.valueCode = l.value_text != null ? l.value_text : l.value_raw;
         break;
@@ -2019,6 +2193,10 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
       case 'experimental':
       case 'isAIncludesSelf':
       case 'supportsExpressions':
+      case 'lookupLinkDescriptions':
+      case 'lookupLinkDistinct':
+      case 'designationUseDisplays':
+      case 'displayDesignation':
         return value === '1' || value === 'true';
       case 'implicitValueSets':
       case 'filterAliases':
@@ -2029,6 +2207,7 @@ class SqliteCodeSystemFactory extends CodeSystemFactoryProvider {
       case 'propertyValueDescriptions':
       case 'designationsAsProperties':
       case 'designationUses':
+      case 'lookupPropertyOverrides':
         try { return JSON.parse(value); } catch { return value; }
       default:
         return value;
