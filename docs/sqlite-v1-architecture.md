@@ -61,8 +61,21 @@ The single most important principle. A provider should not contain
 
 The importers own writing this metadata; the provider only reads it. SNOMED's
 refsets, LOINC's answer lists, RxNorm's relationship filters — all become
-generic operations over generic tables, configured by rows. The residual
-per-system code is tiny (about 90 lines for LOINC answer-list value sets).
+generic operations over generic tables, configured by rows.
+
+**And when behavior genuinely needs code, not data?** Some capabilities cannot
+be reduced to a config row — SNOMED CT post-coordinated expressions and ECL need
+a parser and an evaluator. Those do **not** become `if (system === 'snomed')`
+branches in the generic class. They live in a **subclass**
+(`SnomedSqliteCodeSystemProvider extends SqliteCodeSystemProvider`) that owns the
+terminology-specific code and calls `super` for everything generic. The factory
+selects the subclass **at runtime from the DB's own identity**: each subclass
+declares a `static handledSystems = [...baseUris]`, and the factory matches the
+database's `code_system.base_uri` against them (no class name is ever stored in
+the data; a plain vocabulary matches nothing and gets the generic base). So the
+rule is complete: *metadata-driven in the base; a URL-selected subclass for the
+irreducibly code-shaped parts* — the generic provider itself stays free of any
+per-system branch or hardcoded URI.
 
 **Why it matters:** capability discovery, filter support, and typing stop being
 folklore restated per provider and become a single, inspectable, testable fact
@@ -231,9 +244,16 @@ language, version algorithm, hierarchy presence, status semantics from
 concept context is fetched once by `locate()` and threaded through the ~ten
 accessor calls, so decoration doesn't re-resolve the code.
 
+`SqliteCodeSystemProvider` is the metadata-driven base; the factory instantiates
+it — or a registered subclass whose `static handledSystems` includes the DB's
+`base_uri` (§2.1). Today that is `SnomedSqliteCodeSystemProvider` for
+`http://snomed.info/sct`; every other database gets the base. This is the single
+seam where terminology-specific code is allowed, and it is chosen from data, not
+configured by hand.
+
 The provider is registered through a new `sqlite:` library source type, so a
-server config can run, say, `loinc:` (old) and `loinc-sql:` (new) at once for
-comparison.
+server config can run, say, `snomed:` (old, cached) and `sqlite:` (new) for the
+same system at once for comparison.
 
 ---
 
