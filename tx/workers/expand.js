@@ -691,6 +691,17 @@ class ValueSetExpander {
    *   whole-system or single-filter include, unpaged, nesting not excluded):
    *   the provider page is flat, and hierarchy shape must not change.
    */
+  // Whether any include could still contribute unbounded (grammar) members —
+  // i.e. is NOT explicitly bounded by `expressions = false`. Mirrors the binary
+  // provider's filtersNotClosed(): a post-coordination-excluding include closes
+  // the set. Used by the pushdown/IR paths to gate the valueset-unclosed
+  // extension exactly as the legacy filter path does.
+  _hasOpenInclude(includes) {
+    return (includes || []).some((inc) =>
+      !(inc.filter || []).some((f) => f && f.property === 'expressions' &&
+        f.op === '=' && String(f.value).toLowerCase() === 'false'));
+  }
+
   async processCodes(path, vsSrc, compose, filter, expansion, excludeInactive, notClosed, vsInfo) {
     const includes = compose.include || [];
     const excludes = compose.exclude || [];
@@ -736,6 +747,14 @@ class ValueSetExpander {
     }
 
     this.canBeHierarchy = false;
+    // A grammar-bearing code system (SNOMED) can never be fully enumerated, so
+    // a provider-selection (pushdown) expansion is unclosed too — the legacy
+    // filter path signals this via filtersNotClosed(); mirror it here so the
+    // valueset-unclosed extension is emitted regardless of engine. isNotClosed()
+    // is false for every closed system (LOINC/RxNorm), so this is a no-op there.
+    if (this._hasOpenInclude(includes) && await cs.isNotClosed()) {
+      notClosed.value = true;
+    }
     if (paged) {
       vsInfo.csDoOffset = true;
     }
@@ -834,6 +853,15 @@ class ValueSetExpander {
     }
 
     this.canBeHierarchy = false;
+    // A grammar-bearing code system (SNOMED) is never fully enumerable, so an
+    // IR-engine expansion is unclosed too — mirror the pushdown/legacy paths so
+    // the valueset-unclosed extension is emitted and the three engines agree.
+    // isNotClosed() is false for every closed system, so this is a no-op there.
+    if (this._hasOpenInclude(includes)) {
+      for (const cs of csBySystem.values()) {
+        if (await cs.isNotClosed()) { notClosed.value = true; break; }
+      }
+    }
     if (paged) vsInfo.csDoOffset = true;
     this.emitProviderTotal(total);
 

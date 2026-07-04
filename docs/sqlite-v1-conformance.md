@@ -124,3 +124,110 @@ the next conformance increment.
 - The official suite's real value here was exposing the ~200 provider-level
   behavioral gaps (lookup/validate output detail) that membership parity cannot
   see — the concrete remaining LOINC/SNOMED conformance backlog.
+
+## SNOMED $lookup / $validate-code / $expand drop-in (sqlite vs binary)
+
+Making the sqlite SNOMED provider a true drop-in for the binary provider on the
+official SNOMED/SCT fixtures. Ground truth = the official `*-response*` fixtures
+(and the binary `cs-snomed` provider to disambiguate). Measured by
+`test-scripts/sct-conformance-harness.js` (real server on the sqlite fixtures
+library, official `$optional/$id/$uuid/$instant` comparison semantics,
+order-insensitive, per-engine).
+
+**86 SNOMED cases across suites (snomed / tx.fhir.org / bugs / related). Match
+count: 16 → 57, identical under all three engines (legacy = pushdown = ir = 57).**
+
+| operation | before | after |
+|---|---|---|
+| expand | 4 | 32 |
+| validate-code | 5 | 17 |
+| cs-validate-code | 5 | 6 |
+| lookup | 2 | 2 |
+| translate | 0 | 0 |
+| **total** | **16** | **57** |
+
+### Root causes and fixes
+
+1. **`inactive` status filter returned the empty set** (`cs-sqlite.js`, config).
+   A filter `{inactive = false|true}` matched a stored literal; active concepts
+   have no `inactive=false` row, so `is-a X AND inactive=false` yielded 0 (vs the
+   reference's non-empty set). Fix: a filter on the *boolean* status property
+   (cs_config `inactiveProperty === statusProperty`, SNOMED only) maps to
+   `concept.active` — added to both filter routings (`filter()`/`_runClause` and
+   `_idsForFilter`) so legacy/pushdown/ir agree.
+
+2. **status property over-emitted on active concepts** (`cs-sqlite.js`, config).
+   `getStatus()` returned the raw `inactive` literal (`'0'`), `!== 'active'`, so
+   every active concept got `property status=0` and expansions declared
+   `expansion.property status`. Fix: for a boolean status property, `getStatus()`
+   returns `'active'`/`'inactive'` from `concept.active` (matching binary) — the
+   worker then emits `status` only for genuinely inactive concepts. LOINC's enum
+   `STATUS` (`_isBooleanStatusProperty()===false`) keeps returning its stored
+   value, so `loinc-expand-status` still surfaces DISCOURAGED/DEPRECATED.
+
+3. **valueset-unclosed extension missing + hierarchical (should be flat)**
+   (`cs-sqlite.js` + `expand.js`). SNOMED has a grammar → every filter/hierarchy
+   expansion is "unclosed" and flat. Added `isNotClosed()` (config-gated on the
+   expression flag) and `filtersNotClosed()` (respecting `expressions=false`,
+   which *closes* the set) to the provider; the pushdown (`processCodes`) and IR
+   (`processViaIR`) paths now set `notClosed` via `_hasOpenInclude(...) &&
+   cs.isNotClosed()` exactly as the legacy filter path already did via
+   `filtersNotClosed`. `notClosed` both emits the extension and flattens.
+   No-op for every closed system (LOINC/RxNorm).
+
+4. **display was the FSN / wrong synonym** (`import-sct-cache-sqlite-v1`,
+   re-import). Verified against every official expand fixture: the returned
+   display is the **first active SYNONYM** (900000000000013009) in description
+   order — not the FSN, and *not* the en-US language-refset PREFERRED synonym
+   (e.g. 61460008 → "Adrenal impression of liver", not the preferred "Structure
+   of adrenal impression of liver"; 10200004 → "Liver", not "Liver structure").
+   Importer display rule changed to first-active-synonym → FSN → first active →
+   code. Requires a fixture re-import (both editions).
+
+5. **`$validate-code` "not in the specified filter" preamble** (cs_config).
+   Set `filterLocateMiss = 'silent'` (as LOINC) so a filter/hierarchy miss is a
+   bare "not found in the value set" message, matching the reference.
+
+6. **displayLanguage=* was a harness artifact** — undici's fetch sends
+   `accept-language: *`; the real runner sends none. The harness strips it (no
+   provider change): no official fixture ever emits a wildcard displayLanguage.
+
+### Re-import
+
+The display-rule change (#4) and `filterLocateMiss` (#5) require rebuilding the
+SNOMED fixtures:
+```sh
+for cache_db in "sct_test_20250814.cache sct-test-20250814-v1.db" \
+                "sct_intl_20250201.cache sct-intl-20250201-v1.db"; do
+  set -- $cache_db
+  (printf 'n\n'; sleep 900) | node tx/importers/tx-import.js snomed-cache-sqlite-v1 \
+    import -s data/terminology-cache/$1 -d ~/work/tx-dbs/$2 --overwrite -y
+done
+```
+(`filterLocateMiss` is also written by the importer now; the fixtures used for
+these numbers had it set directly on cs_config, equivalent to a re-import.)
+
+### The 27 still failing (categorised, none a further provider regression)
+
+- **9 reference-server url bug** (`ecl-or`, `-term-match`, `-term-mismatch`,
+  `-term-with-operator`, `-wildcard-minus`, `-nested-parens`, `-refinement-simple`,
+  `-refinement-wildcard`, `-refinement-group`): expected VS `url` has a stray
+  trailing `}` the request never sent — our output is byte-identical otherwise.
+- **~8 OperationOutcome `operationoutcome-message-id` extension / implicit-VS /
+  R4-version** (`validation-1`, `inactive-display`, `ecl-invalid-sctid`,
+  `validate-implied-1b/2`, `bugs/sct-parse`, `sct-ver`, `sct-msg-4`): our error
+  Issues omit the message-id extension; some also need implicit `?fhir_vs=`
+  resolution, and `sct-msg-4` is an R4 case the harness posts to /r5.
+- **3 total off-by-one** (`expand-property-1/2`, `ecl-refinement-cardinality`):
+  a single member difference — edition drift (fixture 20250201 vs generation) or
+  a minor property-filter detail.
+- **2 `$lookup`** (`lookup`, `lookup-pc`): `extendLookup` must emit parent/child
+  + attribute relationships with `code-display`/`description` (structure known
+  from binary `cs-snomed.extendLookup`), and the REQUIRED `effectiveTime` is a
+  reference off-by-one date (`20050131` → fixture `2005-01-30`) — a reference
+  artifact, not a data value we hold.
+- **1 `$translate`**: needs an implicit SNOMED `?fhir_cm=` ConceptMap.
+- **misc**: `ecl-memberOf-nonRefset` (ECL `^ <non-refset>` returns total 1 at the
+  reference, we raise INVALID_ECL), `snomed-expand-inactive` (designation
+  `use.display` names), `bugs/sct-ver-ex` (US edition 731000124108 absent from
+  the fixtures), `bugs/sct-isa` ($cache-control cache id the harness never creates).
