@@ -328,7 +328,10 @@ class SnomedCacheSqliteV1Importer {
     this.csId = this.writer.codeSystem({
       baseUri: BASE_URI,
       editionCode: this.edition,
-      version: this.version,
+      // For SNOMED the FHIR `version` reported in responses is the full
+      // versioned edition URI (e.g. http://snomed.info/xsct/<module>/version/
+      // <date>), matching the binary provider's versionUri — not the bare date.
+      version: this.uri,
       canonicalUri: this.uri,
       releaseDate: releaseDateFromYyyymmdd(this.version),
       name: snomedName(this.edition),
@@ -422,10 +425,14 @@ class SnomedCacheSqliteV1Importer {
       const primitive = (c.flags & 0x10) !== 0;
 
       // Read this concept's descriptions once: derive designations + display +
-      // definition (display: preferred en synonym > FSN > first active > code).
+      // definition. Display = the FIRST active description in cache order, which
+      // is exactly what the binary provider's getDisplayName returns (it walks
+      // this same description-reference list and returns the first active term).
+      // The cache already orders descriptions preferred-term-first; an earlier
+      // attempt to re-derive the "preferred" term from the en-US language refset
+      // mis-selected a different synonym (e.g. 128241005 -> "Inflammatory disease
+      // of liver" instead of the binary's "Inflammatory disorder of liver").
       const descSpecs = [];
-      let bestPreferred = null;
-      let bestFsn = null;
       let firstActive = null;
       let definition = null;
 
@@ -448,14 +455,12 @@ class SnomedCacheSqliteV1Importer {
         });
 
         if (d.active) {
-          if (preferred && !isFsn && bestPreferred === null) bestPreferred = term;
-          if (isFsn && bestFsn === null) bestFsn = term;
           if (firstActive === null) firstActive = term;
           if (typeId === TEXT_DEFINITION_TYPE_ID && definition === null) definition = term;
         }
       }
 
-      const display = bestPreferred ?? bestFsn ?? firstActive ?? code;
+      const display = firstActive ?? code;
 
       const conceptId = this.writer.addConcept(this.csId, {
         code, active, display, definition,
