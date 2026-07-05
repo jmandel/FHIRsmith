@@ -678,15 +678,214 @@ class ValueSetExpander {
     }
   }
 
+  /**
+   * Provider-driven bulk selection (cs-api handlesSelecting/processSelection).
+   * Only runs for "simple" composes (one system|version, no imported value
+   * sets — see scanValueSet). Returns true when handled; false to route the
+   * request through the legacy per-include path instead. Falls back when:
+   * - a request-level text filter is present (legacy text-match semantics
+   *   stay authoritative until search parity is established), or
+   * - any include enumerates concepts (page order = listing order, which is
+   *   semantic — tier 1 in the ordering contract), or
+   * - the output could legitimately be a nested hierarchy (single
+   *   whole-system or single-filter include, unpaged, nesting not excluded):
+   *   the provider page is flat, and hierarchy shape must not change.
+   */
+  // Whether any include could still contribute unbounded (grammar) members —
+  // i.e. is NOT explicitly bounded by `expressions = false`. Mirrors the binary
+  // provider's filtersNotClosed(): a post-coordination-excluding include closes
+  // the set. Used by the pushdown/IR paths to gate the valueset-unclosed
+  // extension exactly as the legacy filter path does.
+  _hasOpenInclude(includes) {
+    return (includes || []).some((inc) =>
+      !(inc.filter || []).some((f) => f && f.property === 'expressions' &&
+        f.op === '=' && String(f.value).toLowerCase() === 'false'));
+  }
+
   async processCodes(path, vsSrc, compose, filter, expansion, excludeInactive, notClosed, vsInfo) {
+    const includes = compose.include || [];
+    const excludes = compose.exclude || [];
+
+    if (!filter.isNull) return false;
+    if (includes.some(inc => inc.concept && inc.concept.length > 0)) return false;
+
     const cs = await this.worker.findCodeSystem(vsInfo.system, vsInfo.version, this.params, ['complete', 'fragment'],
       false, false, true, null, this.requiredSupplements);
-    if (cs != null) {
+    if (cs == null) return false;
 
-      // set up the call to the provider
-      // call the provider
-      // include the codes
+    const flatAnyway = this.params.excludeNested || this.offset > 0 || !cs.hasParents() ||
+      includes.every(inc => (inc.filter || []).length > 1);
+    const paged = this.offset > -1 || this.count > -1;
+    if (!flatAnyway && !paged) return false;
+
+    for (const cset of [...includes, ...excludes]) {
+      this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
     }
+    this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
+    this.addParamUri(expansion, 'used-codesystem', this.canonical(cs.system(), cs.version()));
+
+    const offset = paged ? Math.max(this.offset, 0) : -1;
+    const count = this.count > -1 ? this.count : -1;
+    const sets = await cs.processSelection(this.params, includes, excludes, excludeInactive, offset, count);
+    if (!sets || sets.length === 0) return false;
+    const set = sets[0];
+    const total = set.totalCount != null ? set.totalCount : null;
+
+    // If legacy would have produced a NESTED expansion here (result smaller
+    // than the requested count, hierarchy present), keep its shape: fall back.
+    // Nothing emitted yet, and the params/supplement bookkeeping above is
+    // idempotent with the legacy path.
+    if (!flatAnyway && !(this.count > -1 && total != null && this.count < total)) {
+      return false;
+    }
+
+    // Legacy semantics: a whole-set request beyond the expansion limit fails.
+    if (this.limitCount > 0 && total != null && total > this.limitCount && !(this.count > -1)) {
+      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY',
+        this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [vsSrc.vurl, '>' + this.limitCount]),
+        null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+    }
+
+    this.canBeHierarchy = false;
+    // A grammar-bearing code system (SNOMED) can never be fully enumerated, so
+    // a provider-selection (pushdown) expansion is unclosed too — the legacy
+    // filter path signals this via filtersNotClosed(); mirror it here so the
+    // valueset-unclosed extension is emitted regardless of engine. isNotClosed()
+    // is false for every closed system (LOINC/RxNorm), so this is a no-op there.
+    if (this._hasOpenInclude(includes) && await cs.isNotClosed()) {
+      notClosed.value = true;
+    }
+    if (paged) {
+      vsInfo.csDoOffset = true;
+    }
+    this.emitProviderTotal(total);
+
+    this.worker.opContext.log('provider selection: total=' + total);
+    const prep = await cs.getPrepContext(true);
+    const cds = new Designations(this.worker.i18n.languageDefinitions);
+    while (await cs.filterMore(prep, set)) {
+      this.worker.deadCheck('processCodes-selection');
+      const c = await cs.filterConcept(prep, set);
+      cds.clear();
+      if (this.noDetails) {
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          null, null, cds, null, null, expansion, null, null, null, null, null, excludeInactive, vsSrc.url);
+      } else {
+        await this.listDisplaysFromProvider(cds, cs, c);
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
+          expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+      }
+    }
+    await cs.filterFinish(prep);
+    return true;
+  }
+
+  /**
+   * _engine=ir path. Builds the IR from the compose, runs the tx/engine
+   * orchestrator over native sqlite providers, and decorates the resulting
+   * page through the SAME includeCode path pushdown/legacy use — so the three
+   * engines share one decoration surface and stay at parity. Returns true when
+   * handled; false (emitting nothing) to fall through to pushdown/legacy.
+   *
+   * Fallback gates mirror processCodes (text filters, enumerated-concept
+   * includes whose order is semantic, nested-hierarchy output). Additionally
+   * bails on any orchestrator "bail" (non-native provider, imports, unhandled
+   * shape) so those keep their legacy behavior.
+   */
+  async processViaIR(source, compose, filter, expansion, excludeInactive, notClosed, vsInfo) {
+    const includes = compose.include || [];
+    const excludes = compose.exclude || [];
+    if (!filter.isNull) return false;
+    if (includes.some(inc => inc.concept && inc.concept.length > 0)) return false;
+    // Multiple includes: legacy/pushdown page in include-by-include order
+    // (tier-1.5 of the ordering contract), but IR's rewrite merges the union
+    // into concept_id order. Cede multi-include composes so first-page
+    // composition stays identical; single-include is where IR earns its keep.
+    if (includes.length > 1) return false;
+
+    // Resolve every referenced provider once; require all native (else bail so
+    // legacy owns it). Also drives supplement/status/used-codesystem bookkeeping
+    // identically to the pushdown path.
+    const csBySystem = new Map();
+    for (const cset of [...includes, ...excludes]) {
+      if (!cset.system) return false; // pure-import component: let legacy handle
+      const key = cset.system + '|' + (cset.version || '');
+      if (!csBySystem.has(key)) {
+        const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params, ['complete', 'fragment'],
+          false, false, true, null, this.requiredSupplements);
+        if (cs == null || typeof cs.hasExecuteIR !== 'function' || !cs.hasExecuteIR()) return false;
+        csBySystem.set(key, cs);
+        this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
+        this.addParamUri(expansion, 'used-codesystem', this.canonical(cs.system(), cs.version()));
+      }
+      this.worker.checkSupplements(csBySystem.get(key), cset, this.requiredSupplements, this.usedSupplements);
+    }
+
+    // Nested-hierarchy shape: same gate as processCodes (single whole/simple
+    // include, hierarchy present, unpaged, nesting not excluded -> legacy).
+    const anyHierarchy = [...csBySystem.values()].some(cs => cs.hasParents());
+    const paged = this.offset > -1 || this.count > -1;
+    const flatAnyway = this.params.excludeNested || this.offset > 0 || !anyHierarchy ||
+      includes.every(inc => (inc.filter || []).length > 1);
+    if (!flatAnyway && !paged) return false;
+
+    const { expandViaIR } = require('../engine/orchestrator');
+    const offset = paged ? Math.max(this.offset, 0) : 0;
+    const count = this.count > -1 ? this.count : -1;
+
+    const result = await expandViaIR(source.jsonObj, {
+      findProvider: async (system, version) => {
+        const cs = csBySystem.get(system + '|' + (version || '')) ||
+          [...csBySystem.values()].find(c => c.system() === system);
+        return cs || null;
+      },
+      activeOnly: !!this.params.activeOnly || excludeInactive,
+      offset, count,
+    });
+    if (!result || result.expansion === null || !Array.isArray(result.candidates)) return false;
+
+    const total = result.total != null ? result.total : null;
+    if (this.limitCount > 0 && total != null && total > this.limitCount && !(this.count > -1)) {
+      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY',
+        this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [source.vurl, '>' + this.limitCount]),
+        null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+    }
+
+    this.canBeHierarchy = false;
+    // A grammar-bearing code system (SNOMED) is never fully enumerable, so an
+    // IR-engine expansion is unclosed too — mirror the pushdown/legacy paths so
+    // the valueset-unclosed extension is emitted and the three engines agree.
+    // isNotClosed() is false for every closed system, so this is a no-op there.
+    if (this._hasOpenInclude(includes)) {
+      for (const cs of csBySystem.values()) {
+        if (await cs.isNotClosed()) { notClosed.value = true; break; }
+      }
+    }
+    if (paged) vsInfo.csDoOffset = true;
+    this.emitProviderTotal(total);
+
+    this.worker.opContext.log('IR engine: total=' + total + ' page=' + result.candidates.length);
+    const cds = new Designations(this.worker.i18n.languageDefinitions);
+    for (const cand of result.candidates) {
+      this.worker.deadCheck('processViaIR');
+      const cs = [...csBySystem.values()].find(c => c.system() === cand.system);
+      if (!cs) continue;
+      const loc = await cs.locate(cand.code, this.allAltCodes);
+      if (!loc || !loc.context) continue;
+      const c = loc.context;
+      cds.clear();
+      if (this.noDetails) {
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          null, null, cds, null, null, expansion, null, null, null, null, null, excludeInactive, source.url);
+      } else {
+        await this.listDisplaysFromProvider(cds, cs, c);
+        await this.includeCode(cs, null, cs.system(), cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+          await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
+          expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, source.url);
+      }
+    }
+    return true;
   }
 
   async includeCodes(cset, path, vsSrc, compose, filter, expansion, excludeInactive, notClosed) {
@@ -1180,8 +1379,15 @@ class ValueSetExpander {
 
     this.worker.opContext.log('compose #2');
 
-    if (vsInfo.handleByCS) {
-      await this.processCodes("ValueSet.compose", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo);
+    // Explicit _engine=ir opt-in: try the IR orchestrator first. Like
+    // processCodes it returns false (and emits nothing) when it can't
+    // reproduce legacy-visible behavior, so the normal path then runs.
+    if (this.params.engine === 'ir' &&
+        await this.processViaIR(source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo)) {
+      // handled by the IR engine
+    } else if (this.params.engine !== 'legacy' && vsInfo.handleByCS &&
+        await this.processCodes("ValueSet.compose", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo)) {
+      // handled by the code system provider (pushdown)
     } else {
       this.checkForExclusionVersionSpecialCase(source, expansion);
 
@@ -1656,6 +1862,23 @@ class ValueSetExpander {
     }
   }
 
+  // A provider-driven engine (pushdown/IR) hands back the EXACT total (or null).
+  // FHIR expansion.total is optional, and the reference server emits it only
+  // when the full set fit under the effective expansion limit — if the set is
+  // larger than the server would enumerate, it does not claim a total. Legacy
+  // gets this for free (it stops counting at the limit); we reproduce it by
+  // emitting the exact total only when it is within limitCount.
+  emitProviderTotal(total) {
+    // count=0 is a total-only request — the total is the explicit ask, not a
+    // paging nicety, so it is not gated by the paging limit.
+    const totalOnly = this.count === 0;
+    if (total != null && (totalOnly || this.limitCount <= 0 || total <= this.limitCount)) {
+      this.addToTotal(total);
+    } else {
+      this.noTotal();
+    }
+  }
+
   noTotal() {
     this.total = -1;
     this.totalStatus = 'off';
@@ -1697,13 +1920,21 @@ class ValueSetExpander {
     }
     if (simple && result.csset.size == 1) {
       result.isSimple = true;
+      const first = (compose.include || compose.exclude || [])[0];
+      if (first) {
+        result.system = first.system;
+        result.version = first.version;
+      }
     }
     return result;
   }
 
   isSimpleSelect(inc, set) {
     set.add(inc.system+"|"+inc.version);
-    return !inc.valueset || inc.valueset.length == 0;
+    // FHIR field is valueSet (the lowercase spelling never matched, so composes
+    // with imports were classified simple; harmless while processCodes was a
+    // stub, wrong once a provider handles selecting).
+    return (inc.valueSet || inc.valueset || []).length == 0;
   }
 
   excludeFilterList(exc) {
@@ -2090,6 +2321,14 @@ class ExpandWorker extends TerminologyWorker {
 
     // Store params for worker methods
     this.params = params;
+
+    // Server-level default engine (TX_EXPAND_ENGINE=legacy|pushdown|ir) applies
+    // only when the request did not select one via _engine. Used to run a whole
+    // suite through one engine; per-request _engine always wins.
+    if (!this.params.engine && process.env.TX_EXPAND_ENGINE) {
+      const e = String(process.env.TX_EXPAND_ENGINE).trim().toLowerCase();
+      if (e === 'legacy' || e === 'pushdown' || e === 'ir') this.params.engine = e;
+    }
 
     if (params.limit < -1) {
       params.limit = -1;
