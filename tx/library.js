@@ -907,7 +907,7 @@ class Library {
       this.conceptMapProviders.push(cm);
     }
 
-    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs ? vs.valueSetMap.size : 0);
+    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs ? vs.vsCount() : 0);
   }
 
   /**
@@ -1127,7 +1127,7 @@ class Library {
     await cm.initialize();
     this.conceptMapProviders.push(cm);
 
-    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs.valueSetMap.size);
+    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs.vsCount());
   }
 
   /**
