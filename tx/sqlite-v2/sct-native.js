@@ -18,6 +18,7 @@
 const E = require('../sct/expressions');
 const { ECLLexer, ECLParser, ECLNodeType, ECLTokenType } = require('../sct/ecl');
 const { KIND } = require('./store');
+const { wildTermMatcher } = require('../cs/cs-snomed');
 
 const IS_A = '116680003';
 const PRIMITIVE = '900000000000074008';
@@ -463,7 +464,7 @@ function concreteMatcher(c) {
   if (c.type === ECLNodeType.BOOLEAN_COMPARISON) return (v) => v.kind === 'boolean' && ((op === '=') === (v.value === c.value));
   const vals = (c.values || []).map((x) => (typeof x === 'object' ? x : { kind: 'exact', value: x }));
   const test = (s) => vals.some((x) => {
-    if (x.kind === 'wild') return new RegExp('^' + x.value.split('*').map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$', 'i').test(s);
+    if (x.kind === 'wild') return wildTermMatcher(String(x.value))(s); // main's matcher: see compile.js termMatcher
     if (x.kind === 'match') { const w = x.value.toLowerCase().split(/\s+/).filter(Boolean); const tw = s.toLowerCase().split(/[^\p{L}\p{N}]+/u); return w.every((a) => tw.some((b) => b.startsWith(a))); }
     return s === x.value;
   });
