@@ -65,7 +65,8 @@ const EXPANSION = [
   p('includeDefinition', 'boolean', '1', 'Include the definition of each code'),
   p('property', 'string', '*', 'A property to include for each code'),
   p('sort', 'string', '1', '`code`, `display`, `design` or `prop:{name}`; prefix with - to reverse. Ignored for hierarchical expansions'),
-  p('versionsMatch', 'boolean', '1', 'Treat a code as the same code in different versions of its code system')
+  p('versionsMatch', 'boolean', '1', 'Treat a code as the same code in different versions of its code system'),
+  p('_trace', 'boolean', '1', 'Return the sqlite-v2 engine trace on the expansion, when the server enables traces (docs/sqlite-v2-trace.md)')
 ];
 
 const VALIDATION = [

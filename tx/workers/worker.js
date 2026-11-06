@@ -215,6 +215,11 @@ class TerminologyWorker {
       }
     }
 
+    // sqlite-v2: a provider whose filters depend on the request's languages is told them here
+    if (provider && params && typeof params.workingLanguages === 'function') {
+      provider.useRequestLanguages(params.workingLanguages());
+    }
+
     if (!provider && !nullOk) {
       if (!version) {
         throw new Issue("error", "not-found", null, "UNKNOWN_CODESYSTEM_EXP", this.i18n.translate("UNKNOWN_CODESYSTEM_EXP", params.FHTTPLanguages, [url]), "not-found", 422);

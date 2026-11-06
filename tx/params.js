@@ -410,6 +410,16 @@ class TxParameters {
         if (claim('diagnostics')) this.diagnostics = asBool();
         break;
       }
+      case '_trace': {
+        // engine trace on ValueSet.expansion (sqlite-v2 providers; docs/sqlite-v2-trace.md)
+        if (claim('_trace')) {
+          const v = String(getValuePrimitive(value)).toLowerCase();
+          this.trace = v === 'true' || v === 'cold';
+          // _trace=cold (only when traces are enabled): bypass the expansion cache too
+          if (v === 'cold' && require('./sqlite-v2/trace').settings.mode !== 'off') this.FUid = crypto.randomUUID();
+        }
+        break;
+      }
       case 'lenient-display-validation': {
         if (claim('lenient-display-validation')) this.displayWarning = asBool();
         break;
@@ -655,7 +665,7 @@ class TxParameters {
     // are included, and diagnostics.
     // filter is free text, so JSON.stringify it to avoid delimiter collisions.
     s = s + 'f:' + JSON.stringify(this.filter || '') + '|' +
-      b(this.abstractOk) + b(this.diagnostics) + b(this.postCoordinationMetadata);
+      b(this.abstractOk) + b(this.diagnostics) + b(this.postCoordinationMetadata) + (this.trace ? 't|' : '');
     for (let t of this.FVersionRules) {
       s = s + t.asString() + '|';
     }

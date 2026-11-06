@@ -215,6 +215,8 @@ class ValueSetExpander {
 
   constructor(worker, params) {
     this.worker = worker;
+    // the request's trace (tx/sqlite-v2/request-trace.js), or null: every hook is a null check
+    this.trace = (worker.opContext && worker.opContext.sqliteTrace) || null;
     this.params = params;
     this.internalLimit = worker.internalLimit;
     this.externalLimit = worker.externalLimit;
@@ -275,12 +277,17 @@ class ValueSetExpander {
     }
     for (const s of this.params.designations) {
       // a token: system|code, or a bare code (or |code), which matches a language or a use
-      // code from any system. designation=nl-NL is the same as urn:ietf:bcp:47|nl-NL
+      // code from any system. designation=nl-NL is the same as urn:ietf:bcp:47|nl-NL; a bare
+      // language also matches its regional variants (BCP 47, "nl" matches "nl-NL")
       const bar = s.indexOf('|');
       const system = bar < 0 ? '' : s.substring(0, bar);
       const code = bar < 0 ? s : s.substring(bar + 1);
+      const lc = cd.language != null ? String(cd.language.code || cd.language) : null;
       if (!system) {
-        if ((cd.language != null && cd.language.code === code) || (cd.use != null && cd.use.code === code)) {
+        if (lc != null && (lc === code || lc.startsWith(code + '-'))) {
+          return true;
+        }
+        if (cd.use != null && cd.use.code === code) {
           return true;
         }
         continue;
@@ -288,7 +295,7 @@ class ValueSetExpander {
       if (cd.use != null && cd.use.system === system && cd.use.code === code) {
         return true;
       }
-      if (cd.language != null && system === 'urn:ietf:bcp:47' && code === cd.language.code) {
+      if (lc != null && system === 'urn:ietf:bcp:47' && code === lc) {
         return true;
       }
     }
@@ -568,6 +575,13 @@ class ValueSetExpander {
   }
 
   async expandValueSet(uri, version, vs, filter, notClosed) {
+    if (!this.trace) {
+      return this.expandValueSetInner(uri, version, vs, filter, notClosed);
+    }
+    return this.trace.spanAsync('import ' + uri, 'part', null, () => this.expandValueSetInner(uri, version, vs, filter, notClosed), { part: 'import' });
+  }
+
+  async expandValueSetInner(uri, version, vs, filter, notClosed) {
 
     if (!vs) {
       if (version) {
@@ -738,6 +752,17 @@ class ValueSetExpander {
     }
   }
 
+  /** an include or exclude as a trace span: system, version, the provider that served it, codes added */
+  async tracePart(label, cset, fn) {
+    const before = this.fullList.length;
+    const what = cset.system ? cset.system + (cset.version ? '|' + cset.version : '') : (cset.valueSet || []).join(' ');
+    return this.trace.spanAsync(label + ' ' + what, 'part', cset.system || null, async (span) => {
+      const r = await fn();
+      span.codesAdded = this.fullList.length - before;
+      return r;
+    }, { part: label.split('[')[0], version: cset.version || null });
+  }
+
   /**
    * Hand the whole compose to the code system provider (CodeSystemProvider.handlesSelecting /
    * processSelection). Only called for a compose that selects from one system|version and imports
@@ -874,6 +899,9 @@ class ValueSetExpander {
       if (cs == null) {
         // nothing
       } else {
+        if (this.trace) {
+          this.trace.annotate({ provider: cs.constructor.name, engine: cs.handlesSelecting(), version: cs.version() });
+        }
         this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
         this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
         const sv = this.canonical(await cs.system(), await cs.version());
@@ -1524,7 +1552,10 @@ class ValueSetExpander {
 
     this.worker.opContext.log('compose #2');
 
-    if (vsInfo.handleByCS && await this.processCodes("ValueSet.compose", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo)) {
+    const selection = () => this.processCodes("ValueSet.compose", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed, vsInfo);
+    if (vsInfo.handleByCS && await (this.trace
+      ? this.trace.spanAsync('compose via processSelection', 'part', vsInfo.system || null, async (span) => { const ok = await selection(); span.handled = ok; return ok; }, { part: 'selection' })
+      : selection())) {
       // the code system provider selected the codes (processSelection)
     } else {
       this.checkForExclusionVersionSpecialCase(source, expansion);
@@ -1532,7 +1563,8 @@ class ValueSetExpander {
       let i = 0;
       for (const c of source.jsonObj.compose.exclude || []) {
         await this.worker.checkAndYield('handleCompose#4');
-        await this.excludeCodes(c, "ValueSet.compose.exclude[" + i + "]", source, filter, expansion, this.excludeInactives(source), notClosed);
+        const ex = () => this.excludeCodes(c, "ValueSet.compose.exclude[" + i + "]", source, filter, expansion, this.excludeInactives(source), notClosed);
+        await (this.trace ? this.tracePart('exclude[' + i + ']', c, ex) : ex());
       }
 
       i = 0;
@@ -1545,7 +1577,8 @@ class ValueSetExpander {
       });
       for (const c of includes) {
         await this.worker.checkAndYield('handleCompose#5');
-        await this.includeCodes(c, "ValueSet.compose.include[" + i + "]", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed);
+        const inc = () => this.includeCodes(c, "ValueSet.compose.include[" + i + "]", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed);
+        await (this.trace ? this.tracePart('include[' + i + ']', c, inc) : inc());
         i++;
       }
     }
@@ -1621,6 +1654,19 @@ class ValueSetExpander {
   }
 
   async expand(source, filter, noCacheThisOne) {
+    if (!this.trace) {
+      return this.expandInner(source, filter, noCacheThisOne);
+    }
+    return this.trace.spanAsync('expand ' + (source.vurl || source.url || '(inline value set)'), 'vs', null, async (span) => {
+      const r = await this.expandInner(source, filter, noCacheThisOne);
+      // (a value set sent with its expansion returns it without building fullList)
+      span.codes = this.fullList ? this.fullList.length : (r && r.expansion && r.expansion.contains ? r.expansion.contains.length : null);
+      span.total = r && r.expansion ? r.expansion.total ?? null : null;
+      return r;
+    });
+  }
+
+  async expandInner(source, filter, noCacheThisOne) {
     Extensions.checkNoImplicitRules(source,'ValueSetExpander.Expand', 'ValueSet', source.vurl);
     Extensions.checkNoModifiers(source,'ValueSetExpander.Expand', 'ValueSet', source.vurl);
     // circular reference detection: this value set is in the chain being processed until
@@ -2662,6 +2708,9 @@ class ExpandWorker extends TerminologyWorker {
       const cached = expansionCache.get(cacheKey);
       if (cached) {
         this.log.debug('Using cached expansion');
+        if (this.opContext.sqliteTrace) {
+          this.opContext.sqliteTrace.annotate({ expansionCache: 'hit' });
+        }
         return cached;
       }
     }
