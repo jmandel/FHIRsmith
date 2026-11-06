@@ -1,0 +1,80 @@
+{
+  "id": "ips-medication-example",
+  "title": "Medications - example (IPS) (IPS)",
+  "category": "mixed-providers",
+  "source": {
+    "kind": "ips",
+    "package": "hl7.fhir.uv.ips-2.0.1",
+    "file": "ValueSet-medication-example-uv-ips.json",
+    "url": "http://hl7.org/fhir/uv/ips/ValueSet/medication-example-uv-ips",
+    "title": "Medications - example (IPS)"
+  },
+  "exercises": "NDC + SNOMED + RxNorm enumerated",
+  "why": "Fast; NDC through main.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/uv/ips/ValueSet/medication-example-uv-ips",
+      "version": "2.0.1",
+      "name": "MedicationsExampleUvIps",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "777067000", "display": "Acetaminophen only product"},
+              {"code": "774587000", "display": "Amoxicillin and clavulanic acid only product"},
+              {"code": "776556004", "display": "Lithium citrate only product"},
+              {"code": "774409003", "display": "Acenocoumarol only product"},
+              {"code": "780130002", "display": "Acetaminophen only product in rectal dose form"},
+              {"code": "778315007", "display": "Amoxicillin and clavulanic acid only product in oral dose form"},
+              {"code": "779725005", "display": "Lithium citrate only product in oral dose form"},
+              {"code": "778207007", "display": "Acenocoumarol only product in oral dose form"},
+              {"code": "322257001", "display": "Paracetamol 250 mg rectal suppository"},
+              {"code": "392259005", "display": "Amoxicillin 875 mg and clavulanic acid (as clavulanate potassium) 125 mg oral tablet"},
+              {"code": "766489003", "display": "Lithium citrate 104 mg/mL oral solution"},
+              {"code": "319740004", "display": "Acenocoumarol 1 mg oral tablet"}
+            ]
+          },
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "concept": [
+              {"code": "331055", "display": "Amoxicillin 1000 MG"},
+              {"code": "437158", "display": "Acetaminophen 100 MG"},
+              {"code": "332122", "display": "lithium citrate 60 MG/ML"}
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/sid/ndc",
+            "concept": [
+              {"code": "0781-1852", "display": "Amoxicillin and Clavulanate Potassium (product)"},
+              {"code": "0781-1852-20", "display": "Amoxicillin and Clavulanate Potassium, 20 TABLET, FILM COATED in 1 BOTTLE (0781-1852-20) (package)"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": true,
+  "systems": [
+    "http://hl7.org/fhir/sid/ndc",
+    "http://snomed.info/sct",
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct",
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": [
+      "http://hl7.org/fhir/sid/ndc"
+    ]
+  }
+}

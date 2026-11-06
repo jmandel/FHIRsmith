@@ -1,0 +1,71 @@
+{
+  "id": "mixed-txresource-codesystem-sct",
+  "title": "Request-supplied CodeSystem (tx-resource) + SNOMED",
+  "category": "mixed-providers",
+  "source": {"kind": "constructed"},
+  "exercises": "a complete CodeSystem passed as tx-resource, is-a filter on it, next to SNOMED",
+  "why": "Fast; the request CodeSystem lives in main's FHIR CodeSystem provider (or an in-memory layer).",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:mixed-txresource-codesystem-sct",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "urn:fhirsmith:catalog:cs:clinic-flags",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "risk"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "129839007"}
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "CodeSystem",
+        "url": "urn:fhirsmith:catalog:cs:clinic-flags",
+        "version": "1",
+        "status": "active",
+        "content": "complete",
+        "hierarchyMeaning": "is-a",
+        "concept": [
+          {
+            "code": "risk",
+            "display": "Risk flags",
+            "concept": [
+              {"code": "falls", "display": "Falls risk"},
+              {"code": "bleed", "display": "Bleeding risk"}
+            ]
+          },
+          {"code": "admin", "display": "Administrative"}
+        ]
+      }
+    ]
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct",
+    "urn:fhirsmith:catalog:cs:clinic-flags"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "urn:fhirsmith:catalog:cs:clinic-flags"
+    ]
+  }
+}

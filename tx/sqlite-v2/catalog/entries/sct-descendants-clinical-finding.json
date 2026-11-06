@@ -1,0 +1,45 @@
+{
+  "id": "sct-descendants-clinical-finding",
+  "title": "All clinical findings (descendent-of 404684003)",
+  "category": "hierarchy",
+  "source": {"kind": "constructed"},
+  "exercises": "descendent-of over a 124k-member subtree; paging deep into it",
+  "why": "Fast: one stored descendants set; any page is a rank/select on the bitmap, where main must walk 100k codes to reach a deep offset.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-descendants-clinical-finding",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "404684003"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "deep-jump",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 100000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

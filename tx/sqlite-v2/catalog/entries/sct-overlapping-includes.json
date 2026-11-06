@@ -1,0 +1,55 @@
+{
+  "id": "sct-overlapping-includes",
+  "title": "Overlapping includes: T1DM, T2DM subtrees plus enumerated codes",
+  "category": "hierarchy",
+  "source": {"kind": "constructed"},
+  "exercises": "union of overlapping includes; duplicates must collapse",
+  "why": "Fast: OR of two stored sets plus three ids; checks duplicate suppression and total.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-overlapping-includes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "46635009"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "44054006"},
+              {"code": "73211009"},
+              {"code": "38341003"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

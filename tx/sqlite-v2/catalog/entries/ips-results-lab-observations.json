@@ -1,0 +1,77 @@
+{
+  "id": "ips-results-lab-observations",
+  "title": "Results Laboratory/Pathology Observation - IPS (IPS)",
+  "category": "properties-attributes",
+  "source": {
+    "kind": "ips",
+    "package": "hl7.fhir.uv.ips-2.0.1",
+    "file": "ValueSet-results-laboratory-pathology-observations-uv-ips.json",
+    "url": "http://hl7.org/fhir/uv/ips/ValueSet/results-laboratory-pathology-observations-uv-ips",
+    "title": "Results Laboratory/Pathology Observation - IPS"
+  },
+  "exercises": "LOINC STATUS=ACTIVE AND CLASSTYPE=1, with exclude includes",
+  "why": "Fast.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/uv/ips/ValueSet/results-laboratory-pathology-observations-uv-ips",
+      "version": "2.0.1",
+      "name": "ResultsLaboratoryPathologyObservationUvIps",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "STATUS", "op": "=", "value": "ACTIVE"},
+              {"property": "CLASSTYPE", "op": "=", "value": "1"}
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASS", "op": "=", "value": "LP62148-9"}
+            ]
+          },
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASS", "op": "=", "value": "LP175679-2"}
+            ]
+          },
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASS", "op": "=", "value": "LP7785-1"}
+            ]
+          },
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASS", "op": "=", "value": "LP94892-4"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

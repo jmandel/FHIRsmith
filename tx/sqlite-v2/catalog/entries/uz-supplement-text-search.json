@@ -1,0 +1,46 @@
+{
+  "id": "uz-supplement-text-search",
+  "title": "Glucose terms filtered by Uzbek text \"glyukoza\"",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "text filter matching supplement designations",
+  "why": "Mixed: does the text filter see supplement designations at all?",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:uz-supplement-text-search",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "COMPONENT", "op": "=", "value": "LP14635-4"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"filter": "glyukoza", "useSupplement": "https://terminology.dhp.uz/fhir/CodeSystem/loinc-supplement-uz", "displayLanguage": "uz"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "codes", "kind": "reference data gap", "reason": "tx.fhir.org text filters do not search supplement designations (0 results for \"glyukoza\"); an engine that indexes supplement designations returns the glucose terms."},
+    {"aspect": "total", "kind": "reference data gap", "reason": "tx.fhir.org text filters do not search supplement designations (0 results for \"glyukoza\"); an engine that indexes supplement designations returns the glucose terms."}
+  ]
+}

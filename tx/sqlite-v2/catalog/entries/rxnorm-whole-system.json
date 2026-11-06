@@ -1,0 +1,38 @@
+{
+  "id": "rxnorm-whole-system",
+  "title": "All of RxNorm (whole system)",
+  "category": "limits-paging",
+  "source": {"kind": "constructed"},
+  "exercises": "whole RxNorm, first page and last page",
+  "why": "Fast on the engine.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:rxnorm-whole-system",
+      "status": "active",
+      "compose": {
+        "include": [
+          {"system": "http://www.nlm.nih.gov/research/umls/rxnorm"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 200000},
+  "orderDefined": false,
+  "systems": [
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  }
+}

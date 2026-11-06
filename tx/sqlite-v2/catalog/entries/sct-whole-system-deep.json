@@ -1,0 +1,40 @@
+{
+  "id": "sct-whole-system-deep",
+  "title": "All of SNOMED (whole system) with deep paging",
+  "category": "limits-paging",
+  "source": {"kind": "constructed"},
+  "exercises": "whole-system include; offsets far beyond main's cap",
+  "why": "Fast on the engine (all/active range); main stops at its cap or returns too-costly.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-whole-system-deep",
+      "status": "active",
+      "compose": {
+        "include": [
+          {"system": "http://snomed.info/sct"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "deep-jump",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 400000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

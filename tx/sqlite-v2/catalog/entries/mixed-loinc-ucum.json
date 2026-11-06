@@ -1,0 +1,54 @@
+{
+  "id": "mixed-loinc-ucum",
+  "title": "LOINC glucose terms + UCUM units (grammar-based system)",
+  "category": "mixed-providers",
+  "source": {"kind": "constructed"},
+  "exercises": "LOINC filter + enumerated UCUM codes (UCUM is a grammar, no full expansion)",
+  "why": "Fast; UCUM validates each enumerated unit.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:mixed-loinc-ucum",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "COMPONENT", "op": "=", "value": "LP14635-4"},
+              {"property": "SCALE_TYP", "op": "=", "value": "LP7753-9"}
+            ]
+          },
+          {
+            "system": "http://unitsofmeasure.org",
+            "concept": [
+              {"code": "mg/dL"},
+              {"code": "mmol/L"},
+              {"code": "%"},
+              {"code": "g/L"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org",
+    "http://unitsofmeasure.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": [
+      "http://unitsofmeasure.org"
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "mixed-sct-icd10cm",
+  "title": "Diabetes in SNOMED and ICD-10-CM (E11 hierarchy)",
+  "category": "mixed-providers",
+  "source": {"kind": "constructed"},
+  "exercises": "SNOMED is-a + ICD-10-CM is-a (ICD-10-CM served as a CodeSystem resource from fhir.tx.support)",
+  "why": "Fast on the SNOMED half; ICD-10-CM goes through main.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:mixed-sct-icd10cm",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "44054006"}
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/sid/icd-10-cm",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "E11"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://hl7.org/fhir/sid/icd-10-cm",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "http://hl7.org/fhir/sid/icd-10-cm"
+    ]
+  }
+}

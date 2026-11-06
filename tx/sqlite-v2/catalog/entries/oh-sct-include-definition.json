@@ -1,0 +1,46 @@
+{
+  "id": "oh-sct-include-definition",
+  "title": "Children of autosomal recessive hereditary disorder with includeDefinition",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDefinition=true on a subtree where most concepts have SNOMED text definitions",
+  "why": "Fast: one definition read per row (about 1,000 of the 1,079 children have one).",
+  "stresses": "~1,080 rows x 1 definition text (often several hundred characters)",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-sct-include-definition",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "child-of", "value": "85995004"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"includeDefinition": true}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "definitions", "kind": "reference data gap", "reason": "tx.fhir.org returns no definitions with includeDefinition=true; SNOMED CT International 20250201 has 8,252 active text definitions, most of this subtree among them."}
+  ]
+}

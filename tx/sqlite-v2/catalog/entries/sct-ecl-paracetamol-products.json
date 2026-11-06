@@ -1,0 +1,41 @@
+{
+  "id": "sct-ecl-paracetamol-products",
+  "title": "Medicinal products with precise ingredient paracetamol",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "the design-trace SNOMED half: descendants AND OR-of-prop-sets",
+  "why": "Fast: the trace query (spike 1.7 ms cold-ish).",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-paracetamol-products",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 763158003 |Medicinal product| : 762949000 |Has precise active ingredient| = << 387517004 |Paracetamol|"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "id": "ips-problems",
+  "title": "Problems - IPS (IPS)",
+  "category": "hierarchy",
+  "source": {
+    "kind": "ips",
+    "package": "hl7.fhir.uv.ips-2.0.1",
+    "file": "ValueSet-problems-uv-ips.json",
+    "url": "http://hl7.org/fhir/uv/ips/ValueSet/problems-uv-ips",
+    "title": "Problems - IPS"
+  },
+  "exercises": "several descendent-of includes plus an is-a",
+  "why": "Fast: OR of stored sets (~130k).",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/uv/ips/ValueSet/problems-uv-ips",
+      "version": "2.0.1",
+      "name": "ProblemsUvIps",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "404684003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "243796009"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "272379006"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "160245001"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 100000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

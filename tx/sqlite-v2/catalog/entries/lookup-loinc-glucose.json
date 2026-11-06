@@ -1,0 +1,32 @@
+{
+  "id": "lookup-loinc-glucose",
+  "title": "$lookup LOINC 2345-7 with parts",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "lookup with LOINC part properties",
+  "why": "Fast: row reads.",
+  "expect": "fast",
+  "request": {
+    "operation": "lookup",
+    "parameters": {
+      "system": "http://loinc.org",
+      "code": "2345-7",
+      "property": [
+        "COMPONENT",
+        "SCALE_TYP",
+        "CLASS",
+        "STATUS"
+      ]
+    }
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

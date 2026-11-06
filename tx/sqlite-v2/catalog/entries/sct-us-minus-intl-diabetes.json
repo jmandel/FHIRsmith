@@ -1,0 +1,51 @@
+{
+  "id": "sct-us-minus-intl-diabetes",
+  "title": "Diabetes concepts new in the US Edition (include US, exclude Intl, versionsMatch)",
+  "category": "multi-system-versions",
+  "source": {"kind": "constructed"},
+  "exercises": "version-diff value set: exclude matches by code across versions",
+  "why": "Fast: AND-NOT after translating Intl ids to US ids by code.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-us-minus-intl-diabetes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/900000000000207008/version/20250201",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

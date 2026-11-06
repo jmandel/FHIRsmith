@@ -1,0 +1,41 @@
+{
+  "id": "sct-ecl-role-group",
+  "title": "Heart disorders with infarct morphology in the same role group",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL role group { site = << heart, morphology = << infarct }",
+  "why": "Mixed: sets narrow the candidates fast, then group_id checks on concept_link rows.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-role-group",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 404684003 |Clinical finding| : { 363698007 |Finding site| = << 80891009 |Heart structure|, 116676008 |Associated morphology| = << 55641003 |Infarct| }"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "sct-child-of-diabetes",
+  "title": "Direct children of diabetes mellitus (child-of)",
+  "category": "hierarchy",
+  "source": {"kind": "constructed"},
+  "exercises": "child-of: one level only, the inverse of the hierarchy property",
+  "why": "Fast: the prop set for (116680003 = 73211009), no closure involved.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-child-of-diabetes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "child-of", "value": "73211009"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "sct-descendent-leaf-diabetes",
+  "title": "Leaf descendants of diabetes mellitus (descendent-leaf)",
+  "category": "hierarchy",
+  "source": {"kind": "constructed"},
+  "exercises": "descendent-leaf = descendants AND leaf set",
+  "why": "Fast on the engine (one AND of two stored sets); main may not implement descendent-leaf for SNOMED, so the reference may be an error.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-descendent-leaf-diabetes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-leaf", "value": "73211009"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "equivalentEntries": [
+    "sct-descendent-leaf-diabetes-ecl"
+  ],
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "main's SNOMED provider has no descendent-leaf filter (500 \"Unsupported filter operation\"); see the ECL variant."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "main's SNOMED provider has no descendent-leaf filter (500 \"Unsupported filter operation\"); see the ECL variant."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "main's SNOMED provider has no descendent-leaf filter (500 \"Unsupported filter operation\"); see the ECL variant."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "main's SNOMED provider has no descendent-leaf filter (500 \"Unsupported filter operation\"); see the ECL variant."}
+  ]
+}

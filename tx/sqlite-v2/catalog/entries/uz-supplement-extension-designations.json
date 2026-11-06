@@ -1,0 +1,46 @@
+{
+  "id": "uz-supplement-extension-designations",
+  "title": "Glucose terms with the VS supplement extension and includeDesignations",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "ValueSet supplement extension + includeDesignations",
+  "why": "Fast: page rows plus supplement layer.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "extension": [
+        {"url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement", "valueCanonical": "https://terminology.dhp.uz/fhir/CodeSystem/loinc-supplement-uz"}
+      ],
+      "url": "urn:fhirsmith:catalog:uz-supplement-extension-designations",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "COMPONENT", "op": "=", "value": "LP14635-4"},
+              {"property": "SCALE_TYP", "op": "=", "value": "LP7753-9"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"includeDesignations": true, "displayLanguage": "uz"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 100},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

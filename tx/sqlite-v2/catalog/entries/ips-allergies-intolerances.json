@@ -1,0 +1,68 @@
+{
+  "id": "ips-allergies-intolerances",
+  "title": "Allergies & Intolerances - IPS (IPS)",
+  "category": "hierarchy",
+  "source": {
+    "kind": "ips",
+    "package": "hl7.fhir.uv.ips-2.0.1",
+    "file": "ValueSet-allergies-intolerances-uv-ips.json",
+    "url": "http://hl7.org/fhir/uv/ips/ValueSet/allergies-intolerances-uv-ips",
+    "title": "Allergies & Intolerances - IPS"
+  },
+  "exercises": "three descendent-of + is-a over substances/products/findings",
+  "why": "Fast.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/uv/ips/ValueSet/allergies-intolerances-uv-ips",
+      "version": "2.0.1",
+      "name": "AllergiesIntolerancesUvIps",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "105590001"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "373873005"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "420134006"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "716186003"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

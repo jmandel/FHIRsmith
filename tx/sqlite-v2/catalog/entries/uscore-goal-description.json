@@ -1,0 +1,51 @@
+{
+  "id": "uscore-goal-description",
+  "title": "US Core Goal Codes (US Core)",
+  "category": "limits-paging",
+  "source": {
+    "kind": "us-core",
+    "package": "hl7.fhir.us.core-9.0.0",
+    "file": "ValueSet-us-core-goal-description.json",
+    "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-goal-description",
+    "title": "US Core Goal Codes"
+  },
+  "exercises": "whole LOINC + whole SNOMED (790k)",
+  "why": "Fast on the engine (two ranges; spike 0.3 ms); main 78 ms and capped.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-goal-description",
+      "version": "9.0.0",
+      "name": "USCoreGoalCodes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {"system": "http://snomed.info/sct"},
+          {"system": "http://loinc.org"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "deep-jump",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 500000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org",
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

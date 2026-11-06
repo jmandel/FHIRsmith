@@ -1,0 +1,32 @@
+{
+  "id": "lookup-sct-mi",
+  "title": "$lookup SNOMED 22298006 with properties",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "lookup with parent/child/attribute properties",
+  "why": "Fast: row reads; child is answered from an inverse prop set.",
+  "expect": "fast",
+  "request": {
+    "operation": "lookup",
+    "parameters": {
+      "system": "http://snomed.info/sct",
+      "code": "22298006",
+      "property": [
+        "parent",
+        "child",
+        "inactive",
+        "363698007"
+      ]
+    }
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

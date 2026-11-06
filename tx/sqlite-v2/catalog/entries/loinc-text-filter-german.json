@@ -1,0 +1,46 @@
+{
+  "id": "loinc-text-filter-german",
+  "title": "LOINC glucose terms filtered by German text \"Glukose\" (displayLanguage de-DE)",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "text search in a non-English language",
+  "why": "Mixed: FTS over designations, not just English displays; servers may only search displays.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-text-filter-german",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "COMPONENT", "op": "=", "value": "LP14635-4"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"filter": "Glukose", "displayLanguage": "de-DE"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "codes", "kind": "reference data gap", "reason": "tx.fhir.org text filters match English displays only (0 results for \"Glukose\"); the engine may also search the de-DE designations that LOINC 2.83 ships."},
+    {"aspect": "total", "kind": "reference data gap", "reason": "tx.fhir.org text filters match English displays only (0 results for \"Glukose\"); the engine may also search the de-DE designations that LOINC 2.83 ships."}
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "id": "sct-regex-within-isa",
+  "title": "Diseases whose display ends in -itis (is-a AND regex)",
+  "category": "text",
+  "source": {"kind": "constructed"},
+  "exercises": "regex restricted by a hierarchy filter",
+  "why": "Slow-ish: the regex runs over 88k candidate displays.",
+  "expect": "slow",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-regex-within-isa",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "64572001"},
+              {"property": "display", "op": "regex", "value": ".*itis"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."}
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "id": "loinc-isa-glucose-component",
+  "title": "LOINC terms under the Glucose component part (is-a LP14635-4)",
+  "category": "hierarchy",
+  "source": {"kind": "constructed"},
+  "exercises": "LOINC component hierarchy from PATH_TO_ROOT (explicit pairs, not edge closure)",
+  "why": "Fast: stored descendants built from explicit pairs; tests that polyhierarchy extras are not served.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-isa-glucose-component",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "LP14635-4"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

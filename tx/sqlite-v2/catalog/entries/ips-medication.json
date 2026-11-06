@@ -1,0 +1,64 @@
+{
+  "id": "ips-medication",
+  "title": "Medications - IPS (IPS)",
+  "category": "exclusion-inactive",
+  "source": {
+    "kind": "ips",
+    "package": "hl7.fhir.uv.ips-2.0.1",
+    "file": "ValueSet-medication-uv-ips.json",
+    "url": "http://hl7.org/fhir/uv/ips/ValueSet/medication-uv-ips",
+    "title": "Medications - IPS"
+  },
+  "exercises": "descendent-of medicinal product + is-a, exclude vaccines",
+  "why": "Fast: OR then AND-NOT.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/uv/ips/ValueSet/medication-uv-ips",
+      "version": "2.0.1",
+      "name": "MedicationsUvIps",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "763158003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "787481004"}
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "787859002"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

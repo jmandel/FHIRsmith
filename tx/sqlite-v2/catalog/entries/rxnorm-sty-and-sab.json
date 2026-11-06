@@ -1,0 +1,66 @@
+{
+  "id": "rxnorm-sty-and-sab",
+  "title": "RxNorm pharmacologic substances also present in CVX (STY = T121, SAB = CVX)",
+  "category": "properties-attributes",
+  "source": {
+    "kind": "constructed"
+  },
+  "exercises": "STY and SAB filters together",
+  "why": "Fast: AND of two literal prop sets.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:rxnorm-sty-and-sab",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {
+                "property": "STY",
+                "op": "=",
+                "value": "T121"
+              },
+              {
+                "property": "SAB",
+                "op": "=",
+                "value": "CVX"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {
+    "count": 1000
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {
+      "aspect": "codes",
+      "kind": "reference behaviour",
+      "reason": "tx.fhir.org applies only the STY filter: its first page (e.g. 1000016, 1000086, 1000108) has STY T121 but no CVX atom. In RXNCONSO 03022026, STY = T121 AND SAB = CVX holds for 20 RXCUIs (checked with SQL on the upstream rxnorm_03022026.db: STY alone 26,965, SAB alone 353, both 20). We return the 20."
+    },
+    {
+      "aspect": "total",
+      "kind": "reference behaviour",
+      "reason": "tx.fhir.org applies only the STY filter: its first page (e.g. 1000016, 1000086, 1000108) has STY T121 but no CVX atom. In RXNCONSO 03022026, STY = T121 AND SAB = CVX holds for 20 RXCUIs (checked with SQL on the upstream rxnorm_03022026.db: STY alone 26,965, SAB alone 353, both 20). We return the 20."
+    }
+  ]
+}

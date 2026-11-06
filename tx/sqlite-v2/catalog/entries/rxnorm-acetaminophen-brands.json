@@ -1,0 +1,42 @@
+{
+  "id": "rxnorm-acetaminophen-brands",
+  "title": "Brand names of acetaminophen (TTY = BN, tradename_of = 161)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "RxNorm relationship (RELA) filter in main's CUI: form",
+  "why": "Fast: one prop set; records the relationship direction main uses.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:rxnorm-acetaminophen-brands",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "TTY", "op": "=", "value": "BN"},
+              {"property": "tradename_of", "op": "=", "value": "CUI:161"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  }
+}

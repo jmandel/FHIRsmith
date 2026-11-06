@@ -1,0 +1,65 @@
+{
+  "id": "vsac-problem",
+  "title": "Problem (VSAC)",
+  "category": "limits-paging",
+  "source": {
+    "kind": "vsac",
+    "package": "us.nlm.vsac-0.24.0",
+    "file": "ValueSet-2.16.840.1.113883.3.88.12.3221.7.4.json",
+    "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.88.12.3221.7.4",
+    "title": "Problem",
+    "packageExpansionTotal": 133481,
+    "adaptations": [
+      "SNOMED version http://snomed.info/sct/731000124108/version/20250301 -> http://snomed.info/sct/731000124108/version/20250901"
+    ]
+  },
+  "exercises": "C-CDA Problem: two descendent-of includes (133k)",
+  "why": "Fast: OR of two stored sets; deep paging beyond main's cap.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.88.12.3221.7.4",
+      "version": "20240607",
+      "name": "Problem",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "404684003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "243796009"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "deep-jump",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 120000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

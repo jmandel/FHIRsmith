@@ -1,0 +1,48 @@
+{
+  "id": "sct-regex-display-tumour",
+  "title": "SNOMED displays matching .*[Tt]umou?r.* (regex)",
+  "category": "text",
+  "source": {"kind": "constructed"},
+  "exercises": "display regex over the whole system",
+  "why": "Slow: no index serves a regex; a full scan of 520k displays (spike 212 ms).",
+  "expect": "slow",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-regex-display-tumour",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "display", "op": "regex", "value": ".*[Tt]umou?r.*"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500 \"Unsupported filter property: display\"); no main-expressible equivalent."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500 \"Unsupported filter property: display\"); no main-expressible equivalent."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500 \"Unsupported filter property: display\"); no main-expressible equivalent."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500 \"Unsupported filter property: display\"); no main-expressible equivalent."}
+  ]
+}

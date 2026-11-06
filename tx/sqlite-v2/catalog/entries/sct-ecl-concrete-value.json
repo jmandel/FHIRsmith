@@ -1,0 +1,71 @@
+{
+  "id": "sct-ecl-concrete-value",
+  "title": "Products with presentation strength numerator 500 (concrete value)",
+  "category": "properties-attributes",
+  "source": {
+    "kind": "constructed"
+  },
+  "exercises": "ECL concrete domain = #500 on a decimal attribute",
+  "why": "Fast: one literal prop set (value 500).",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-concrete-value",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {
+                "property": "constraint",
+                "op": "=",
+                "value": "< 763158003 |Medicinal product| : 1142135004 |Has presentation strength numerator value| = #500"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {
+    "count": 1000
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {
+      "aspect": "status",
+      "kind": "reference data gap",
+      "reason": "reference data gap: tx.fhir.org's SNOMED cache for 20250201 was imported without the concrete-value relationships (its 400 UNSUPPORTED_ECL says \"this edition was imported without its concrete value relationships\"); main's ECL evaluates concrete values on caches that carry them (cache v19+). Our import keeps sct2_RelationshipConcreteValues."
+    },
+    {
+      "aspect": "codes",
+      "kind": "reference data gap",
+      "reason": "reference data gap: tx.fhir.org's SNOMED cache for 20250201 was imported without the concrete-value relationships (its 400 UNSUPPORTED_ECL says \"this edition was imported without its concrete value relationships\"); main's ECL evaluates concrete values on caches that carry them (cache v19+). Our import keeps sct2_RelationshipConcreteValues."
+    },
+    {
+      "aspect": "total",
+      "kind": "reference data gap",
+      "reason": "reference data gap: tx.fhir.org's SNOMED cache for 20250201 was imported without the concrete-value relationships (its 400 UNSUPPORTED_ECL says \"this edition was imported without its concrete value relationships\"); main's ECL evaluates concrete values on caches that carry them (cache v19+). Our import keeps sct2_RelationshipConcreteValues."
+    },
+    {
+      "aspect": "result",
+      "kind": "reference data gap",
+      "reason": "reference data gap: tx.fhir.org's SNOMED cache for 20250201 was imported without the concrete-value relationships (its 400 UNSUPPORTED_ECL says \"this edition was imported without its concrete value relationships\"); main's ECL evaluates concrete values on caches that carry them (cache v19+). Our import keeps sct2_RelationshipConcreteValues."
+    }
+  ]
+}

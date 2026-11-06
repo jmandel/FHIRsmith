@@ -1,0 +1,65 @@
+{
+  "id": "nested-difference-exclude-vs",
+  "title": "Diabetes minus diabetic complications (exclude.valueSet)",
+  "category": "enumerated-nested",
+  "source": {"kind": "constructed"},
+  "exercises": "exclude by value set import",
+  "why": "Fast: AND-NOT.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:nested-difference-exclude-vs",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "valueSet": [
+              "urn:fhirsmith:catalog:helper:diabetic-complication"
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:diabetic-complication",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "filter": [
+                {"property": "constraint", "op": "=", "value": "<< 74627003 |Diabetic complication|"}
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

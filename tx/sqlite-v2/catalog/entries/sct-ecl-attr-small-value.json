@@ -1,0 +1,41 @@
+{
+  "id": "sct-ecl-attr-small-value",
+  "title": "Findings with finding site << pulmonary valve (ECL refinement)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL attribute refinement with a small value hierarchy",
+  "why": "Fast: OR of ~28 prop sets AND descendants.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-attr-small-value",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 404684003 |Clinical finding| : 363698007 |Finding site| = << 39057004 |Pulmonary valve structure|"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

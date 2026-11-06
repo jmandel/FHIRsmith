@@ -1,0 +1,107 @@
+{
+  "id": "vsac-substance-other-than-drug",
+  "title": "Substance Other Than Clinical Drug (VSAC)",
+  "category": "hierarchy",
+  "source": {
+    "kind": "vsac",
+    "package": "us.nlm.vsac-0.24.0",
+    "file": "ValueSet-2.16.840.1.113762.1.4.1010.9.json",
+    "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1010.9",
+    "title": "Substance Other Than Clinical Drug",
+    "packageExpansionTotal": 21369,
+    "adaptations": [
+      "SNOMED version http://snomed.info/sct/731000124108/version/20250301 -> http://snomed.info/sct/731000124108/version/20250901"
+    ]
+  },
+  "exercises": "US Edition descendent-of substance plus several is-a includes",
+  "why": "Fast: OR of stored sets on the US file.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1010.9",
+      "version": "20240606",
+      "name": "SubstanceOtherThanClinicalDrug",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "105590001"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "41355003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "84489001"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "=", "value": "424369009"}
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "410942007"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "736948000"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "736610007"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "736951007"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 15000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

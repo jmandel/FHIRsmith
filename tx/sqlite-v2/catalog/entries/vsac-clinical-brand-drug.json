@@ -1,0 +1,80 @@
+{
+  "id": "vsac-clinical-brand-drug",
+  "title": "Medication Clinical Brand specific Drug (VSAC)",
+  "category": "properties-attributes",
+  "source": {
+    "kind": "vsac",
+    "package": "us.nlm.vsac-0.24.0",
+    "file": "ValueSet-2.16.840.1.113762.1.4.1010.5.json",
+    "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1010.5",
+    "title": "Medication Clinical Brand specific Drug",
+    "packageExpansionTotal": 29842,
+    "adaptations": [
+      "rxnorm version 05052025 dropped (server default)"
+    ]
+  },
+  "exercises": "six RxNorm includes with lower-case \"tty\" filters (SBD, SBDF, SBDG, BPCK, ...)",
+  "why": "Fast: OR of six prop sets; records whether \"tty\" (lower case) is accepted.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1010.5",
+      "version": "20240627",
+      "name": "MedicationClinicalBrandSpecificDrug",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "tty", "op": "=", "value": "SBDG"}
+            ]
+          },
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "tty", "op": "=", "value": "SBDF"}
+            ]
+          },
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "tty", "op": "=", "value": "SBD"}
+            ]
+          },
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "tty", "op": "=", "value": "BPCK"}
+            ]
+          },
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "tty", "op": "=", "value": "BN"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 20000},
+  "orderDefined": false,
+  "systems": [
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  }
+}

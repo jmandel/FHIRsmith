@@ -1,0 +1,52 @@
+{
+  "id": "oh-loinc-designation-filter",
+  "title": "Glucose terms, designations restricted to nl-NL and fr-FR (designation parameter)",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDesignations=true with designation=nl-NL and designation=fr-FR",
+  "why": "Fast: the filter shrinks output; checks which designations survive.",
+  "stresses": "845 rows x 2 languages of designations",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-loinc-designation-filter",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "LP14635-4"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "includeDesignations": true,
+      "designation": [
+        "nl-NL",
+        "fr-FR"
+      ]
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "designations", "kind": "reference behaviour", "reason": "with designation=nl-NL and designation=fr-FR tx.fhir.org returns no designations at all, although both languages exist for these codes."}
+  ]
+}

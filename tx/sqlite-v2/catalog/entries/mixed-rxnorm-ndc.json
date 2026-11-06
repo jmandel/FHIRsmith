@@ -1,0 +1,53 @@
+{
+  "id": "mixed-rxnorm-ndc",
+  "title": "Acetaminophen 325 mg tablet in RxNorm and NDC",
+  "category": "mixed-providers",
+  "source": {"kind": "constructed"},
+  "exercises": "RxNorm enumerated + NDC enumerated (package and product codes, plus one malformed code)",
+  "why": "Fast.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:mixed-rxnorm-ndc",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "concept": [
+              {"code": "313782"},
+              {"code": "209387"}
+            ]
+          },
+          {
+            "system": "http://hl7.org/fhir/sid/ndc",
+            "concept": [
+              {"code": "0781-1852-20"},
+              {"code": "0781-1852"},
+              {"code": "0000-0000-00"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://hl7.org/fhir/sid/ndc",
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": [
+      "http://hl7.org/fhir/sid/ndc"
+    ]
+  }
+}

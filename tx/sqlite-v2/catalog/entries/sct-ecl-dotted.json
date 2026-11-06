@@ -1,0 +1,42 @@
+{
+  "id": "sct-ecl-dotted",
+  "title": "Precise active ingredients of medicinal products (dotted attribute)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL dot notation: values of an attribute over a set",
+  "why": "Slow-ish: forward links from 24k products (spike 21 ms); no set gives attribute targets directly.",
+  "expect": "slow",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-dotted",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 763158003 |Medicinal product| . 762949000 |Has precise active ingredient|"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "oh-sct-compose-property",
+  "title": "Properties requested in the definition (compose.property, R5/R6)",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "ValueSet.compose.property = parent, 363698007, inactive (no request parameter)",
+  "why": "Fast if supported: same rows as a property parameter; checks the definition-side form.",
+  "stresses": "~130 rows x 3 properties",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-sct-compose-property",
+      "status": "active",
+      "compose": {
+        "property": [
+          "parent",
+          "363698007",
+          "inactive"
+        ],
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "38341003"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

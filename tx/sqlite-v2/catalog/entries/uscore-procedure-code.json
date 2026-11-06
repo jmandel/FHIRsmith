@@ -1,0 +1,66 @@
+{
+  "id": "uscore-procedure-code",
+  "title": "US Core Procedure Codes (US Core)",
+  "category": "mixed-providers",
+  "source": {
+    "kind": "us-core",
+    "package": "hl7.fhir.us.core-9.0.0",
+    "file": "ValueSet-us-core-procedure-code.json",
+    "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-procedure-code",
+    "title": "US Core Procedure Codes"
+  },
+  "exercises": "SNOMED is-a procedure + whole LOINC + CPT, CDT, HCPCS, ICD-10-PCS",
+  "why": "Mixed: several systems that tx.fhir.org only partly has; records per-system outcomes.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-procedure-code",
+      "version": "9.0.0",
+      "name": "USCoreProcedureCodes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {"system": "http://www.ama-assn.org/go/cpt"},
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "71388002"}
+            ]
+          },
+          {"system": "http://www.cms.gov/Medicare/Coding/HCPCSReleaseCodeSets"},
+          {"system": "http://www.cms.gov/Medicare/Coding/ICD10"},
+          {"system": "http://www.ada.org/cdt"},
+          {"system": "http://loinc.org"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org",
+    "http://snomed.info/sct",
+    "http://www.ada.org/cdt",
+    "http://www.ama-assn.org/go/cpt",
+    "http://www.cms.gov/Medicare/Coding/HCPCSReleaseCodeSets",
+    "http://www.cms.gov/Medicare/Coding/ICD10"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org",
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "http://www.ada.org/cdt",
+      "http://www.ama-assn.org/go/cpt",
+      "http://www.cms.gov/Medicare/Coding/HCPCSReleaseCodeSets",
+      "http://www.cms.gov/Medicare/Coding/ICD10"
+    ]
+  }
+}

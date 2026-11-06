@@ -1,0 +1,55 @@
+{
+  "id": "loinc-display-language-zh-designations",
+  "title": "LOINC list with displayLanguage=zh-CN and includeDesignations",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "zh-CN display plus all designations",
+  "why": "Fast: page rows only, but many designations per code.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-lang-list",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "concept": [
+              {"code": "2345-7"},
+              {"code": "2339-0"},
+              {"code": "718-7"},
+              {"code": "4548-4"},
+              {"code": "2160-0"},
+              {"code": "2093-3"},
+              {"code": "6690-2"},
+              {"code": "789-8"},
+              {"code": "777-3"},
+              {"code": "8480-6"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"displayLanguage": "zh-CN", "includeDesignations": true}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": true,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "displays", "kind": "reference data gap", "reason": "tx.fhir.org has no zh-CN (nor it-IT, el-GR, ru-RU, es-ES, et-EE, pl-PL, tr-TR, fr-BE) LOINC designations, so it falls back to English displays; our LOINC 2.83 import includes the release's linguistic variants, e.g. zh-CN 96,518 designations. tx.fhir.org also adds the server-known Uzbek lang-pack supplement unasked when includeDesignations is set."},
+    {"aspect": "designations", "kind": "reference data gap", "reason": "tx.fhir.org has no zh-CN (nor it-IT, el-GR, ru-RU, es-ES, et-EE, pl-PL, tr-TR, fr-BE) LOINC designations, so it falls back to English displays; our LOINC 2.83 import includes the release's linguistic variants, e.g. zh-CN 96,518 designations. tx.fhir.org also adds the server-known Uzbek lang-pack supplement unasked when includeDesignations is set."}
+  ]
+}

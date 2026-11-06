@@ -1,0 +1,61 @@
+{
+  "id": "sct-attr-finding-site-eq",
+  "title": "Concepts with finding site = pulmonary valve structure (property filter)",
+  "category": "properties-attributes",
+  "source": {
+    "kind": "constructed"
+  },
+  "exercises": "SNOMED attribute as a FHIR property filter (363698007 = 39057004)",
+  "why": "Fast: one prop set.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-attr-finding-site-eq",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {
+                "property": "363698007",
+                "op": "=",
+                "value": "39057004"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {
+    "count": 1000
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {
+      "aspect": "total",
+      "kind": "reference behaviour",
+      "reason": "tx.fhir.org counts inactive (historical) relationship rows: 363698007 = 39057004 has 101 concepts with an active row and 111 whose matching rows are all inactive in the 20250201 release (212 in all). FHIR properties and ECL are evaluated on active relationships, so we return 101. The upstream binary provider does the same as tx.fhir.org (it does not check the relationship's active flag), see docs/sqlite-v2-engine.md, Known differences."
+    },
+    {
+      "aspect": "codes",
+      "kind": "reference behaviour",
+      "reason": "tx.fhir.org counts inactive (historical) relationship rows: 363698007 = 39057004 has 101 concepts with an active row and 111 whose matching rows are all inactive in the 20250201 release (212 in all). FHIR properties and ECL are evaluated on active relationships, so we return 101. The upstream binary provider does the same as tx.fhir.org (it does not check the relationship's active flag), see docs/sqlite-v2-engine.md, Known differences."
+    }
+  ]
+}

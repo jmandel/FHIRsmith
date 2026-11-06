@@ -1,0 +1,42 @@
+{
+  "id": "loinc-status-deprecated",
+  "title": "Deprecated LOINC terms (STATUS = DEPRECATED)",
+  "category": "exclusion-inactive",
+  "source": {"kind": "constructed"},
+  "exercises": "LOINC status filter returning inactive codes",
+  "why": "Fast: literal prop set; checks whether deprecated codes are returned and flagged inactive.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-status-deprecated",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "STATUS", "op": "=", "value": "DEPRECATED"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

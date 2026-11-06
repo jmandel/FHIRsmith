@@ -1,0 +1,53 @@
+{
+  "id": "sct-findings-minus-disease-exclude",
+  "title": "Clinical findings that are not diseases (compose.exclude)",
+  "category": "exclusion-inactive",
+  "source": {"kind": "constructed"},
+  "exercises": "include is-a 404684003, exclude is-a 64572001; large difference with deep paging",
+  "why": "Fast: AND-NOT of two stored sets; main must materialise both to subtract.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-findings-minus-disease-exclude",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          }
+        ],
+        "exclude": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "64572001"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "deep-jump",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 30000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

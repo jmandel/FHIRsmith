@@ -1,0 +1,161 @@
+{
+  "id": "supplement-added-property-filter",
+  "title": "Filter on a property that a request supplement adds (LOINC + SNOMED)",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "synthetic supplements add property catalog-group; VS filters on it AND base filters; one supplement code (99999-9) is not in LOINC",
+  "why": "Mixed: supplement properties need an in-memory prop set ANDed with stored sets; tx.fhir.org may reject filters on supplement properties.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "extension": [
+        {"url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement", "valueCanonical": "urn:fhirsmith:catalog:supplement:loinc-panel-group|1"},
+        {"url": "http://hl7.org/fhir/StructureDefinition/valueset-supplement", "valueCanonical": "urn:fhirsmith:catalog:supplement:sct-panel-group|1"}
+      ],
+      "url": "urn:fhirsmith:catalog:supplement-added-property-filter",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "catalog-group", "op": "=", "value": "renal-diabetes"},
+              {"property": "SCALE_TYP", "op": "=", "value": "LP7753-9"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "catalog-group", "op": "=", "value": "renal-diabetes"},
+              {"property": "concept", "op": "is-a", "value": "64572001"}
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "CodeSystem",
+        "url": "urn:fhirsmith:catalog:supplement:loinc-panel-group",
+        "version": "1",
+        "status": "active",
+        "content": "supplement",
+        "supplements": "http://loinc.org",
+        "property": [
+          {"code": "catalog-group", "uri": "urn:fhirsmith:catalog:property:catalog-group", "type": "code"}
+        ],
+        "concept": [
+          {
+            "code": "2345-7",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "4548-4",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "2160-0",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "2339-0",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "718-7",
+            "property": [
+              {"code": "catalog-group", "valueCode": "anaemia"}
+            ]
+          },
+          {
+            "code": "99999-9",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          }
+        ]
+      },
+      {
+        "resourceType": "CodeSystem",
+        "url": "urn:fhirsmith:catalog:supplement:sct-panel-group",
+        "version": "1",
+        "status": "active",
+        "content": "supplement",
+        "supplements": "http://snomed.info/sct",
+        "property": [
+          {"code": "catalog-group", "uri": "urn:fhirsmith:catalog:property:catalog-group", "type": "code"}
+        ],
+        "concept": [
+          {
+            "code": "44054006",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "46635009",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "90708001",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "127013003",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "38341003",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          }
+        ]
+      }
+    ],
+    "parameters": {
+      "useSupplement": [
+        "urn:fhirsmith:catalog:supplement:loinc-panel-group|1",
+        "urn:fhirsmith:catalog:supplement:sct-panel-group|1"
+      ]
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org",
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "main cannot filter on supplement-added properties (500 \"not supported for LOINC\"); no equivalent."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "main cannot filter on supplement-added properties (500 \"not supported for LOINC\"); no equivalent."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "main cannot filter on supplement-added properties (500 \"not supported for LOINC\"); no equivalent."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "main cannot filter on supplement-added properties (500 \"not supported for LOINC\"); no equivalent."}
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "id": "vsac-drowsiness",
+  "title": "Drowsiness SCT (VSAC)",
+  "category": "hierarchy",
+  "source": {
+    "kind": "vsac",
+    "package": "us.nlm.vsac-0.24.0",
+    "file": "ValueSet-2.16.840.1.113762.1.4.1078.767.json",
+    "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1078.767",
+    "title": "Drowsiness SCT",
+    "packageExpansionTotal": 11,
+    "adaptations": [
+      "SNOMED version http://snomed.info/sct/731000124108/version/20250301 -> http://snomed.info/sct/731000124108/version/20250901"
+    ]
+  },
+  "exercises": "three is-a filters in ONE include (AND), plus one is-a include",
+  "why": "Fast: AND of three descendants sets; a filter shape that is easy to get wrong.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1078.767",
+      "version": "20231215",
+      "name": "DrowsinessSCT",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "271782001"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "267088000"},
+              {"property": "concept", "op": "is-a", "value": "315243006"},
+              {"property": "concept", "op": "is-a", "value": "79519003"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "id": "nested-filter-intersect-vs",
+  "title": "Diabetes subtree restricted to kidney disease (system filter + valueSet in one include)",
+  "category": "enumerated-nested",
+  "source": {"kind": "constructed"},
+  "exercises": "include with both a filter and a valueSet (passesImports)",
+  "why": "Fast: AND of filter set and import.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:nested-filter-intersect-vs",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ],
+            "valueSet": [
+              "urn:fhirsmith:catalog:helper:kidney-disease"
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:kidney-disease",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "filter": [
+                {"property": "constraint", "op": "=", "value": "<< 90708001 |Kidney disease|"}
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

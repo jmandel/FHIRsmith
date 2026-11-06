@@ -1,0 +1,44 @@
+{
+  "id": "oh-sct-designations-1000",
+  "title": "Clinical findings, 1,000 per page, with all designations",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDesignations=true, count=1000, first page and a deep page within tx.fhir.org's 3,000 limit",
+  "why": "Mixed: 1,000 rows x ~3-6 designations each (FSN, synonyms, inactive descriptions).",
+  "stresses": "1,000 rows, ~4,000 designation rows with use and language-refset acceptability",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-sct-designations-1000",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"includeDesignations": true}
+  },
+  "patterns": [
+    "first-page",
+    "deep-jump"
+  ],
+  "paging": {"count": 1000, "deepOffset": 2000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

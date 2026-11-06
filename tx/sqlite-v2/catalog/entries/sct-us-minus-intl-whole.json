@@ -1,0 +1,46 @@
+{
+  "id": "sct-us-minus-intl-whole",
+  "title": "All concepts new in the US Edition (whole US minus whole Intl)",
+  "category": "multi-system-versions",
+  "source": {"kind": "constructed"},
+  "exercises": "version diff of two whole systems (530k vs 520k)",
+  "why": "Mixed: the engine translates 520k codes once; main must materialise both systems (likely too costly).",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-us-minus-intl-whole",
+      "status": "active",
+      "compose": {
+        "include": [
+          {"system": "http://snomed.info/sct", "version": "http://snomed.info/sct/731000124108/version/20250901"}
+        ],
+        "exclude": [
+          {"system": "http://snomed.info/sct", "version": "http://snomed.info/sct/900000000000207008/version/20250201"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "tx.fhir.org fails with 500 \"Must override\" on a whole-system include/exclude across editions; no smaller main-expressible equivalent of the same set."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "tx.fhir.org fails with 500 \"Must override\" on a whole-system include/exclude across editions; no smaller main-expressible equivalent of the same set."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "tx.fhir.org fails with 500 \"Must override\" on a whole-system include/exclude across editions; no smaller main-expressible equivalent of the same set."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "tx.fhir.org fails with 500 \"Must override\" on a whole-system include/exclude across editions; no smaller main-expressible equivalent of the same set."}
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "id": "ips-results-radiology-observations",
+  "title": "Results Radiology Observation - IPS (IPS)",
+  "category": "properties-attributes",
+  "source": {
+    "kind": "ips",
+    "package": "hl7.fhir.uv.ips-2.0.1",
+    "file": "ValueSet-results-radiology-observations-uv-ips.json",
+    "url": "http://hl7.org/fhir/uv/ips/ValueSet/results-radiology-observations-uv-ips",
+    "title": "Results Radiology Observation - IPS"
+  },
+  "exercises": "LOINC STATUS AND CLASS filter",
+  "why": "Fast; CLASS value form matters.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/uv/ips/ValueSet/results-radiology-observations-uv-ips",
+      "version": "2.0.1",
+      "name": "ResultsRadiologyObservationUvIps",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "STATUS", "op": "=", "value": "ACTIVE"},
+              {"property": "CLASS", "op": "=", "value": "LP29684-5"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

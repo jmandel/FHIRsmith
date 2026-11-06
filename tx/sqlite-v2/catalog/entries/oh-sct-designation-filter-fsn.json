@@ -1,0 +1,43 @@
+{
+  "id": "oh-sct-designation-filter-fsn",
+  "title": "Clinical findings, 1,000 per page, FSN designations only",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDesignations=true with designation=http://snomed.info/sct|900000000000003001 (use = FSN)",
+  "why": "Fast: one designation per row after the filter.",
+  "stresses": "1,000 rows x 1 designation (FSN)",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-sct-designation-filter-fsn",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"includeDesignations": true, "designation": "http://snomed.info/sct|900000000000003001"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

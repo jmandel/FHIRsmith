@@ -1,0 +1,43 @@
+{
+  "id": "validate-mixed-gender",
+  "title": "administrative-gender female in the mixed SNOMED+gender set",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "$validate-code administrative-gender|female against administrative-gender female in the mixed SNOMED+gender set",
+  "why": "Fast; the non-SNOMED half must be answered by main's provider.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:v-mixed",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "248153007"},
+              {"code": "248152002"}
+            ]
+          },
+          {"system": "http://hl7.org/fhir/administrative-gender"}
+        ]
+      }
+    },
+    "parameters": {"system": "http://hl7.org/fhir/administrative-gender", "code": "female"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://hl7.org/fhir/administrative-gender",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "http://hl7.org/fhir/administrative-gender"
+    ]
+  }
+}
