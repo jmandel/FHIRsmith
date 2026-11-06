@@ -65,8 +65,8 @@ display, properties, outcome or any. `kind` is one of:
 - `reference data gap`: tx.fhir.org lacks the data. For example, it has no zh-CN LOINC designations,
   and its text filters do not search translations or supplements.
 - `reference does not support`: main lacks the feature, so the recorded answer is its error.
-  Examples are descendent-leaf, is-not-a, SNOMED display regex, RxNorm `concept in`, ECL concrete
-  values, and `?fhir_vs=ecl/`. Where main can express the same question differently, a variant
+  Examples are descendent-leaf, is-not-a, SNOMED display regex, RxNorm `concept in`, and
+  `?fhir_vs=ecl/`. Where main can express the same question differently, a variant
   entry (`variantOf`) carries a real reference answer: one include per brand instead of
   `has_ingredient in`, ECL instead of descendent-leaf or an implicit URL, and concept lists
   instead of `concept in`.
