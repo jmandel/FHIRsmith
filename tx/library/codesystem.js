@@ -14,6 +14,9 @@ const CodeSystemContentMode = Object.freeze({
   Supplement : 'supplement'
 });
 
+// the fields buildMaps fills (CodeSystem._deferMaps)
+const MAP_FIELDS = ['codeMap', 'codeMapNC', 'displayMap', 'parentToChildrenMap', 'childToParentsMap', 'hasMultiHierarchy'];
+
 /**
  * Represents a FHIR CodeSystem resource with version conversion support
  * @class
@@ -58,7 +61,80 @@ class CodeSystem extends CanonicalResource {
     }
     this.checkContained();
     if (!noMaps) {
-      this.buildMaps();
+      if (this.jsonObj.content === CodeSystemContentMode.Supplement) {
+        // a large tx-resource supplement often reaches only the sqlite-v2 layer path, which
+        // reads its JSON: its maps are built when something first reads one
+        this._deferMaps();
+      } else {
+        this.buildMaps();
+      }
+    }
+  }
+
+  /**
+   * Replace the map fields with accessors that build the maps on first read or write, then
+   * turn back into the plain fields. codeMap and codeMapNC each build just themselves (a
+   * code lookup, such as a display from a supplement, needs one of them); any other map
+   * builds them all (buildMaps). Enumerable, like the fields, so the resource's own keys
+   * are the same either way.
+   * @private
+   */
+  _deferMaps() {
+    const fields = {};
+    for (const k of MAP_FIELDS) {
+      fields[k] = this[k];
+      Object.defineProperty(this, k, {
+        get: () => { this._ensureMaps(k); return this[k]; },
+        set: (v) => { this._ensureMaps(k); this[k] = v; },
+        enumerable: true, configurable: true
+      });
+    }
+    Object.defineProperty(this, '_deferredMaps', { value: { fields, built: new Set() }, writable: true, enumerable: false, configurable: true });
+  }
+
+  /**
+   * Build deferred maps now (see _deferMaps): the code map `k` names, or all of them.
+   * @param {string} [k] - the field being used
+   * @private
+   */
+  _ensureMaps(k = null) {
+    const d = this._deferredMaps;
+    if (!d || d.built.has(k)) {
+      return;
+    }
+    const plain = (f) => Object.defineProperty(this, f, { value: d.fields[f], writable: true, enumerable: true, configurable: true });
+    if (k === 'codeMap' || k === 'codeMapNC') {
+      d.built.add(k);
+      plain(k);
+      this._buildCodeMap(k === 'codeMapNC');
+      return;
+    }
+    this._deferredMaps = null;
+    for (const f of MAP_FIELDS) {
+      if (!d.built.has(f)) {
+        plain(f);
+      }
+    }
+    this.buildMaps();
+  }
+
+  /**
+   * One of the code maps, as buildMaps fills it (for a deferred supplement: _ensureMaps)
+   * @param {boolean} nc - codeMapNC (only for a case-insensitive code system), else codeMap
+   * @private
+   */
+  _buildCodeMap(nc) {
+    if (nc && !this.caseInsensitive()) {
+      return;
+    }
+    const map = nc ? (this.codeMapNC = new Map()) : this.codeMap;
+    map.clear();
+    const allConcepts = [];
+    if (this.jsonObj.concept) {
+      this._collectAllConcepts(this.jsonObj.concept, allConcepts);
+    }
+    for (const concept of allConcepts) {
+      map.set(nc ? concept.code.toLowerCase() : concept.code, concept);
     }
   }
 
