@@ -1,0 +1,205 @@
+'use strict';
+// CodeSystem supplements as layers.
+//
+// A supplement (loaded with the server, or supplied per request through tx-resource /
+// useSupplement) becomes an in-memory SQLite database with the same v2 schema as the base
+// file. Its concepts carry the BASE concept_ids, so its bitmaps (prop, hasProp) combine with the
+// base sets by ordinary set algebra: a filter on a supplement-defined property is just another
+// IR leaf ({t:'layer'}), evaluated against the layer's store. Supplement codes the base does not
+// contain are not imported (upstream treats them as unknown codes) and are counted.
+//
+// Displays and designations keep upstream's semantics: the base provider class reads them from
+// the CodeSystem resource (_displayFromSupplements / _listSupplementDesignations), which is
+// already a hash lookup per code. The layer adds what upstream cannot do: supplement property
+// filters and text search over supplement designations.
+
+const fs = require('fs');
+const path = require('path');
+const Database = require('better-sqlite3');
+const { V2Store, KIND } = require('./store');
+const { serialize, rangeSet, RoaringBitmap32 } = require('../importers/sqlite-v2/sets');
+
+const SCHEMA = fs.readFileSync(path.join(__dirname, '..', 'importers', 'sqlite-v2', 'schema-v2.sql'), 'utf8')
+  .split('-- @indexes')[0];
+
+let layerSeq = 0;
+
+class Layer {
+  constructor(store, info) {
+    this.id = ++layerSeq;
+    this.store = store;
+    this.info = info; // { url, version, concepts, unknownCodes, buildMs, properties }
+  }
+}
+
+/** literal value of a supplement property, as stored (same typing rule as the importers) */
+function propValue(p) {
+  for (const k of ['valueCode', 'valueString', 'valueInteger', 'valueDecimal', 'valueDateTime']) if (p[k] !== undefined) return [k.substring(5).toLowerCase(), p[k]];
+  if (p.valueBoolean !== undefined) return ['boolean', p.valueBoolean ? 1 : 0];
+  if (p.valueCoding) return ['code', p.valueCoding.code];
+  return [null, null];
+}
+
+/**
+ * Build a layer for one supplement over a base store.
+ * @param {V2Store} base
+ * @param {object} json CodeSystem (content = supplement)
+ */
+function buildLayer(base, json) {
+  const t0 = process.hrtime.bigint();
+  const db = new Database(':memory:');
+  db.pragma('journal_mode = OFF');
+  db.exec(SCHEMA);
+  const concepts = [];
+  const walk = (list) => { for (const c of list || []) { concepts.push(c); walk(c.concept); } };
+  walk(json.concept);
+  const ids = base.resolveCodes(concepts.map((c) => c.code));
+  let unknown = 0;
+  const props = new Map();
+  const insConcept = db.prepare('INSERT OR IGNORE INTO concept (concept_id, code, active, display, definition) VALUES (?, ?, 1, ?, ?)');
+  const insUse = db.prepare('INSERT OR IGNORE INTO designation_use (system, code, display) VALUES (?, ?, ?)');
+  const useId = db.prepare('SELECT use_id FROM designation_use WHERE system IS ? AND code = ?');
+  const insDesig = db.prepare('INSERT INTO designation (concept_id, language, use_id, term, active, preferred) VALUES (?, ?, ?, ?, 1, 0)');
+  const insProp = db.prepare('INSERT INTO property_def (code, uri, fhir_type, value_kind) VALUES (?, ?, ?, \'literal\')');
+  const insLit = db.prepare('INSERT OR IGNORE INTO concept_literal (concept_id, property_id, group_id, value, active) VALUES (?, ?, 0, ?, 1)');
+  const pending = [];
+  const tx = db.transaction(() => {
+    for (const pd of json.property || []) {
+      const info = insProp.run(pd.code, pd.uri || null, pd.type || 'string');
+      props.set(pd.code, Number(info.lastInsertRowid));
+    }
+    const uses = new Map();
+    for (const c of concepts) {
+      const id = ids.get(c.code);
+      if (id == null) { unknown++; continue; }
+      insConcept.run(id, c.code, c.display || null, c.definition || null);
+      for (const d of c.designation || []) {
+        let uid = null;
+        if (d.use) {
+          const k = (d.use.system || '') + '|' + d.use.code;
+          uid = uses.get(k);
+          if (uid === undefined) {
+            insUse.run(d.use.system || null, d.use.code, d.use.display || null);
+            uid = useId.get(d.use.system || null, d.use.code).use_id;
+            uses.set(k, uid);
+          }
+        }
+        insDesig.run(id, d.language || json.language || null, uid, d.value);
+      }
+      for (const p of c.property || []) {
+        let pid = props.get(p.code);
+        const [type, v] = propValue(p);
+        if (v == null) continue;
+        if (pid === undefined) {
+          pid = Number(insProp.run(p.code, null, type).lastInsertRowid);
+          props.set(p.code, pid);
+        }
+        insLit.run(id, pid, v);
+        pending.push([pid, v, id]);
+      }
+    }
+    // sets: all / active are the BASE ranges, so layer-side complements mean the same thing
+    const insSet = db.prepare('INSERT INTO concept_set (kind, property_id, value, card, data) VALUES (?, ?, ?, ?, ?)');
+    const put = (kind, pid, value, bm) => { if (bm.size) insSet.run(kind, pid, value, bm.size, serialize(bm)); };
+    put(KIND.all, 0, 0, rangeSet(1, base.conceptCount));
+    put(KIND.active, 0, 0, rangeSet(1, base.activeCount));
+    const groups = new Map(); // pid -> Map(value -> ids)
+    for (const [pid, v, id] of pending) {
+      let g = groups.get(pid);
+      if (!g) groups.set(pid, g = new Map());
+      let l = g.get(v);
+      if (!l) g.set(v, l = []);
+      l.push(id);
+    }
+    for (const [pid, g] of groups) {
+      const all = [];
+      for (const [v, l] of g) {
+        const bm = new RoaringBitmap32(l);
+        put(KIND.prop, pid, v, bm);
+        all.push(bm);
+      }
+      put(KIND.hasProp, pid, 0, RoaringBitmap32.orMany(all));
+    }
+    db.prepare(`INSERT INTO code_system (id, uri, version, name, content, concept_count, active_count) VALUES (1, ?, ?, ?, 'supplement', ?, ?)`)
+      .run(json.url || 'urn:supplement', json.version || '', json.name || null, base.conceptCount, base.activeCount);
+    db.exec('CREATE INDEX designation_concept ON designation(concept_id);');
+  });
+  tx();
+  const store = new V2Store(':memory:', { db, unregistered: true });
+  // the trigram index costs more than the rest of the layer: built on the first text search
+  store.ensureFts = () => {
+    db.exec(`INSERT INTO search_display (rowid, term) SELECT concept_id, display FROM concept WHERE display IS NOT NULL;
+             INSERT INTO search_designation (rowid, term) SELECT designation_id, term FROM designation;`);
+    store.ensureFts = null;
+  };
+  const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  return new Layer(store, { url: json.url, version: json.version, concepts: concepts.length - unknown, unknownCodes: unknown, buildMs: Math.round(ms * 10) / 10, properties: [...props.keys()] });
+}
+
+/** the layers that apply to one request: built on first use (a filter or search that needs one) */
+class LayerSet {
+  /**
+   * @param {Array<{json, build}>} entries the request's supplements; a layer is built only when
+   *   a filter names a property that supplement defines, and closed when the request ends
+   */
+  constructor(entries) {
+    this.entries = entries;
+    this.built = [];
+  }
+
+  get size() { return this.entries.length; }
+
+  /** IR for a filter on a property only a supplement defines, or null */
+  filterNode(compiler, prop, op, value) {
+    for (const e of this.entries) {
+      if (!definesProperty(e.json, prop)) continue;
+      if (!e.layer) {
+        e.layer = e.build();
+        this.built.push(e.layer);
+      }
+      const l = e.layer;
+      const def = l.store.props.get(prop);
+      if (!def) continue;
+      const { Compiler } = require('./engine/compile');
+      const node = new Compiler({ store: l.store, dialect: {} }, { stats: compiler.stats }).propertyFilter(def, op, value);
+      return { t: 'layer', layer: l, node, label: `supplement ${l.info.url} ${prop} ${op} ${value}` };
+    }
+    return null;
+  }
+
+  /** release the in-memory databases built for this request */
+  close() {
+    for (const l of this.built) l.store.close();
+    this.built = [];
+  }
+}
+
+/** does the supplement define (or use) this property? (no layer needed to answer) */
+function definesProperty(json, prop) {
+  if ((json.property || []).some((p) => p.code === prop)) return true;
+  const walk = (list) => (list || []).some((c) => (c.property || []).some((p) => p.code === prop) || walk(c.concept));
+  return walk(json.concept);
+}
+
+class SupplementLayers {
+  constructor(base) {
+    this.base = base;
+  }
+
+  /**
+   * The layers for one request. A layer is built only when a filter needs it, and only for
+   * this request: nothing is kept (the design adds no caches; upstream's resource handling
+   * keeps the CodeSystem resources themselves).
+   */
+  forSupplements(supplements) {
+    const layers = [];
+    for (const s of supplements || []) {
+      const json = s.jsonObj || s;
+      if (!(json.concept && json.concept.length)) continue;
+      layers.push({ json, build: () => buildLayer(this.base, json) });
+    }
+    return new LayerSet(layers);
+  }
+}
+
+module.exports = { SupplementLayers, LayerSet, buildLayer, Layer };
