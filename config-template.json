@@ -272,6 +272,17 @@
       // "read": editions to read into the process anyway. Entries are cache file names, edition
       // version URIs or edition URIs
       // "snomed": { "load": "mmap", "prewarm": ["sct_intl_20250201.cache", "sct_us_20250901b.cache"], "read": [] },
+      // The sqlite-v2 engine (docs/sqlite-v2-engine.md, docs/sqlite-v2-content-store.md). Library sources
+      // "sqlite-v2:<file>.db" serve SNOMED CT, LOINC and RxNorm from sqlite-v2 files. content: serve
+      // npm-package value sets and code systems, and VSAC, from sqlite-v2 content files (no key: both
+      // on; false: off, packages and VSAC load as main loads them). maxScanRows: the planner's cost
+      // limit (fact rows) before a request is refused as too-costly. sqliteCacheKB / mmapMB: SQLite's
+      // page cache and mmap window per file. These are the defaults.
+      // "sqliteV2": { "content": { "valueSets": true, "codeSystems": true }, "maxScanRows": 5000000,
+      //   "sqliteCacheKB": 2048, "mmapMB": 256, "fhirProcessSelection": false },
+      // Engine traces (docs/sqlite-v2-trace.md): "request" answers _trace=true, "all" keeps every
+      // engine expansion in the ring buffer; off when unset
+      // "sqliteV2Trace": "request",
       "cacheTimeout": 30,
       // Memory limits (see tx/README.md, "Configuration Options"); these are the defaults,
       // which apply when a limit is left out or null; 0 = no limit. Logged at startup ("Limits: ...")
