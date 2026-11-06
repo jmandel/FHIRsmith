@@ -872,6 +872,20 @@ class CodeSystemProvider {
   }
 
   /**
+   * The languages the request works in (displayLanguage, else the HTTP Accept-Language), told to
+   * the provider once it is found for the request. A provider whose filters depend on the
+   * language (SNOMED CT display regex: one language's descriptions) reads them here. The default
+   * ignores them.
+   *
+   * TODO: replace with getPrepContext(iterate, languages) from upstream PR #331 once it is in main.
+   *
+   * @param {Languages} languages - TxParameters.workingLanguages()
+   */
+  useRequestLanguages(languages) {
+    void languages;
+  }
+
+  /**
    * A hint, before the worker locates each code of a list one at a time: the concepts a value set
    * include or exclude lists ($expand), or that validate-code compares a code with. A provider
    * that answers locate() from a database may read the codes together here, and answer the

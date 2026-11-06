@@ -1490,6 +1490,16 @@ class ValueSetChecker {
   }
 
   async checkDisplays(list, defLang, c, msg, op, path) {
+    const t = this.opContext && this.opContext.sqliteTrace;
+    if (t) {
+      // the display check as its own trace step (tx/sqlite-v2/request-trace.js)
+      return t.spanAsync('check display "' + String(c.display).slice(0, 60) + '" against ' + list.designations.length + ' designations', 'rows', c.system || null,
+        () => this.checkDisplaysInner(list, defLang, c, msg, op, path));
+    }
+    return this.checkDisplaysInner(list, defLang, c, msg, op, path);
+  }
+
+  async checkDisplaysInner(list, defLang, c, msg, op, path) {
     let hd = list.hasDisplay(this.params.workingLanguages(), null, c.display, false, DisplayCheckingStyle.CASE_INSENSITIVE)
     if (!hd.found) {
       let baseMsg;

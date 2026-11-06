@@ -153,9 +153,10 @@ async function runTest(test, version = true) {
 }
 
 
-const TEST_PORT = 9095;
-const VALIDATOR_PORT = 9096;
-const TEST_CONFIG_FILE = path.join(__dirname, '..', 'fixtures', 'test-cases-setup.json');
+const TEST_PORT = Number(process.env.FHIRSMITH_TX_TEST_PORT) || 9095;
+const VALIDATOR_PORT = Number(process.env.FHIRSMITH_TX_VALIDATOR_PORT) || 9096;
+// FHIRSMITH_TX_TEST_CONFIG runs the suite against another library (e.g. sqlite-v2 sources)
+const TEST_CONFIG_FILE = process.env.FHIRSMITH_TX_TEST_CONFIG || path.join(__dirname, '..', 'fixtures', 'test-cases-setup.json');
 
 let server = null;
 let validator = null;

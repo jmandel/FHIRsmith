@@ -170,6 +170,10 @@ class TXModule {
    */
   async initialize(config, app, server = {}) {
     this.config = config;
+    // sqlite-v2 limits and SQLite settings (tx/sqlite-v2/settings.js): before any file is opened
+    if (config.sqliteV2) {
+      require('./sqlite-v2/settings').configure(config.sqliteV2);
+    }
     // the server's public host name, when it is configured as one (it is also used as a
     // display name, so anything that isn't a host name is ignored)
     this.publicHost = typeof server.hostName === 'string' && /^[A-Za-z0-9.-]+(:[0-9]{1,5})?$/.test(server.hostName)
@@ -610,6 +614,9 @@ class TXModule {
     });
 
     app.use(express.urlencoded({ extended: true }));
+
+    // sqlite-v2 request traces (_trace; docs/sqlite-v2-trace.md): a no-op unless enabled
+    router.use(require('./sqlite-v2/request-trace').middleware());
 
     // The OpenAPI description, on the endpoints it describes (R5)
     if (txOpenApi.describes(fhirVersion)) {
@@ -1182,6 +1189,27 @@ class TXModule {
         this.countRequest(endpointPath, 'problems', Date.now() - start);
       }
     });
+
+    // sqlite-v2 engine traces (docs/sqlite-v2-trace.md): only with modules.tx.sqliteV2Trace
+    // set to "request" (traces for _trace=true) or "all" (every engine expansion)
+    if (this.config.sqliteV2Trace === 'request' || this.config.sqliteV2Trace === 'all') {
+      const traces = require('./sqlite-v2/trace');
+      traces.settings.mode = this.config.sqliteV2Trace;
+      router.get('/sqlite-v2/traces', (req, res) => {
+        res.json({ traceFormat: traces.FORMAT, mode: traces.settings.mode, traces: traces.ring.list() });
+      });
+      router.get('/sqlite-v2/stats', (req, res) => {
+        res.json(require('./sqlite-v2/stats').stats({ gc: req.query.gc === '1' }));
+      });
+      router.get('/sqlite-v2/traces/:id', (req, res) => {
+        const t = traces.ring.get(req.params.id);
+        if (!t) {
+          res.status(404).json({ error: 'no trace ' + req.params.id });
+        } else {
+          res.json(t);
+        }
+      });
+    }
 
     // The library source YAML - the file this server loaded its content from.
     //

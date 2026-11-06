@@ -144,7 +144,12 @@ class Library {
     this.codeSystemFactories.set(factory.system()+"|"+ver, factory);
     const verMin = factory.getPartialVersion();
     if (verMin) {
-      this.codeSystemFactories.set(factory.system()+"|"+verMin, factory);
+      // a partial version (major.minor, or a SNOMED CT edition URI without its date) names the
+      // latest version loaded for it, whatever the order the library lists them in
+      const prev = this.codeSystemFactories.get(factory.system()+"|"+verMin);
+      if (!prev || VersionUtilities.compareVersionsGeneral(ver, prev.version() ?? "") > 0) {
+        this.codeSystemFactories.set(factory.system()+"|"+verMin, factory);
+      }
     }
   }
 
@@ -396,6 +401,10 @@ class Library {
         await this.loadUnii(details, isDefault, mode);
         break;
 
+      case 'sqlite-v2':
+        await this.loadSqliteV2(details, isDefault, mode, packageManager);
+        break;
+
       case 'snomed':
         await this.loadSnomed(details, isDefault, mode);
         break;
@@ -619,7 +628,9 @@ class Library {
         if (!this.vsacCfg || !this.vsacCfg.apiKey) {
           throw new Error("Unable to load VSAC provider unless vsacCfg is provided in the configuration");
         }
-        let vsac = new VSACValueSetProvider(this.vsacCfg, this.stats);
+        let vsac = require('./sqlite-v2/settings').settings.content.valueSets
+          ? new (require('./sqlite-v2/content/content-vsac').ContentVsacProvider)(this.vsacCfg, this.stats)
+          : new VSACValueSetProvider(this.vsacCfg, this.stats);
         // Intentionally not awaited: initialize() might run a full VSAC sync on first load,
         // which can take minutes - we don't want to block startup. But attach a handler
         // so a failed background sync surfaces as a log error rather than an unhandled
@@ -719,6 +730,31 @@ class Library {
     }
     this.registerProvider(sctFN, sct, isDefault);
     this.#syndicateBinary('snomed', sctFN, sct);
+  }
+
+  /**
+   * A sqlite-v2 terminology file (SNOMED CT, LOINC, RxNorm, ...; docs/sqlite-v2-schema.md).
+   * The file says which code system and version it holds.
+   */
+  async loadSqliteV2(details, isDefault, mode, packageManager) {
+    if (details.startsWith('npm:')) {
+      // sqlite-v2:npm:<package>#<version>: the package, from its sqlite-v2 content file
+      let packageId = details.substring(4);
+      let version = null;
+      if (packageId.includes('#')) {
+        [packageId, version] = packageId.split('#');
+      }
+      const packagePath = await packageManager.fetch(packageId, version);
+      await this.#loadPackageFromPath(packagePath, mode, false, { requestedVersion: version, content: { valueSets: true, codeSystems: true } });
+      return;
+    }
+    const fn = await this.getOrDownloadFile(details);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+    const { loadSqliteV2Factory } = require('./sqlite-v2');
+    const factory = await loadSqliteV2Factory(this.i18n, fn);
+    this.registerProvider(fn, factory, isDefault);
   }
 
   async loadCpt(details, isDefault, mode) {
@@ -865,9 +901,29 @@ class Library {
 
     this.packageSources.push(contentLoader.id()+"#"+contentLoader.version());
 
+    // sqlite-v2 content files (docs/sqlite-v2-content-store.md): the package's code systems and
+    // value sets from its content file, built on first load
+    const content = source.content || require('./sqlite-v2/settings').settings.content;
+    let contentFile = null;
+    if (content.valueSets || content.codeSystems) {
+      const { ensurePackageContentFile } = require('./sqlite-v2/content/package-files');
+      contentFile = await ensurePackageContentFile(this.cacheFolder, fullPackagePath, contentLoader.pid(), this.log);
+    }
+
     let cp = new ListCodeSystemProvider();
-    const resources = await contentLoader.getResourcesByType("CodeSystem");
+    const resources = content.codeSystems ? [] : await contentLoader.getResourcesByType("CodeSystem");
     let csc = 0;
+    if (content.codeSystems) {
+      const { loadStoredCodeSystems } = require('./sqlite-v2/content/content-file');
+      for (const cs of loadStoredCodeSystems(contentFile, { sourcePackage: contentLoader.pid() })) {
+        if (this.#isIgnored(cs.url, cs.version)) {
+          this.log.info(`Ignoring CodeSystem ${cs.url}${cs.version ? '#' + cs.version : ''} (excluded by config)`);
+          continue;
+        }
+        cp.codeSystems.push(cs);
+        csc++;
+      }
+    }
     for (const resource of resources) {
       let cs;
       try {
@@ -892,7 +948,12 @@ class Library {
     this.codeSystemProviders.push(cp);
     let vs = null;
     if (!csOnly) {
-      vs = new PackageValueSetProvider(contentLoader, { readOnly: this.packageCachesReadOnly });
+      if (content.valueSets) {
+        const { ContentValueSetProvider } = require('./sqlite-v2/content/content-vs-provider');
+        vs = new ContentValueSetProvider(contentFile, { kind: 'package', source: contentLoader.id() });
+      } else {
+        vs = new PackageValueSetProvider(contentLoader, { readOnly: this.packageCachesReadOnly });
+      }
       await vs.initialize();
       this.valueSetProviders.push(vs);
       const cm = new PackageConceptMapProvider(contentLoader, { readOnly: this.packageCachesReadOnly });

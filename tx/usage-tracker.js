@@ -29,6 +29,11 @@ class ConceptUsageTracker {
     let c = 0;
     let sliceStart = Date.now();
     for (let vsp of library.valueSetProviders) {
+      if (vsp.scanUsage) {
+        // a provider that can read its codes without building every value set (sqlite-v2 content)
+        c += await vsp.scanUsage(this);
+        continue;
+      }
       await vsp.scanAllValueSets(async (vs) => {
         // in the callback, so it yields however the provider reads its value sets
         if (Date.now() - sliceStart >= YIELD_INTERVAL_MS) {
