@@ -1,5 +1,6 @@
 'use strict';
-// CodeSystem supplements as layers.
+// CodeSystem supplements as layers. A server-known supplement of a sqlite-v2 terminology file has
+// its layer in a file instead (supplement-files.js); forSupplements uses that file's store as is.
 //
 // A supplement (loaded with the server, or supplied per request through tx-resource /
 // useSupplement) becomes an in-memory SQLite database with the same v2 schema as the base
@@ -51,14 +52,12 @@ function propValue(p) {
 }
 
 /**
- * Build a layer for one supplement over a base store.
- * @param {V2Store} base
- * @param {object} json CodeSystem (content = supplement)
+ * Write a supplement's layer into an open, empty database: the v2 schema, its concepts under the
+ * BASE concept_ids, designations, property values and their sets. buildLayer fills an in-memory
+ * database per request; supplement-files.js fills a file once per supplement and base file.
+ * @returns {{concepts: object[], unknown: number, props: Map<string, number>}}
  */
-function buildLayer(base, json) {
-  const t0 = process.hrtime.bigint();
-  const db = new Database(':memory:');
-  db.pragma('journal_mode = OFF');
+function fillLayer(db, base, json) {
   db.exec(SCHEMA);
   const concepts = [];
   const walk = (list) => { for (const c of list || []) { concepts.push(c); walk(c.concept); } };
@@ -135,6 +134,19 @@ function buildLayer(base, json) {
     db.exec('CREATE INDEX designation_concept ON designation(concept_id);');
   });
   tx();
+  return { concepts, unknown, props };
+}
+
+/**
+ * Build a layer for one supplement over a base store.
+ * @param {V2Store} base
+ * @param {object} json CodeSystem (content = supplement)
+ */
+function buildLayer(base, json) {
+  const t0 = process.hrtime.bigint();
+  const db = new Database(':memory:');
+  db.pragma('journal_mode = OFF');
+  const { concepts, unknown, props } = fillLayer(db, base, json);
   const store = new V2Store(':memory:', { db, unregistered: true });
   // read-only from here on: a layer may be shared by concurrent requests (LayerCache)
   db.pragma('query_only = ON');
@@ -251,7 +263,8 @@ class LayerSet {
   /** IR for a filter on a property only a supplement defines, or null */
   filterNode(compiler, prop, op, value) {
     for (const e of this.entries) {
-      if (!definesProperty(e.json, prop)) continue;
+      // a disk-backed supplement's layer is open already: its file says which properties it has
+      if (e.layer ? !e.layer.store.props.has(prop) : !definesProperty(e.json, prop)) continue;
       if (!e.layer) {
         if (this.closed) {
           // the request has ended (closeProviders ran: the client went, or the batch entry is
@@ -301,17 +314,26 @@ class SupplementLayers {
   forSupplements(supplements) {
     const layers = [];
     for (const s of supplements || []) {
+      // a server-known supplement imported into a file for this base (supplement-files.js): its
+      // layer is that file, open read-only for the life of the process; nothing to build or release
+      const disk = typeof s.layerFor === 'function' ? s.layerFor(this.base) : null;
+      if (disk) { layers.push({ json: s.jsonObj, layer: disk }); continue; }
       const json = s.jsonObj || s;
       if (!(json.concept && json.concept.length)) continue;
-      layers.push({ json, build: () => layerCache.acquire(this.keyOf(json), () => buildLayer(this.base, json)) });
+      layers.push({ json, build: () => layerCache.acquire(this.keyOf(json, s), () => buildLayer(this.base, json)) });
     }
     return new LayerSet(layers);
   }
 
-  /** cache key: the base store, the supplement's url|version, and a hash of its content */
-  keyOf(json) {
-    return this.base.uid + '|' + (json.url || '') + '|' + (json.version || '') + '|' + contentHash(json);
+  /**
+   * cache key: the base store, the supplement's url|version, and a hash of its content. A
+   * wrapper's hash is the digest it remembers (CanonicalResource.contentDigest), which the
+   * expansion cache key has usually just computed: the same sha256 of the same JSON.
+   */
+  keyOf(json, s) {
+    const h = s && s.jsonObj === json && typeof s.contentDigest === 'function' ? s.contentDigest() : contentHash(json);
+    return this.base.uid + '|' + (json.url || '') + '|' + (json.version || '') + '|' + h;
   }
 }
 
-module.exports = { SupplementLayers, LayerSet, LayerCache, layerCache, buildLayer, Layer, contentHash };
+module.exports = { SupplementLayers, LayerSet, LayerCache, layerCache, buildLayer, fillLayer, Layer, contentHash, SCHEMA };

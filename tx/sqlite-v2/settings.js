@@ -18,6 +18,14 @@
 //                     corpus's (99% have 1,001 concepts or fewer). Least recently used layers are
 //                     dropped to stay under it; a layer bigger than the whole bound is built per
 //                     request and not kept. 0 = keep none.
+//   supplementFiles   server-known supplements of sqlite-v2 terminology files (library.yml sources
+//                     and loaded packages) are imported once into a small v2 file each and read from
+//                     there (supplement-files.js): no per-request build, and their concepts are not
+//                     held on the heap. Default true, whatever the supplement's size (no threshold):
+//                     a file costs about 0.5 KiB of disk per concept, built once and kept, where a
+//                     250k-concept supplement held in memory costs 135 MiB of heap in every process.
+//                     false = keep them in memory as main does (the in-memory layer and its LRU, as
+//                     for tx-resource supplements).
 //   sqliteCacheKB     SQLite page cache per connection. Default 2,048 (2 MiB): reads use mmap.
 //   mmapMB            SQLite mmap window per file. Default 256 (file-backed, OS page cache).
 
@@ -31,7 +39,7 @@
 //                     engine (processSelection). Default false: expand.js then flattens the expansion,
 //                     where main nests it by the code system's hierarchy.
 
-const settings = { maxScanRows: 5000000, supplementLayerCacheMB: 64, sqliteCacheKB: 2048, mmapMB: 256, fhirProcessSelection: false,
+const settings = { maxScanRows: 5000000, supplementLayerCacheMB: 64, supplementFiles: true, sqliteCacheKB: 2048, mmapMB: 256, fhirProcessSelection: false,
   content: { valueSets: true, codeSystems: true } };
 
 function configure(cfg) {
