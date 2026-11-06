@@ -588,6 +588,15 @@ class SqliteV2Provider extends BaseCSServices {
     }
   }
 
+  /** is this ValueSet filter on a property only a supplement in use defines (a supplement layer)? */
+  _isSupplementFilter(f) {
+    try {
+      return this._compiler().filter(f.property, f.op, f.value).t === 'layer';
+    } catch (e) {
+      return false;
+    }
+  }
+
   async getPrepContext(iterate, languages = null) { return new V2Prep(iterate, languages); }
 
   async filter(prep, forIteration, prop, op, value) {
@@ -686,6 +695,9 @@ class SqliteV2Provider extends BaseCSServices {
 
   async filtersNotClosed(prep) {
     if (!this.isNotClosed()) return false;
+    // filters only on properties a supplement in use defines select from the supplement's
+    // listed codes, a closed set (main evaluates them outside the code system: supplement-filters.js)
+    if (prep.supplementOnly || (prep.nodes && prep.nodes.length && prep.nodes.every((n) => n.t === 'layer'))) return false;
     return !prep.expressionsFalse;
   }
 
@@ -789,7 +801,8 @@ class SqliteV2Provider extends BaseCSServices {
     set.result = result;
     if (trace) trace.annotate({ codesReturned: page.length, total: result.complete ? result.total : null });
     const expressionsFalse = includes.some((inc) => (inc.filter || []).some((f) => f.property === 'expressions' && String(f.value) === 'false'));
-    return { sets: [set], total: result.complete ? result.total : -1, notClosed: await this.filtersNotClosed({ expressionsFalse }) };
+    const supplementOnly = includes.length > 0 && includes.every((inc) => (inc.filter || []).length > 0 && inc.filter.every((f) => this._isSupplementFilter(f)));
+    return { sets: [set], total: result.complete ? result.total : -1, notClosed: await this.filtersNotClosed({ expressionsFalse, supplementOnly }) };
   }
 
   /**

@@ -44,6 +44,26 @@ function buildV2(dest) {
   b.finish();
 }
 
+// a v2 system that is not closed (as SNOMED CT is: post-coordination), and a supplement that
+// defines a property on it
+const V2OPEN = 'http://example.org/fhir/CodeSystem/v2-open';
+function buildV2Open(dest) {
+  const b = new V2Builder(dest, { overwrite: true, importer: 'test' });
+  b.setCodeSystem({ uri: V2OPEN, version: '1' });
+  b.setConfig('notClosed', true);
+  const isa = b.property({ code: 'parent', fhirType: 'code', valueKind: 'concept', isHierarchy: true });
+  const c = {};
+  for (const code of ['X', 'X1', 'X2', 'X3']) c[code] = b.concept(code, { active: true, display: `display ${code}` });
+  for (const ch of ['X1', 'X2', 'X3']) b.link(c[ch], isa, c.X);
+  b.finish();
+}
+const SUPP_TIER = {
+  resourceType: 'CodeSystem', url: 'http://example.org/fhir/CodeSystem/v2-open-tier', version: '1', status: 'active',
+  content: 'supplement', supplements: V2OPEN, property: [{ code: 'tier', type: 'string' }],
+  concept: [{ code: 'X3', property: [{ code: 'tier', valueString: 'gold' }] }, { code: 'X1', property: [{ code: 'tier', valueString: 'gold' }] },
+    { code: 'X2', property: [{ code: 'tier', valueString: 'silver' }] }]
+};
+
 // a FHIR CodeSystem resource with a hierarchy, a retired concept and a property to filter on
 const FHIR_CS = {
   resourceType: 'CodeSystem', url: FHIRCS, version: '1', status: 'active', content: 'complete', hierarchyMeaning: 'is-a',
@@ -118,6 +138,8 @@ describe('sqlite-v2 in mixed value sets (custom-code providers alongside the eng
     dir = fs.mkdtempSync(path.join(process.env.SQLITE_V2_TEST_TMP || os.tmpdir(), 'sqlite-v2-mixed-'));
     buildV2(path.join(dir, 'v2.db'));
     const v2 = await loadSqliteV2Factory(tx.i18n, path.join(dir, 'v2.db'));
+    buildV2Open(path.join(dir, 'v2-open.db'));
+    const v2open = await loadSqliteV2Factory(tx.i18n, path.join(dir, 'v2-open.db'));
     const ucumService = new UcumService();
     await ucumService.init(fs.readFileSync(path.join(__dirname, '../../tx/data/ucum-essence.xml'), 'utf8'));
     const ucum = new UcumCodeSystemFactory(tx.i18n, ucumService);
@@ -126,7 +148,7 @@ describe('sqlite-v2 in mixed value sets (custom-code providers alongside the eng
     const lang = new IETFLanguageCodeFactory(tx.i18n);
     await lang.load();
     const provider = tx.endpoints[0].provider;
-    for (const f of [v2, ucum, lang]) {
+    for (const f of [v2, v2open, ucum, lang]) {
       provider.codeSystemFactories.set(f.system(), f);
       provider.codeSystemFactories.set(f.system() + '|' + f.version(), f);
     }
@@ -227,6 +249,24 @@ describe('sqlite-v2 in mixed value sets (custom-code providers alongside the eng
 
     const ok = await validate(vs, V2, 'A3', [...supps, { name: 'display', valueString: 'Anzeige A3' }, { name: 'displayLanguage', valueCode: 'de' }]);
     expect(named(ok, 'result').valueBoolean).toBe(true);
+  });
+
+  test('a filter on a supplement-defined property of a not-closed system does not make the expansion unclosed', async () => {
+    const supp = [{ name: 'tx-resource', resource: SUPP_TIER }, { name: 'useSupplement', valueCanonical: SUPP_TIER.url }];
+    const unclosed = (body) => (body.expansion.extension || []).some(e => e.url.endsWith('valueset-unclosed'));
+    const vs = (...include) => ({ resourceType: 'ValueSet', status: 'active', compose: { include } });
+    // next to a UCUM include (expand.js's include-by-include path) and alone (the engine's whole-compose path).
+    // Members compared as sets: main lists supplement-filter matches in the supplement's order, v2 in id order.
+    const mixed = await expand(vs(inc(V2OPEN, { filters: [['tier', '=', 'gold']] }), inc(UCUM, { codes: ['mg'] })), supp);
+    expect(flat(mixed.expansion.contains).map(String).sort()).toEqual([[UCUM, 'mg'], [V2OPEN, 'X1'], [V2OPEN, 'X3']].map(String).sort());
+    expect(unclosed(mixed)).toBe(false);
+    const alone = await expand(vs(inc(V2OPEN, { filters: [['tier', '=', 'gold']] })), supp);
+    expect(flat(alone.expansion.contains).map(String).sort()).toEqual([[V2OPEN, 'X1'], [V2OPEN, 'X3']].map(String).sort());
+    expect(unclosed(alone)).toBe(false);
+    // the system's own filters still leave it open, with or without a supplement filter beside them
+    expect(unclosed(await expand(vs(inc(V2OPEN, { filters: [['concept', 'is-a', 'X']] }), inc(UCUM, { codes: ['mg'] })), supp))).toBe(true);
+    expect(unclosed(await expand(vs(inc(V2OPEN, { filters: [['concept', 'is-a', 'X'], ['tier', '=', 'gold']] }), inc(UCUM, { codes: ['mg'] })), supp))).toBe(true);
+    expect(unclosed(await expand(vs(inc(V2OPEN, { filters: [['concept', 'is-a', 'X'], ['tier', '=', 'gold']] })), supp))).toBe(true);
   });
 
   test('$translate with a ConceptMap from the v2 system to UCUM and from BCP-47', async () => {
