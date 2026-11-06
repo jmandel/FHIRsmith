@@ -99,7 +99,7 @@ narrative checks, nesting limits) is exactly main's. It then writes one block pe
 | declared `filter` entries | in `resource`; the dialect accepts what `cs-cs.js doesFilter` accepts (declared filters are documentation there too) |
 | `content` = complete / fragment / example | stored and reported as main reports them (`contentMode()`); fragment/example keep main's `UNKNOWN_CODE_IN_FRAGMENT` behaviour because `validate.js` asks `contentMode()` |
 | `content` = not-present | block with no concepts: metadata only, as main |
-| `content` = supplement | stored for round trip, **served as a normal in-memory `CodeSystem`** (supplements must be resources for `loadSupplements`, layers and the display helpers) |
+| `content` = supplement | stored for round trip, **served as a normal in-memory `CodeSystem`** (supplements must be resources for `loadSupplements`, layers and the display helpers); one whose base is a sqlite-v2 terminology file (the Uzbek LOINC one in `fhir.tx.support`) is then moved to its own file (`docs/sqlite-v2-engine.md`, "Server-known supplements on disk") |
 | versions | each resource is its own block; two versions of one url are two blocks (in one file or two). Registration goes through main's `Provider.addCodeSystem`, so default-version, `url|version`, major.minor and THO precedence are main's |
 | reserved code spaces, extension-codes | `resource` keeps the extensions; `CodeSystem.isInReservedCodeSpace` works on the metadata |
 

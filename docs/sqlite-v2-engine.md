@@ -23,6 +23,7 @@ concepts" or "is X in" is set algebra over the `concept_set` bitmaps. SQL reads:
 | `provider.js` | Generic `CodeSystemProvider` and factory |
 | `snomed.js` | SNOMED: editions, displays and designations, `$lookup`, ECL errors, `?fhir_vs`, `?fhir_cm` |
 | `layers.js` | Supplements as layers |
+| `supplement-files.js` | Server-known supplements on disk: their files, and `DiskSupplement` |
 | `trace.js` | Traces and the ring buffer |
 | `index.js` | Entry point for the `sqlite-v2:` library source |
 
@@ -264,18 +265,21 @@ It is built per call and keeps nothing between requests. The result is a set of 
 
 ## Supplements as layers
 
-A supplement becomes an in-memory SQLite database with the v2 schema. Its concepts carry the base
-file's `concept_id`s, so its `prop` and `hasProp` sets combine with base sets by ordinary set
+A supplement becomes a SQLite database with the v2 schema: a *layer*. Its concepts carry the
+base file's `concept_id`s, so its `prop` and `hasProp` sets combine with base sets by ordinary set
 algebra.
 
-**How a supplement arrives.** Two ways:
+**How a supplement arrives.** Two ways, and each has its own kind of layer:
 
-- loaded with the server (global supplements);
-- per request, through `tx-resource` with `useSupplement`, or the value set's supplement
-  extensions.
+- **loaded with the server**: a `library.yml` `file:`/`folder:` source, or a supplement inside a
+  loaded package. When its base is a sqlite-v2 terminology file, it is imported once into a file
+  of its own and read from there (below, "Server-known supplements on disk");
+- **per request**, through `tx-resource` with `useSupplement`, or the value set's supplement
+  extensions. Its layer is an in-memory database, built the first time a filter needs it and
+  then kept in the layer cache (below).
 
-Either way it reaches the provider as `supplements`. The layer is built the first time a filter
-needs it, and is then kept for later requests (below).
+Either way it reaches the provider as `supplements`. A request that names a server-known
+supplement (`useSupplement`) gets the disk-backed one.
 
 **What a layer adds:**
 
@@ -295,11 +299,11 @@ on the CodeSystem resource. This keeps upstream's semantics exactly:
 **Codes the base does not contain** are not imported; the layer counts them
 (`info.unknownCodes`). Upstream treats them as unknown codes.
 
-**Build cost.** A layer costs about 7 µs and 120 bytes per concept (one designation each). The
+**Build cost (in-memory layers).** A layer costs about 7 µs and 120 bytes per concept (one designation each). The
 Uzbek LOINC supplement (24,650 concepts) builds in 120–145 ms, and a 100k-concept synthetic one
 in about 0.7 s. The text `filter` does not search layers (D4), so it never builds one.
 
-**The layer cache** (`layers.js` `LayerCache`). Built layers are kept in one LRU per process:
+**The layer cache** (`layers.js` `LayerCache`), for in-memory layers. Built layers are kept in one LRU per process:
 
 - **Key.** The key is the base store, the supplement's `url|version`, and a sha-256 of its
   content (its JSON). The hash is computed once per resource object, about 1 µs per concept. A
@@ -327,6 +331,139 @@ cannot answer):
 The `tx-resource` request that remains is mostly the cost of carrying the resource. The same
 request with only a base-property filter, so no layer is used, takes 0.45–0.49 s. The rest is
 the content hash, about 0.1 s.
+
+### Server-known supplements on disk
+
+Code: `supplement-files.js`. A supplement the server loads (a `library.yml` `file:` or `folder:`
+source, or one inside a loaded package) whose base is a loaded sqlite-v2 terminology file is
+imported once into a small SQLite file in the v2 schema. Requests then read it, beside the base
+file. Nothing is built per request, and its concepts are not held on the heap. Operators change
+nothing: the same `library.yml` entries work.
+
+**The file.** It is `<terminology-cache>/v2/supplements/<url>-<version>-<key>.db`, one per
+supplement and base file. The key hashes three things:
+
+- the importer's format (`SUPPLEMENT_FORMAT`);
+- the supplement's content (its R5 JSON, hashed concept by concept);
+- the base file's identity (its `provenance` rows and its `code_system` row).
+
+A changed supplement, a rebuilt base file (its concept ids may differ) or a new importer
+therefore names a new file, and the old one is no longer used. Nothing is compared at request
+time. The master removes files that no server has used for 7 days. A supplement for SNOMED CT
+gets one file per loaded edition it applies to (`isSupplementFor`, as `loadSupplements` decides).
+
+The file holds:
+
+- **the layer**, written by the same code as an in-memory layer (`layers.js` `fillLayer`):
+  - concepts under the base's `concept_id`s;
+  - designations and property values as rows;
+  - each property value as a stored set (`prop`, `hasProp`).
+
+  The engine opens it read-only, once per process, as a `V2Store`. A filter on a
+  supplement-defined property is the same `{t:'layer'}` leaf as before. The file has no trigram
+  rows, because the text `filter` does not search layers (D4).
+- **the resource**:
+  - `supplement_concept`: each concept's own JSON, in main's pre-order, with nesting by
+    `nest_parent`;
+  - `supplement_code` and `supplement_code_nc`: main's `codeMap` and `codeMapNC`, holding the
+    first position of each code and its last concept;
+  - `supplement_text`: displays and designations, for the text filter;
+  - `supplement_info`: the metadata, and the facts upstream's whole-supplement scans look for
+    (any display, the display-use languages, the designation languages).
+
+**DiskSupplement.** In the library, the in-memory `CodeSystem` is replaced by a
+`DiskSupplement`. It is main's `CodeSystem` class built from the metadata alone. Its concept
+methods read the file and return what main's in-memory object returns, in the same order:
+
+- `getConceptByCode`, `getAllConcepts` and `getAllCodes`;
+- `hasCode`, `codeMap` and `codeMapNC`;
+- `getConceptByDisplay`;
+- `jsonObj.concept`, the nested tree rebuilt on read, for CodeSystem read and search;
+- the hierarchy methods, which build main's object for the call.
+
+Upstream's display and designation helpers (`_displayFromSupplements`,
+`_listSupplementDesignations`) therefore run unchanged on it. The sqlite-v2 provider answers the
+three helpers that scan every concept from `supplement_info` and `supplement_text` instead:
+`_hasAnySupplementDisplays`, `_hasSupplementText` and `_supplementSearchCodes`. Each request has
+its own view of the supplement (`forRequest`), which keeps the concepts the request has read, so
+a code is read once. A result page's codes are read in one statement (`_loadRows` → `prefetch`).
+
+**Which supplements.** Every server-known supplement whose base is a loaded sqlite-v2
+terminology file goes to disk, whatever its size. There is no size threshold: a file costs about
+0.5 KiB of disk per concept, built once. Kept in memory, a 250k-concept supplement costs
+135 MiB of heap in every process. Two kinds keep the in-memory layer:
+
+- supplements of other code systems (FHIR CodeSystem resources, package blocks);
+- per-request supplements (`tx-resource`), which also use the layer cache above.
+
+**The setting.** `modules.tx.sqliteV2.supplementFiles` defaults to true. With false,
+server-known supplements stay in memory, as main keeps them. The startup limits line reports it
+(`sqliteV2.supplementFiles=on`).
+
+**Cluster** (cluster.md, #342). The master builds a missing file into a temporary file and
+renames it into place. A tx-worker (`packageCachesReadOnly`) never builds one: it waits for the
+master's file (`waitForCache`) and opens it read-only.
+
+**Same answers.** `tests/tx/sqlite-v2-supplement-files.test.js` compares the two forms, the
+in-memory `CodeSystem` and the `DiskSupplement`:
+
+- method by method: case-sensitive and case-insensitive supplements, a nested concept, a code
+  listed twice, and a code the base lacks;
+- through the router: 66 `$expand`, `$lookup` and `$validate-code` requests, each answered with
+  the supplement in memory and on disk. They cover `displayLanguage` (de, de-CH, fr, en, none),
+  designations, the text filter, and `=`, `in`, `not-in`, `regex` and `exists` filters on
+  supplement properties, alone and with `is-a`;
+- the three scan helpers, in five request languages.
+
+The responses are identical. On the Uzbek LOINC supplement and on a 250k-concept SNOMED CT
+supplement (below), the benchmark's responses were the same with the supplement in memory and
+on disk.
+
+**Measured.** The supplement is synthetic, on SNOMED CT International 20250201: 250,000 active
+concepts, each with 1–2 Uzbek designations and one supplement property (`synthprop`, 5 values).
+The Uzbek LOINC supplement (24,650 concepts) was loaded beside it. One process, on a shared
+machine (load average 7–11).
+
+Import and memory:
+
+| | no supplements | in memory (`supplementFiles: false`) | on disk |
+|---|---|---|---|
+| import, first startup | — | — | 4.6 s, 117 MiB file (LOINC uz: 0.4 s, 14.5 MiB) |
+| later startups | — | — | 0.4 s, to hash the content and find the files |
+| heap after startup (after GC) | 80 MiB | 215 MiB | 81 MiB |
+| RssAnon after startup | 300 MiB | 475 MiB | 465 MiB |
+| RssAnon after the requests below | 381 MiB | 667 MiB | 474 MiB |
+
+Requests, first / repeat (`count` changes each time, so upstream's expansion cache does not
+answer):
+
+| request | in memory | on disk |
+|---|---|---|
+| `$expand` `synthprop = v3`, 100 codes | 2,588 ms / 4 ms (layer build, then the LRU) | 7 ms / 6 ms |
+| `$expand` `is-a` and `synthprop = v3`, `displayLanguage=uz` | 6 / 5 ms | 8 / 8 ms |
+| `$expand` `is-a 404684003`, `displayLanguage=uz`, 100 codes | 31 / 10 ms | 20 / 8 ms |
+| the same, 2,500 codes | 88 / 70 ms | 119 / 105 ms |
+| LOINC `CLASS = CHEM`, `displayLanguage=uz`, 2,500 codes | 218 / 210 ms | 300 / 285 ms |
+| `$expand` with a text `filter`, `displayLanguage=uz` | 5.1 / 4.9 s | 5.5 / 5.2 s |
+| `hasAnyDisplays` for a language the supplement lacks | 66–97 ms per request | 0 ms |
+
+- **Memory.** The heap saving is the supplement's concepts: 135 MiB per process. RssAnon right
+  after startup is still the in-memory figure, because loading the source JSON (the content
+  loaders parse it, then main builds a `CodeSystem`) leaves about 170 MiB of V8 pages behind
+  after the objects are freed. Later requests reuse those pages, so under load the disk form
+  stays near that figure (474 MiB) while the in-memory form grows (667 MiB).
+- **Request times.** A filter on a supplement property no longer pays a first-request build. A
+  large display page is about 30 µs per code slower than a hash lookup, so a 2,500-code page
+  takes 30–80 ms longer. The text filter's 5 s is upstream's `passesAll` over 333k supplement
+  texts, in both forms.
+
+**Open.**
+
+- The content loaders still parse a supplement's JSON at every startup, even when its file is
+  current. Skipping that would remove the startup RssAnon too, but it needs the file and folder
+  loaders (`FolderContentLoader` parses every file to index it) to recognise a supplement
+  without parsing it.
+- Supplements of package code-system blocks stay in memory.
 
 ## Fallbacks and what is not supported
 
