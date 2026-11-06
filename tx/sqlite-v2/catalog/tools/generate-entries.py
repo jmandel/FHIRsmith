@@ -89,7 +89,7 @@ def X(id_, title, inc_, **kw):  # expand of a one-compose VS
 # ---------------------------------------------------------------- hierarchy
 E('sct-descendants-clinical-finding', 'All clinical findings (descendent-of 404684003)', 'hierarchy',
   'descendent-of over a 124k-member subtree; paging deep into it',
-  'Fast: one stored descendants set; any page is a rank/select on the bitmap, where main must walk 100k codes to reach a deep offset.',
+  'Fast: one stored descendants set; any page needs only rank/select on the bitmap, where main must walk 100k codes to reach a deep offset.',
   'fast', {'valueSet': VS('sct-descendants-clinical-finding', [inc(SCT, F('concept', 'descendent-of', '404684003'))])},
   ALL_PATTERNS, 50, 100000)
 E('sct-isa-diabetes', 'Diabetes mellitus and its subtypes (is-a 73211009)', 'hierarchy',
