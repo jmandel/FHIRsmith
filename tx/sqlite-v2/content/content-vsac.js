@@ -6,6 +6,10 @@
 // WAL, so readers see the old or the new value set and are never blocked). Reads go to
 // ContentValueSetProvider on the same file. Nothing is held in memory: the sync's "seen this
 // url|version / same hash" test is one indexed read.
+//
+// Cluster (cluster.md): the master (cluster 'leader') syncs and bumps the file's generation; a
+// tx-worker ('follower') opens the file read-only, never creates, converts or syncs it, and
+// reopens its reader when the generation moves (VSACValueSetProvider.catchUp).
 
 const fs = require('fs');
 const path = require('path');
@@ -17,14 +21,22 @@ const CACHE_COMPLETE_KEY = 'cache-complete';
 const GENERATION_KEY = 'generation';
 
 class ContentVsacDatabase {
-  constructor(dbPath) {
+  /**
+   * @param {string} dbPath
+   * @param {object} [opts] { readOnly: a tx-worker - open read-only, never write }
+   */
+  constructor(dbPath, opts = {}) {
     this.dbPath = dbPath;
+    this.readOnly = !!opts.readOnly;
     this.db = null;
     this.vsCount = 0;
   }
 
   _open() {
-    if (!this.db) {
+    if (!this.db && this.readOnly) {
+      this.db = new Database(this.dbPath, { readonly: true, fileMustExist: true });
+      this.vsCount = this.db.prepare('SELECT count(*) AS n FROM value_set').get().n;
+    } else if (!this.db) {
       this.db = new Database(this.dbPath);
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('busy_timeout = 5000');
@@ -37,11 +49,19 @@ class ContentVsacDatabase {
 
   async exists() { return fs.existsSync(this.dbPath); }
 
+  _refuseIfReadOnly() {
+    if (this.readOnly) {
+      throw new Error(`VSAC content file ${this.dbPath} is the master's: a tx-worker does not write it`);
+    }
+  }
+
   _writable() {
+    this._refuseIfReadOnly();
     return this._open();
   }
 
   async create() {
+    this._refuseIfReadOnly();
     const { createContentFile } = require('../../importers/content-v2/content-file');
     createContentFile(this.dbPath, { wal: true }).finish({ importer: 'content-v2 vsac (empty)', kind: 'vsac' });
     fs.chmodSync(this.dbPath, 0o600); // licensed content (UMLS): owner-only
@@ -82,6 +102,15 @@ class ContentVsacDatabase {
   async markInterruptedRuns() {
     return this._writable().prepare(`UPDATE vsac_runs SET finished_at = strftime('%s','now'), status = 'error',
       error_message = 'interrupted (server stopped during the sync)' WHERE status = 'running'`).run().changes;
+  }
+  /** what the followers compare (cluster.md): moved by the master after each sync */
+  async getGeneration() {
+    const value = await this.getSetting(GENERATION_KEY);
+    return value === null ? 0 : Number(value);
+  }
+  async bumpGeneration() {
+    this._writable().prepare(`INSERT INTO vsac_settings (key, value) VALUES (?, '1')
+      ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1`).run(GENERATION_KEY);
   }
   async isComplete() { return (await this.getSetting(CACHE_COMPLETE_KEY)) != null; }
   async markComplete() { await this.setSetting(CACHE_COMPLETE_KEY, new Date().toISOString()); }
@@ -158,13 +187,13 @@ class ContentVsacProvider extends VSACValueSetProvider {
     super(config, stats);
     this.legacyPath = this.dbPath;
     this.dbPath = path.join(this.cacheFolder, 'vsac-v2.db');
-    this.database = new ContentVsacDatabase(this.dbPath);
+    this.database = new ContentVsacDatabase(this.dbPath, { readOnly: this.cluster === 'follower' });
     this.reader = new ContentValueSetProvider(this.dbPath, { kind: 'vsac', source: 'vsac' });
   }
 
   async initialize() {
     if (this.initialized) return;
-    if (!fs.existsSync(this.dbPath) && fs.existsSync(this.legacyPath)) {
+    if (this.cluster !== 'follower' && !fs.existsSync(this.dbPath) && fs.existsSync(this.legacyPath)) {
       // one-time conversion of an existing ValueSetDatabase (e.g. a seeded master copy)
       const { importVsac } = require('../../importers/content-v2/import-content-v2');
       importVsac(this.legacyPath, this.dbPath, (m) => this.log.info(`VSAC content file: ${m}`));
@@ -172,18 +201,35 @@ class ContentVsacProvider extends VSACValueSetProvider {
     await super.initialize();
   }
 
-  /** before a read */
+  /**
+   * Before a read: a follower picks up the master's sync (catchUp), and has nothing to read
+   * until the master has made the file
+   * @returns {boolean} whether there is a file to read
+   */
   async _ready() {
     await this.initialize();
+    if (this.cluster === 'follower') {
+      void this.catchUp();
+      return fs.existsSync(this.dbPath);
+    }
     return true;
   }
 
-  /** after a sync: the reader asks the file every time; only its count is held */
+  /**
+   * After a sync (a follower: after the master's). The reader asks the file every time (WAL:
+   * each read sees the last committed sync); only its count is held. It is not closed, since
+   * requests may be reading through it
+   */
   async _refreshFromDatabase() {
     if (this.reader.initialized) {
       this.reader.count = this.reader.s.count.get().n;
     }
     await this._recount();
+  }
+
+  async _recount() {
+    if (this.cluster === 'follower' && !fs.existsSync(this.dbPath)) return;
+    await super._recount();
   }
 
   prefixIds() { this.reader.spaceId = this.spaceId; }

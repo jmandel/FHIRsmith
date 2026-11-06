@@ -902,12 +902,14 @@ class Library {
     this.packageSources.push(contentLoader.id()+"#"+contentLoader.version());
 
     // sqlite-v2 content files (docs/sqlite-v2-content-store.md): the package's code systems and
-    // value sets from its content file, built on first load
+    // value sets from its content file, built on first load - by the master, in cluster mode: a
+    // tx-worker (packageCachesReadOnly) waits for the master's and never builds one
     const content = source.content || require('./sqlite-v2/settings').settings.content;
     let contentFile = null;
     if (content.valueSets || content.codeSystems) {
       const { ensurePackageContentFile } = require('./sqlite-v2/content/package-files');
-      contentFile = await ensurePackageContentFile(this.cacheFolder, fullPackagePath, contentLoader.pid(), this.log);
+      contentFile = await ensurePackageContentFile(this.cacheFolder, fullPackagePath, contentLoader.pid(), this.log,
+        { readOnly: this.packageCachesReadOnly });
     }
 
     let cp = new ListCodeSystemProvider();
