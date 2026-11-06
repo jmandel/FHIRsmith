@@ -146,6 +146,7 @@ Main has no single order, so this is a deliberate difference (adjudication D3 in
 | knob | default | effect |
 |---|---|---|
 | `maxScanRows` | 5,000,000 | The planner's estimate of the fact rows a request reads: text/regex scans, relation images, probes, value-set fan-out. It is added up before each read, and the request is refused (too-costly) once the estimate is over the limit |
+| `supplementLayerCacheMB` | 64 | Memory for built supplement layers kept between requests, per process (see "Supplements as layers"). It counts the layers' SQLite pages: about 120 bytes per concept with one designation, about 360 with five. 64 MB holds about 530k such concepts. That is two layers the size of all of LOINC (257k), or hundreds from the IG corpus, where 99% have 1,001 concepts or fewer. The least recently used layers are dropped to stay under it. 0 = keep none. Logged in the startup `Limits:` line |
 
 Response sizes are upstream's. A page the provider selects is added through expand.js's
 `includeCode`, like every other code, so expand.js's limit (`limitCount`: the server's external
@@ -154,9 +155,11 @@ caps a response. Any page up to that size can be served at any
 offset, and its total is exact. A refusal by the planner (`maxScanRows`) is a 422
 `VALUESET_TOO_COSTLY`.
 
-## No caches (by design)
+## No caches (by design), except supplement layers
 
-The engine adds no caches; this is an owner decision. Every request:
+The engine adds no caches; this is an owner decision. The one exception is built supplement
+layers (`supplementLayerCacheMB`, see "Supplements as layers"): building one costs about 7 µs
+per concept on every request that filters on a supplement property. Otherwise every request:
 
 - plans its query;
 - reads the stored sets it needs from SQLite: each set once per evaluation, in one statement per
@@ -178,7 +181,8 @@ tx cache-id protocol.
 | mmap window | 256 MiB per file, `mmapMB`: file-backed, and the OS page cache serves the reads |
 | prepared statements | statement handles, not data |
 | data built at load | the LOINC release-order rank (2.0 MiB), the designation languages of each file, SNOMED's display-refset and acceptability ids |
-| within one request | the evaluation's working set of sets read so far, the codes resolved while compiling, the concept handles of the request's provider, and supplement layers built for that request |
+| within one request | the evaluation's working set of sets read so far, the codes resolved while compiling, and the concept handles of the request's provider |
+| supplement layers | built layers, in an LRU bounded by `supplementLayerCacheMB` |
 
 Repeat expansions over 250 ms are kept by upstream's expansion cache.
 
@@ -270,8 +274,8 @@ algebra.
 - per request, through `tx-resource` with `useSupplement`, or the value set's supplement
   extensions.
 
-Either way it reaches the provider as `supplements`, and the layer is built the first time a
-filter needs it, for that request only. Nothing is kept: upstream's resource handling keeps the CodeSystem resources themselves.
+Either way it reaches the provider as `supplements`. The layer is built the first time a filter
+needs it, and is then kept for later requests (below).
 
 **What a layer adds:**
 
@@ -291,10 +295,38 @@ on the CodeSystem resource. This keeps upstream's semantics exactly:
 **Codes the base does not contain** are not imported; the layer counts them
 (`info.unknownCodes`). Upstream treats them as unknown codes.
 
-**Build cost, per request that filters on a supplement property.** The Uzbek LOINC supplement
-(24,650 concepts, one designation each) builds in 120–145 ms. The text `filter` does not search
-layers (D4), so it does not pay this cost. A prebuilt on-disk layer is the follow-on if this
-matters.
+**Build cost.** A layer costs about 7 µs and 120 bytes per concept (one designation each). The
+Uzbek LOINC supplement (24,650 concepts) builds in 120–145 ms, and a 100k-concept synthetic one
+in about 0.7 s. The text `filter` does not search layers (D4), so it never builds one.
+
+**The layer cache** (`layers.js` `LayerCache`). Built layers are kept in one LRU per process:
+
+- **Key.** The key is the base store, the supplement's `url|version`, and a sha-256 of its
+  content (its JSON). The hash is computed once per resource object, about 1 µs per concept. A
+  `tx-resource` supplement sent again in a later request, as the IG Publisher does within a
+  session, therefore hits. A changed supplement with the same url and version misses, so it
+  never reads a layer built from other content.
+- **Bound.** The bound is `supplementLayerCacheMB`, counted as the layers' SQLite pages. To stay
+  under it, the least recently used layers are dropped. A layer bigger than the whole bound is
+  built for its request and closed when the request ends, as before the cache.
+- **Sharing.** A cached layer is read-only (`query_only`). The trigram index, built on the first
+  text search, is the one write, and it is done synchronously. Each request holds a reference to
+  the layers it uses, so a layer evicted while a request is still using it is closed only when
+  that request ends.
+- **Cluster.** In a cluster, each worker process has its own cache, and each builds a layer once.
+
+Measured on a repeat filtering `$expand` with a 100k-concept synthetic supplement (local
+server, LOINC 2.83 base, a different filter value each time so upstream's expansion cache
+cannot answer):
+
+| supplement | no cache | cached (repeat) |
+|---|---|---|
+| server-known | 0.72–0.74 s | 3–4 ms |
+| `tx-resource` (18 MB body) | 1.01–1.27 s | 0.52–0.56 s |
+
+The `tx-resource` request that remains is mostly the cost of carrying the resource. The same
+request with only a base-property filter, so no layer is used, takes 0.45–0.49 s. The rest is
+the content hash, about 0.1 s.
 
 ## Fallbacks and what is not supported
 
