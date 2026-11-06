@@ -55,13 +55,15 @@ cache, the OS page cache under mmap, prepared statements, and data built at load
 
   Both routes are registered only when `sqliteV2Trace` is `"request"` or `"all"`.
 
-## Format `fhirsmith-expand-trace/0-draft.2`
+## Format `fhirsmith-expand-trace/0-draft.3`
 
-0-draft.2 adds the request-level span kinds and fields. Engine spans are unchanged from 0-draft.
+0-draft.2 added the request-level span kinds and fields. 0-draft.3 adds what each step read:
+`sources` at the top level, and `reads`, `sets` and `setsMore` on spans (see
+[What a step read](#what-a-step-read)). Nothing else changed.
 
 ```json
 {
-  "traceFormat": "fhirsmith-expand-trace/0-draft",
+  "traceFormat": "fhirsmith-expand-trace/0-draft.3",
   "id": "t12",
   "startedAt": "2026-11-01T16:20:00.000Z",
   "request": { "count": 10, "offset": 0, "activeOnly": false, "filter": null },
@@ -98,6 +100,38 @@ There is one span per plan step. Spans nest through `parent`.
 | `setCard` | cardinality of the set the step produced, when it produced one |
 | `heapDeltaBytes` | change in `process.memoryUsage().heapUsed` over the span. This is noisy because of GC; use it for orders of magnitude only |
 | `error` | present when the step threw |
+| `reads` | the statements run in this span itself (not in its child spans): `[{src, n, rows}]`, one entry per source (below), with the statements of that shape and the rows they returned. Absent when the span ran none. A span with child spans that also ran statements itself gets an "other (outside named steps)" child, and its `reads` and `sets` move to that child, so every statement is listed on exactly one span |
+| `sets`, `setsMore` | the stored sets this span itself read from `concept_set`: `[{key, card, bytes, display?}]`, at most 8; `setsMore` counts the rest. Sets already read in the same evaluation are not read again and are not listed |
+
+### What a step read
+
+`sources` names each statement shape the request ran, once per database:
+
+```json
+"sources": {
+  "q2": { "db": "SNOMED CT International 20260701",
+          "access": [{ "table": "concept_set", "index": "primary key" }],
+          "sql": "SELECT value, data FROM concept_set WHERE kind = ? AND property_id = ? AND value = ?" }
+}
+```
+
+| field | meaning |
+|---|---|
+| `db` | the database's logical name: its `code_system` name (without " Edition") and version (a SNOMED CT version URI gives its date) |
+| `access` | each table the statement reads and how SQLite reaches it, from `EXPLAIN QUERY PLAN`: `primary key`, `rowid`, `rowid range`, an index name such as `concept_code`, `full-text` (an FTS5 trigram table) or `full scan`. Joins list one entry per table |
+| `sql` | the statement on one line: parameters are `?`, an id list bound as JSON is `(…)`, and a statement longer than 160 characters is cut |
+
+A span's `sets` name the stored sets by key: `all concepts`, `active concepts`, `leaf concepts`,
+`descendants(<code>)`, `children(<code>)`, `<property> = <value>` (the value's code for a
+concept-valued property), `has <property>`, `refset(<code>)`. `card` is the set's size, `bytes`
+its stored (serialised) size, and `display` the display of the concept named in the key.
+
+Cost: the plan of a statement is read once per prepared statement for the life of the process
+(about 0.1 ms, then cached); each statement then costs one map lookup in the tracer, and the set
+keys are named at the end of the request with one statement per database. Only traced requests
+pay any of it. In-process, on the real files: 4 µs on a 100 µs whole-SNOMED page, 22 µs on a
+180 µs is-a page (the naming statement), nothing measurable on a 208 ms LOINC regex. Traces grow
+by 300 to 1,200 bytes.
 
 ### Memory, result and summary
 

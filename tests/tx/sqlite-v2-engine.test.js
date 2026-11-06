@@ -235,7 +235,7 @@ describe('sqlite-v2 trace', () => {
     const sel = c.selection([inc([f('concept', 'is-a', 'D'), f('colour', '=', 'red')])], [], false);
     e.run(sel, { offset: 0, count: 10, trace: t });
     const tr = t.finish({ total: 2, returned: 2 });
-    expect(tr.traceFormat).toBe('fhirsmith-expand-trace/0-draft.2');
+    expect(tr.traceFormat).toBe('fhirsmith-expand-trace/0-draft.3');
     const load = tr.spans.find((s) => s.label.startsWith('load stored sets'));
     expect(load.kind).toBe('set');
     expect(load.sqlStatements).toBe(2); // one per (kind, property), whatever the number of keys
@@ -244,6 +244,33 @@ describe('sqlite-v2 trace', () => {
       expect(typeof s.durUs).toBe('number');
       expect(s.heapDeltaBytes).toBeDefined();
     }
+  });
+
+  test('steps name the database, table, index and stored sets they read', () => {
+    const t = new Tracer({ count: 10 });
+    const c = new Compiler({ store, dialect: {} }, { stats: t.stats });
+    const sel = t.span('compile compose', 'sql', store.system, () => c.selection([inc([f('concept', 'is-a', 'D'), f('colour', '=', 'red')])], [], false));
+    new Engine(store).run(sel, { offset: 0, count: 10, trace: t });
+    const tr = t.finish({ total: 2, returned: 2 });
+    const src = (r) => tr.sources[r.src];
+    // compile: codes resolved through concept's code index
+    const compile = tr.spans.find((s) => s.label === 'compile compose');
+    expect(compile.reads.map(src)).toContainEqual(expect.objectContaining({ access: [{ table: 'concept', index: 'concept_code' }] }));
+    // the stored-set fetch: concept_set by its primary key, and each set by name and size
+    const load = tr.spans.find((s) => s.label.startsWith('load stored sets'));
+    const ls = load.reads.map(src);
+    // the fixture's code_system row has no name: the uri and version stand in
+    expect(ls.every((x) => x.db === 'http://example.org/cs 1')).toBe(true);
+    expect(ls[0].access).toEqual([{ table: 'concept_set', index: 'primary key' }]);
+    expect(ls[0].sql).toMatch(/^SELECT value, data FROM concept_set WHERE kind = \? AND property_id = \? AND value/);
+    expect(ls[0].sql).not.toMatch(/json_each/);
+    expect(load.reads.reduce((n, r) => n + r.n, 0)).toBe(load.sqlStatements);
+    expect(load.sets.map((x) => x.key).sort()).toEqual(['colour = Red', 'colour = red', 'descendants(D)']);
+    expect(load.sets.find((x) => x.key === 'descendants(D)')).toMatchObject({ card: 2, display: 'display D' });
+    // every statement counted is attributed to exactly one span's reads
+    const attributed = tr.spans.reduce((n, s) => n + (s.reads || []).reduce((a, r) => a + r.n, 0), 0);
+    expect(attributed).toBe(tr.summary.sqlStatements);
+    expect(JSON.stringify(tr.sources).length).toBeLessThan(2000);
   });
 
   test('no tracer: no counters are kept', () => {

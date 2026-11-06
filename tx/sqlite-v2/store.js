@@ -30,6 +30,17 @@ function stemMatcher(words) {
   };
 }
 
+/**
+ * Count one statement in a trace's counters (stats is the tracer's; callers check it is set).
+ * With a trace, the tracer also records what the statement read: database, table, index and
+ * statement shape (trace.js).
+ */
+function count(stats, store, st, rows) {
+  stats.statements++;
+  stats.rows += rows;
+  if (stats.read) stats.read(store, st, rows);
+}
+
 function setKey(kind, pid, value) {
   return kind + ':' + pid + ':' + (typeof value === 'string' ? 's' + value : value);
 }
@@ -158,19 +169,23 @@ class V2Store {
     if (miss.length) {
       const t0 = stats ? process.hrtime.bigint() : 0n;
       let rows;
+      let q;
       if (miss.length === 1) {
-        const r = this.stmt('SELECT value, data FROM concept_set WHERE kind = ? AND property_id = ? AND value = ?').get(kind, pid, miss[0]);
+        q = this.stmt('SELECT value, data FROM concept_set WHERE kind = ? AND property_id = ? AND value = ?');
+        const r = q.get(kind, pid, miss[0]);
         rows = r ? [r] : [];
       } else {
-        rows = this.stmt('SELECT value, data FROM concept_set WHERE kind = ? AND property_id = ? AND value IN (SELECT value FROM json_each(?))')
-          .all(kind, pid, JSON.stringify(miss));
+        q = this.stmt('SELECT value, data FROM concept_set WHERE kind = ? AND property_id = ? AND value IN (SELECT value FROM json_each(?))');
+        rows = q.all(kind, pid, JSON.stringify(miss));
       }
       let bytes = 0;
+      const named = stats && stats.sets ? [] : null;
       for (const r of rows) {
         const b = RoaringBitmap32.deserialize(r.data, 'portable');
         bytes += r.data.length;
         out.set(r.value, b);
         if (local) local.set(setKey(kind, pid, r.value), b);
+        if (named) named.push({ value: r.value, card: b.size, bytes: r.data.length });
       }
       for (const v of miss) {
         if (!out.has(v)) {
@@ -179,8 +194,8 @@ class V2Store {
         }
       }
       if (stats) {
-        stats.statements++;
-        stats.rows += rows.length;
+        count(stats, this, q, rows.length);
+        if (named) stats.sets(this, kind, pid, named);
         stats.setsLoaded += rows.length;
         stats.setBytes += bytes;
         stats.setLoadUs += Number(process.hrtime.bigint() - t0) / 1000;
@@ -199,8 +214,9 @@ class V2Store {
 
   /** keys (values) of the stored prop sets of one property, with their cardinalities */
   propValues(pid, stats) {
-    const r = this.stmt('SELECT value, card FROM concept_set WHERE kind = 5 AND property_id = ?').all(pid);
-    if (stats) { stats.statements++; stats.rows += r.length; }
+    const q = this.stmt('SELECT value, card FROM concept_set WHERE kind = 5 AND property_id = ?');
+    const r = q.all(pid);
+    if (stats) count(stats, this, q, r.length);
     return r;
   }
 
@@ -211,12 +227,13 @@ class V2Store {
     const out = new Map();
     const want = [...new Set(codes.filter((c) => c != null).map(String))];
     if (!want.length) return out;
-    const rows = want.length === 1
-      ? [this.stmt('SELECT concept_id, code FROM concept WHERE code = ? AND concept_id BETWEEN ? AND ?').get(want[0], this.lo, this.hi)].filter(Boolean)
-      : this.stmt('SELECT concept_id, code FROM concept WHERE code IN (SELECT value FROM json_each(?)) AND concept_id BETWEEN ? AND ?').all(JSON.stringify(want), this.lo, this.hi);
+    const q = want.length === 1
+      ? this.stmt('SELECT concept_id, code FROM concept WHERE code = ? AND concept_id BETWEEN ? AND ?')
+      : this.stmt('SELECT concept_id, code FROM concept WHERE code IN (SELECT value FROM json_each(?)) AND concept_id BETWEEN ? AND ?');
+    const rows = want.length === 1 ? [q.get(want[0], this.lo, this.hi)].filter(Boolean) : q.all(JSON.stringify(want), this.lo, this.hi);
     for (const r of rows) out.set(r.code, r.concept_id);
     for (const c of want) if (!out.has(c)) out.set(c, null);
-    if (stats) { stats.statements++; stats.rows += rows.length; }
+    if (stats) count(stats, this, q, rows.length);
     return out;
   }
 
@@ -234,8 +251,9 @@ class V2Store {
 
   /** concepts whose display matches an FTS5 trigram query (one statement); a bitmap */
   ftsDisplayIds(query, stats) {
-    const ids = this.stmt('SELECT rowid FROM search_display WHERE search_display MATCH ? AND rowid BETWEEN ? AND ?').pluck().all(query, this.lo, this.hi);
-    if (stats) { stats.statements++; stats.rows += ids.length; }
+    const q = this.stmt('SELECT rowid FROM search_display WHERE search_display MATCH ? AND rowid BETWEEN ? AND ?');
+    const ids = q.pluck().all(query, this.lo, this.hi);
+    if (stats) count(stats, this, q, ids.length);
     return new RoaringBitmap32(ids);
   }
 
@@ -243,11 +261,12 @@ class V2Store {
   conceptRows(ids, stats) {
     const out = new Map();
     if (!ids.length) return out;
-    const rows = ids.length === 1
-      ? [this.stmt('SELECT concept_id, code, active, display, definition FROM concept WHERE concept_id = ?').get(ids[0])].filter(Boolean)
-      : this.stmt('SELECT concept_id, code, active, display, definition FROM concept WHERE concept_id IN (SELECT value FROM json_each(?))').all(JSON.stringify(Array.from(ids)));
+    const q = ids.length === 1
+      ? this.stmt('SELECT concept_id, code, active, display, definition FROM concept WHERE concept_id = ?')
+      : this.stmt('SELECT concept_id, code, active, display, definition FROM concept WHERE concept_id IN (SELECT value FROM json_each(?))');
+    const rows = ids.length === 1 ? [q.get(ids[0])].filter(Boolean) : q.all(JSON.stringify(Array.from(ids)));
     for (const r of rows) out.set(r.concept_id, r);
-    if (stats) { stats.statements++; stats.rows += rows.length; }
+    if (stats) count(stats, this, q, rows.length);
     return out;
   }
 
@@ -261,7 +280,8 @@ class V2Store {
          FROM designation d WHERE d.concept_id IN (SELECT value FROM json_each(?)) ORDER BY d.designation_id`
       : `SELECT d.designation_id, d.concept_id, d.language, d.use_id, d.term, d.active, d.preferred, NULL AS acc
          FROM designation d WHERE d.concept_id IN (SELECT value FROM json_each(?)) ORDER BY d.designation_id`;
-    const rows = this.stmt(sql).all(JSON.stringify(Array.from(ids)));
+    const q = this.stmt(sql);
+    const rows = q.all(JSON.stringify(Array.from(ids)));
     for (const r of rows) {
       let l = out.get(r.concept_id);
       if (!l) out.set(r.concept_id, l = []);
@@ -270,33 +290,36 @@ class V2Store {
         term: r.term, active: !!r.active, preferred: !!r.preferred, acc: r.acc
       });
     }
-    if (stats) { stats.statements++; stats.rows += rows.length; }
+    if (stats) count(stats, this, q, rows.length);
     return out;
   }
 
   /** concept-valued facts from sources (one statement); rows {s, p, g, t, active} */
   linksFrom(ids, pids = null, activeOnly = true, stats) {
     if (!ids.length) return [];
-    const rows = this.stmt(`SELECT source_id AS s, property_id AS p, group_id AS g, target_id AS t, active FROM concept_link
-       WHERE source_id IN (SELECT value FROM json_each(?)) ${activeOnly ? 'AND active = 1' : ''}`).all(JSON.stringify(Array.from(ids)));
-    if (stats) { stats.statements++; stats.rows += rows.length; }
+    const q = this.stmt(`SELECT source_id AS s, property_id AS p, group_id AS g, target_id AS t, active FROM concept_link
+       WHERE source_id IN (SELECT value FROM json_each(?)) ${activeOnly ? 'AND active = 1' : ''}`);
+    const rows = q.all(JSON.stringify(Array.from(ids)));
+    if (stats) count(stats, this, q, rows.length);
     return pids ? rows.filter((r) => pids.has(r.p)) : rows;
   }
 
   /** literal facts for ids (one statement); rows {c, p, g, v, active} */
   literalsOf(ids, activeOnly = true, stats) {
     if (!ids.length) return [];
-    const rows = this.stmt(`SELECT concept_id AS c, property_id AS p, group_id AS g, value AS v, active FROM concept_literal
-       WHERE concept_id IN (SELECT value FROM json_each(?)) ${activeOnly ? 'AND active = 1' : ''}`).all(JSON.stringify(Array.from(ids)));
-    if (stats) { stats.statements++; stats.rows += rows.length; }
+    const q = this.stmt(`SELECT concept_id AS c, property_id AS p, group_id AS g, value AS v, active FROM concept_literal
+       WHERE concept_id IN (SELECT value FROM json_each(?)) ${activeOnly ? 'AND active = 1' : ''}`);
+    const rows = q.all(JSON.stringify(Array.from(ids)));
+    if (stats) count(stats, this, q, rows.length);
     return rows;
   }
 
   /** direct parents over the hierarchy property (active links) */
   parentsOf(id, stats) {
     if (!this.hierarchy) return [];
-    const rows = this.stmt('SELECT target_id FROM concept_link WHERE source_id = ? AND property_id = ? AND active = 1').all(id, this.hierarchy.id);
-    if (stats) { stats.statements++; stats.rows += rows.length; }
+    const q = this.stmt('SELECT target_id FROM concept_link WHERE source_id = ? AND property_id = ? AND active = 1');
+    const rows = q.all(id, this.hierarchy.id);
+    if (stats) count(stats, this, q, rows.length);
     return rows.map((r) => r.target_id);
   }
 
@@ -331,7 +354,7 @@ class V2Store {
       const chunk = bm.rangeUint32Array(i, 20000);
       const codes = codesOf.all(JSON.stringify(Array.from(chunk))).map((r) => r[0]);
       for (const r of idsOf.all(JSON.stringify(codes))) out.add(r[0]);
-      if (stats) { stats.statements += 2; stats.rows += chunk.length + codes.length; }
+      if (stats) { count(stats, other, codesOf, chunk.length); count(stats, this, idsOf, codes.length); }
     }
     return out;
   }
@@ -375,20 +398,21 @@ class V2Store {
     const phrase = mode === 'display';
     const fts = (phrase ? [t] : words).filter((w) => w.length >= 3).map((w) => '"' + w.replace(/"/g, '""') + '"').join(' AND ');
     const bm = new RoaringBitmap32();
-    let n = 0;
     const has = (term) => { const x = String(term || '').toLowerCase(); return phrase ? x.includes(t) : words.every((w) => x.includes(w)); };
     if (mode !== 'designation' && !otherLang) {
-      const rows = fts && this.hasFts
-        ? this.stmt('SELECT c.concept_id, c.display FROM search_display s JOIN concept c ON c.concept_id = s.rowid WHERE search_display MATCH ? AND s.rowid BETWEEN ? AND ?').all(fts, this.lo, this.hi)
-        : this.stmt('SELECT concept_id, display FROM concept WHERE concept_id BETWEEN ? AND ?').all(this.lo, this.hi);
-      n += rows.length;
+      const q = fts && this.hasFts
+        ? this.stmt('SELECT c.concept_id, c.display FROM search_display s JOIN concept c ON c.concept_id = s.rowid WHERE search_display MATCH ? AND s.rowid BETWEEN ? AND ?')
+        : this.stmt('SELECT concept_id, display FROM concept WHERE concept_id BETWEEN ? AND ?');
+      const rows = fts && this.hasFts ? q.all(fts, this.lo, this.hi) : q.all(this.lo, this.hi);
+      if (stats) count(stats, this, q, rows.length);
       for (const r of rows) if (has(r.display)) bm.add(r.concept_id);
     }
     if (mode !== 'display' || otherLang) {
-      const rows = fts && this.hasFts
-        ? this.stmt('SELECT d.concept_id, d.term, d.active, d.use_id, d.language FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?').all(fts, this.lo, this.hi)
-        : this.stmt('SELECT concept_id, term, active, use_id, language FROM designation WHERE concept_id BETWEEN ? AND ?').all(this.lo, this.hi);
-      n += rows.length;
+      const q = fts && this.hasFts
+        ? this.stmt('SELECT d.concept_id, d.term, d.active, d.use_id, d.language FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?')
+        : this.stmt('SELECT concept_id, term, active, use_id, language FROM designation WHERE concept_id BETWEEN ? AND ?');
+      const rows = fts && this.hasFts ? q.all(fts, this.lo, this.hi) : q.all(this.lo, this.hi);
+      if (stats) count(stats, this, q, rows.length);
       const related = otherLang ? [...this.uses].filter(([, u]) => u.code === 'RELATEDNAMES2').map(([id]) => id) : [];
       // SNOMED (as upstream): every filter word, stemmed, is a word of one active description
       const match = mode === 'designation' ? stemMatcher(words) : has;
@@ -400,9 +424,8 @@ class V2Store {
       }
       if (mode === 'designation') bm.andInPlace(this.active());
     }
-    if (stats) { stats.statements += 2; stats.rows += n; }
     return bm;
   }
 }
 
-module.exports = { V2Store, KIND, EMPTY, setKey, registry };
+module.exports = { V2Store, KIND, EMPTY, setKey, registry, count };
