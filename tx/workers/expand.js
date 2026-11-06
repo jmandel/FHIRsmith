@@ -700,7 +700,7 @@ class ValueSetExpander {
       if (cs == null) {
         // nothing
       } else {
-        if (vsInfo && vsInfo.isSimple) {
+        if (vsInfo && (vsInfo.isSimple || vsInfo.crossVersion)) {
           vsInfo.handleByCS = cs.handlesSelecting();
         }
         // A code system with no content to expand from is refused like an unknown one: 422
@@ -806,7 +806,26 @@ class ValueSetExpander {
       }
     }
 
-    const selection = await cs.processSelection(this.params, includes, excludes, excludeInactive, this.offset, this.count,
+    const otherVersions = [];
+    const selExcludes = [];
+    for (const exc of excludes) {
+      if (exc.system === vsInfo.system && exc.version === vsInfo.version) {
+        selExcludes.push(exc);
+        continue;
+      }
+      // another version of the system (scanValueSet: crossVersion): its provider must select too
+      const other = await this.worker.findCodeSystem(exc.system, exc.version, this.params, ['complete', 'fragment'],
+        false, true, true, null, this.requiredSupplements);
+      if (!other || !other.handlesSelecting() || other.system() !== cs.system() || other.contentMode() !== 'complete') {
+        return false;
+      }
+      const copy = { ...exc, otherVersion: true };
+      Object.defineProperty(copy, 'provider', { value: other, enumerable: false });
+      selExcludes.push(copy);
+      otherVersions.push(other);
+    }
+
+    const selection = await cs.processSelection(this.params, includes, selExcludes, excludeInactive, this.offset, this.count,
       { valueSet: { url: vsSrc.url, version: vsSrc.version } });
     if (selection == null) {
       return false;
@@ -829,6 +848,13 @@ class ValueSetExpander {
     }
     this.checkProviderCanonicalStatus(expansion, cs, this.valueSet);
     this.addParamUri(expansion, 'used-codesystem', this.canonical(cs.system(), cs.version()));
+    for (const other of otherVersions) {
+      this.addParamUri(expansion, 'used-codesystem', this.canonical(other.system(), other.version()));
+    }
+    if (otherVersions.length) {
+      // as the usual path reports an include of one version minus another (checkForExclusionVersionSpecialCase)
+      this.checkForExclusionVersionSpecialCase(vsSrc, expansion);
+    }
     if (selection.notClosed) {
       notClosed.value = true;
       const wholeSystem = includes.some(cset => !(cset.filter || []).length);
@@ -1547,7 +1573,9 @@ class ValueSetExpander {
     for (const [i, c] of (source.jsonObj.compose.exclude || []).entries()) {
       await this.worker.checkAndYield('handleCompose#3');
       this.hasExclusions = true;
-      await this.checkSource(c, expansion, filter, source.url, ts, null, source, 'ValueSet.compose.exclude[' + i + ']');
+      // an exclude of another version only learns whether the provider will take the compose (the
+      // size guard: it pages and counts the selection itself)
+      await this.checkSource(c, expansion, filter, source.url, ts, vsInfo.crossVersion ? { handleByCS: vsInfo.handleByCS } : null, source, 'ValueSet.compose.exclude[' + i + ']');
     }
 
     this.worker.opContext.log('compose #2');
@@ -2349,6 +2377,18 @@ class ValueSetExpander {
         simple = false;
       }
       result.hasExcludes = true;
+    }
+    // one system|version included, minus other versions of the same system (e.g. "US Edition minus
+    // International"): a provider that handles selecting evaluates each exclude on its own version
+    // and removes its codes by code (processCodes)
+    const incs = compose.include || [];
+    const excs = compose.exclude || [];
+    if (simple && result.csset.size > 1 && incs.length > 0 && excs.length > 0
+        && incs.every(inc => inc.system === incs[0].system && inc.version === incs[0].version)
+        && excs.every(exc => exc.system === incs[0].system && exc.version)) {
+      result.crossVersion = true;
+      result.system = incs[0].system;
+      result.version = incs[0].version;
     }
     if (simple && result.csset.size == 1) {
       result.isSimple = true;

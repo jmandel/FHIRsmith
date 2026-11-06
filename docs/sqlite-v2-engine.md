@@ -211,7 +211,16 @@ The provider implements the core interfaces of #334 (`tx/cs/cs-api.js`):
   statement each, into the request's working set. `locate()` and `designations()` then read nothing
   per code. A 3,000-code enumerated value set takes a handful of statements instead of about 9,000.
 
-Mixed value sets, value set imports and cross-version excludes use the usual path. Their sqlite-v2
+- **Another version in an exclude.** A compose that includes one version of a system and
+  excludes other versions of the same system ("US Edition minus International") is handed over too
+  (`scanValueSet` sets `crossVersion`), when each excluded version is also a sqlite-v2 file of that
+  system. The exclude is evaluated on its own file and its ids are translated by code
+  (`store.translateFrom`). Whole US minus whole International takes about 0.9 s; the usual path
+  hit the 20 s limit after walking about a fifth of the US edition, locating every code in the
+  International file. The expansion carries both `used-codesystem` versions and `versionsMatch`,
+  as the usual path's.
+
+Mixed value sets and value set imports use the usual path. Their sqlite-v2
 includes still go through the filter API, which is engine-backed. Other systems (FHIR CodeSystem
 resources, UCUM, BCP-47, …) stay on their own providers.
 
