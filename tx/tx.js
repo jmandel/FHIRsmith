@@ -189,7 +189,8 @@ class TXModule {
 
     this.log.info('Initializing TX module');
     this.log.info(`Limits: operationTimeLimit=${config.operationTimeLimit ?? 20}s, cacheTimeout=${config.cacheTimeout || 30}min, ` +
-      Object.entries(this.limits).map(([name, value]) => `${name}=${value === Infinity ? 'unlimited' : value}`).join(', '));
+      Object.entries(this.limits).map(([name, value]) => `${name}=${value === Infinity ? 'unlimited' : value}`).join(', ') +
+      `, sqliteV2.supplementLayerCacheMB=${require('./sqlite-v2/settings').settings.supplementLayerCacheMB}`);
 
     // Optional instance code, prefixed onto every cache-id this server issues so a
     // proxy in front of several instances can route by it (see nginx.md). Checked

@@ -12,12 +12,22 @@
 // the CodeSystem resource (_displayFromSupplements / _listSupplementDesignations), which is
 // already a hash lookup per code. The layer adds what upstream cannot do: supplement property
 // filters and text search over supplement designations.
+//
+// Built layers are kept in one small LRU per process (LayerCache below), bounded by
+// settings.supplementLayerCacheMB: a repeat request with the same supplement (server-known, or
+// the same tx-resource sent again) reuses the layer instead of rebuilding it. The key is base
+// store + url|version + a hash of the supplement's content, so a changed supplement never hits
+// an entry built from another. A cached layer is read-only (query_only) and shared by
+// concurrent requests; each request holds a reference, so an evicted layer is closed only when
+// the last request using it ends.
 
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 const Database = require('better-sqlite3');
 const { V2Store, KIND } = require('./store');
 const { serialize, rangeSet, RoaringBitmap32 } = require('../importers/sqlite-v2/sets');
+const { settings } = require('./settings');
 
 const SCHEMA = fs.readFileSync(path.join(__dirname, '..', 'importers', 'sqlite-v2', 'schema-v2.sql'), 'utf8')
   .split('-- @indexes')[0];
@@ -126,15 +136,103 @@ function buildLayer(base, json) {
   });
   tx();
   const store = new V2Store(':memory:', { db, unregistered: true });
+  // read-only from here on: a layer may be shared by concurrent requests (LayerCache)
+  db.pragma('query_only = ON');
   // the trigram index costs more than the rest of the layer: built on the first text search
+  // (synchronously, so no other request sees it half built)
   store.ensureFts = () => {
-    db.exec(`INSERT INTO search_display (rowid, term) SELECT concept_id, display FROM concept WHERE display IS NOT NULL;
-             INSERT INTO search_designation (rowid, term) SELECT designation_id, term FROM designation;`);
+    db.pragma('query_only = OFF');
+    try {
+      db.exec(`INSERT INTO search_display (rowid, term) SELECT concept_id, display FROM concept WHERE display IS NOT NULL;
+               INSERT INTO search_designation (rowid, term) SELECT designation_id, term FROM designation;`);
+    } finally {
+      db.pragma('query_only = ON');
+    }
     store.ensureFts = null;
   };
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-  return new Layer(store, { url: json.url, version: json.version, concepts: concepts.length - unknown, unknownCodes: unknown, buildMs: Math.round(ms * 10) / 10, properties: [...props.keys()] });
+  const bytes = db.pragma('page_count', { simple: true }) * db.pragma('page_size', { simple: true });
+  return new Layer(store, Object.freeze({ url: json.url, version: json.version, concepts: concepts.length - unknown, unknownCodes: unknown,
+    buildMs: Math.round(ms * 10) / 10, bytes, properties: Object.freeze([...props.keys()]) }));
 }
+
+/** sha-256 of a supplement's content; computed once per resource object (resources are not mutated) */
+const hashes = new WeakMap();
+function contentHash(json) {
+  let h = hashes.get(json);
+  if (!h) {
+    h = crypto.createHash('sha256').update(JSON.stringify(json)).digest('hex');
+    hashes.set(json, h);
+  }
+  return h;
+}
+
+/**
+ * The built layers of this process, least recently used first, bounded by
+ * settings.supplementLayerCacheMB (the layers' SQLite pages: about 120 bytes per concept with
+ * one designation). Each process of a cluster has its own.
+ */
+class LayerCache {
+  constructor() {
+    this.entries = new Map(); // key -> { key, layer, bytes, users, evicted }; Map order = LRU order
+    this.bytes = 0;
+    this.stats = { hits: 0, misses: 0, uncached: 0, evictions: 0 };
+  }
+
+  get maxBytes() { return settings.supplementLayerCacheMB * 1048576; }
+
+  /**
+   * A layer for `key`, built by `build` on a miss. Returns a handle; pass it to release() when
+   * the request ends. A layer bigger than the whole bound is not kept (handle.entry is null).
+   */
+  acquire(key, build) {
+    let e = this.entries.get(key);
+    if (e) {
+      this.stats.hits++;
+      this.entries.delete(key);
+      this.entries.set(key, e); // most recently used
+      e.users++;
+      return { layer: e.layer, entry: e };
+    }
+    this.stats.misses++;
+    const layer = build();
+    const bytes = layer.info.bytes;
+    if (bytes > this.maxBytes) {
+      this.stats.uncached++;
+      return { layer, entry: null };
+    }
+    e = { key, layer, bytes, users: 1, evicted: false };
+    this.entries.set(key, e);
+    this.bytes += bytes;
+    for (const [k, old] of this.entries) {
+      if (this.bytes <= this.maxBytes) break;
+      this._evict(k, old);
+    }
+    return { layer, entry: e };
+  }
+
+  release(handle) {
+    const e = handle.entry;
+    if (!e) { handle.layer.store.close(); return; }
+    e.users--;
+    if (e.evicted && e.users === 0) e.layer.store.close();
+  }
+
+  _evict(key, e) {
+    this.entries.delete(key);
+    this.bytes -= e.bytes;
+    this.stats.evictions++;
+    e.evicted = true;
+    if (e.users === 0) e.layer.store.close();
+  }
+
+  /** drop every unused entry (tests; and a lowered bound) */
+  clear() {
+    for (const [k, e] of this.entries) this._evict(k, e);
+  }
+}
+
+const layerCache = new LayerCache();
 
 /** the layers that apply to one request: built on first use (a filter or search that needs one) */
 class LayerSet {
@@ -162,8 +260,9 @@ class LayerSet {
           error.abandoned = true;
           throw error;
         }
-        e.layer = e.build();
-        this.built.push(e.layer);
+        const h = e.build();
+        e.layer = h.layer;
+        this.built.push(h);
       }
       const l = e.layer;
       const def = l.store.props.get(prop);
@@ -175,10 +274,10 @@ class LayerSet {
     return null;
   }
 
-  /** release the in-memory databases built for this request */
+  /** release the layers this request used (an uncached one is closed; a cached one is kept) */
   close() {
     this.closed = true;
-    for (const l of this.built) l.store.close();
+    for (const h of this.built) layerCache.release(h);
     this.built = [];
   }
 }
@@ -196,19 +295,23 @@ class SupplementLayers {
   }
 
   /**
-   * The layers for one request. A layer is built only when a filter needs it, and only for
-   * this request: nothing is kept (the design adds no caches; upstream's resource handling
-   * keeps the CodeSystem resources themselves).
+   * The layers for one request. A layer is built only when a filter needs it, and is then
+   * kept in the process's LayerCache for later requests with the same supplement content.
    */
   forSupplements(supplements) {
     const layers = [];
     for (const s of supplements || []) {
       const json = s.jsonObj || s;
       if (!(json.concept && json.concept.length)) continue;
-      layers.push({ json, build: () => buildLayer(this.base, json) });
+      layers.push({ json, build: () => layerCache.acquire(this.keyOf(json), () => buildLayer(this.base, json)) });
     }
     return new LayerSet(layers);
   }
+
+  /** cache key: the base store, the supplement's url|version, and a hash of its content */
+  keyOf(json) {
+    return this.base.uid + '|' + (json.url || '') + '|' + (json.version || '') + '|' + contentHash(json);
+  }
 }
 
-module.exports = { SupplementLayers, LayerSet, buildLayer, Layer };
+module.exports = { SupplementLayers, LayerSet, LayerCache, layerCache, buildLayer, Layer, contentHash };
