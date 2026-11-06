@@ -34,6 +34,43 @@ describe('ConceptUsageTracker', () => {
     expect(t.usages('http://b')).toBeNull();
     expect(t.usages('http://a').get('x').count).toBe(2);
   });
+
+  test('the packed codes count as a Map of codes would', () => {
+    // a code takes its UTF-8 bytes, so codes with characters outside Latin-1 and of every length
+    // up to the limit, in systems that each grow past several table sizes
+    const t = new ConceptUsageTracker(20000, 30);
+    const ref = new Map();
+    let codes = 0;
+    const refSee = (s, c) => {
+      let m = ref.get(s);
+      if (!(m && m.has(c))) {
+        if (codes >= 20000 || c.length > 30) return;
+        if (!m) ref.set(s, m = new Map());
+        m.set(c, 0);
+        codes++;
+      }
+      m.set(c, m.get(c) + 1);
+    };
+    const chars = ['a', 'B', '7', '-', '.', 'é', '中', '😀'];
+    let seed = 1;
+    const rnd = (n) => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return (seed >>> 8) % n; };
+    for (let i = 0; i < 100000; i++) {
+      const s = 'http://s' + rnd(8);
+      let c = '';
+      for (let k = rnd(rnd(36) + 1); k > 0; k--) c += chars[rnd(chars.length)];
+      t.seeConcept(s, c);
+      refSee(s, c);
+    }
+    expect(t.codes).toBe(codes);
+    expect(codes).toBe(20000);
+    for (const [s, m] of ref) {
+      const u = t.usages(s);
+      expect(new Map([...u].map(([c, x]) => [c, x.count]))).toEqual(m);
+      for (const [c, n] of m) expect(u.get(c)).toEqual({ count: n });
+      expect(u.get(s + '-not-a-code')).toBeUndefined();
+      expect(u.has(s + '-not-a-code')).toBe(false);
+    }
+  });
 });
 
 describe('$validate-code records only valid codes', () => {
