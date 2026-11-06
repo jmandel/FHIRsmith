@@ -12,6 +12,9 @@ const { requiredLiterals } = require('./regex-literals');
 const { Unsupported, Evaluator } = require('./evaluate');
 const { KIND } = require('../store');
 
+// an ECL wild: term: main's matcher (cs-snomed.js wildTermMatcher), linear with no regex
+const { wildTermMatcher } = require('../../cs/cs-snomed');
+
 class FilterError extends Error {
   constructor(message, extra = {}) {
     super(message);
@@ -743,8 +746,8 @@ const DIALECT_ALIASES = {
 function termMatcher(v) {
   if (typeof v === 'string') v = { kind: 'match', value: v };
   if (v.kind === 'wild') {
-    const re = new RegExp('^' + v.value.split('*').map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$', 'i');
-    return (t) => re.test(t);
+    // as main's ECL wild: (cs-snomed.js): no regex, so no backtracking; a run of '*'s means one
+    return wildTermMatcher(String(v.value));
   }
   const words = v.value.toLowerCase().split(/\s+/).filter(Boolean);
   const m = (t) => {

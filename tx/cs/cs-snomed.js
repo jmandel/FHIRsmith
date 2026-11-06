@@ -4944,6 +4944,7 @@ function getEditionCode(edition) {
 
 
 module.exports = {
+  wildTermMatcher,
   SnomedProvider,
   SnomedServicesFactory,
   SnomedExpressionContext,

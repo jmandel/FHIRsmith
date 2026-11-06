@@ -145,6 +145,7 @@ class LayerSet {
   constructor(entries) {
     this.entries = entries;
     this.built = [];
+    this.closed = false;
   }
 
   get size() { return this.entries.length; }
@@ -154,6 +155,13 @@ class LayerSet {
     for (const e of this.entries) {
       if (!definesProperty(e.json, prop)) continue;
       if (!e.layer) {
+        if (this.closed) {
+          // the request has ended (closeProviders ran: the client went, or the batch entry is
+          // done): a layer built now would never be closed
+          const error = new Error('supplement layer requested after the request ended');
+          error.abandoned = true;
+          throw error;
+        }
         e.layer = e.build();
         this.built.push(e.layer);
       }
@@ -169,6 +177,7 @@ class LayerSet {
 
   /** release the in-memory databases built for this request */
   close() {
+    this.closed = true;
     for (const l of this.built) l.store.close();
     this.built = [];
   }
