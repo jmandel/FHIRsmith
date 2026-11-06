@@ -23,7 +23,7 @@
 // are few of them, or by materialising the input when that is cheaper.
 
 const { RoaringBitmap32 } = require('roaring');
-const { KIND } = require('../store');
+const { KIND, count } = require('../store');
 const regexUtilities = require('../../../library/regex-utilities');
 const { ftsQuery, stripAnyAffixes } = require('./regex-literals');
 const { settings, TooCostly } = require('../settings');
@@ -199,8 +199,9 @@ class Evaluator {
         if (node.words.length) {
           // full-text pre-selection, then the exact test on the candidates
           const q = node.words.map((w) => '"' + w.replace(/"/g, '""') + '"').join(' AND ');
-          const rows = S.stmt('SELECT DISTINCT d.concept_id AS id FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?').all(q, S.lo, S.hi);
-          if (st) { st.statements++; st.rows += rows.length; }
+          const sq = S.stmt('SELECT DISTINCT d.concept_id AS id FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?');
+          const rows = sq.all(q, S.lo, S.hi);
+          if (st) count(st, S, sq, rows.length);
           return this._descFilter(node, new RoaringBitmap32(rows.map((r) => r.id)));
         }
         this.spend(S.conceptCount * 3, 'description scan');
@@ -389,9 +390,13 @@ class Evaluator {
       // full-text candidates, then the exact test
       const q = '"' + node.eq.replace(/"/g, '""') + '"';
       const ids = new Set();
-      for (const r of S.stmt('SELECT rowid AS id FROM search_display WHERE search_display MATCH ? AND rowid BETWEEN ? AND ?').all(q, S.lo, S.hi)) ids.add(r.id);
-      for (const r of S.stmt('SELECT d.concept_id AS id FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?').all(q, S.lo, S.hi)) ids.add(r.id);
-      if (this.stats) { this.stats.statements += 2; this.stats.rows += ids.size; }
+      const q1 = S.stmt('SELECT rowid AS id FROM search_display WHERE search_display MATCH ? AND rowid BETWEEN ? AND ?');
+      const q2 = S.stmt('SELECT d.concept_id AS id FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?');
+      const r1 = q1.all(q, S.lo, S.hi);
+      const r2 = q2.all(q, S.lo, S.hi);
+      for (const r of r1) ids.add(r.id);
+      for (const r of r2) ids.add(r.id);
+      if (this.stats) { count(this.stats, S, q1, r1.length); count(this.stats, S, q2, r2.length); }
       cand = new RoaringBitmap32([...ids]);
     }
     const out = new RoaringBitmap32();
@@ -435,21 +440,23 @@ class Evaluator {
       const st = S.stmt('SELECT concept_id, term, language, use_id, active FROM designation WHERE concept_id IN (SELECT value FROM json_each(?))').raw();
       for (let i = 0; i < ids.length; i += 20000) {
         const rows = st.all(JSON.stringify(ids.slice(i, i + 20000)));
-        if (this.stats) { this.stats.statements++; this.stats.rows += rows.length; }
+        if (this.stats) count(this.stats, S, st, rows.length);
         for (const [cid, term, language, use, active] of rows) take(cid, term, language, use, active);
       }
       return out;
     }
     let rows;
+    let q;
     if (node.lits && S.hasFts) {
-      rows = S.stmt('SELECT d.concept_id, d.term, d.language, d.use_id, d.active FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?')
-        .raw().all(ftsQuery(node.lits), S.lo, S.hi);
+      q = S.stmt('SELECT d.concept_id, d.term, d.language, d.use_id, d.active FROM search_designation s JOIN designation d ON d.designation_id = s.rowid WHERE search_designation MATCH ? AND d.concept_id BETWEEN ? AND ?');
+      rows = q.raw().all(ftsQuery(node.lits), S.lo, S.hi);
       this.spend(rows.length, 'description regex (trigram candidates)');
     } else {
       this.spend(S.conceptCount * 4, 'description regex scan');
-      rows = S.stmt("SELECT concept_id, term, language, use_id, active FROM designation WHERE active = 1 AND concept_id BETWEEN ? AND ? AND (lower(language) = ? OR lower(language) LIKE ? || '-%')").raw().all(S.lo, S.hi, lang, lang);
+      q = S.stmt("SELECT concept_id, term, language, use_id, active FROM designation WHERE active = 1 AND concept_id BETWEEN ? AND ? AND (lower(language) = ? OR lower(language) LIKE ? || '-%')");
+      rows = q.raw().all(S.lo, S.hi, lang, lang);
     }
-    if (this.stats) { this.stats.statements++; this.stats.rows += rows.length; }
+    if (this.stats) count(this.stats, S, q, rows.length);
     for (const [cid, term, language, use, active] of rows) if (!cand || cand.has(cid)) take(cid, term, language, use, active);
     return out;
   }
@@ -553,11 +560,12 @@ class Evaluator {
     }
     let n = 0;
     // raw rows: no object per row
-    for (const [id, v] of this.store.stmt(`SELECT concept_id, ${col} AS v FROM concept WHERE concept_id BETWEEN ? AND ?`).raw().iterate(this.store.lo, this.store.hi)) {
+    const q = this.store.stmt(`SELECT concept_id, ${col} AS v FROM concept WHERE concept_id BETWEEN ? AND ?`);
+    for (const [id, v] of q.raw().iterate(this.store.lo, this.store.hi)) {
       n++;
       if (v != null && re.test(v)) out.add(id);
     }
-    if (this.stats) { this.stats.statements++; this.stats.rows += n; }
+    if (this.stats) count(this.stats, this.store, q, n);
     return out;
   }
 
