@@ -1,0 +1,38 @@
+{
+  "id": "validate-loinc-classtype",
+  "title": "2345-7 in CLASSTYPE=1 laboratory set",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "$validate-code loinc.org|2345-7 against 2345-7 in CLASSTYPE=1 laboratory set",
+  "why": "Fast: one has() on the value set bitmap.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:v-lab",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASSTYPE", "op": "=", "value": "1"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"system": "http://loinc.org", "code": "2345-7", "display": "Glucose [Mass/volume] in Serum or Plasma"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

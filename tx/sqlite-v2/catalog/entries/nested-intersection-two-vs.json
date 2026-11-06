@@ -1,0 +1,73 @@
+{
+  "id": "nested-intersection-two-vs",
+  "title": "Intersection: kidney disease AND diabetic complication (one include, two valueSets)",
+  "category": "enumerated-nested",
+  "source": {"kind": "constructed"},
+  "exercises": "include.valueSet with two entries = intersection",
+  "why": "Fast: AND of the imported sets.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:nested-intersection-two-vs",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "urn:fhirsmith:catalog:helper:kidney-disease",
+              "urn:fhirsmith:catalog:helper:diabetic-complication"
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:kidney-disease",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "filter": [
+                {"property": "constraint", "op": "=", "value": "<< 90708001 |Kidney disease|"}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:diabetic-complication",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "filter": [
+                {"property": "constraint", "op": "=", "value": "<< 74627003 |Diabetic complication|"}
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

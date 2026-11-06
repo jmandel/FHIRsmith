@@ -1,0 +1,38 @@
+{
+  "id": "validate-sct-wrong-display",
+  "title": "T2DM with a wrong display",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "display mismatch issue",
+  "why": "Fast: one has() on the value set bitmap.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-isa-diabetes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"system": "http://snomed.info/sct", "code": "44054006", "display": "Diabetes type II wrong"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

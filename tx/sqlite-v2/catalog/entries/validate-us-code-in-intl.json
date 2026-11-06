@@ -1,0 +1,39 @@
+{
+  "id": "validate-us-code-in-intl",
+  "title": "US-only code against the Intl diabetes set",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "edition-specific code not in the requested edition",
+  "why": "Fast: one has() on the value set bitmap.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:v-us",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/900000000000207008/version/20250201",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "46635009"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"system": "http://snomed.info/sct", "code": "721111000124107"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

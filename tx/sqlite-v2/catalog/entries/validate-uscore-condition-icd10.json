@@ -1,0 +1,70 @@
+{
+  "id": "validate-uscore-condition-icd10",
+  "title": "ICD-10-CM E11.9 in US Core condition codes",
+  "category": "validate-lookup-subsumes",
+  "source": {
+    "kind": "us-core",
+    "package": "hl7.fhir.us.core-9.0.0",
+    "file": "ValueSet-us-core-condition-code.json",
+    "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-condition-code"
+  },
+  "exercises": "$validate-code against a real value set",
+  "why": "Fast: one has() after building the set.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-condition-code",
+      "version": "9.0.0",
+      "name": "USCoreConditionCodes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "160245001"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "243796009"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "272379006"}
+            ]
+          },
+          {"system": "http://hl7.org/fhir/sid/icd-10-cm"},
+          {"system": "http://hl7.org/fhir/sid/icd-9-cm"}
+        ]
+      }
+    },
+    "parameters": {"system": "http://hl7.org/fhir/sid/icd-10-cm", "code": "E11.9"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://hl7.org/fhir/sid/icd-10-cm",
+    "http://hl7.org/fhir/sid/icd-9-cm",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "http://hl7.org/fhir/sid/icd-10-cm",
+      "http://hl7.org/fhir/sid/icd-9-cm"
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "id": "validate-ips-problems",
+  "title": "MI in IPS problems",
+  "category": "validate-lookup-subsumes",
+  "source": {
+    "kind": "ips",
+    "package": "hl7.fhir.uv.ips-2.0.1",
+    "file": "ValueSet-problems-uv-ips.json",
+    "url": "http://hl7.org/fhir/uv/ips/ValueSet/problems-uv-ips"
+  },
+  "exercises": "$validate-code against a real value set",
+  "why": "Fast: one has() after building the set.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/uv/ips/ValueSet/problems-uv-ips",
+      "version": "2.0.1",
+      "name": "ProblemsUvIps",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "404684003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "243796009"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "descendent-of", "value": "272379006"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "160245001"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"system": "http://snomed.info/sct", "code": "22298006"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "validate-sct-inactive-activeonly",
+  "title": "Inactive code 15771004 with activeOnly",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "inactive code rejected when activeOnly",
+  "why": "Fast: one has() on the value set bitmap.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:v-inact",
+      "status": "active",
+      "compose": {
+        "inactive": true,
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "15771004"},
+              {"code": "982001"},
+              {"code": "21858001"},
+              {"code": "24927004"},
+              {"code": "73211009"},
+              {"code": "44054006"},
+              {"code": "15777000"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"system": "http://snomed.info/sct", "code": "15771004", "activeOnly": true}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "result", "kind": "reference behaviour", "reason": "with activeOnly=true an inactive code is not in the expansion, so membership should be false; tx.fhir.org returns result=true with an inactive-status warning."}
+  ]
+}

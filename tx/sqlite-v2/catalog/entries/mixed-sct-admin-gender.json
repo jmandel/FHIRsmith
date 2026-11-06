@@ -1,0 +1,46 @@
+{
+  "id": "mixed-sct-admin-gender",
+  "title": "SNOMED sex findings + FHIR administrative-gender",
+  "category": "mixed-providers",
+  "source": {"kind": "constructed"},
+  "exercises": "SNOMED enumerated + a FHIR core CodeSystem resource (whole system)",
+  "why": "Fast; main's CodeSystem-resource provider must give identical results either way.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:mixed-sct-admin-gender",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "248153007"},
+              {"code": "248152002"}
+            ]
+          },
+          {"system": "http://hl7.org/fhir/administrative-gender"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://hl7.org/fhir/administrative-gender",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "http://hl7.org/fhir/administrative-gender"
+    ]
+  }
+}

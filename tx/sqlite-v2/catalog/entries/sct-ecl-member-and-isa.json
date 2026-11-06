@@ -1,0 +1,41 @@
+{
+  "id": "sct-ecl-member-and-isa",
+  "title": "Lateralizable heart structures (^ refset AND << heart)",
+  "category": "refsets-implicit-ecl",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL conjunction of member-of and descendant-or-self",
+  "why": "Fast: AND of two stored sets.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-member-and-isa",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "^ 723264001 AND << 80891009 |Heart structure|"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

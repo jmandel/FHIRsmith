@@ -1,0 +1,62 @@
+{
+  "id": "mixed-sct-country-lang",
+  "title": "SNOMED nationality findings + ISO 3166 countries + BCP-47 languages",
+  "category": "mixed-providers",
+  "source": {"kind": "constructed"},
+  "exercises": "internal providers (country, lang) next to SNOMED",
+  "why": "Fast; BCP-47 is a grammar, so only enumerated codes.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:mixed-sct-country-lang",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "186034007"}
+            ]
+          },
+          {
+            "system": "urn:iso:std:iso:3166",
+            "concept": [
+              {"code": "US"},
+              {"code": "NL"},
+              {"code": "UZ"}
+            ]
+          },
+          {
+            "system": "urn:ietf:bcp:47",
+            "concept": [
+              {"code": "en-US"},
+              {"code": "nl-NL"},
+              {"code": "uz"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct",
+    "urn:ietf:bcp:47",
+    "urn:iso:std:iso:3166"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "urn:ietf:bcp:47",
+      "urn:iso:std:iso:3166"
+    ]
+  }
+}

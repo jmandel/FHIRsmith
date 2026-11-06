@@ -1,0 +1,36 @@
+{
+  "id": "oh-lookup-sct-default",
+  "title": "$lookup 22298006 with no property parameter (server default)",
+  "category": "output-heavy",
+  "source": {
+    "kind": "constructed"
+  },
+  "exercises": "$lookup default property set and all designations",
+  "why": "Fast: one concept, but every fact and designation is serialised.",
+  "stresses": "default properties + every designation",
+  "expect": "fast",
+  "request": {
+    "operation": "lookup",
+    "parameters": {
+      "system": "http://snomed.info/sct",
+      "code": "22298006"
+    }
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {
+      "aspect": "properties",
+      "kind": "reference behaviour",
+      "reason": "our $lookup adds sufficientlyDefined (a SNOMED CT on FHIR property, from definitionStatusId), which tx.fhir.org does not report; and it leaves out defining relationships whose rows are inactive (363698007 = 127944005, 78696007, 86762007 for 73211009), which tx.fhir.org reports (findings U2: inactive relationship rows are history, not properties)."
+    }
+  ]
+}

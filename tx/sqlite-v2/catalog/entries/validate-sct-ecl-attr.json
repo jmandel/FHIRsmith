@@ -1,0 +1,38 @@
+{
+  "id": "validate-sct-ecl-attr",
+  "title": "Myocardial infarction in finding-site-of-heart ECL set",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "membership in a refinement ECL value set",
+  "why": "Fast: membership in an ECL refinement; main must evaluate the whole ECL.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:v-ecl",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 404684003 : 363698007 = << 80891009 |Heart structure|"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"system": "http://snomed.info/sct", "code": "22298006"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "sct-ecl-attr-broad-morphology",
+  "title": "Findings with any abnormal morphology (broad attribute value)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL refinement whose value hierarchy has thousands of members",
+  "why": "Slow-ish: OR over thousands of prop sets (spike: 30 ms); a per-attribute range set would fix it.",
+  "expect": "slow",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-attr-broad-morphology",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 404684003 |Clinical finding| : 116676008 |Associated morphology| = << 49755003 |Morphologically abnormal structure|"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 50000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "sct-union-findings-procedures-deep",
+  "title": "Clinical findings OR procedures, deep offset 150000",
+  "category": "limits-paging",
+  "source": {"kind": "constructed"},
+  "exercises": "union of two large sets, offset in the second half",
+  "why": "Fast: OR of two stored sets; main must materialise 150k codes.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-union-findings-procedures-deep",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "71388002"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "deep-jump",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 150000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

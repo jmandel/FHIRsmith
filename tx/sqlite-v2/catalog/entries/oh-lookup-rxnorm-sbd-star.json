@@ -1,0 +1,27 @@
+{
+  "id": "oh-lookup-rxnorm-sbd-star",
+  "title": "$lookup RxNorm SBD 209387 (Tylenol 325 mg tablet) with property=*",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "$lookup property=* on a branded drug",
+  "why": "Fast: one concept, but every fact and designation is serialised.",
+  "stresses": "one SBD: TTY, STY, SAB, all relationships (tradename, consists_of, dose form, ...)",
+  "expect": "fast",
+  "request": {
+    "operation": "lookup",
+    "parameters": {"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "code": "209387", "property": "*"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference does not support", "reason": "main's RxNorm provider returns only inactive and notSelectable for $lookup property=*; TTY, STY, SAB and relationships are not exposed as properties."}
+  ]
+}

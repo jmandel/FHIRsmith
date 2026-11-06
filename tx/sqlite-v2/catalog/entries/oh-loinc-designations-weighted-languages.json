@@ -1,0 +1,47 @@
+{
+  "id": "oh-loinc-designations-weighted-languages",
+  "title": "Glucose terms with displayLanguage nl-NL,de-DE;q=0.8,fr-FR;q=0.5 and designations",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "displayLanguage as a weighted Accept-Language list, plus includeDesignations",
+  "why": "Fast: 845 rows; display chosen per code by language preference.",
+  "stresses": "845 rows x all designations; display picked from three languages with fallback",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-loinc-designations-weighted-languages",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "LP14635-4"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"includeDesignations": true, "displayLanguage": "nl-NL,de-DE;q=0.8,fr-FR;q=0.5"},
+    "recordDisplays": true
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "designations", "kind": "reference data gap", "reason": "tx.fhir.org serves 12 LOINC languages (no zh-CN, it-IT, el-GR, ru-RU, es-ES, et-EE, pl-PL, tr-TR, fr-BE, fr-CA) and adds the Uzbek lang-pack supplement unasked; our LOINC 2.83 import has all 20 release languages."}
+  ]
+}

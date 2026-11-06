@@ -1,0 +1,49 @@
+{
+  "id": "sct-enumerated-with-inactive",
+  "title": "Enumerated list mixing active and inactive codes (compose.inactive = true)",
+  "category": "exclusion-inactive",
+  "source": {"kind": "constructed"},
+  "exercises": "inactive codes kept when compose.inactive=true; inactive flag on contains",
+  "why": "Fast: direct id lookups; checks inactive marking and order.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-enumerated-with-inactive",
+      "status": "active",
+      "compose": {
+        "inactive": true,
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "15771004"},
+              {"code": "982001"},
+              {"code": "21858001"},
+              {"code": "24927004"},
+              {"code": "73211009"},
+              {"code": "44054006"},
+              {"code": "15777000"}
+            ]
+          }
+        ]
+      }
+    },
+    "recordDisplays": true
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": true,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

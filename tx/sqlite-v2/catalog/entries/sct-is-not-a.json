@@ -1,0 +1,52 @@
+{
+  "id": "sct-is-not-a",
+  "title": "Clinical findings is-not-a disease (filter op is-not-a)",
+  "category": "exclusion-inactive",
+  "source": {"kind": "constructed"},
+  "exercises": "is-not-a as a filter inside one include",
+  "why": "Fast on the engine (same AND-NOT); main may not support is-not-a on SNOMED.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-is-not-a",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"},
+              {"property": "concept", "op": "is-not-a", "value": "64572001"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "equivalentEntries": [
+    "sct-findings-minus-disease-exclude"
+  ],
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "main's SNOMED provider has no is-not-a filter (500); the compose.exclude form is sct-findings-minus-disease-exclude."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "main's SNOMED provider has no is-not-a filter (500); the compose.exclude form is sct-findings-minus-disease-exclude."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "main's SNOMED provider has no is-not-a filter (500); the compose.exclude form is sct-findings-minus-disease-exclude."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "main's SNOMED provider has no is-not-a filter (500); the compose.exclude form is sct-findings-minus-disease-exclude."}
+  ]
+}

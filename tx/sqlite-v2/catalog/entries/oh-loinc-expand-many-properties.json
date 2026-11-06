@@ -1,0 +1,63 @@
+{
+  "id": "oh-loinc-expand-many-properties",
+  "title": "Quantitative glucose terms with thirteen LOINC properties",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand property= the six axes, CLASS, CLASSTYPE, STATUS, ORDER_OBS, EXAMPLE_UCUM_UNITS, parent, answers-for",
+  "why": "Fast: 75 rows, each with ~13 part/literal facts.",
+  "stresses": "75 rows x ~13 properties (part codes for the six axes)",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-loinc-expand-many-properties",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "SCALE_TYP", "op": "=", "value": "LP7753-9"},
+              {"property": "COMPONENT", "op": "=", "value": "LP14635-4"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "property": [
+        "COMPONENT",
+        "PROPERTY",
+        "TIME_ASPCT",
+        "SYSTEM",
+        "SCALE_TYP",
+        "METHOD_TYP",
+        "CLASS",
+        "CLASSTYPE",
+        "STATUS",
+        "ORDER_OBS",
+        "EXAMPLE_UCUM_UNITS",
+        "parent",
+        "answers-for"
+      ]
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

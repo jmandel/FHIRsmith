@@ -1,0 +1,108 @@
+{
+  "id": "nested-three-levels",
+  "title": "Three-level import chain across SNOMED and LOINC",
+  "category": "enumerated-nested",
+  "source": {"kind": "constructed"},
+  "exercises": "VS imports VS imports VS (tx-resource), mixed systems at each level",
+  "why": "Fast: recursive import resolution; checks that cached import sets are reused.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:nested-three-levels",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "urn:fhirsmith:catalog:helper:level2"
+            ]
+          },
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "concept": [
+              {"code": "860975"}
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:diabetes",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "filter": [
+                {"property": "concept", "op": "is-a", "value": "73211009"}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:level1",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "valueSet": [
+                "urn:fhirsmith:catalog:helper:diabetes"
+              ]
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "concept": [
+                {"code": "38341003"}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:level2",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "valueSet": [
+                "urn:fhirsmith:catalog:helper:level1"
+              ]
+            },
+            {
+              "system": "http://loinc.org",
+              "concept": [
+                {"code": "4548-4"},
+                {"code": "2345-7"}
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org",
+    "http://snomed.info/sct",
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org",
+      "http://snomed.info/sct",
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  }
+}

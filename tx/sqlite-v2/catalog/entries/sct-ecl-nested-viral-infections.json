@@ -1,0 +1,42 @@
+{
+  "id": "sct-ecl-nested-viral-infections",
+  "title": "Infectious diseases caused by viruses other than influenza A (nested ECL)",
+  "category": "refsets-implicit-ecl",
+  "source": {"kind": "constructed"},
+  "exercises": "refinement whose value is a nested MINUS expression",
+  "why": "Fast: OR of prop sets over a set difference.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-nested-viral-infections",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "<< 40733004 |Infectious disease| : 246075003 |Causative agent| = (<< 49872002 |Virus| MINUS << 407479009 |Influenza A virus|)"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

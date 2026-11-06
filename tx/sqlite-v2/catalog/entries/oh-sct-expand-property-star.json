@@ -1,0 +1,46 @@
+{
+  "id": "oh-sct-expand-property-star",
+  "title": "Myocardial infarction subtree with property=* (every property)",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand property=* (all properties the code system defines for each concept)",
+  "why": "Mixed: every relationship and literal of 124 concepts is read and serialised.",
+  "stresses": "124 rows x all properties (parents, children, all attributes in role groups, module, status)",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-sct-expand-property-star",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "22298006"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"property": "*"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

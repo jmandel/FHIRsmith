@@ -1,0 +1,43 @@
+{
+  "id": "sct-ecl-minus",
+  "title": "Clinical findings MINUS diseases (ECL MINUS)",
+  "category": "refsets-implicit-ecl",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL MINUS over two big sets; deep paging",
+  "why": "Fast: AND-NOT, same answer as the compose.exclude form.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-minus",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "<< 404684003 |Clinical finding| MINUS << 64572001 |Disease|"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 30000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

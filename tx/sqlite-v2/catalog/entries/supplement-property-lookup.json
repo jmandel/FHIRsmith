@@ -1,0 +1,79 @@
+{
+  "id": "supplement-property-lookup",
+  "title": "$lookup 2345-7 showing the supplement-added property",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "property from a request supplement in $lookup",
+  "why": "Fast.",
+  "expect": "fast",
+  "request": {
+    "operation": "lookup",
+    "txResources": [
+      {
+        "resourceType": "CodeSystem",
+        "url": "urn:fhirsmith:catalog:supplement:loinc-panel-group",
+        "version": "1",
+        "status": "active",
+        "content": "supplement",
+        "supplements": "http://loinc.org",
+        "property": [
+          {"code": "catalog-group", "uri": "urn:fhirsmith:catalog:property:catalog-group", "type": "code"}
+        ],
+        "concept": [
+          {
+            "code": "2345-7",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "4548-4",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "2160-0",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "2339-0",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "718-7",
+            "property": [
+              {"code": "catalog-group", "valueCode": "anaemia"}
+            ]
+          },
+          {
+            "code": "99999-9",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          }
+        ]
+      }
+    ],
+    "parameters": {
+      "system": "http://loinc.org",
+      "code": "2345-7",
+      "useSupplement": "urn:fhirsmith:catalog:supplement:loinc-panel-group|1",
+      "property": "catalog-group"
+    }
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

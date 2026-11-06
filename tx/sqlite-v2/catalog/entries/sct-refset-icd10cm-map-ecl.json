@@ -1,0 +1,49 @@
+{
+  "id": "sct-refset-icd10cm-map-ecl",
+  "title": "US ICD-10-CM map refset members as ECL ^ on the US Edition",
+  "category": "refsets-implicit-ecl",
+  "source": {"kind": "constructed"},
+  "exercises": "member-of a complex map refset via ECL instead of ?fhir_vs=refset/",
+  "why": "Main-expressible form of sct-implicit-refset-icd10cm-map, so the engine answer can be checked against a real tx.fhir.org expansion.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-refset-icd10cm-map-ecl",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "^ 6011000124106"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "variantOf": "sct-implicit-refset-icd10cm-map",
+  "expectedDifferences": [
+    {"aspect": "codes", "kind": "reference data gap", "reason": "tx.fhir.org returns 0 members for ^ 6011000124106 on the US Edition (its SNOMED cache does not expose this complex-map refset as a member set); our US import keeps all refsets, 138,383 members."},
+    {"aspect": "total", "kind": "reference data gap", "reason": "tx.fhir.org returns 0 members for ^ 6011000124106 on the US Edition (its SNOMED cache does not expose this complex-map refset as a member set); our US import keeps all refsets, 138,383 members."},
+    {"aspect": "result", "kind": "reference data gap", "reason": "tx.fhir.org returns 0 members for ^ 6011000124106 on the US Edition (its SNOMED cache does not expose this complex-map refset as a member set); our US import keeps all refsets, 138,383 members."}
+  ]
+}

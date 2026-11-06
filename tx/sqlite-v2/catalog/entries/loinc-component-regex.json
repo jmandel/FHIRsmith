@@ -1,0 +1,62 @@
+{
+  "id": "loinc-component-regex",
+  "title": "LOINC terms whose COMPONENT matches ^Glucose (property regex)",
+  "category": "text",
+  "source": {
+    "kind": "constructed"
+  },
+  "exercises": "regex on a concept-valued property (matches against part codes or names?)",
+  "why": "Slow-ish: scans the COMPONENT prop keys; records what the regex is applied to.",
+  "expect": "slow",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-component-regex",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {
+                "property": "COMPONENT",
+                "op": "regex",
+                "value": "Glucose.*"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {
+    "count": 50
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {
+      "aspect": "total",
+      "kind": "deliberate",
+      "reason": "decision D2 (revised 2026-11-02): every regex filter matches the whole value, as the tx-ecosystem regex tests require; main's LOINC provider finds the pattern anywhere, so 'Glucose.*' on COMPONENT also matches part names that merely contain it (834 vs 823)."
+    },
+    {
+      "aspect": "codes",
+      "kind": "deliberate",
+      "reason": "decision D2 (revised 2026-11-02): every regex filter matches the whole value, as the tx-ecosystem regex tests require; main's LOINC provider finds the pattern anywhere, so 'Glucose.*' on COMPONENT also matches part names that merely contain it (834 vs 823)."
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "loinc-scale-quantitative",
+  "title": "All quantitative LOINC terms (SCALE_TYP = Qn)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "very common property value (44k), deep paging",
+  "why": "Fast: one stored prop set, deep offsets O(1).",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-scale-quantitative",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "SCALE_TYP", "op": "=", "value": "LP7753-9"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "deep-jump",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 30000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

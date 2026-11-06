@@ -1,0 +1,42 @@
+{
+  "id": "sct-implicit-ecl-inline",
+  "title": "Same ECL as an inline compose filter (constraint =)",
+  "category": "refsets-implicit-ecl",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL given in compose instead of ?fhir_vs=ecl/",
+  "why": "Main-expressible form of sct-implicit-ecl, so the engine answer can be checked against a real tx.fhir.org expansion.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-implicit-ecl-inline",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "<< 73211009 MINUS << 44054006"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "variantOf": "sct-implicit-ecl"
+}

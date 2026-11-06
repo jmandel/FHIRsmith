@@ -1,0 +1,42 @@
+{
+  "id": "sct-system-version-param",
+  "title": "Diabetes subtree with system-version=US (no version in compose)",
+  "category": "multi-system-versions",
+  "source": {"kind": "constructed"},
+  "exercises": "system-version parameter selecting the edition",
+  "why": "Fast; checks used-codesystem reports US.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-system-version-param",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "46635009"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"system-version": "http://snomed.info/sct|http://snomed.info/sct/731000124108/version/20250901"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

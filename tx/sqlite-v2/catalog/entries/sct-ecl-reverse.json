@@ -1,0 +1,42 @@
+{
+  "id": "sct-ecl-reverse",
+  "title": "Substances that are precise active ingredients of some product (reverse attribute)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL reverse flag R",
+  "why": "Slow-ish: same forward-link walk as dotted (spike 29 ms).",
+  "expect": "slow",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-reverse",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 105590001 |Substance| : R 762949000 |Has precise active ingredient| = < 763158003 |Medicinal product|"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

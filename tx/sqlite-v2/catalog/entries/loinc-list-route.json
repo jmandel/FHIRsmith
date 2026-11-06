@@ -1,0 +1,41 @@
+{
+  "id": "loinc-list-route",
+  "title": "Members of LOINC answer list LL696-6 (LIST filter)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "LIST = answer list code",
+  "why": "Fast: stored refset kind for answer lists.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-list-route",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "LIST", "op": "=", "value": "LL696-6"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

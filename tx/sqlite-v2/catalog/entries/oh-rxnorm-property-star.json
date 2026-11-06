@@ -1,0 +1,47 @@
+{
+  "id": "oh-rxnorm-property-star",
+  "title": "Acetaminophen brands with property=*",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand property=* on RxNorm brand names",
+  "why": "Mixed: brand names have many tradename_of/ingredient_of links.",
+  "stresses": "~366 rows x all properties",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-rxnorm-property-star",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "TTY", "op": "=", "value": "BN"},
+              {"property": "tradename_of", "op": "=", "value": "CUI:161"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"property": "*"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

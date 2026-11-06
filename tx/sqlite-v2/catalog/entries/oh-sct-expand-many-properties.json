@@ -1,0 +1,59 @@
+{
+  "id": "oh-sct-expand-many-properties",
+  "title": "Diabetes subtree with ten properties per code (incl. normalForm)",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand property= parent, child, inactive, sufficientlyDefined, moduleId, effectiveTime, three attributes, normalForm",
+  "why": "Mixed: membership is one set, but each of 124 rows needs parent/child links, attribute rows and a computed normal form.",
+  "stresses": "124 rows x ~10 properties; normalForm is computed per concept; children are an inverse prop set",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-sct-expand-many-properties",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "property": [
+        "parent",
+        "child",
+        "inactive",
+        "sufficientlyDefined",
+        "moduleId",
+        "effectiveTime",
+        "363698007",
+        "116676008",
+        "246075003",
+        "normalForm"
+      ]
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

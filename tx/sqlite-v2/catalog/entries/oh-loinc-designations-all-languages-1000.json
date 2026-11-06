@@ -1,0 +1,46 @@
+{
+  "id": "oh-loinc-designations-all-languages-1000",
+  "title": "Laboratory LOINC, 1,000 per page, designations in every language",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDesignations=true, no displayLanguage, count=1000",
+  "why": "Slow-ish: up to ~20 language variants x several name kinds per code.",
+  "stresses": "1,000 rows x ~15-40 designations; the largest response in the catalog",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-loinc-designations-all-languages-1000",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASSTYPE", "op": "=", "value": "1"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"includeDesignations": true}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "designations", "kind": "reference data gap", "reason": "tx.fhir.org serves 12 LOINC languages (no zh-CN, it-IT, el-GR, ru-RU, es-ES, et-EE, pl-PL, tr-TR, fr-BE, fr-CA) and adds the Uzbek lang-pack supplement unasked; our LOINC 2.83 import has all 20 release languages."}
+  ]
+}

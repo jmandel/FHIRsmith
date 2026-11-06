@@ -1,0 +1,51 @@
+{
+  "id": "uz-supplement-usesupplement-display",
+  "title": "LOINC list in Uzbek via server-known supplement (useSupplement)",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "server-known lang-pack supplement selected by useSupplement, displayLanguage=uz",
+  "why": "Fast: supplement designations as a layer over page rows.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-lang-list",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "concept": [
+              {"code": "2345-7"},
+              {"code": "2339-0"},
+              {"code": "718-7"},
+              {"code": "4548-4"},
+              {"code": "2160-0"},
+              {"code": "2093-3"},
+              {"code": "6690-2"},
+              {"code": "789-8"},
+              {"code": "777-3"},
+              {"code": "8480-6"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"useSupplement": "https://terminology.dhp.uz/fhir/CodeSystem/loinc-supplement-uz", "displayLanguage": "uz"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": true,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

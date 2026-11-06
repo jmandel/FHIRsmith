@@ -1,0 +1,50 @@
+{
+  "id": "mixed-cdcrec-sct",
+  "title": "CDC race codes + SNOMED ethnic group subtree",
+  "category": "mixed-providers",
+  "source": {"kind": "constructed"},
+  "exercises": "CDCREC CodeSystem resource (hierarchical) + SNOMED is-a",
+  "why": "Fast.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:mixed-cdcrec-sct",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "urn:oid:2.16.840.1.113883.6.238",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "1000-9"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "372148003"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct",
+    "urn:oid:2.16.840.1.113883.6.238"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "urn:oid:2.16.840.1.113883.6.238"
+    ]
+  }
+}

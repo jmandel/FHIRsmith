@@ -1,0 +1,41 @@
+{
+  "id": "sct-large-no-count",
+  "title": "Clinical findings without count (default paging)",
+  "category": "limits-paging",
+  "source": {"kind": "constructed"},
+  "exercises": "no count parameter: server default limit / 1,000-code cap / too-costly",
+  "why": "Fast to compute; records how main limits an unpaged large expansion.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-large-no-count",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": null},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

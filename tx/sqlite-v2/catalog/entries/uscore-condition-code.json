@@ -1,0 +1,76 @@
+{
+  "id": "uscore-condition-code",
+  "title": "US Core Condition Codes (US Core)",
+  "category": "mixed-providers",
+  "source": {
+    "kind": "us-core",
+    "package": "hl7.fhir.us.core-9.0.0",
+    "file": "ValueSet-us-core-condition-code.json",
+    "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-condition-code",
+    "title": "US Core Condition Codes"
+  },
+  "exercises": "SNOMED is-a over findings/situations/events + whole ICD-10-CM + whole ICD-9-CM",
+  "why": "Mixed: large SNOMED union plus whole-system includes on main's providers; tests too-costly.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-condition-code",
+      "version": "9.0.0",
+      "name": "USCoreConditionCodes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "concept": [
+              {"code": "160245001"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "243796009"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "272379006"}
+            ]
+          },
+          {"system": "http://hl7.org/fhir/sid/icd-10-cm"},
+          {"system": "http://hl7.org/fhir/sid/icd-9-cm"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 100000},
+  "orderDefined": false,
+  "systems": [
+    "http://hl7.org/fhir/sid/icd-10-cm",
+    "http://hl7.org/fhir/sid/icd-9-cm",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "http://hl7.org/fhir/sid/icd-10-cm",
+      "http://hl7.org/fhir/sid/icd-9-cm"
+    ]
+  }
+}

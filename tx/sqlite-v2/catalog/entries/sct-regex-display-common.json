@@ -1,0 +1,49 @@
+{
+  "id": "sct-regex-display-common",
+  "title": "SNOMED displays containing \"e\" (regex matching 90%)",
+  "category": "text",
+  "source": {"kind": "constructed"},
+  "exercises": "regex that matches almost everything; deep paging",
+  "why": "Slow: full scan, and the result is too big to cache cheaply.",
+  "expect": "slow",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-regex-display-common",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "display", "op": "regex", "value": ".*e.*"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 300000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "main's SNOMED provider has no display filter (500); no main-expressible equivalent."}
+  ]
+}

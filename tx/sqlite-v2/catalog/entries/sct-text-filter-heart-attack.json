@@ -1,0 +1,42 @@
+{
+  "id": "sct-text-filter-heart-attack",
+  "title": "Clinical findings + $expand filter \"heart attack\"",
+  "category": "text",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand filter parameter (text search) over a large set",
+  "why": "Mixed: FTS on designations then AND; match semantics differ between servers.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-text-filter-heart-attack",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"filter": "heart attack"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

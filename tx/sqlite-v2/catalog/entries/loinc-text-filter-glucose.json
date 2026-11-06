@@ -1,0 +1,38 @@
+{
+  "id": "loinc-text-filter-glucose",
+  "title": "All LOINC + filter \"glucose serum\"",
+  "category": "text",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand filter over a whole code system",
+  "why": "Mixed: trigram FTS; ranking/order is server-specific.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-text-filter-glucose",
+      "status": "active",
+      "compose": {
+        "include": [
+          {"system": "http://loinc.org"}
+        ]
+      }
+    },
+    "parameters": {"filter": "glucose serum"}
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total"
+  ],
+  "paging": {"count": 50},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

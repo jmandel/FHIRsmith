@@ -1,0 +1,47 @@
+{
+  "id": "oh-loinc-property-star-1000",
+  "title": "Laboratory LOINC terms, 1,000 per page, property=*",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand CLASSTYPE=1 with property=* and count=1000, first page and a deep page",
+  "why": "Slow-ish: 1,000 rows x every property; row building dominates, not membership.",
+  "stresses": "1,000 rows x ~15-25 properties; response in the megabytes",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-loinc-property-star-1000",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASSTYPE", "op": "=", "value": "1"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"property": "*"}
+  },
+  "patterns": [
+    "first-page",
+    "deep-jump"
+  ],
+  "paging": {"count": 1000, "deepOffset": 2000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

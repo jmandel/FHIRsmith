@@ -1,0 +1,77 @@
+{
+  "id": "nested-union-tx-resource",
+  "title": "Union of two helper value sets (include.valueSet, tx-resource)",
+  "category": "enumerated-nested",
+  "source": {"kind": "constructed"},
+  "exercises": "two includes each importing a tx-resource ValueSet",
+  "why": "Fast: OR of the two imported sets.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:nested-union-tx-resource",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "urn:fhirsmith:catalog:helper:diabetes"
+            ]
+          },
+          {
+            "valueSet": [
+              "urn:fhirsmith:catalog:helper:hypertension"
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:diabetes",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "filter": [
+                {"property": "concept", "op": "is-a", "value": "73211009"}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "resourceType": "ValueSet",
+        "url": "urn:fhirsmith:catalog:helper:hypertension",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "filter": [
+                {"property": "concept", "op": "is-a", "value": "38341003"}
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

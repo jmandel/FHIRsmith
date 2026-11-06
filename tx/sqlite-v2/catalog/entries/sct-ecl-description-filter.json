@@ -1,0 +1,47 @@
+{
+  "id": "sct-ecl-description-filter",
+  "title": "Clinical findings with term \"heart attack\" (ECL 2 description filter)",
+  "category": "refsets-implicit-ecl",
+  "source": {"kind": "constructed"},
+  "exercises": "ECL {{ term = \"...\" }} description filter",
+  "why": "Mixed: FTS on designations then AND with descendants; main may not support description filters.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-ecl-description-filter",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "constraint", "op": "=", "value": "< 404684003 |Clinical finding| {{ term = \"heart attack\" }}"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "main's ECL parser has no description filters (400); the $expand filter parameter (sct-text-filter-heart-attack) is the nearest, but not the same, form."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "main's ECL parser has no description filters (400); the $expand filter parameter (sct-text-filter-heart-attack) is the nearest, but not the same, form."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "main's ECL parser has no description filters (400); the $expand filter parameter (sct-text-filter-heart-attack) is the nearest, but not the same, form."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "main's ECL parser has no description filters (400); the $expand filter parameter (sct-text-filter-heart-attack) is the nearest, but not the same, form."}
+  ]
+}

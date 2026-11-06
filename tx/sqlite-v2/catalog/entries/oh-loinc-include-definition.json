@@ -1,0 +1,43 @@
+{
+  "id": "oh-loinc-include-definition",
+  "title": "Glucose terms with includeDefinition (LOINC DefinitionDescription)",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDefinition=true on LOINC terms",
+  "why": "Fast; records whether a LOINC definition is served (our 2.83 import stores none).",
+  "stresses": "845 rows x 0-1 definition",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-loinc-include-definition",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "LP14635-4"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"includeDefinition": true}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

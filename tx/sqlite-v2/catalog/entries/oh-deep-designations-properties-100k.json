@@ -1,0 +1,53 @@
+{
+  "id": "oh-deep-designations-properties-100k",
+  "title": "Same at offset 100,000 (beyond tx.fhir.org's limit)",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDesignations + properties at offset 100,000",
+  "why": "Fast on the engine (O(1) offset, 500 rows); tx.fhir.org refuses with 422.",
+  "stresses": "500 rows x ~4 designations x 3 properties at offset 100,000",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-deep-designations-properties-100k",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "includeDesignations": true,
+      "property": [
+        "parent",
+        "inactive",
+        "moduleId"
+      ]
+    }
+  },
+  "patterns": [
+    "deep-jump"
+  ],
+  "paging": {"count": 500, "deepOffset": 100000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

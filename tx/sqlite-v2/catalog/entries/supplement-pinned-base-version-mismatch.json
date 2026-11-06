@@ -1,0 +1,101 @@
+{
+  "id": "supplement-pinned-base-version-mismatch",
+  "title": "Required supplement that pins LOINC 2.80 (server has 2.83)",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "supplement whose supplements= names a base version the server lacks; required via useSupplement",
+  "why": "Fast; must not apply, and must error because it is required.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:supplement-pinned-base-version-mismatch",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "concept": [
+              {"code": "2345-7"},
+              {"code": "4548-4"},
+              {"code": "718-7"}
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "CodeSystem",
+        "url": "urn:fhirsmith:catalog:supplement:loinc-panel-group-280",
+        "version": "1",
+        "status": "active",
+        "content": "supplement",
+        "supplements": "http://loinc.org|2.80",
+        "property": [
+          {"code": "catalog-group", "uri": "urn:fhirsmith:catalog:property:catalog-group", "type": "code"}
+        ],
+        "concept": [
+          {
+            "code": "2345-7",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "4548-4",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "2160-0",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "2339-0",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          },
+          {
+            "code": "718-7",
+            "property": [
+              {"code": "catalog-group", "valueCode": "anaemia"}
+            ]
+          },
+          {
+            "code": "99999-9",
+            "property": [
+              {"code": "catalog-group", "valueCode": "renal-diabetes"}
+            ]
+          }
+        ]
+      }
+    ],
+    "parameters": {"useSupplement": "urn:fhirsmith:catalog:supplement:loinc-panel-group-280|1", "property": "catalog-group"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference behaviour", "reason": "the supplement pins http://loinc.org|2.80 and the server has 2.83; supplement applicability is yes/no, so a required supplement that does not apply should give an error, but tx.fhir.org applies it and reports it as used."},
+    {"aspect": "codes", "kind": "reference behaviour", "reason": "the supplement pins http://loinc.org|2.80 and the server has 2.83; supplement applicability is yes/no, so a required supplement that does not apply should give an error, but tx.fhir.org applies it and reports it as used."},
+    {"aspect": "total", "kind": "reference behaviour", "reason": "the supplement pins http://loinc.org|2.80 and the server has 2.83; supplement applicability is yes/no, so a required supplement that does not apply should give an error, but tx.fhir.org applies it and reports it as used."},
+    {"aspect": "displays", "kind": "reference behaviour", "reason": "the supplement pins http://loinc.org|2.80 and the server has 2.83; supplement applicability is yes/no, so a required supplement that does not apply should give an error, but tx.fhir.org applies it and reports it as used."}
+  ]
+}

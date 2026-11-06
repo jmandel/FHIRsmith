@@ -1,0 +1,73 @@
+{
+  "id": "oh-rxnorm-expand-properties",
+  "title": "Fifteen metformin SCDs with ten RxNorm properties",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "$expand property= TTY, STY, SAB, and seven relationship properties",
+  "why": "Fast: few rows, but relationship properties fan out (consists_of, ingredient_of).",
+  "stresses": "15 rows x ~10 properties, several multi-valued",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-rxnorm-expand-properties",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "concept": [
+              {"code": "428759"},
+              {"code": "860975"},
+              {"code": "431724"},
+              {"code": "861731"},
+              {"code": "861736"},
+              {"code": "861740"},
+              {"code": "861743"},
+              {"code": "861748"},
+              {"code": "861753"},
+              {"code": "246522"},
+              {"code": "432366"},
+              {"code": "432780"},
+              {"code": "250919"},
+              {"code": "429841"},
+              {"code": "541775"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "property": [
+        "TTY",
+        "STY",
+        "SAB",
+        "has_ingredient",
+        "has_dose_form",
+        "has_tradename",
+        "tradename_of",
+        "ingredient_of",
+        "consists_of",
+        "isa"
+      ]
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

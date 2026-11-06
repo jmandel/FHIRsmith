@@ -1,0 +1,152 @@
+{
+  "id": "vsac-cardiomyopathy-grouping",
+  "title": "Cardiomyopathy Hypertrophic Condition (VSAC)",
+  "category": "mixed-providers",
+  "source": {
+    "kind": "vsac",
+    "package": "us.nlm.vsac-0.24.0",
+    "file": "ValueSet-2.16.840.1.113762.1.4.1235.100.json",
+    "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.100",
+    "title": "Cardiomyopathy Hypertrophic Condition",
+    "packageExpansionTotal": 15
+  },
+  "exercises": "grouping VS importing SNOMED, LOINC, ICD-10-CM (and ICD-9-CM) children via tx-resource",
+  "why": "Fast on the SQLite children; ICD-9-CM child is left in to record the missing-system behaviour.",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.100",
+      "version": "20250323",
+      "name": "CardiomyopathyHypertrophicCondition",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "valueSet": [
+              "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.98"
+            ]
+          },
+          {
+            "valueSet": [
+              "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.99"
+            ]
+          },
+          {
+            "valueSet": [
+              "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.97"
+            ]
+          },
+          {
+            "valueSet": [
+              "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.96"
+            ]
+          }
+        ]
+      }
+    },
+    "txResources": [
+      {
+        "resourceType": "ValueSet",
+        "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.98",
+        "version": "20250323",
+        "name": "CardiomyopathyHypertrophicSNOMED",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "concept": [
+                {"code": "195020003", "display": "Hypertrophic cardiomyopathy without obstruction (disorder)"},
+                {"code": "233873004", "display": "Hypertrophic cardiomyopathy (disorder)"},
+                {"code": "45227007", "display": "Hypertrophic obstructive cardiomyopathy (disorder)"},
+                {"code": "472324001", "display": "Fetal hypertrophic cardiomyopathy (disorder)"},
+                {"code": "63183009", "display": "Primary idiopathic hypertrophic cardiomyopathy (disorder)"},
+                {"code": "700065003", "display": "Primary hypertrophic cardiomyopathy (disorder)"}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "resourceType": "ValueSet",
+        "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.99",
+        "version": "20250323",
+        "name": "CardiomyopathyHypertrophicLOINC",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://loinc.org",
+              "concept": [
+                {"code": "60492-6", "display": "Hypertrophic cardiomyopathy gene targeted mutation analysis in Blood or Tissue by Molecular genetics method"},
+                {"code": "66625-5", "display": "Cardiomyopathy [Reported]"}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "resourceType": "ValueSet",
+        "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.97",
+        "version": "20250208",
+        "name": "CardiomyopathyHypertrophicICD10",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "concept": [
+                {"code": "I42.1", "display": "Obstructive hypertrophic cardiomyopathy"},
+                {"code": "I42.2", "display": "Other hypertrophic cardiomyopathy"},
+                {"code": "O90.3", "display": "Peripartum cardiomyopathy"}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "resourceType": "ValueSet",
+        "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1235.96",
+        "version": "20250208",
+        "name": "CardiomyopathyHypertrophicICD9",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-9-cm",
+              "concept": [
+                {"code": "425.0", "display": "Endomyocardial fibrosis"},
+                {"code": "425.1", "display": "Hypertrophic cardiomyopathy"},
+                {"code": "425.11", "display": "Hypertrophic obstructive cardiomyopathy"},
+                {"code": "425.18", "display": "Other hypertrophic cardiomyopathy"}
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://hl7.org/fhir/sid/icd-10-cm",
+    "http://hl7.org/fhir/sid/icd-9-cm",
+    "http://loinc.org",
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org",
+      "http://snomed.info/sct"
+    ],
+    "main": [
+      "http://hl7.org/fhir/sid/icd-10-cm",
+      "http://hl7.org/fhir/sid/icd-9-cm"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "loinc-answers-for-smoking",
+  "title": "Answers for LOINC 72166-2 Tobacco smoking status (answers-for)",
+  "category": "properties-attributes",
+  "source": {"kind": "constructed"},
+  "exercises": "answers-for: term -> answer list -> answers",
+  "why": "Fast: refset(L) for the term's list.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-answers-for-smoking",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "answers-for", "op": "=", "value": "72166-2"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

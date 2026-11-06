@@ -1,0 +1,33 @@
+{
+  "id": "validate-implicit-refset",
+  "title": "Code in the US ICD-10-CM map refset implicit VS",
+  "category": "validate-lookup-subsumes",
+  "source": {"kind": "constructed"},
+  "exercises": "$validate-code sct|44054006 against Code in the US ICD-10-CM map refset implicit VS",
+  "why": "Fast: one has() on the value set bitmap.",
+  "expect": "fast",
+  "request": {
+    "operation": "validate-code",
+    "valueSetUrl": "http://snomed.info/sct/731000124108?fhir_vs=refset/6011000124106",
+    "parameters": {"system": "http://snomed.info/sct", "code": "44054006", "version": "http://snomed.info/sct/731000124108/version/20250901"}
+  },
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "equivalentEntries": [
+    "validate-refset-icd10cm-map-ecl"
+  ],
+  "expectedDifferences": [
+    {"aspect": "status", "kind": "reference does not support", "reason": "tx.fhir.org does not resolve the implicit refset value set (422); see the ECL ^ variant."},
+    {"aspect": "codes", "kind": "reference does not support", "reason": "tx.fhir.org does not resolve the implicit refset value set (422); see the ECL ^ variant."},
+    {"aspect": "total", "kind": "reference does not support", "reason": "tx.fhir.org does not resolve the implicit refset value set (422); see the ECL ^ variant."},
+    {"aspect": "result", "kind": "reference does not support", "reason": "tx.fhir.org does not resolve the implicit refset value set (422); see the ECL ^ variant."}
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "id": "sct-display-language-unavailable",
+  "title": "SNOMED Intl expansion with displayLanguage=de (no German in Intl)",
+  "category": "languages-supplements",
+  "source": {"kind": "constructed"},
+  "exercises": "requested language that the edition lacks",
+  "why": "Fast; records fallback behaviour (English display or warning).",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-display-language-unavailable",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "46635009"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {"displayLanguage": "de"}
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

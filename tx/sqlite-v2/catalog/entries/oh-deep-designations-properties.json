@@ -1,0 +1,54 @@
+{
+  "id": "oh-deep-designations-properties",
+  "title": "Clinical findings at offset 2,500: designations and properties at depth",
+  "category": "output-heavy",
+  "source": {"kind": "constructed"},
+  "exercises": "includeDesignations + property=parent,inactive,moduleId at offset 2,500 (inside tx.fhir.org's 3,000 limit) and 100,000",
+  "why": "Mixed: the engine reaches any offset in O(1), so the cost is the 500 rows it builds; main walks to the offset first.",
+  "stresses": "500 rows x ~4 designations x 3 properties, at depth",
+  "expect": "mixed",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:oh-deep-designations-properties",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "404684003"}
+            ]
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "includeDesignations": true,
+      "property": [
+        "parent",
+        "inactive",
+        "moduleId"
+      ]
+    }
+  },
+  "patterns": [
+    "deep-jump",
+    "first-then-deep"
+  ],
+  "paging": {"count": 500, "deepOffset": 2500},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  },
+  "expectedDifferences": [
+    {"aspect": "properties", "kind": "reference behaviour", "reason": "tx.fhir.org ignores the $expand property parameter and ValueSet.compose.property: no requested properties are returned (probed on /r4 and /r5, valueCode and valueString, 2026-11-01); it only adds a status property to non-active LOINC codes."}
+  ]
+}

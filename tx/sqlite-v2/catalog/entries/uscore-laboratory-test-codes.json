@@ -1,0 +1,52 @@
+{
+  "id": "uscore-laboratory-test-codes",
+  "title": "US Core Laboratory Test Codes (US Core)",
+  "category": "properties-attributes",
+  "source": {
+    "kind": "us-core",
+    "package": "hl7.fhir.us.core-9.0.0",
+    "file": "ValueSet-us-core-laboratory-test-codes.json",
+    "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-laboratory-test-codes",
+    "title": "US Core Laboratory Test Codes"
+  },
+  "exercises": "LOINC CLASSTYPE = 1 (70k)",
+  "why": "Fast: literal prop set.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "http://hl7.org/fhir/us/core/ValueSet/us-core-laboratory-test-codes",
+      "version": "9.0.0",
+      "name": "USCoreLaboratoryTestCodes",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "CLASSTYPE", "op": "=", "value": "1"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "first-then-deep",
+    "last-with-total"
+  ],
+  "paging": {"count": 50, "deepOffset": 50000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

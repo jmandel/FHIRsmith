@@ -1,0 +1,38 @@
+{
+  "id": "loinc-whole-system-last-page",
+  "title": "All of LOINC: last page with total",
+  "category": "limits-paging",
+  "source": {"kind": "constructed"},
+  "exercises": "whole LOINC including parts and answers; last page needs the total",
+  "why": "Fast on the engine; main needs the total first.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:loinc-whole-system-last-page",
+      "status": "active",
+      "compose": {
+        "include": [
+          {"system": "http://loinc.org"}
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "last-with-total",
+    "deep-jump"
+  ],
+  "paging": {"count": 50, "deepOffset": 200000},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org"
+    ],
+    "main": []
+  }
+}

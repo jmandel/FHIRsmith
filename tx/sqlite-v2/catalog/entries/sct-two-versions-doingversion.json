@@ -1,0 +1,49 @@
+{
+  "id": "sct-two-versions-doingversion",
+  "title": "Diabetes subtree in both Intl 20250201 and US 20250901 (doingVersion)",
+  "category": "multi-system-versions",
+  "source": {"kind": "constructed"},
+  "exercises": "same system at two versions in one compose: keys become system|version#code",
+  "why": "Fast: two per-version sets, total = sum; checks version on every contains.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:sct-two-versions-doingversion",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/900000000000207008/version/20250201",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          },
+          {
+            "system": "http://snomed.info/sct",
+            "version": "http://snomed.info/sct/731000124108/version/20250901",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page"
+  ],
+  "paging": {"count": 1000},
+  "orderDefined": false,
+  "systems": [
+    "http://snomed.info/sct"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://snomed.info/sct"
+    ],
+    "main": []
+  }
+}

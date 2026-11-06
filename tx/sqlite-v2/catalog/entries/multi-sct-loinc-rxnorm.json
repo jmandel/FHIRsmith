@@ -1,0 +1,61 @@
+{
+  "id": "multi-sct-loinc-rxnorm",
+  "title": "Diabetes care: SNOMED conditions, LOINC labs, RxNorm drugs",
+  "category": "multi-system-versions",
+  "source": {"kind": "constructed"},
+  "exercises": "three SQLite-backed systems in one compose",
+  "why": "Fast: per-system sets concatenated; checks system order in the expansion.",
+  "expect": "fast",
+  "request": {
+    "operation": "expand",
+    "valueSet": {
+      "resourceType": "ValueSet",
+      "url": "urn:fhirsmith:catalog:multi-sct-loinc-rxnorm",
+      "status": "active",
+      "compose": {
+        "include": [
+          {
+            "system": "http://snomed.info/sct",
+            "filter": [
+              {"property": "concept", "op": "is-a", "value": "73211009"}
+            ]
+          },
+          {
+            "system": "http://loinc.org",
+            "filter": [
+              {"property": "COMPONENT", "op": "=", "value": "LP14635-4"},
+              {"property": "SCALE_TYP", "op": "=", "value": "LP7753-9"}
+            ]
+          },
+          {
+            "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "filter": [
+              {"property": "TTY", "op": "=", "value": "SCD"},
+              {"property": "has_ingredient", "op": "=", "value": "CUI:6809"}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "patterns": [
+    "first-page",
+    "pages-1-3",
+    "last-with-total"
+  ],
+  "paging": {"count": 100},
+  "orderDefined": false,
+  "systems": [
+    "http://loinc.org",
+    "http://snomed.info/sct",
+    "http://www.nlm.nih.gov/research/umls/rxnorm"
+  ],
+  "engine": {
+    "sqlite": [
+      "http://loinc.org",
+      "http://snomed.info/sct",
+      "http://www.nlm.nih.gov/research/umls/rxnorm"
+    ],
+    "main": []
+  }
+}
