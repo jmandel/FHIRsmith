@@ -20,6 +20,7 @@ const { Engine } = require('./engine/engine');
 const { Compiler, FilterError } = require('./engine/compile');
 const { dialectFor, LOINC, RXNORM } = require('./dialects');
 const { SupplementLayers } = require('./layers');
+const { DiskSupplement } = require('./supplement-files');
 const { RoaringBitmap32 } = require('roaring');
 
 const CHUNK = 500; // rows fetched per statement while iterating a filter set
@@ -68,6 +69,8 @@ class SqliteV2Provider extends BaseCSServices {
    * @param {SqliteV2Factory} factory
    */
   constructor(opContext, supplements, factory) {
+    // a server-known supplement on disk: this request's view of it (concepts read once per request)
+    if (supplements) supplements = supplements.map((s) => (s instanceof DiskSupplement ? s.forRequest() : s));
     super(opContext, supplements);
     this.f = factory;
     this.store = factory.store;
@@ -96,6 +99,41 @@ class SqliteV2Provider extends BaseCSServices {
   versionAlgorithm() { return this.f.versionAlgorithm(); }
   isCaseSensitive() { return this.store.config.caseSensitive !== 0 && this.store.config.caseSensitive !== '0'; }
   sourcePackage() { return null; }
+
+  // ---- server-known supplements on disk (supplement-files.js) ------------------------------
+  // Upstream's helpers below scan every concept of every supplement in use. A DiskSupplement
+  // answers the same question from the facts its file recorded at import; the others still go
+  // through upstream's code, one supplement list at a time.
+
+  _withSupplements(list, fn) {
+    const saved = this.supplements;
+    this.supplements = list;
+    try { return fn(); } finally { this.supplements = saved; }
+  }
+
+  _hasDiskSupplements() { return (this.supplements || []).some((s) => s instanceof DiskSupplement); }
+
+  _hasAnySupplementDisplays(languages) {
+    if (!this._hasDiskSupplements()) return super._hasAnySupplementDisplays(languages);
+    const mem = this.supplements.filter((s) => !(s instanceof DiskSupplement));
+    if (this.supplements.some((s) => s instanceof DiskSupplement && s.hasAnyDisplays(this, languages))) return true;
+    return mem.length > 0 && this._withSupplements(mem, () => super._hasAnySupplementDisplays(languages));
+  }
+
+  _hasSupplementText(lang) {
+    if (!this._hasDiskSupplements()) return super._hasSupplementText(lang);
+    return this.supplements.some((s) => (s instanceof DiskSupplement ? s.hasText(this, lang) : this._withSupplements([s], () => super._hasSupplementText(lang))));
+  }
+
+  _supplementSearchCodes(filter, searchLang) {
+    if (!this._hasDiskSupplements()) return super._supplementSearchCodes(filter, searchLang);
+    const codes = new Set();
+    for (const s of this.supplements) {
+      if (s instanceof DiskSupplement) s.searchCodes(this, filter, searchLang, codes);
+      else for (const c of this._withSupplements([s], () => super._supplementSearchCodes(filter, searchLang))) codes.add(c);
+    }
+    return codes;
+  }
 
   hasAnyDisplays(languages) {
     const langs = this._ensureLanguages(languages);
@@ -129,6 +167,8 @@ class SqliteV2Provider extends BaseCSServices {
     if (need.length) {
       const rows = this.store.conceptRows(need, st);
       for (const c of concepts) if (!c.row) { c.row = rows.get(c.id); c.code = c.row ? c.row.code : c.code; }
+      // the same page from each disk-backed supplement in use: one statement, not one per code
+      for (const s of this.supplements || []) if (s instanceof DiskSupplement) s.prefetch(concepts.map((c) => c.code));
     }
     if (withDesignations) {
       const nd = concepts.filter((c) => !c.desigs).map((c) => c.id);

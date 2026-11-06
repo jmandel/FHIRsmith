@@ -279,6 +279,15 @@ class Library {
       }
     }
 
+    // server-known supplements of sqlite-v2 terminology files: read from their own v2 files
+    // (built by the master, or by a server with no cluster role; a tx-worker waits for them)
+    const { useSupplementFiles } = require('./sqlite-v2/supplement-files');
+    const supp = await useSupplementFiles(this, { readOnly: this.packageCachesReadOnly, log: this.log });
+    if (supp.supplements) {
+      this.log.info(`sqlite-v2 supplement files: ${supp.supplements} supplement${supp.supplements === 1 ? '' : 's'} on disk ` +
+        `(${supp.files} file${supp.files === 1 ? '' : 's'}, ${supp.built} built) in ${supp.ms} ms`);
+    }
+
     const endMemory = process.memoryUsage();
     const totalTime = Date.now() - this.startTime;
 

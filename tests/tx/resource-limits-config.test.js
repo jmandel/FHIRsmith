@@ -72,6 +72,6 @@ describe('the tx module applies the configured limits, and logs them', () => {
   test('one startup line gives them all', () => {
     expect(logged.filter(m => m.includes('Limits: '))).toEqual([expect.stringContaining(
       'Limits: operationTimeLimit=20s, cacheTimeout=30min, cacheMaxConcepts=7, cacheMaxTotalConcepts=unlimited, ' +
-      'usageTrackerMaxCodes=3, usageTrackerMaxCodeLength=unlimited, languageTagCacheSize=5, sqliteV2.supplementLayerCacheMB=64')]);
+      'usageTrackerMaxCodes=3, usageTrackerMaxCodeLength=unlimited, languageTagCacheSize=5, sqliteV2.supplementLayerCacheMB=64, sqliteV2.supplementFiles=on')]);
   });
 });
