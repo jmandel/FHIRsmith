@@ -7,9 +7,17 @@
 //
 // Response sizes are upstream's (expand.js limitCount): a provider-selected page is added
 // through the same includeCode as every other code. Totals come from set cardinalities and
-// pages are by position (cs-api processSelection). The engine adds no caches: every request
-// plans and evaluates, reading stored sets from SQLite (SQLite's page cache and the OS page cache under mmap are the only layers).
+// pages are by position (cs-api processSelection). The engine adds one cache, of built supplement
+// layers (supplementLayerCacheMB); otherwise every request plans and evaluates, reading stored
+// sets from SQLite (SQLite's page cache and the OS page cache under mmap).
 
+//   supplementLayerCacheMB  memory for built supplement layers kept between requests (layers.js
+//                     LayerCache, one per process): their SQLite pages, about 120 bytes per
+//                     concept with one designation, 360 with five. Default 64: about 530k such
+//                     concepts, two layers the size of all of LOINC (257k) or hundreds of the IG
+//                     corpus's (99% have 1,001 concepts or fewer). Least recently used layers are
+//                     dropped to stay under it; a layer bigger than the whole bound is built per
+//                     request and not kept. 0 = keep none.
 //   sqliteCacheKB     SQLite page cache per connection. Default 2,048 (2 MiB): reads use mmap.
 //   mmapMB            SQLite mmap window per file. Default 256 (file-backed, OS page cache).
 
@@ -23,7 +31,7 @@
 //                     engine (processSelection). Default false: expand.js then flattens the expansion,
 //                     where main nests it by the code system's hierarchy.
 
-const settings = { maxScanRows: 5000000, sqliteCacheKB: 2048, mmapMB: 256, fhirProcessSelection: false,
+const settings = { maxScanRows: 5000000, supplementLayerCacheMB: 64, sqliteCacheKB: 2048, mmapMB: 256, fhirProcessSelection: false,
   content: { valueSets: true, codeSystems: true } };
 
 function configure(cfg) {

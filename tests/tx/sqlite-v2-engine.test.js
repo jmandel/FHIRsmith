@@ -300,12 +300,88 @@ describe('sqlite-v2 supplement layers', () => {
   });
 
   test('a supplement property filter combines with base filters', () => {
-    const layers = new LayerSet([{ json: supp, build: () => buildLayer(store, supp) }]);
+    const layers = new LayerSet([{ json: supp, build: () => ({ layer: buildLayer(store, supp), entry: null }) }]);
     expect(expand(store, [inc([f('flavour', '=', 'sweet')])], { layers }).codes.sort()).toEqual(['F', 'G']);
     expect(expand(store, [inc([f('flavour', '=', 'sweet'), f('concept', 'child-of', 'E')])], { layers }).codes).toEqual(['G']);
     expect(expand(store, [inc([f('concept', 'is-a', 'D'), f('flavour', 'exists', 'false')])], { layers }).codes).toEqual([]);
   });
 
+  describe('the layer cache', () => {
+    const { SupplementLayers, layerCache } = require('../../tx/sqlite-v2/layers');
+    const { settings } = require('../../tx/sqlite-v2/settings');
+    const saved = settings.supplementLayerCacheMB;
+    const factory = () => new SupplementLayers(store);
+    // one request: a filter on the supplement property, then the request ends
+    const request = (json, filters = [f('flavour', '=', 'sweet')]) => {
+      const layers = factory().forSupplements([json]);
+      try {
+        const codes = expand(store, [inc(filters)], { layers }).codes.sort();
+        return { codes, layer: layers.built[0].layer };
+      } finally {
+        layers.close();
+      }
+    };
+    const copy = (o) => JSON.parse(JSON.stringify(o));
+    beforeEach(() => { layerCache.clear(); layerCache.stats = { hits: 0, misses: 0, uncached: 0, evictions: 0 }; });
+    afterAll(() => { settings.supplementLayerCacheMB = saved; layerCache.clear(); });
+
+    test('a repeat request hits, with the same results (a tx-resource sent again is a new object)', () => {
+      const a = request(supp);
+      const b = request(copy(supp));
+      expect(layerCache.stats).toMatchObject({ hits: 1, misses: 1 });
+      expect(b.layer).toBe(a.layer);
+      expect(b.codes).toEqual(a.codes);
+      expect(b.codes).toEqual(['F', 'G']);
+      // still open after both requests ended, and read-only
+      expect(() => b.layer.store.db.prepare('DELETE FROM concept').run()).toThrow(/readonly|read-only|query_only/i);
+      expect(request(supp).codes).toEqual(['F', 'G']);
+    });
+
+    test('a changed supplement misses (same url and version)', () => {
+      const a = request(supp);
+      const changed = copy(supp);
+      changed.concept[1].property[0].valueCode = 'sweet';
+      const b = request(changed);
+      expect(layerCache.stats).toMatchObject({ hits: 0, misses: 2 });
+      expect(b.layer).not.toBe(a.layer);
+      expect(b.codes).toEqual(['D', 'F', 'G']);
+      expect(request(supp).codes).toEqual(['F', 'G']);
+    });
+
+    test('the bound evicts the least recently used; a layer used by a request is closed only when it ends', () => {
+      const bytes = buildLayer(store, supp).info.bytes;
+      settings.supplementLayerCacheMB = (2.5 * bytes) / 1048576; // room for two
+      const v = (n) => ({ ...copy(supp), version: String(n) });
+      const s1 = v(1); const s2 = v(2); const s3 = v(3);
+      request(s1); request(s2); request(s1); // s2 is now the least recently used
+      const held = factory().forSupplements([s1]);
+      expand(store, [inc([f('flavour', '=', 'sweet')])], { layers: held });
+      request(s3);
+      expect(layerCache.stats.evictions).toBe(1);
+      expect(layerCache.entries.size).toBe(2);
+      expect(layerCache.bytes).toBeLessThanOrEqual(layerCache.maxBytes);
+      request(s1); request(s3);
+      expect(layerCache.stats.hits).toBe(4); // s1 twice before, s1 (held), s1, s3
+      request(s2);
+      expect(layerCache.stats.misses).toBe(4);
+      // s1 was evicted by s2 while `held` still uses it: it stays open until that request ends
+      const l1 = held.built[0].layer;
+      expect(layerCache.entries.has(factory().keyOf(s1))).toBe(false);
+      expect(l1.store.db.open).toBe(true);
+      held.close();
+      expect(l1.store.db.open).toBe(false);
+    });
+
+    test('a layer bigger than the whole bound is built per request and not kept', () => {
+      settings.supplementLayerCacheMB = 0;
+      const a = request(supp);
+      const b = request(supp);
+      expect(layerCache.stats).toMatchObject({ hits: 0, misses: 2, uncached: 2 });
+      expect(layerCache.entries.size).toBe(0);
+      expect(b.codes).toEqual(['F', 'G']);
+      expect(a.layer.store.db.open).toBe(false);
+    });
+  });
 });
 
 describe('sqlite-v2 SNOMED concept in an unknown id', () => {
