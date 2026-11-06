@@ -37,11 +37,19 @@ function isCurrent(file, srcs) {
  * @param {string} packageFolder the unpacked package (contains package/)
  * @param {string} pid package#version
  * @param {object} [log]
+ * @param {object} [opts] { readOnly: a tx-worker (cluster.md) - wait for the master to build
+ *   the file, never build it }
  * @returns {Promise<string>} the content file
  */
-async function ensurePackageContentFile(cacheFolder, packageFolder, pid, log) {
+async function ensurePackageContentFile(cacheFolder, packageFolder, pid, log, opts = {}) {
   const file = path.join(cacheFolder, 'v2', pid.replace(/[^A-Za-z0-9.#_-]/g, '_') + '.db');
   const srcs = ['package/package.json', 'package/.index.json'].map((f) => path.join(packageFolder, f)).filter((f) => fs.existsSync(f));
+  if (opts.readOnly) {
+    // the master builds it in a temporary file and renames it into place (createContentFile)
+    const { waitForCache } = require('../../library/wait-for-cache');
+    await waitForCache(async () => isCurrent(file, srcs), `Package ${pid}: sqlite-v2 content file ${file}`);
+    return file;
+  }
   if (isCurrent(file, srcs)) return file;
   const { importPackage } = require('../../importers/content-v2/import-content-v2');
   const t0 = Date.now();
