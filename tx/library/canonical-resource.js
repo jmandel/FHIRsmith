@@ -92,10 +92,19 @@ class CanonicalResource {
    * @returns {string}
    */
   static computeExpansionKeyHash(json) {
+    return CanonicalResource.computeContentDigest(json).substring(0, 16);
+  }
+
+  /**
+   * The full sha256 (hex) of JSON.stringify(json). The expansion-key hash is its first 16
+   * characters; the sqlite-v2 supplement layer cache keys a layer by all of it.
+   * @param {Object} json - the resource (R5 form)
+   * @returns {string}
+   */
+  static computeContentDigest(json) {
     return crypto.createHash('sha256')
       .update(JSON.stringify(json))
-      .digest('hex')
-      .substring(0, 16);
+      .digest('hex');
   }
 
   /**
@@ -110,7 +119,24 @@ class CanonicalResource {
     if (memo && memo.json === this.jsonObj) {
       return memo.hash;
     }
-    return this.setExpansionKeyHash(CanonicalResource.computeExpansionKeyHash(this.jsonObj));
+    return this.contentDigest().substring(0, 16);
+  }
+
+  /**
+   * This resource's full content digest (see computeContentDigest), remembered with the
+   * expansion-key hash, so a request that needs both (a tx-resource supplement: the
+   * expansion cache key and its layer's key) serialises and hashes the resource once.
+   * A hash recorded by setExpansionKeyHash has no digest, so the first call computes it.
+   * @returns {string}
+   */
+  contentDigest() {
+    const memo = this._expansionKeyHashMemo;
+    if (memo && memo.json === this.jsonObj && memo.digest) {
+      return memo.digest;
+    }
+    const digest = CanonicalResource.computeContentDigest(this.jsonObj);
+    this.setExpansionKeyHash(digest.substring(0, 16), digest);
+    return digest;
   }
 
   /**
@@ -119,11 +145,12 @@ class CanonicalResource {
    * into a response or log, and structuredClone/spread don't copy it onto a different
    * resource.
    * @param {string} hash
+   * @param {string} [digest] - the full digest it was cut from, when known (contentDigest)
    * @returns {string} the hash
    */
-  setExpansionKeyHash(hash) {
+  setExpansionKeyHash(hash, digest = null) {
     Object.defineProperty(this, '_expansionKeyHashMemo', {
-      value: { json: this.jsonObj, hash },
+      value: { json: this.jsonObj, hash, digest },
       enumerable: false, configurable: true, writable: true
     });
     return hash;
