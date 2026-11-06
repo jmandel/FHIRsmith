@@ -83,6 +83,19 @@ describe('sqlite-v2 SNOMED CT post-coordination (native) and ECL fallback', () =
     expect(none + some).toBe(all);
   });
 
+  test('a concept filter naming a concept the edition lacks is a 400 invalid, not a 500', async () => {
+    const p = await factory.build(op, []);
+    for (const [prop, o, v] of [['concept', 'in', '41000147108'], ['code', 'in', '3738000,61231000210108'], ['concept', 'is-a', '584021000052104'], ['concept', 'descendent-of', '99999999']]) {
+      const prep = await p.getPrepContext(true);
+      const err = await p.filter(prep, true, prop, o, v).then(() => null, (e) => e);
+      expect(err).toBeTruthy();
+      expect(err.statusCode).toBe(400);
+      expect(err.isSetForhandleAsOO).toBe(true);
+      expect(err.asIssue()).toMatchObject({ severity: 'error', code: 'invalid' });
+      expect(err.message).toBe(`The SNOMED CT Concept ${v.split(',').pop()} is not known`);
+    }
+  });
+
   test('mapped:<scheme> exists: concepts with (or without) an alternate identifier', async () => {
     const p = await factory.build(op, []);
     const count = async (v) => {

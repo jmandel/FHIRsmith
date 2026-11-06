@@ -510,6 +510,9 @@ class SnomedV2Provider extends SqliteV2Provider {
       const id = e.eclSyntax || e.eclUnknown || /is not known/.test(e.message) ? 'INVALID_ECL' : 'UNSUPPORTED_ECL';
       return new Issue('error', 'invalid', null, id, this.opContext.i18n.translate(id, this.opContext.langs, [value, e.message]), 'vs-invalid').handleAsOO(400);
     }
+    // concept is-a / in / ... naming a concept the edition does not have: the request is invalid
+    // (400, as an unknown concept in ECL is: tx-ecosystem snomed-expand-ecl-unknown-concept), not a 500
+    if (e.unknownConcept) return new Issue('error', 'invalid', null, null, e.message, 'vs-invalid').handleAsOO(400);
     return super.filterError(e);
   }
 

@@ -145,7 +145,7 @@ const snomed = {
     return id == null ? { t: 'empty' } : { t: 'ids', ids: [id] };
   },
   unknownConcept(c, op, value) {
-    throw new FilterError(`The SNOMED CT Concept ${value} is not known`);
+    throw new FilterError(`The SNOMED CT Concept ${value} is not known`, { unknownConcept: value });
   },
   /**
    * concept in X,Y,…: a refset contributes its active members, any other concept itself (owner and
