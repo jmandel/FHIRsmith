@@ -561,7 +561,7 @@ workers 4: 4 physical cores (8 vCPU, SMT 2), quota none, memory fits 11 → clas
 | Engine | Rule | 4 vCPU, 4 cores | 8 vCPU, 4 cores (SMT) | 8 vCPU, 8 cores | 16 vCPU, 8 cores (SMT) |
 |---|---|---|---|---|---|
 | classic | `min(cores, round(0.6 × vCPU))` | 2 | 4 | 5 | 8 |
-| v2 (`sqlite-v2`, the default here) | `min(cores − 1, round(0.6 × vCPU) + 1)` | 3 | 3 | 6 | 7 |
+| v2 (`sqlite-v2`, the default here) | `min(cores − (SMT ? 0 : 1), round(0.6 × vCPU) + 1)` | 3 | 4 | 6 | 8 |
 
 Then at least 1, then lowered if the processes won't fit in memory (above). The master serves tx
 too, so there is one more tx process than workers. Physical cores, not vCPUs: a second
@@ -583,13 +583,16 @@ The v2 engine (`tx/sqlite-v2/worker-rule.js`), same runs:
 | Machine | Measured | Rule |
 |---|---|---|
 | local, 4 vCPU = 4 cores | w2 1,535-1,655; w3 1,794 (probe 337 ms); w4 1,779 | 3 |
-| local, 8 vCPU = 4 cores SMT | w4 1,936; w5 2,350; w6 1,850-1,904 with 376-1,344 timeouts, probe up to 26 s; w7 835 timeouts | 3 (w3 not measured) |
-| GCP n2-standard-8, 8 vCPU = 4 cores SMT | w4 2,338; w5 2,162 (probe 1.1 s) | 3 (w3 not measured) |
+| local, 8 vCPU = 4 cores SMT | w4 1,936; w5 2,350; w6 1,850-1,904 with 376-1,344 timeouts, probe up to 26 s; w7 835 timeouts | 4 |
+| local, 8 vCPU = 4 cores SMT (smtv2: two runs each) | w3 2,094, 1,901; w4 2,226, 2,183 (probe up to 2.0 s); w5 2,487 (probe up to 7.9 s, refusals p95 3.1 s) | 4 |
+| GCP n2-standard-8, 8 vCPU = 4 cores SMT | w4 2,338; w5 2,162 (probe 1.1 s) | 4 |
 | GCP n2-standard-16, 1 thread per core: 8 vCPU = 8 cores | w5 3,593; w6 3,625; w7 405 timeouts | 6 |
 
 A v2 process uses about 1.0-1.2 cores, so it gains from one more worker where classic is flat,
-but past the cores less one it falls off a cliff (timeouts), so the rule errs low: on 4 cores
-with SMT it gives 3 where 4 or 5 measured best.
+but without SMT, past the cores less one it falls off a cliff (timeouts). With SMT (more vCPUs
+than physical cores among the allowed CPUs) the second hyperthreads are that headroom, so the
+rule gives one worker a physical core: on 4 cores SMT, 4 gave about 10% more goodput than 3 on
+a repeat, and 5, though higher in goodput, left a cheap probe waiting up to 7.9 s.
 
 The classic engine is flat past its rule's number: a process uses about 1.4-1.9 cores under load
 (its libuv pool), so more add memory, not throughput. An engine whose processes use the CPU
