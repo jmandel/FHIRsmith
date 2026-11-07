@@ -1,7 +1,8 @@
 # Deploying `sqlite-v2-next` to the demo (fhirsmith-v2.exe.xyz)
 
 `sqlite-v2-next` is the sqlite-v2 engine on top of `proposal-base`: upstream main (which has #333,
-#337, #345, #348 and #351) with our open PRs merged (#346, #347, #349, #338, #350, #334, #342). It
+#337, #338, #345, #346, #347, #348, #349, #350, #351, #354, #355 and #356) with our open PRs merged
+(#334, #342). It
 contains:
 - native post-coordination as the only SNOMED CT path (the adapter is gone);
 - the sqlite-v2 content store: package CodeSystems, package ValueSets and VSAC are read from sqlite-v2
