@@ -43,6 +43,8 @@ const { PendingCounts, COUNTS } = require('./library/cluster-counts');
 const { readCgroupAnon } = require('./library/cgroup-memory');
 const { thresholds } = require('./library/memory-guard');
 const { defaultWorkers, describeDecision } = require('./library/worker-count');
+// the sqlite-v2 engine's rule is the default (server.cluster.workerRule 'classic' for the other)
+require('./tx/sqlite-v2/worker-rule');
 
 const HEALTH_POLL_MS = 250;
 const MAX_BACKOFF_MS = 60000;
