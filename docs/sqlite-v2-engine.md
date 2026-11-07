@@ -144,6 +144,9 @@ Main has no single order, so this is a deliberate difference (adjudication D3 in
 
 ## Limits and cost (`tx/sqlite-v2/settings.js`, `modules.tx.sqliteV2`)
 
+Every `modules.tx.sqliteV2` setting is listed in
+[CONFIGURATION.md](../CONFIGURATION.md#the-sqlite-v2-engine-modulestxsqlitev2); the two limits:
+
 | knob | default | effect |
 |---|---|---|
 | `maxScanRows` | 5,000,000 | The planner's estimate of the fact rows a request reads: text/regex scans, relation images, probes, value-set fan-out. It is added up before each read, and the request is refused (too-costly) once the estimate is over the limit |
