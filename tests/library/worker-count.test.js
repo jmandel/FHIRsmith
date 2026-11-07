@@ -171,17 +171,25 @@ describe('the sqlite-v2 engine\'s rule', () => {
     // the launcher's default, and server.cluster.workerRule 'classic' for the other
     const cpu = { vcpu: 8, topology: { cpus: 8, cores: 4 }, quota: null };
     const s = loadSettings([], {}, { modules: { tx: { enabled: true } } }, cpu);
-    expect([s.workerDecision.rule, s.procs.length - 1]).toEqual(['v2', 3]);
+    expect([s.workerDecision.rule, s.procs.length - 1]).toEqual(['v2', 4]);
     expect(loadSettings([], {}, { server: { cluster: { workerRule: 'classic' } }, modules: { tx: { enabled: true } } }, cpu).procs.length - 1).toBe(4);
   });
 
-  test('min(cores − 1, round(0.6 × vCPU) + 1) at 4, 8 and 16 vCPU', () => {
-    expect([at(4, 4), at(8, 4), at(8, 8), at(16, 8), at(16, 16)]).toEqual([3, 3, 6, 7, 11]);
+  test('min(cores − (smt ? 0 : 1), round(0.6 × vCPU) + 1) at 4, 8, 12 and 16 vCPU', () => {
+    // 4 cores no SMT / 4 cores SMT / 8 cores no SMT / 6 cores SMT / 8 cores SMT / 16 cores no SMT
+    expect([at(4, 4), at(8, 4), at(8, 8), at(12, 6), at(16, 8), at(16, 16)]).toEqual([3, 4, 6, 6, 8, 11]);
     expect(at(2, 1)).toBe(1);
+    // SMT from the topology, so a quota or server.cluster.cores below the vCPUs is not SMT
+    expect(defaultWorkers({ vcpu: 8, topology: { cpus: 8, cores: 8 }, quota: 4, rule: 'v2' }).workers).toBe(3);
+    expect(defaultWorkers({ vcpu: 8, topology: { cpus: 8, cores: 4 }, quota: 3, rule: 'v2' }).workers).toBe(3);
+    // no topology: no SMT known, so the headroom stays
+    expect(defaultWorkers({ vcpu: 8, topology: null, quota: null, rule: 'v2' }).workers).toBe(6);
   });
 
   test('the log line', () => {
     const d = defaultWorkers({ vcpu: 8, topology: { cpus: 8, cores: 4 }, quota: null });
-    expect(describeDecision(d, 3, 'memory fits 11', false)).toBe('workers 3: 4 physical cores (8 vCPU, SMT 2), quota none, memory fits 11 → v2 rule min(4−1, round(0.6×8)+1)');
+    expect(describeDecision(d, 4, 'memory fits 11', false)).toBe('workers 4: 4 physical cores (8 vCPU, SMT 2), quota none, memory fits 11 → v2 rule min(4, round(0.6×8)+1)');
+    const n = defaultWorkers({ vcpu: 4, topology: { cpus: 4, cores: 4 }, quota: null });
+    expect(describeDecision(n, 3, 'memory fits 11', false)).toBe('workers 3: 4 physical cores (4 vCPU, SMT 1), quota none, memory fits 11 → v2 rule min(4−1, round(0.6×4)+1)');
   });
 });
