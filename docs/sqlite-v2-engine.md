@@ -413,6 +413,26 @@ server-known supplements stay in memory, as main keeps them. The startup limits 
 renames it into place. A tx-worker (`packageCachesReadOnly`) never builds one: it waits for the
 master's file (`waitForCache`) and opens it read-only.
 
+**Startup without the source** (`folder:` and `file:` sources). When the master builds the
+file(s) for a supplement it parsed from a source file, it also writes a sidecar,
+`v2/supplements/source-<sha256 of the source file's bytes>.json`. The sidecar holds the
+supplement's content hash, its metadata (the resource without `concept`) and its loader index
+entry. At the next startup the folder loader hashes each source file, streamed, before it parses
+anything. A file whose hash has a sidecar is indexed from the sidecar and becomes a stub
+`CodeSystem` made from the metadata alone. The library pass opens the stub's files as a
+`DiskSupplement`, so the source JSON is never read into the heap.
+
+- A changed source has other bytes, so it has no sidecar. It is parsed and its file is built, as
+  for a new supplement.
+- When a stub's file is missing (a rebuilt base file, a new `SUPPLEMENT_FORMAT`), the stub is
+  parsed then, and the file is built as before. It is also parsed when no sqlite-v2 base applies
+  or `supplementFiles` is off.
+- The check hashes the bytes on every startup: 44 MB takes about 50 ms. It is not cached by
+  size and mtime, because a change that keeps both would then serve the old content. It needs no
+  index from source path to file either, because the hash is the lookup key.
+- The startup log line counts the stubs (`2 not parsed`).
+- Supplements inside packages are still parsed at startup.
+
 **Same answers.** `tests/tx/sqlite-v2-supplement-files.test.js` compares the two forms, the
 in-memory `CodeSystem` and the `DiskSupplement`:
 
@@ -438,9 +458,9 @@ Import and memory:
 | | no supplements | in memory (`supplementFiles: false`) | on disk |
 |---|---|---|---|
 | import, first startup | — | — | 4.6 s, 117 MiB file (LOINC uz: 0.4 s, 14.5 MiB) |
-| later startups | — | — | 0.4 s, to hash the content and find the files |
+| later startups | — | — | 0.4 s, to hash the content and find the files (since the sources are no longer parsed: below) |
 | heap after startup (after GC) | 80 MiB | 215 MiB | 81 MiB |
-| RssAnon after startup | 300 MiB | 475 MiB | 465 MiB |
+| RssAnon after startup | 300 MiB | 475 MiB | 465 MiB (since the sources are no longer parsed: below) |
 | RssAnon after the requests below | 381 MiB | 667 MiB | 474 MiB |
 
 Requests, first / repeat (`count` changes each time, so upstream's expansion cache does not
@@ -456,11 +476,20 @@ answer):
 | `$expand` with a text `filter`, `displayLanguage=uz` | 5.1 / 4.9 s | 5.5 / 5.2 s |
 | `hasAnyDisplays` for a language the supplement lacks | 66–97 ms per request | 0 ms |
 
-- **Memory.** The heap saving is the supplement's concepts: 135 MiB per process. RssAnon right
-  after startup is still the in-memory figure, because loading the source JSON (the content
-  loaders parse it, then main builds a `CodeSystem`) leaves about 170 MiB of V8 pages behind
-  after the objects are freed. Later requests reuse those pages, so under load the disk form
-  stays near that figure (474 MiB) while the in-memory form grows (667 MiB).
+- **Memory.** The heap saving is the supplement's concepts: 135 MiB per process. Parsing the
+  source JSON at startup left about 170 MiB of V8 pages behind after the objects were freed, so
+  RssAnon after startup stayed near the in-memory figure. Since startup no longer parses the
+  source (above), that figure is gone. Each server below was started on its own, with files
+  already built, and measured after GC. The figures are the mean of 3 startups. "Loading" is the
+  library's Loading Time; "up" is time until `/metadata` answers, polled every 0.5 s.
+
+  | library (SNOMED CT and LOINC v2 files, plus) | parsing the source: loading / up / RssAnon | not parsing it |
+  |---|---|---|
+  | no supplements | — | 0.66 s / 2.0 s / 336 MiB |
+  | Uzbek LOINC supplement (4.9 MB, 24,650 concepts) | 1.25 s / 2.9 s / 348 MiB | 1.16 s / 2.6 s / 339 MiB |
+  | the same and the 250k SNOMED CT supplement (44.6 MB) | 2.95 s / 4.6 s / 495 MiB | 1.65 s / 3.1 s / 385 MiB |
+
+  The library pass itself takes 3–6 ms, down from 30–290 ms.
 - **Request times.** A filter on a supplement property no longer pays a first-request build. A
   large display page is about 30 µs per code slower than a hash lookup, so a 2,500-code page
   takes 30–80 ms longer. The text filter's 5 s is upstream's `passesAll` over 333k supplement
@@ -468,10 +497,8 @@ answer):
 
 **Open.**
 
-- The content loaders still parse a supplement's JSON at every startup, even when its file is
-  current. Skipping that would remove the startup RssAnon too, but it needs the file and folder
-  loaders (`FolderContentLoader` parses every file to index it) to recognise a supplement
-  without parsing it.
+- Supplements inside packages are still parsed at every startup (only `folder:` and `file:`
+  sources skip it).
 - Supplements of package code-system blocks stay in memory.
 
 ## Fallbacks and what is not supported

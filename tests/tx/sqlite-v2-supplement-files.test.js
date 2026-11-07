@@ -16,6 +16,7 @@ const { Languages, Language } = require('../../library/languages');
 const sf = require('../../tx/sqlite-v2/supplement-files');
 const { OperationContext } = require('../../tx/operation-context');
 const { settings } = require('../../tx/sqlite-v2/settings');
+const { FileContentLoader } = require('../../library/folder-content-loader');
 
 const BASE = 'http://example.org/fhir/CodeSystem/v2-supp-base';
 const SUPP_URL = 'http://example.org/fhir/CodeSystem/v2-supp-de';
@@ -170,6 +171,113 @@ describe('sqlite-v2 supplement files', () => {
     } finally {
       settings.supplementFiles = saved;
     }
+  });
+
+  // ---- folder:/file: sources: a supplement whose file the server has is not parsed at startup ----
+
+  describe('a file: source', () => {
+    let src, cache;
+    beforeAll(() => {
+      src = path.join(dir, 'src', 'supp.json');
+      cache = path.join(dir, 'src-cache');
+      fs.mkdirSync(path.dirname(src), { recursive: true });
+      fs.writeFileSync(src, JSON.stringify(SUPP(), null, 1));
+    });
+
+    /** what the library does for a file: source, then its supplement pass; counts the parses of the source */
+    async function startup(opts = {}) {
+      const content = fs.readFileSync(src, 'utf8');
+      const spy = jest.spyOn(JSON, 'parse');
+      let loads = 0;
+      try {
+        const loader = new FileContentLoader(src, path.join(dir, 'src-loader'));
+        loader.sourceIndex = sf.sourceIndex(cache);
+        await loader.initialize();
+        const [entry] = await loader.getResourcesByType('CodeSystem');
+        const cs = await sf.codeSystemForEntry(entry, async () => { loads++; return new CodeSystem(await loader.loadFile(entry, loader.fhirVersion())); });
+        cs.sourcePackage = loader.pid();
+        const library = { codeSystemFactories: new Map([[BASE, opts.base || factory]]), codeSystemProviders: [{ codeSystems: [cs] }], cacheFolder: cache };
+        const r = await sf.useSupplementFiles(library, opts);
+        const parses = spy.mock.calls.filter(([a]) => a === content).length;
+        return { r, cs: library.codeSystemProviders[0].codeSystems[0], loads, parses };
+      } finally {
+        spy.mockRestore();
+      }
+    }
+
+    const sidecars = () => fs.readdirSync(path.join(cache, 'v2', 'supplements')).filter((n) => n.startsWith('source-'));
+
+    test('first startup parses and builds; the next opens the file without parsing the source', async () => {
+      const first = await startup();
+      expect(first.r).toMatchObject({ supplements: 1, built: 1, unparsed: 0 });
+      expect(first.parses).toBeGreaterThan(0);
+      expect(sidecars()).toHaveLength(1);
+
+      const next = await startup();
+      expect(next.r).toMatchObject({ supplements: 1, built: 0, unparsed: 1 });
+      expect([next.parses, next.loads]).toEqual([0, 0]);
+      const d = next.cs;
+      expect(d).toBeInstanceOf(sf.DiskSupplement);
+      expect(d.sourcePackage).toBe(first.cs.sourcePackage);
+      expect(json(d.jsonObj)).toBe(json(first.cs.jsonObj));
+      expect(json(d.jsonObj)).toBe(json(mem.jsonObj));
+      expect(json(d.getAllConcepts())).toBe(json(mem.getAllConcepts()));
+      for (const code of ['A1', 'B1', 'ZZ', 'nope']) expect(json(d.getConceptByCode(code))).toBe(json(mem.getConceptByCode(code)));
+      expect([d.url, d.vurl, d.version, d.conceptCount(), d.isSupplementFor(BASE, '1')]).toEqual([mem.url, mem.vurl, mem.version, mem.conceptCount(), true]);
+      // a tx-worker opens it the same way
+      expect((await startup({ readOnly: true })).r).toMatchObject({ supplements: 1, built: 0, unparsed: 1 });
+    });
+
+    test('a changed source is parsed and its file rebuilt', async () => {
+      const changed = SUPP();
+      changed.concept[2].display = 'Anzeige B geändert';
+      fs.writeFileSync(src, JSON.stringify(changed, null, 1));
+      const r = await startup();
+      expect(r.r).toMatchObject({ supplements: 1, built: 1, unparsed: 0 });
+      expect([r.parses > 0, r.loads]).toEqual([true, 1]);
+      expect(r.cs.getConceptByCode('B').display).toBe('Anzeige B geändert');
+      const again = await startup();
+      expect(again.r).toMatchObject({ built: 0, unparsed: 1 });
+      expect(again.parses).toBe(0);
+      expect(again.cs.getConceptByCode('B').display).toBe('Anzeige B geändert');
+    });
+
+    test('a rebuilt base (no file for it yet) parses the source and builds its file', async () => {
+      await new Promise((r) => setTimeout(r, 5)); // another builtAt: another base identity
+      buildBase(path.join(dir, 'base2.db'));
+      const base = await loadSqliteV2Factory(getTxModule().i18n, path.join(dir, 'base2.db'));
+      expect(sf.baseIdentity(base.store)).not.toBe(sf.baseIdentity(factory.store));
+      const r = await startup({ base });
+      expect(r.r).toMatchObject({ supplements: 1, built: 1, unparsed: 0 });
+      expect(r.loads).toBe(1);
+      expect(r.cs.getConceptByCode('B').display).toBe('Anzeige B geändert');
+      expect((await startup({ base })).r).toMatchObject({ built: 0, unparsed: 1 });
+    });
+
+    test('with supplementFiles = false, a source known from its bytes is parsed and kept in memory', async () => {
+      const saved = settings.supplementFiles;
+      try {
+        // indexed while on, then the pass is off: the stub is loaded as main loads it
+        const loader = new FileContentLoader(src, path.join(dir, 'src-loader'));
+        loader.sourceIndex = sf.sourceIndex(cache);
+        await loader.initialize();
+        const [entry] = await loader.getResourcesByType('CodeSystem');
+        const cs = await sf.codeSystemForEntry(entry, async () => new CodeSystem(await loader.loadFile(entry, loader.fhirVersion())));
+        expect(cs.conceptCount()).toBe(0);
+        settings.supplementFiles = false;
+        const library = { codeSystemFactories: new Map([[BASE, factory]]), codeSystemProviders: [{ codeSystems: [cs] }], cacheFolder: cache };
+        expect((await sf.useSupplementFiles(library)).supplements).toBe(0);
+        const m = library.codeSystemProviders[0].codeSystems[0];
+        expect(m).not.toBeInstanceOf(sf.DiskSupplement);
+        expect(m.conceptCount()).toBe(mem.conceptCount());
+        expect(m.getConceptByCode('B').display).toBe('Anzeige B geändert');
+        // and off from the start, nothing is skipped
+        const off = await startup();
+        expect([off.r.supplements, off.loads, off.parses > 0]).toEqual([0, 1, true]);
+      } finally {
+        settings.supplementFiles = saved;
+      }
+    });
   });
 
   // ---- through the router: the same responses with the supplement in memory and on disk ----

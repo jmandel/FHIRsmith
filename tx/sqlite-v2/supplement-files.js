@@ -28,6 +28,16 @@
 // Cluster (cluster.md, #342): the master builds a missing file (in a temporary file, renamed into
 // place); a tx-worker (packageCachesReadOnly) only waits for it and opens it read-only.
 //
+// Startup without the source (folder:/file: sources): a supplement's file is found from the source
+// file's bytes, not its parsed content. When the master first builds the file(s) for a supplement it
+// writes a small sidecar, source-<sha256 of the source bytes>.json, holding the supplement's content
+// hash, its metadata and its index entry. At the next startup the folder loader hashes each source
+// file (streamed, nothing on the heap); a file whose hash has a sidecar is indexed from the sidecar
+// and becomes a stub CodeSystem (the metadata alone). The library pass turns the stub into a
+// DiskSupplement when its file(s) are ready; otherwise (a rebuilt base file, a new format, or no
+// sqlite-v2 base) it parses the source as before. A changed source has other bytes, so no sidecar:
+// it is parsed and its files built, as for a new one.
+//
 // Per-request supplements (tx-resource) never come here: they keep the in-memory layer and its
 // LRU (layers.js LayerCache).
 
@@ -438,6 +448,128 @@ class DiskCodeMap {
   [Symbol.iterator]() { return this.cs.getAllConcepts().map((x) => [x.code, x])[Symbol.iterator](); }
 }
 
+// ---- the source files of folder:/file: sources ------------------------------------------------
+
+const SOURCE = Symbol('supplementSource'); // index entry / CodeSystem: { sha, entry } of a parsed source file
+const STUB = Symbol('supplementStub');     // CodeSystem: { sidecar, load } of a source file not parsed
+
+const sidecarName = (sha) => `source-${sha}.json`;
+
+function sha256File(file) {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256');
+    fs.createReadStream(file, { highWaterMark: 1 << 20 }).on('error', reject).on('data', (b) => h.update(b)).on('end', () => resolve(h.digest('hex')));
+  });
+}
+
+/**
+ * The hook a FolderContentLoader takes (its sourceIndex) for one cache folder. match(): a source
+ * file whose bytes have a sidecar is indexed from it, unparsed. noteParsed(): a parsed supplement
+ * is marked with the hash of its bytes, for the sidecar the library pass writes.
+ */
+function sourceIndex(cacheFolder) {
+  const dir = path.join(cacheFolder, DIR);
+  let known = null; // the sidecars' hashes, read once
+  const shas = () => {
+    if (!known) {
+      known = new Set();
+      try {
+        for (const n of fs.readdirSync(dir)) {
+          const m = /^source-([0-9a-f]{64})\.json$/.exec(n);
+          if (m) known.add(m[1]);
+        }
+      } catch (e) { /* no folder yet */ }
+    }
+    return known;
+  };
+  return {
+    async match(fullPath, name) {
+      if (!settings.supplementFiles || !shas().size) return null;
+      let sha;
+      try { sha = await sha256File(fullPath); } catch (e) { return null; } // the loader reports it
+      if (!shas().has(sha)) return null;
+      let sidecar;
+      try { sidecar = JSON.parse(fs.readFileSync(path.join(dir, sidecarName(sha)), 'utf8')); } catch (e) { return null; }
+      if (!sidecar || sidecar.format !== SUPPLEMENT_FORMAT || sidecar.sha !== sha || !sidecar.entry || !sidecar.resource) return null;
+      const entry = { ...sidecar.entry, filename: name };
+      Object.defineProperty(entry, STUB, { value: sidecar });
+      return entry;
+    },
+    noteParsed(entry, content, json) {
+      if (!settings.supplementFiles || !json || json.resourceType !== 'CodeSystem' || json.content !== 'supplement' || typeof content !== 'string') return;
+      const sha = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+      Object.defineProperty(entry, SOURCE, { value: { sha, entry: { resourceType: entry.resourceType, id: entry.id, url: entry.url, version: entry.version } } });
+    }
+  };
+}
+
+/**
+ * The CodeSystem for a folder:/file: source's CodeSystem index entry. An entry match() found
+ * gives a stub (the metadata alone, not parsed: the library pass opens its file, or calls load);
+ * any other entry is loaded as main loads it.
+ * @param {object} entry
+ * @param {function(): Promise<CodeSystem>} load main's load of the entry (parse, check, CodeSystem)
+ */
+async function codeSystemForEntry(entry, load) {
+  const sidecar = entry[STUB];
+  if (sidecar) {
+    const cs = new CodeSystem(JSON.parse(JSON.stringify(sidecar.resource)), 'R5', true);
+    Object.defineProperty(cs, STUB, { value: { sidecar, load }, configurable: true });
+    return cs;
+  }
+  const cs = await load();
+  if (entry[SOURCE]) Object.defineProperty(cs, SOURCE, { value: entry[SOURCE], configurable: true });
+  return cs;
+}
+
+/** an index entry match() found: the resource's metadata (no concepts), or null */
+function knownResource(entry) {
+  return entry && entry[STUB] ? entry[STUB].resource : null;
+}
+
+/** parse a stub's source, as main would have at load; what the library set on the stub is kept */
+async function materialize(stub) {
+  const { sidecar, load } = stub[STUB];
+  const cs = await load();
+  for (const k of Object.keys(stub)) if (!Object.prototype.hasOwnProperty.call(cs, k)) cs[k] = stub[k];
+  // the same bytes as the sidecar's (unless the file changed since the startup scan): keep the mark
+  if (contentHashOf(cs.jsonObj) === sidecar.contentHash) Object.defineProperty(cs, SOURCE, { value: { sha: sidecar.sha, entry: sidecar.entry }, configurable: true });
+  return cs;
+}
+
+/**
+ * materialize, in place in its provider's list; a source that can no longer be loaded is skipped
+ * with a warning, as the library skips one at load. Returns the CodeSystem, or null.
+ */
+async function materializeAt(list, i, log) {
+  try {
+    return (list[i] = await materialize(list[i]));
+  } catch (e) {
+    if (log) log.warn(`Skipping CodeSystem ${list[i].vurl || list[i].url}: ${e.message}`);
+    list.splice(i, 1);
+    return null;
+  }
+}
+
+async function materializeAll(library, log) {
+  for (const cp of library.codeSystemProviders || []) {
+    const list = cp && cp.codeSystems;
+    if (!Array.isArray(list)) continue;
+    for (let i = 0; i < list.length; i++) if (list[i] && list[i][STUB] && !(await materializeAt(list, i, log))) i--;
+  }
+}
+
+function writeSidecar(cacheFolder, cs, hash) {
+  const src = cs[SOURCE];
+  const meta = {};
+  for (const k of Object.keys(cs.jsonObj)) if (k !== 'concept') meta[k] = cs.jsonObj[k];
+  const file = path.join(cacheFolder, DIR, sidecarName(src.sha));
+  const tmp = `${file}.building-${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify({ format: SUPPLEMENT_FORMAT, sha: src.sha, contentHash: hash, entry: src.entry, resource: meta }));
+  fs.renameSync(tmp, file);
+  return path.basename(file);
+}
+
 // ---- the library pass -----------------------------------------------------------------------
 
 // the fields a DiskSupplement has its own of; every other field of the loaded resource is copied
@@ -466,17 +598,51 @@ function v2Factories(library) {
  * @param {object} [opts] { readOnly (a tx-worker), log }
  */
 async function useSupplementFiles(library, opts = {}) {
-  const done = { files: 0, built: 0, supplements: 0, ms: 0 };
-  if (!settings.supplementFiles) return done;
-  const factories = v2Factories(library);
-  if (!factories.length) return done;
+  const done = { files: 0, built: 0, supplements: 0, unparsed: 0, ms: 0 };
+  const factories = settings.supplementFiles ? v2Factories(library) : [];
+  if (!factories.length) {
+    await materializeAll(library, opts.log);
+    return done;
+  }
   const t0 = Date.now();
   const used = new Set();
   for (const cp of library.codeSystemProviders) {
     const list = cp && cp.codeSystems;
     if (!Array.isArray(list)) continue;
     for (let i = 0; i < list.length; i++) {
-      const cs = list[i];
+      let cs = list[i];
+      const stub = cs && cs[STUB];
+      if (stub) {
+        // a source file not parsed: its file(s), if they are all there (a tx-worker waits for them)
+        const bases = factories.filter((f) => cs.isSupplementFor(f.system(), f.version()));
+        const paths = bases.map((f) => [f, supplementFilePath(library.cacheFolder, cs.jsonObj, f.store, stub.sidecar.contentHash)]);
+        if (paths.length && (opts.readOnly || paths.every(([, file]) => open.has(file) || isReady(file)))) {
+          const files = new Map();
+          for (const [f, file] of paths) {
+            used.add(path.basename(file));
+            if (!open.has(file)) {
+              if (opts.readOnly) {
+                const { waitForCache } = require('../library/wait-for-cache');
+                await waitForCache(async () => isReady(file), `Supplement ${cs.vurl || cs.url}: sqlite-v2 supplement file ${file}`);
+              } else {
+                touch(file);
+              }
+            }
+            files.set(f.store, openFile(file));
+            done.files++;
+          }
+          used.add(sidecarName(stub.sidecar.sha));
+          if (!opts.readOnly) touch(path.join(library.cacheFolder, DIR, sidecarName(stub.sidecar.sha)));
+          const disk = new DiskSupplement(files);
+          for (const k of Object.keys(cs)) if (!OWN.has(k)) disk[k] = cs[k];
+          list[i] = disk;
+          done.supplements++;
+          done.unparsed++;
+          continue;
+        }
+        cs = await materializeAt(list, i, opts.log);
+        if (!cs) { i--; continue; }
+      }
       if (!(cs instanceof CodeSystem) || cs instanceof DiskSupplement || !cs.jsonObj || cs.jsonObj.content !== 'supplement') continue;
       if (!cs.jsonObj.supplements || !cs.conceptCount()) continue;
       const bases = factories.filter((f) => cs.isSupplementFor(f.system(), f.version()));
@@ -502,6 +668,8 @@ async function useSupplementFiles(library, opts = {}) {
         files.set(f.store, openFile(file));
         done.files++;
       }
+      // the source file's sidecar, for the next startup (folder:/file: sources)
+      if (cs[SOURCE]) used.add(opts.readOnly ? sidecarName(cs[SOURCE].sha) : writeSidecar(library.cacheFolder, cs, hash));
       const disk = new DiskSupplement(files);
       // what the library set on the resource it loaded (sourcePackage, ...)
       for (const k of Object.keys(cs)) if (!OWN.has(k)) disk[k] = cs[k];
@@ -542,5 +710,5 @@ function pidAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
 }
 
-module.exports = { useSupplementFiles, writeSupplementFile, DiskSupplement, SupplementFile, supplementFilePath, baseIdentity, contentHashOf,
+module.exports = { useSupplementFiles, sourceIndex, codeSystemForEntry, knownResource, writeSupplementFile, DiskSupplement, SupplementFile, supplementFilePath, baseIdentity, contentHashOf,
   isReady, openFile, SUPPLEMENT_FORMAT };

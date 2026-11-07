@@ -98,6 +98,8 @@ class Library {
    * once they're stale (see #pruneLocalSourceCaches)
    */
   #localSourceCaches = new Set();
+  // folder:/file: loaders' hook for supplements already in sqlite-v2 files (#localLoader)
+  #supplementSourceIndex = null;
 
   baseUrl = null;
   cacheFolder = null;
@@ -285,7 +287,7 @@ class Library {
     const supp = await useSupplementFiles(this, { readOnly: this.packageCachesReadOnly, log: this.log });
     if (supp.supplements) {
       this.log.info(`sqlite-v2 supplement files: ${supp.supplements} supplement${supp.supplements === 1 ? '' : 's'} on disk ` +
-        `(${supp.files} file${supp.files === 1 ? '' : 's'}, ${supp.built} built) in ${supp.ms} ms`);
+        `(${supp.files} file${supp.files === 1 ? '' : 's'}, ${supp.built} built, ${supp.unparsed} not parsed) in ${supp.ms} ms`);
     }
 
     const endMemory = process.memoryUsage();
@@ -994,8 +996,8 @@ class Library {
     }
 
     const folderPath = this.#resolveLocalSourcePath(details);
-    const cacheSubdir = await this.#prepareLocalSourceCache(folderPath, dir => new FolderContentLoader(folderPath, dir));
-    await this.#loadLocalSource(new FolderContentLoader(folderPath, cacheSubdir));
+    const cacheSubdir = await this.#prepareLocalSourceCache(folderPath, dir => this.#localLoader(new FolderContentLoader(folderPath, dir)));
+    await this.#loadLocalSource(this.#localLoader(new FolderContentLoader(folderPath, cacheSubdir)));
   }
 
   /**
@@ -1019,8 +1021,21 @@ class Library {
     }
 
     const filePath = this.#resolveLocalSourcePath(details);
-    const cacheSubdir = await this.#prepareLocalSourceCache(filePath, dir => new FileContentLoader(filePath, dir));
-    await this.#loadLocalSource(new FileContentLoader(filePath, cacheSubdir));
+    const cacheSubdir = await this.#prepareLocalSourceCache(filePath, dir => this.#localLoader(new FileContentLoader(filePath, dir)));
+    await this.#loadLocalSource(this.#localLoader(new FileContentLoader(filePath, cacheSubdir)));
+  }
+
+  /**
+   * A folder:/file: loader that indexes a supplement whose sqlite-v2 supplement file the server
+   * already has from the source file's bytes, without parsing it (supplement-files.js).
+   * @private
+   */
+  #localLoader(loader) {
+    if (!this.#supplementSourceIndex) {
+      this.#supplementSourceIndex = require('./sqlite-v2/supplement-files').sourceIndex(this.cacheFolder);
+    }
+    loader.sourceIndex = this.#supplementSourceIndex;
+    return loader;
   }
 
   /**
@@ -1145,7 +1160,8 @@ class Library {
         let title = null;
         let description = null;
         try {
-          const json = JSON.parse(await fs.readFile(path.join(contentLoader.sourceFolder, entry.filename), 'utf8'));
+          const json = require('./sqlite-v2/supplement-files').knownResource(entry) ||
+            JSON.parse(await fs.readFile(path.join(contentLoader.sourceFolder, entry.filename), 'utf8'));
           title = json.title || json.name || null;
           description = typeof json.description === 'string' ? json.description : null;
         } catch (e) {
@@ -1166,10 +1182,13 @@ class Library {
     for (const entry of csEntries) {
       let cs;
       try {
-        const json = await contentLoader.loadFile(entry, contentLoader.fhirVersion());
-        // narrative is shown as-is in a page, so it must not carry script (see narrative-check.js)
-        assertNoActiveContent(json);
-        cs = new CodeSystem(json);
+        // a supplement whose sqlite-v2 file the server has is not parsed here (supplement-files.js)
+        cs = await require('./sqlite-v2/supplement-files').codeSystemForEntry(entry, async () => {
+          const json = await contentLoader.loadFile(entry, contentLoader.fhirVersion());
+          // narrative is shown as-is in a page, so it must not carry script (see narrative-check.js)
+          assertNoActiveContent(json);
+          return new CodeSystem(json);
+        });
       } catch (e) {
         // one unacceptable resource must not stop the rest of the package loading
         this.log.warn(`Package ${contentLoader.pid()}: skipping CodeSystem ${entry.id || entry.filename || ''}: ${e.message}`);
