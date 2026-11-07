@@ -25,6 +25,10 @@ class FolderContentLoader extends PackageContentLoader {
     // Resources are read directly from the source folder rather than from
     // <packageFolder>/package as PackageContentLoader assumes.
     this.packageSubfolder = sourceFolder;
+    // optional { match(fullPath, name) -> index entry | null, noteParsed(entry, content, json) }:
+    // lets the caller index a file it recognises from its bytes without parsing it (see
+    // tx/sqlite-v2/supplement-files.js sourceIndex)
+    this.sourceIndex = null;
   }
 
   /**
@@ -98,9 +102,17 @@ class FolderContentLoader extends PackageContentLoader {
     const files = [];
     for (const name of await this._candidateFiles()) {
       const fullPath = path.join(this.sourceFolder, name);
+      // a resource the server already holds elsewhere, recognised from the file's bytes alone
+      // (sqlite-v2 supplement files): indexed without reading it into the heap
+      const known = this.sourceIndex ? await this.sourceIndex.match(fullPath, name) : null;
+      if (known) {
+        files.push(known);
+        continue;
+      }
       let json;
+      let content;
       try {
-        const content = await fs.readFile(fullPath, 'utf8');
+        content = await fs.readFile(fullPath, 'utf8');
         json = JSON.parse(content);
       } catch (e) {
         // Skip unreadable / non-JSON files rather than failing the whole load,
@@ -115,13 +127,15 @@ class FolderContentLoader extends PackageContentLoader {
         throw new Error(`${fullPath} is not a CodeSystem, ValueSet or ConceptMap (resourceType = ${rt || 'none'})`);
       }
 
-      files.push({
+      const entry = {
         filename: name,
         resourceType: rt,
         id: json.id,
         url: json.url,
         version: json.version
-      });
+      };
+      if (this.sourceIndex) this.sourceIndex.noteParsed(entry, content, json);
+      files.push(entry);
     }
 
     this.index = { files, 'index-version': 2 };
