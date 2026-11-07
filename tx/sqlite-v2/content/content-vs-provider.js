@@ -467,31 +467,29 @@ class ContentValueSetProvider extends AbstractValueSetProvider {
   // ---- usage scan (tx/usage-tracker.js) ---------------------------------------------------------
 
   /**
-   * What ConceptUsageTracker.scanValueSets does with this provider (fetchValueSet(url) for every
-   * listed url, then every include's codes), read from the rows without building value sets.
+   * What ConceptUsageTracker.scanValueSets does with this provider (scanAllValueSets: the latest
+   * version of each listed url, once, then every include's codes), read from the rows without
+   * building value sets. A url stored in several versions counts once, as it does there.
    * @returns {number} the value sets it would count
    */
   async scanUsage(tracker) {
     await this.initialize();
-    const listed = new Map();
-    for (const u of await this.listAllValueSets()) listed.set(u, (listed.get(u) || 0) + 1);
+    const listed = new Set(await this.listAllValueSets());
     const codes = this.db.prepare(`SELECT i.system, c.code FROM vs_include i JOIN vs_concept c
       ON c.row BETWEEN i.first_row AND i.first_row + i.concept_count - 1
       WHERE i.vs_id = ? AND i.exclude = 0 AND i.system IS NOT NULL AND i.concept_count > 0 ORDER BY c.row`).raw();
     let c = 0;
-    for (const [url, times] of listed) {
+    for (const url of listed) {
       if (url == null) continue;
       const cand = this._candidates(url, null)[0];
       if (!cand) continue;
       if (!this.s.hasCompose.get(cand.vs_id)) continue;
       const rows = codes.all(cand.vs_id);
       let ok = false;
-      for (let k = 0; k < times; k++) {
-        for (const [system, code] of rows) {
-          if (code) { ok = true; tracker.seeConcept(system, code); }
-        }
+      for (const [system, code] of rows) {
+        if (code) { ok = true; tracker.seeConcept(system, code); }
       }
-      if (ok) c += times;
+      if (ok) c++;
     }
     return c;
   }
