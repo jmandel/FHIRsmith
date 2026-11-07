@@ -159,3 +159,29 @@ describe('in the launcher\'s settings', () => {
     expect(() => loadSettings([], {}, { server: { cluster: { workerRule: 'x' } }, modules: tx }, cpu)).toThrow(/not one of/);
   });
 });
+
+describe('the sqlite-v2 engine\'s rule', () => {
+  const { v2Rule } = require('../../tx/sqlite-v2/worker-rule');
+  const at = (vcpu, cores, rule) => defaultWorkers({ vcpu, topology: { cpus: vcpu, cores }, quota: null, rule }).workers;
+
+  test('registered, and the default once the engine is loaded', () => {
+    expect(RULES.v2).toBe(v2Rule);
+    expect(defaultWorkers({ vcpu: 8, topology: { cpus: 8, cores: 8 }, quota: null }).rule).toBe('v2');
+    expect(at(8, 8, 'classic')).toBe(5);
+    // the launcher's default, and server.cluster.workerRule 'classic' for the other
+    const cpu = { vcpu: 8, topology: { cpus: 8, cores: 4 }, quota: null };
+    const s = loadSettings([], {}, { modules: { tx: { enabled: true } } }, cpu);
+    expect([s.workerDecision.rule, s.procs.length - 1]).toEqual(['v2', 3]);
+    expect(loadSettings([], {}, { server: { cluster: { workerRule: 'classic' } }, modules: { tx: { enabled: true } } }, cpu).procs.length - 1).toBe(4);
+  });
+
+  test('min(cores − 1, round(0.6 × vCPU) + 1) at 4, 8 and 16 vCPU', () => {
+    expect([at(4, 4), at(8, 4), at(8, 8), at(16, 8), at(16, 16)]).toEqual([3, 3, 6, 7, 11]);
+    expect(at(2, 1)).toBe(1);
+  });
+
+  test('the log line', () => {
+    const d = defaultWorkers({ vcpu: 8, topology: { cpus: 8, cores: 4 }, quota: null });
+    expect(describeDecision(d, 3, 'memory fits 11', false)).toBe('workers 3: 4 physical cores (8 vCPU, SMT 2), quota none, memory fits 11 → v2 rule min(4−1, round(0.6×8)+1)');
+  });
+});

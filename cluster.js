@@ -55,6 +55,8 @@ const { thresholds } = require('./library/memory-guard');
 const { defaultWorkers, describeDecision } = require('./library/worker-count');
 const { englishMessage } = require('./library/i18nsupport');
 const { formatDuration } = require('./tx/operation-context');
+// the sqlite-v2 engine's rule is the default (server.cluster.workerRule 'classic' for the other)
+require('./tx/sqlite-v2/worker-rule');
 
 const TX_ISSUE_TYPE = 'http://hl7.org/fhir/tools/CodeSystem/tx-issue-type';
 const MESSAGE_ID_EXTENSION = 'http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id';
