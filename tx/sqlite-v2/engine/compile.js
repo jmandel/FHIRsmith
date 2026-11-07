@@ -134,8 +134,9 @@ class Compiler {
 
   /** the concepts a filter can select at all (RxNorm: never archived concepts) */
   domain(node) {
-    if (this.dialect.domain === 'active') return node.t === 'all' ? { t: 'active' } : { t: 'and', items: [node, { t: 'active' }] };
-    return node;
+    if (this.dialect.domain !== 'live') return node;
+    const live = this.dialect.live(this.store);
+    return node.t === 'all' ? live : { t: 'and', items: [node, live] };
   }
 
   /** an imported value set's compose as one node: its includes minus its excludes */

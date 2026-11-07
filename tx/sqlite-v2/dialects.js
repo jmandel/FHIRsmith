@@ -77,8 +77,14 @@ const loinc = {
 
 const rxnorm = {
   name: 'rxnorm',
-  // every upstream query is over RXNCONSO: archived (inactive) concepts are never selected
-  domain: 'active',
+  // every upstream query is over RXNCONSO: archived concepts (RXNATOMARCHIVE only) are never
+  // selected; obsolete ones (inactive, but in RXNCONSO) are. RXNCONSO concepts are the ones with
+  // a SUPPRESS literal; a file without SUPPRESS has no obsolete concepts, so its active set.
+  domain: 'live',
+  live(S) {
+    const p = S.props.get('SUPPRESS');
+    return p ? { t: 'set', kind: KIND.hasProp, pid: p.id, value: 0 } : { t: 'active' };
+  },
   notSupported(prop, op, value) {
     return new FilterError(`Unknown filter "${prop} ${op} ${value}"`);
   },

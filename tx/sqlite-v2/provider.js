@@ -275,9 +275,18 @@ class SqliteV2Provider extends BaseCSServices {
 
   async isDeprecated(context) {
     const c = await this._ensure(context);
-    if (this.dialect.name === 'rxnorm') return !c.row.active;
+    if (this.dialect.name === 'rxnorm') return this._rxArchived(c);
     return false;
   }
+
+  /** RxNorm: the concepts in RXNCONSO (active or obsolete), not the archived ones */
+  _rxLive() {
+    const p = this.store.props.get('SUPPRESS');
+    return p ? this.store.getSet(KIND.hasProp, p.id, 0, this._stats()) : this.store.active();
+  }
+
+  /** RxNorm: inactive because archived (RXNATOMARCHIVE only), not obsolete (SUPPRESS = O) */
+  _rxArchived(c) { return !c.row.active && !this._rxLive().has(c.id); }
 
   async getStatus(context) {
     const c = await this._ensure(context);
@@ -288,7 +297,7 @@ class SqliteV2Provider extends BaseCSServices {
       const r = this.store.stmt('SELECT value FROM concept_literal WHERE concept_id = ? AND property_id = ? AND active = 1 LIMIT 1').get(c.id, p.id);
       return r ? r.value : null;
     }
-    if (this.dialect.name === 'rxnorm') return c.row.active ? null : 'archived';
+    if (this.dialect.name === 'rxnorm') return c.row.active ? null : (this._rxArchived(c) ? 'archived' : 'obsolete');
     return c.row.active ? 'active' : 'inactive';
   }
 
@@ -368,7 +377,7 @@ class SqliteV2Provider extends BaseCSServices {
 
   _roots() {
     if (this.dialect.name === 'loinc' || this.dialect.name === 'rxnorm') {
-      return (this.dialect.name === 'rxnorm' ? this.store.active() : this.store.all()).toArray();
+      return (this.dialect.name === 'rxnorm' ? this._rxLive() : this.store.all()).toArray();
     }
     // concepts without an active parent
     const hid = this.store.hierarchy ? this.store.hierarchy.id : -1;
@@ -377,7 +386,7 @@ class SqliteV2Provider extends BaseCSServices {
   }
 
   async iteratorAll() {
-    const ids = (this.dialect.name === 'rxnorm' ? this.store.active() : this.store.all()).toArray();
+    const ids = (this.dialect.name === 'rxnorm' ? this._rxLive() : this.store.all()).toArray();
     return { ids, pos: 0, total: ids.length };
   }
 
