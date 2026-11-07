@@ -55,6 +55,9 @@ with `--role`). Their settings are in `server.cluster`, documented with the arra
 [The launcher](cluster.md#the-launcher-clusterjs), and what the processes share
 (`sharedCache`, `cacheAffinity`, `sharedCacheMaxMB`, `sharedClosure`) under
 [Options](cluster.md#options). With no role, `server.cluster` is ignored.
+With no `server.cluster.workers`, the number of
+workers comes from the CPUs and memory, by the rule of the engine in use, classic or sqlite-v2
+(see [How many workers](cluster.md#how-many-workers)).
 
 ## Logging
 
@@ -169,3 +172,24 @@ Each module has its own entry under `modules`, documented with the module:
 | `npmprojector` | [npmprojector/readme.md](npmprojector/readme.md) |
 | `token` | [token/security_guide.md](token/security_guide.md) |
 | `xig`, `vcl`, `publisher` | see `config-template.json` |
+
+### The sqlite-v2 engine (`modules.tx.sqliteV2`)
+
+The tx module's library sources `sqlite-v2:<file>.db` serve SNOMED CT, LOINC and RxNorm from
+sqlite-v2 files ([docs/sqlite-v2-engine.md](docs/sqlite-v2-engine.md)). Its settings are in
+`modules.tx.sqliteV2`; every key is optional, and these are the defaults:
+
+| Option | Default | Description |
+|---|---|---|
+| `content` | `{ "valueSets": true, "codeSystems": true }` | Serve npm-package value sets and code systems, and VSAC, from sqlite-v2 content files ([docs/sqlite-v2-content-store.md](docs/sqlite-v2-content-store.md)). An object means exactly what it says (an omitted half is off); `false` = off, and packages and VSAC load as the classic providers load them |
+| `maxScanRows` | `5000000` | The planner's estimate of the fact rows a request may read before it is refused as too-costly (422 `VALUESET_TOO_COSTLY`) |
+| `supplementLayerCacheMB` | `64` | Memory, per process, for built supplement layers kept between requests. 0 = keep none. Logged in the startup `Limits:` line |
+| `supplementFiles` | `true` | Server-known supplements of sqlite-v2 files are imported once into a small file each and read from there; `false` = keep them in memory. Logged in the `Limits:` line |
+| `sqliteCacheKB` | `2048` | SQLite page cache per connection |
+| `mmapMB` | `256` | SQLite mmap window per file |
+| `fhirProcessSelection` | `false` | Package code systems evaluate whole composes on the engine; the expansion is then flat, not nested by the code system's hierarchy |
+
+`modules.tx.sqliteV2Trace` (`"request"` or `"all"`; off when unset) turns on the engine's
+traces (`_trace=true`) and their endpoints ([docs/sqlite-v2-trace.md](docs/sqlite-v2-trace.md)).
+What each limit costs and why it is set where it is:
+[docs/sqlite-v2-engine.md](docs/sqlite-v2-engine.md#limits-and-cost-txsqlite-v2settingsjs-modulestxsqlitev2).
