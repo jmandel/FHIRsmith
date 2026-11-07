@@ -4,8 +4,11 @@
 //
 // Source-specific parsing only; the shared final stage (V2Builder.finish) numbers, rewrites,
 // builds the sets and indexes. Semantics follow tx/cs/cs-rxnorm.js (what tx.fhir.org serves):
-//   concepts      every RXCUI with an SAB=RXNORM atom in RXNCONSO, active; RXCUIs found only
-//                 in RXNATOMARCHIVE (SAB=RXNORM) are inactive ("archived").
+//   concepts      every RXCUI with an SAB=RXNORM atom in RXNCONSO; inactive ("obsolete") when
+//                 its display atom (cs-rxnorm.js DISPLAY_RANK_SQL: lowest rank, non-SY) has
+//                 SUPPRESS = O, else active. RXCUIs found only in RXNATOMARCHIVE (SAB=RXNORM) are
+//                 inactive ("archived") and have no SUPPRESS literal, which is how the provider
+//                 tells the two apart.
 //   display       the first non-SY RXNORM atom in file order (archive: same rule).
 //   designations  every RXNORM atom, use = TTY (system .../rxnorm), en-US, active (archived ones
 //                 too: tx.fhir.org reports them so; the concept carries the inactive status).
@@ -29,6 +32,8 @@ const RXNORM = 'http://www.nlm.nih.gov/research/umls/rxnorm';
 const TTY_RANK = ['IN', 'PIN', 'MIN', 'BN', 'DF', 'DFG', 'SCDC', 'SCDF', 'SCDFP', 'SCDG', 'SCDGP', 'SCD',
   'SBDC', 'SBDF', 'SBDFP', 'SBDG', 'SBD', 'GPCK', 'BPCK', 'PSN', 'SY', 'TMSY', 'ET'];
 // relations followed from a drug towards its ingredient(s) for the ordering
+// cs-rxnorm.js DISPLAY_RANK_SQL: the display atom is the lowest-ranked non-SY RXNORM atom
+const DISPLAY_RANK = { PSN: 1, ET: 2, TMSY: 3, SY: 4 };
 const TOWARDS_INGREDIENT = new Set(['has_ingredient', 'has_precise_ingredient', 'has_ingredients', 'tradename_of',
   'consists_of', 'isa', 'has_part', 'contains', 'form_of', 'quantified_form_of']);
 
@@ -60,6 +65,7 @@ async function importRxNormV2(cfg) {
   await b.stage('parse RXNCONSO', async () => {
     let n = 0;
     const seen = new Map(); // index -> Set of TTY|SUPPRESS literals already written
+    const shown = new Map(); // index -> [rank, SUPPRESS] of its display atom so far (cs-rxnorm.js)
     for await (const c of rrf(f('RXNCONSO.RRF'))) {
       const cui = c[0], sab = c[11], tty = c[12], str = c[14], sup = c[16];
       if (sab !== 'RXNORM') { sabs.push(cui, sab); continue; }
@@ -70,11 +76,19 @@ async function importRxNormV2(cfg) {
       if (!s) seen.set(i, s = new Set());
       if (!s.has(`T${tty}`)) { s.add(`T${tty}`); b.literal(i, TTY, tty); }
       if (!s.has(`S${sup}`)) { s.add(`S${sup}`); b.literal(i, SUPPRESS, sup); }
+      if (tty !== 'SY') {
+        const dr = DISPLAY_RANK[tty] || 0, cur = shown.get(i);
+        if (!cur || dr < cur[0]) shown.set(i, [dr, sup]);
+      }
       const r = TTY_RANK.indexOf(tty);
       const rr = r < 0 ? TTY_RANK.length : r;
       if (!rank.has(i) || rr < rank.get(i)) rank.set(i, rr);
       n++;
     }
+    // obsolete: the display atom is SUPPRESS = O (cs-rxnorm.js #isObsolete)
+    stats.obsoleteConcepts = 0;
+    for (const [i, [, sup]] of shown) if (sup === 'O') { b.setActive(i, false); stats.obsoleteConcepts++; }
+    shown.clear();
     // SAB: every source with an atom for an RXNORM concept (RXNORM itself included)
     const sabSeen = new Set();
     for (let i = 0; i < b.codes.length; i++) { b.literal(i, SAB, 'RXNORM'); if (b.display[i] === null) b.setDisplay(i, b.codes[i]); }
