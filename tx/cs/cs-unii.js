@@ -2,6 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider} = require('./cs-api');
+const { guarded } = require('../library/sqlite-utilities');
 
 class UniiConcept {
   constructor(code, display) {
@@ -139,19 +140,19 @@ class UniiServices extends CodeSystemProvider {
   // Database helper methods
   async #getVersion() {
     return new Promise((resolve, reject) => {
-      this.db.get('SELECT Version FROM UniiVersion', (err, row) => {
+      this.db.get('SELECT Version FROM UniiVersion', guarded(reject, (err, row) => {
         if (err) reject(err);
         else resolve(row ? row.Version : 'unknown');
-      });
+      }));
     });
   }
 
   async #getTotalCount() {
     return new Promise((resolve, reject) => {
-      this.db.get('SELECT COUNT(*) as count FROM Unii', (err, row) => {
+      this.db.get('SELECT COUNT(*) as count FROM Unii', guarded(reject, (err, row) => {
         if (err) reject(err);
         else resolve(row.count);
-      });
+      }));
     });
   }
 
@@ -163,7 +164,7 @@ class UniiServices extends CodeSystemProvider {
 
     return new Promise((resolve, reject) => {
       // First query: get main concept
-      this.db.get('SELECT UniiKey, Display FROM Unii WHERE Code = ?', [code], (err, row) => {
+      this.db.get('SELECT UniiKey, Display FROM Unii WHERE Code = ?', [code], guarded(reject, (err, row) => {
         if (err) {
           return reject(err);
         }
@@ -176,7 +177,7 @@ class UniiServices extends CodeSystemProvider {
         const uniiKey = row.UniiKey;
 
         // Second query: get all descriptions
-        this.db.all('SELECT Display FROM UniiDesc WHERE UniiKey = ?', [uniiKey], (err, rows) => {
+        this.db.all('SELECT Display FROM UniiDesc WHERE UniiKey = ?', [uniiKey], guarded(reject, (err, rows) => {
           if (err) return reject(err);
 
           // Add unique descriptions to others array
@@ -188,8 +189,8 @@ class UniiServices extends CodeSystemProvider {
           });
 
           resolve({ context: concept, message: undefined });
-        });
-      });
+        }));
+      }));
     });
   }
 

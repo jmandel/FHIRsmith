@@ -5,6 +5,7 @@ const { FilterExecutionContext, CodeSystemFactoryProvider } = require('./cs-api'
 const {validateOptionalParameter, validateArrayParameter} = require("../../library/utilities");
 const {ConceptMap} = require("../library/conceptmap");
 const {BaseCSServices} = require("./cs-base");
+const { guarded } = require('../library/sqlite-utilities');
 
 class OMOPConcept {
   constructor(code, display, domain, conceptClass, standard, vocabulary) {
@@ -163,10 +164,10 @@ class OMOPServices extends BaseCSServices {
 
   async totalCount() {
     return new Promise((resolve, reject) => {
-      this.db.get('SELECT COUNT(*) as count FROM Concepts', (err, row) => {
+      this.db.get('SELECT COUNT(*) as count FROM Concepts', guarded(reject, (err, row) => {
         if (err) reject(err);
         else resolve(row.count);
-      });
+      }));
     });
   }
 
@@ -242,7 +243,7 @@ class OMOPServices extends BaseCSServices {
             AND ConceptSynonyms.concept_id = ?
       `;
 
-      this.db.all(sql, [code], (err, rows) => {
+      this.db.all(sql, [code], guarded(reject, (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -252,7 +253,7 @@ class OMOPServices extends BaseCSServices {
           }));
           resolve(synonyms);
         }
-      });
+      }));
     });
   }
 
@@ -320,7 +321,7 @@ class OMOPServices extends BaseCSServices {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT * FROM Concepts WHERE concept_id = ?';
 
-      this.db.get(sql, [ctxt.code], (err, row) => {
+      this.db.get(sql, [ctxt.code], guarded(reject, (err, row) => {
         if (err) {
           reject(err);
         } else if (row) {
@@ -350,7 +351,7 @@ class OMOPServices extends BaseCSServices {
         } else {
           resolve();
         }
-      });
+      }));
     });
   }
 
@@ -367,7 +368,7 @@ class OMOPServices extends BaseCSServices {
             AND ConceptRelationships.concept_id_1 = ?
       `;
 
-      this.db.all(sql, [ctxt.code], (err, rows) => {
+      this.db.all(sql, [ctxt.code], guarded(reject, (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -380,7 +381,7 @@ class OMOPServices extends BaseCSServices {
           }
           resolve();
         }
-      });
+      }));
     });
 
     // Reverse relationships
@@ -393,7 +394,7 @@ class OMOPServices extends BaseCSServices {
             AND ConceptRelationships.concept_id_2 = ?
       `;
 
-      this.db.all(sql, [ctxt.code], (err, rows) => {
+      this.db.all(sql, [ctxt.code], guarded(reject, (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -407,7 +408,7 @@ class OMOPServices extends BaseCSServices {
           }
           resolve();
         }
-      });
+      }));
     });
   }
 
@@ -525,7 +526,7 @@ class OMOPServices extends BaseCSServices {
             AND concept_id = ?
       `;
 
-      this.db.get(sql, [code], (err, row) => {
+      this.db.get(sql, [code], guarded(reject, (err, row) => {
         if (err) {
           reject(err);
         } else if (row && row.concept_id.toString() === code) {
@@ -541,7 +542,7 @@ class OMOPServices extends BaseCSServices {
         } else {
           resolve({ context: null, message: undefined });
         }
-      });
+      }));
     });
   }
 
@@ -696,7 +697,7 @@ class OMOPServices extends BaseCSServices {
           WHERE concept_id = ? AND vocabulary_id = ?
       `;
 
-      this.db.all(sql, [coding.code, vocabId], (err, rows) => {
+      this.db.all(sql, [coding.code, vocabId], guarded(reject, (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -709,7 +710,7 @@ class OMOPServices extends BaseCSServices {
           }));
           resolve(translations);
         }
-      });
+      }));
     });
   }
 
@@ -725,7 +726,7 @@ class OMOPServices extends BaseCSServices {
             AND Domains.domain_concept_id = Concepts.concept_id
       `;
 
-      this.db.get(sql, [domain], (err, row) => {
+      this.db.get(sql, [domain], guarded(reject, (err, row) => {
         if (err) {
           reject(err);
         } else if (row && row.domain_id === domain) {
@@ -753,7 +754,7 @@ class OMOPServices extends BaseCSServices {
         } else {
           reject(new Error(`Unknown Value Domain ${id}`));
         }
-      });
+      }));
     });
   }
 
@@ -762,7 +763,7 @@ class OMOPServices extends BaseCSServices {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT DISTINCT vocabulary_id FROM Concepts';
 
-      this.db.all(sql, (err, rows) => {
+      this.db.all(sql, guarded(reject, (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -787,7 +788,7 @@ class OMOPServices extends BaseCSServices {
           }
           resolve();
         }
-      });
+      }));
     });
   }
 
@@ -893,7 +894,7 @@ class OMOPServicesFactory extends CodeSystemFactoryProvider {
           WHERE vocabulary_id = 'OMOP Extension'
       `;
 
-      db.get(sql, (err, row) => {
+      db.get(sql, guarded(reject, (err, row) => {
         if (err) {
           reject(err);
         } else if (row) {
@@ -907,7 +908,7 @@ class OMOPServicesFactory extends CodeSystemFactoryProvider {
           this._sharedData._version = 'unknown';
           resolve();
         }
-      });
+      }));
     });
   }
 
