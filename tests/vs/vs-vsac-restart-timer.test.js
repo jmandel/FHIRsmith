@@ -3,19 +3,29 @@ const os = require('os');
 const path = require('path');
 const { VSACValueSetProvider } = require('../../tx/vs/vs-vsac');
 const { ValueSetDatabase } = require('../../tx/vs/vs-database');
+const { ContentVsacProvider, ContentVsacDatabase } = require('../../tx/sqlite-v2/content/content-vsac');
 
 /**
  * At startup, the first scheduled VSAC sync is due an interval after the last sync that
  * worked (as recorded in vsac_runs), not an interval after the start: otherwise each restart
  * puts the sync off, and a server restarted more often than once a day never syncs.
- * The cache is a real sqlite database in a temp folder; nothing is fetched from VSAC.
+ * The cache is a real sqlite database in a temp folder (the ValueSetDatabase, or a sqlite-v2
+ * content file for ContentVsacProvider, which starts its timer through the same initialize());
+ * nothing is fetched from VSAC.
  */
 
 const HOUR = 3600 * 1000;
 
-function provider(dbPath) {
-  const p = Object.create(VSACValueSetProvider.prototype);
-  p.database = new ValueSetDatabase(dbPath);
+const KINDS = [
+  ['VSACValueSetProvider', VSACValueSetProvider, (dbPath, opts) => new ValueSetDatabase(dbPath, opts)],
+  ['ContentVsacProvider', ContentVsacProvider, (dbPath, opts) => new ContentVsacDatabase(dbPath, opts)]
+];
+
+function provider(Provider, makeDatabase, dbPath) {
+  const p = Object.create(Provider.prototype);
+  p.dbPath = dbPath;
+  p.legacyPath = dbPath + '.legacy'; // ContentVsacProvider: no older cache to convert
+  p.database = makeDatabase(dbPath);
   p.initialized = false;
   p.isRefreshing = false;
   p.lastRefresh = null;
@@ -28,14 +38,14 @@ function provider(dbPath) {
   return p;
 }
 
-describe('VSAC refresh timer after a restart', () => {
+describe.each(KINDS)('%s refresh timer after a restart', (name, Provider, makeDatabase) => {
   let dir;
   let p;
   let log;
 
   beforeEach(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vsac-restart-'));
-    p = provider(path.join(dir, 'vsac.db'));
+    p = provider(Provider, makeDatabase, path.join(dir, 'vsac.db'));
     await p.database.create();
     log = jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -91,5 +101,16 @@ describe('VSAC refresh timer after a restart', () => {
     await p.initialize();
     expect(p.refreshValueSets).toHaveBeenCalledTimes(1);
     expect(delay()).toBe(p._retryDelayMs(1));
+  });
+
+  test('a follower (tx-worker) never syncs or schedules a sync, even when one is overdue', async () => {
+    await syncedAgo('ok', 30 * HOUR);
+    await p.database.close();
+    p.cluster = 'follower';
+    p.database = makeDatabase(p.dbPath, { readOnly: true });
+    await p.initialize();
+    expect(p.initialized).toBe(true);
+    expect(p.refreshValueSets).not.toHaveBeenCalled();
+    expect(p._startRefreshTimer).not.toHaveBeenCalled();
   });
 });
