@@ -544,7 +544,7 @@ class SnomedV2Factory extends SqliteV2Factory {
   edition() { return this.store.cs.edition; }
 
   name() {
-    return this.version().includes('xsct') ? 'SNOMED CT Test Set' : `SCT ${editionCode(this.edition())}`;
+    return this.version().includes('xsct') ? 'SNOMED CT Test Set' : `SCT ${editionCode(this.edition()) || 'Unknown Edition'}`;
   }
   nameBase() { return 'SCT'; }
   description() { return `SNOMED CT ${editionName(this.edition())}`; }

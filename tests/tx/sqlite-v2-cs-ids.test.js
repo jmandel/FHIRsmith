@@ -78,7 +78,7 @@ describe('main\'s id() and the engine\'s, over a table of versions', () => {
   // a factory of each class with only what id() reads: the version, and for RxNorm the name
   const mainLoinc = (v) => Object.assign(Object.create(LoincServicesFactory.prototype), { _sharedData: { _version: v } });
   const mainRxNorm = (v) => Object.assign(Object.create(RxNormServicesFactory.prototype), { isNCI: false, _sharedData: { version: v } });
-  const mainSct = (v) => Object.assign(Object.create(SnomedServicesFactory.prototype), { _sharedData: { versionUri: v } });
+  const mainSct = (v, edition) => Object.assign(Object.create(SnomedServicesFactory.prototype), { _sharedData: { versionUri: v, edition } });
   const v2 = (cls, system, version, cs = {}) => Object.assign(Object.create(cls.prototype), { store: { system, version, cs } });
 
   test.each(['2.77', '2.78', '2.81', '2.82', '2.83', '2.80-test'])('LOINC %s', (v) => {
@@ -98,8 +98,12 @@ describe('main\'s id() and the engine\'s, over a table of versions', () => {
     ['11000172109', 'http://snomed.info/sct/11000172109/version/20251115'], // Belgium
     ['900000000000207008', 'http://snomed.info/sct/900000000000207008'], // no version: no id
     ['31000003106', 'http://snomed.info/xsct/31000003106/version/20250909'], // test edition
+    ['11010000107', 'http://snomed.info/sct/11010000107/version/20261021'], // LOINC extension: not in the edition list
     ['900000000000207008', 'http://snomed.info/xsct/900000000000207008/version/20250814']
   ])('SNOMED CT %s %s', (edition, v) => {
-    expect(v2(SnomedV2Factory, SCT, v, { edition }).id()).toBe(mainSct(v).id());
+    const engine = v2(SnomedV2Factory, SCT, v, { edition });
+    expect(engine.id()).toBe(mainSct(v, edition).id());
+    // the placeholder's name too (search and read show it): 'SCT Unknown Edition' for an unlisted edition
+    expect(engine.name()).toBe(mainSct(v, edition).name());
   });
 });
