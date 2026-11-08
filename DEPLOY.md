@@ -36,13 +36,13 @@ still apply. Section 0 is what changes for a demo that runs the old cluster mode
 
 | Key | Value for the demo | Notes |
 |---|---|---|
-| `server.cluster.workers` | 2 | Same key and meaning as before. `FHIRSMITH_WORKERS` still overrides it. Unset, cluster-lite picks 2 or fewer by memory. |
-| `server.cluster.internalPort` | 8002 (default `port + 1`) | The master is on this port and the workers on the next ones (8003, 8004). Keep them firewalled; only Caddy's port is public. |
+| `server.cluster.workers` | 2 | Same key and meaning as before. `FHIRSMITH_WORKERS` still overrides it. Unset, cluster-lite picks a number from the CPUs by the engine's rule, then fewer if memory is short. It must be a whole number; 0 now means the master alone. |
+| `server.cluster.internalPort` | 8002 (default `port + 1`) | The master is on this port and the workers on the next ones (8003, 8004). They now listen on 127.0.0.1 only (`server.cluster.bindAddress`, default `127.0.0.1`; leave it unset). Caddy reaches the launcher at 127.0.0.1:8001, and the launcher reaches the processes over loopback. |
 | `server.cluster.recycleSeconds` | 30 (default) | Replaces `recycleAfterSeconds`. |
 | `server.cluster.drainSeconds` | 30 (default) | Moved from `server.memory`. |
 | `server.cluster.maxOutstanding`, `queueSeconds`, `ownerQueueSeconds`, `cooldownSeconds`, `fastLaneExtra`, `fastLaneMaxBytes`, `normalMinSlots`, `memoryHeadroomGB` | defaults | Admission and the fast lane (`cluster.md`, "The launcher"); the effective values are logged at start. |
-| `server.cluster.sharedCache`, `sharedCacheMaxMB`, `cacheAffinity`, `sharedClosure` | leave off | Opt-in (`cluster.md`, "Options"). |
-| `server.memory.rejectFraction`, `abortFraction`, `trimAllocator` | defaults (0.85, 0.92, true) | Now measured over the whole cgroup. |
+| `server.cluster.sharedCache`, `sharedCacheMaxMB`, `cacheAffinity`, `sharedClosure` | leave off | Opt-in (`cluster.md`, "Options"). `sharedCacheMaxMB` now defaults to 256 when `sharedCache` is on. |
+| `server.memory.rejectFraction`, `abortFraction`, `trimAllocator` | defaults (0.85, 0.92, true) | Now measured over the whole cgroup. `trimAllocator` defaults to true with a role (as here), false without one. |
 | `modules.tx.instanceCode` | `m0` (default) | The master's code; workers are `tx1`, `tx2`. Cache-ids now start with the code of the process that issued them. |
 | `modules.tx.cacheMaxConcepts`, `cacheMaxTotalConcepts`, `usageTrackerMaxCodes`, `usageTrackerMaxCodeLength`, `languageTagCacheSize` | defaults | New limits from #350; logged at start (`Limits: ...`). |
 | `modules.tx.sqliteV2` | `{ "content": { "valueSets": true, "codeSystems": true } }` | Unchanged. |
@@ -53,6 +53,10 @@ still apply. Section 0 is what changes for a demo that runs the old cluster mode
   7 GB, cluster-lite's memory-aware default may choose fewer than 2 workers. It logs the choice. With
   `workers: 2` set explicitly, it starts 2 and warns if they don't fit.
 - Remove the `lanes.conf` drop-in. Its variables do nothing now.
+- Start-up: the launcher now takes a process as ready when it says so over IPC (from its listen
+  callback), not from `/health`. A master that exits `server.cluster.maxStartFailures` (6) times in
+  a row without ever being ready makes `cluster.js` exit 1; the unit's `Restart=always` (5 s) then
+  restarts it.
 - Set `OOMPolicy=continue`. With systemd's default (`stop`), a kernel OOM kill of one worker took
   down the whole unit in the 5 Nov abort-policy runs; with `continue`, the launcher restarts the
   worker. `cluster.md` doesn't say this yet.
