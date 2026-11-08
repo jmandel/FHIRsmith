@@ -1,0 +1,24 @@
+# The HL7 tx-ecosystem test library with the sqlite-v2 engine serving LOINC and SNOMED CT
+# (tests/tx/README.md "Engine runs"). Same sources as test-cases.yml otherwise. The v2 files
+# are not in the tx-fhir-org bucket: test-scripts/test-cases-engine.sh links them into a
+# private data directory from a seed directory.
+base:
+  url: https://storage.googleapis.com/tx-fhir-org
+
+sources:
+  - internal:lang
+  - internal:country
+  - internal:currency
+  - internal:areacode
+  - internal:mimetypes
+  - internal:usstates
+  - internal:hgvs
+  - internal:urls
+  - ucum:tx/data/ucum-essence.xml
+  - sqlite-v2!:loinc-2.83.db
+  - sqlite-v2!:sct-intl-20260701.db
+  - sqlite-v2:sct-test-20250909-nl.db
+  - omop:omop_v20250227.db
+  - icd11:icd11-2026-01-b.db
+  - npm:hl7.terminology=tho
+  - npm:fhir.tx.support=tx

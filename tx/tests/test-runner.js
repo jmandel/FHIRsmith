@@ -55,13 +55,21 @@ async function  finishTxTests() {
     fs.writeFileSync(textfilename, txTestSummary());
     let reportfilename = path.join(__dirname, '../../test-cases-report.json');
     fs.writeFileSync(reportfilename, JSON.stringify(txTestReport(), null, 2));
+    // which provider served SNOMED CT, LOINC and RxNorm in this run (tx/engine-report.js)
+    if (txModule && txModule.engineReport) {
+        fs.writeFileSync(path.join(__dirname, '../../test-cases-engine.json'), JSON.stringify(txModule.engineReport, null, 2));
+    }
 
     await unloadValidator();
     await stopServer();
 }
 
+function engineLabel() {
+    return txModule && txModule.engineReport ? txModule.engineReport.label : 'unknown';
+}
+
 function txTestSummary() {
-    let set = Array.from(txTestModeSet()).join('+');
+    let set = Array.from(txTestModeSet()).join('+') + ', engine ' + engineLabel();
     if (error == 0) {
       return `FHIRsmith v${packageJson.version} passed all ${count} HL7 terminology service tests (modes ${set}, tests v${txTestVersion()}, runner v${validator.jarVersion()})`;
     } else {
@@ -93,7 +101,7 @@ function txTestReport() {
         testScript: 'https://github.com/HL7/fhir-tx-ecosystem-ig/blob/main/tests/test-cases.json|' + txTestVersion(),
         result: error == 0 ? 'pass' : 'fail',
         score: count == 0 ? 0 : Math.round(((count - error) / count) * 10000) / 100,
-        tester: 'FHIRsmith build (modes ' + Array.from(txTestModeSet()).join(', ') + ')',
+        tester: 'FHIRsmith build (modes ' + Array.from(txTestModeSet()).join(', ') + '; engine ' + engineLabel() + ')',
         issued: new Date().toISOString(),
         participant: [{
             type: 'server',

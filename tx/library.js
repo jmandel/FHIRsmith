@@ -145,7 +145,16 @@ class Library {
   syndication = null;
 
   registerProvider(source, factory, isDefault = false) {
-    this.#logSystem(factory.system(), factory.version(), source);
+    // which provider class serves which system from which file (tx/engine-report.js)
+    const engines = require('./engine-report');
+    const reg = engines.registration(source, factory);
+    this.providerRegistrations.push(reg);
+    if (this.expectEngine) {
+      // fail at the first file the other engine serves, not after the whole library has loaded
+      const problem = engines.registrationProblem(reg, this.expectEngine.expected, this.expectEngine.allowClassic);
+      if (problem) throw new Error(`Engine check failed (expected ${this.expectEngine.expected}): ${problem}`);
+    }
+    this.#logSystem(factory.system(), factory.version(), source, reg.provider);
     if (isDefault || !this.codeSystemFactories.has(factory.system())) {
       this.codeSystemFactories.set(factory.system(), factory);
     }
@@ -179,6 +188,7 @@ class Library {
 
     // Only synchronous initialization here
     this.codeSystemFactories = new Map();
+    this.providerRegistrations = [];
     this.codeSystemProviders = [];
     this.valueSetProviders = [];
     this.conceptMapProviders = [];
@@ -203,12 +213,12 @@ class Library {
     // this.lastMemory = process.memoryUsage();
   }
 
-  #logSystem(url, ver, source) {
+  #logSystem(url, ver, source, provider = null) {
     //const mem = process.memoryUsage();
     let time = Math.floor(Date.now() - this.lastTime).toString().padStart(5)+" ";
     let system = url.padEnd(50);
     let version = (ver == null ? "" : ver).padEnd(62);
-    this.log.info(`${time}${system}${version}${source}`);
+    this.log.info(`${time}${system}${version}${source}${provider ? '  [' + provider + ']' : ''}`);
     this.lastTime = Date.now();
   }
 
@@ -316,6 +326,13 @@ class Library {
     this.log.info(`Memory Used: ${(memoryIncrease.rss / 1024 / 1024).toFixed(2)} MB`);
 
     this.assignIds();
+  }
+
+  /** Which engine serves SNOMED CT, LOINC and RxNorm, and the content store (tx/engine-report.js). */
+  engineReport() {
+    const { engineReport } = require('./engine-report');
+    return engineReport(this.providerRegistrations, require('./sqlite-v2/settings').settings.content,
+      this.vsacProviderName || null);
   }
 
   /**
@@ -660,7 +677,8 @@ class Library {
         let time = Math.floor(Date.now() - this.lastTime).toString().padStart(5)+" ";
         let system = "vsac".padEnd(50);
         let version = "n/a".padEnd(62);
-        this.log.info(`${time}${system}${version}${vsac.baseUrl}`);
+        this.log.info(`${time}${system}${version}${vsac.baseUrl}  [${vsac.constructor.name}]`);
+        this.vsacProviderName = vsac.constructor.name;
         this.lastTime = Date.now();
         break;
       }

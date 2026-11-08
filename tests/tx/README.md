@@ -82,3 +82,34 @@ Library initialization can take time, so tests use a 60-second timeout in `befor
 - No mocking of the provider layer - uses real R5 core data
 - Tests verify both success cases and error handling
 - Request IDs are validated to ensure logging infrastructure works
+
+## Engine runs
+
+A branch with the sqlite-v2 engine still serves SNOMED CT, LOINC and RxNorm from main's classic
+providers when its library lists them that way (`snomed:` `.cache` files, `loinc:`, `rxnorm:`).
+The default `tests/tx/test-cases.test.js` run uses `tx/fixtures/test-cases.yml`, which is classic,
+so on an engine branch it tests the engine's content store (packages) and nothing of its SNOMED CT
+or LOINC. Run the suite with a named engine instead:
+
+```bash
+test-scripts/test-cases-engine.sh --engine classic|v2|both --seed <dir with the terminology files>
+```
+
+| engine | setup | SNOMED CT | LOINC | content store |
+|---|---|---|---|---|
+| `classic` | `tx/fixtures/test-cases-setup-classic.json` | `Snomed_Intl_20260701.cache`, `sct_test_20250909i.cache` | `Loinc_2.83b.db` | off |
+| `v2` | `tx/fixtures/test-cases-setup-v2.json` (`test-cases-v2.yml`) | `sct-intl-20260701.db`, `sct-test-20250909-nl.db` | `loinc-2.83.db` | on |
+
+`both` runs classic, then v2, and writes `COMPARE.md` (tests failing with one engine only). Each
+run's folder has the jest log, the summary (which now names the engine), the TestReport, and
+`test-cases-engine.json`: the provider class and file that served each system. The suite loads no
+RxNorm, so neither run tests the engine's RxNorm.
+
+**The check.** Every server start logs one line, e.g.
+`Engines: v2 | SNOMED CT v2 x2 | LOINC v2 x1 | RxNorm none | content store VS on, CS on`, and each
+code system row of the load table ends with its provider class (`[SnomedV2Factory]`,
+`[SnomedServicesFactory]`, ...). With `FHIRSMITH_ENGINE=v2` (or `modules.tx.expectEngine`) the
+server stops at the first SNOMED CT, LOINC or RxNorm file served by a classic provider, and also
+when the content store is off; with `classic` it stops on any sqlite-v2 file or the content store
+on. `FHIRSMITH_ENGINE_ALLOW_CLASSIC=loinc-2.77-a.db` names classic files a v2 run may keep (the
+demo has no v2 build of LOINC 2.77). See `tx/engine-report.js` and `tests/tx/engine-report.test.js`.

@@ -307,9 +307,14 @@ class TXModule {
       this.library.syndication = this.syndicationStore;
       this.log.info(`Syndication feed enabled: store in ${this.syndicationStore.folder}`);
     }
+    const expected = require('./engine-report').expectedEngine(config);
+    if (expected) {
+      this.library.expectEngine = { expected, allowClassic: require('./engine-report').allowedClassic(config) };
+    }
     this.log.info(`Load...`);
     await this.library.load();
     this.log.info('Library loaded successfully');
+    this.#checkEngines(config);
 
     // Set up each endpoint
     for (const endpoint of config.endpoints) {
@@ -320,6 +325,25 @@ class TXModule {
 
     // Self-test: verify metadata generation works for each endpoint before accepting traffic
     await this.selfTest();
+  }
+
+  /**
+   * Logs which engine serves SNOMED CT, LOINC and RxNorm. When the run names the engine it is
+   * meant to test (modules.tx.expectEngine or FHIRSMITH_ENGINE: v2 | classic), anything else
+   * serving them stops startup (tx/engine-report.js).
+   */
+  #checkEngines(config) {
+    const { formatEngineReport, engineProblems, expectedEngine, allowedClassic } = require('./engine-report');
+    const report = this.library.engineReport();
+    this.engineReport = report;
+    this.log.info(formatEngineReport(report));
+    const expected = expectedEngine(config);
+    if (!expected) return;
+    const problems = engineProblems(report, expected, allowedClassic(config));
+    if (problems.length) {
+      throw new Error(`Engine check failed (expected ${expected}): ${problems.join('; ')}`);
+    }
+    this.log.info(`Engine check passed: expected ${expected}`);
   }
 
   /**
