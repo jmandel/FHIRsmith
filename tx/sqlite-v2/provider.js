@@ -989,7 +989,17 @@ class SqliteV2Factory extends CodeSystemFactoryProvider {
     if (this.store.system === RXNORM) return 'date';
     return null;
   }
-  id() { return (this.name().replace(/\W/g, '') + '-' + this.version()).toLowerCase(); }
+  /**
+   * The factory id, as main's provider for the same system forms it (read.js and search.js serve
+   * it as CodeSystem/x-<id>; tx.fhir.org uses the same ids): LOINC 'loinc' + version
+   * (cs-loinc.js: x-loinc2.82), RxNorm name + '-' + version (cs-rxnorm.js: x-RxNorm-03022026).
+   * SNOMED CT is SnomedV2Factory.id(). Other systems have no classic provider to follow.
+   */
+  id() {
+    if (this.store.system === LOINC) return 'loinc' + this.version();
+    if (this.store.system === RXNORM) return this.name() + '-' + this.version();
+    return (this.name().replace(/\W/g, '') + '-' + this.version()).toLowerCase();
+  }
   describeVersion(v) {
     if (this.store.system === RXNORM) {
       const { formatDateMMDDYYYY } = require('../../library/utilities');

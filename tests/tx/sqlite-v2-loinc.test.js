@@ -244,6 +244,19 @@ describe('LOINC v2 dialect against main\'s provider (same fixture)', () => {
     expect(spans(r.classic).filter((s) => s.kind === 'part').map((s) => [s.provider, s.engine])).toEqual([['LoincServices', false]]);
   });
 
+  test('CodeSystem/x-loinc<version>: read and search give the same placeholder as main', async () => {
+    const r = await both(async () => {
+      const read = await request(app).get(`/tx/r5/CodeSystem/x-loinc${VERSION}`);
+      const search = await request(app).get(`/tx/r5/CodeSystem?url=${encodeURIComponent(L)}`);
+      const hits = (search.body.entry || []).map((e) => e.resource).filter((c) => c.url === L);
+      return { status: read.status, read: read.body, search: hits.map((c) => ({ id: c.id, version: c.version, name: c.name })) };
+    });
+    expect(r.classic.status).toBe(200);
+    expect(r.v2).toEqual(r.classic);
+    expect(r.v2.read.id).toBe(`x-loinc${VERSION}`);
+    expect(r.v2.search).toEqual([{ id: `x-loinc${VERSION}`, version: VERSION, name: 'LOINC' }]);
+  });
+
   // [filter, expected count]: the codes must be the same set on both engines
   const FILTERS = [
     [['COMPONENT', '=', 'LP14082-9'], 209],

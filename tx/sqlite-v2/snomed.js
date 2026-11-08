@@ -556,9 +556,19 @@ class SnomedV2Factory extends SqliteV2Factory {
     return v.includes('/version') ? v.substring(0, v.indexOf('/version')) : null;
   }
 
+  /**
+   * As cs-snomed.js id(), byte for byte: 'SCT-<edition>-<date>', or null without a dated version.
+   * Main's test-edition branch (snomed.info/xsct) prefixes 'x' to the match array, which makes it
+   * a string, so its [1] and [2] are the characters 'h' and 't': every xsct edition has the id
+   * 'SCT-h-t'. Kept so CodeSystem/x-<id> reads and search ids are the same on both engines.
+   */
   id() {
-    const m = this.version().match(/^http:\/\/snomed\.info\/sct\/(\d+)(?:\/version\/(\d{8}))?$/);
-    return m && m[2] ? 'SCT-' + m[1] + '-' + m[2] : null;
+    let match = this.version().match(/^http:\/\/snomed\.info\/sct\/(\d+)(?:\/version\/(\d{8}))?$/);
+    if (!match) {
+      match = this.version().match(/^http:\/\/snomed\.info\/xsct\/(\d+)(?:\/version\/(\d{8}))?$/);
+      if (match) match = 'x' + match;
+    }
+    return match && match[1] && match[2] ? 'SCT-' + match[1] + '-' + match[2] : null;
   }
 
   describeVersion(version) {
