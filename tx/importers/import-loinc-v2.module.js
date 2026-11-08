@@ -104,6 +104,33 @@ function files(root) {
   return f;
 }
 
+/** The LOINC property definitions, in a fixed order (shared with import-loinc-v2-classic). */
+function loincProperties(b) {
+  const prop = (code, valueKind, isHierarchy = false) =>
+    b.property({ code, uri: `${PROP}/${code}`, fhirType: valueKind === 'concept' ? 'code' : 'string', valueKind, isHierarchy, display: code });
+  const parent = prop('parent', 'concept', true);
+  const partProp = Object.fromEntries([...new Set(Object.values(PART_LINK)), 'CLASS'].map(c => [c, prop(c, 'concept')]));
+  const lit = Object.fromEntries(LITERALS.map(([c]) => [c, prop(c, 'literal')]));
+  const answer = prop('Answer', 'concept');
+  const answersFor = prop('answers-for', 'concept');
+  return { prop, parent, partProp, lit, answer, answersFor };
+}
+
+/** cs_config for LOINC (shared with import-loinc-v2-classic). */
+function applyLoincConfig(b) {
+  b.setConfig('caseSensitive', 1);
+  b.setConfig('defaultLanguage', 'en-US');
+  b.setConfig('hierarchyMeaning', 'is-a');
+  b.setConfig('inverseProperties', { child: 'parent', AnswerList: ['Answer', 'answers-for'] });
+  b.setConfig('propertyValueDescriptions', { CLASSTYPE: { 1: 'Laboratory class', 2: 'Clinical class', 3: 'Claims attachment', 4: 'Surveys' } });
+  b.setConfig('designationsAsProperties', ['RELATEDNAMES2']);
+  b.setConfig('implicitValueSets', [
+    { pattern: `${LOINC}/vs`, kind: 'all' },
+    { pattern: `${LOINC}/vs/{code}`, kind: 'refset' },
+    { pattern: `${LOINC}/vs?fhir_vs=isa/{code}`, kind: 'isa' },
+  ]);
+}
+
 /** @param {object} cfg { source, dest, version, overwrite, log } */
 async function importLoincV2(cfg) {
   const log = cfg.log || console.log;
@@ -115,13 +142,7 @@ async function importLoincV2(cfg) {
   b.setCodeSystem({ uri: LOINC, version: cfg.version, name: 'LOINC',
     title: 'Logical Observation Identifier Names and Codes (LOINC)', description: `LOINC ${cfg.version} (CSV release)` });
 
-  const prop = (code, valueKind, isHierarchy = false) =>
-    b.property({ code, uri: `${PROP}/${code}`, fhirType: valueKind === 'concept' ? 'code' : 'string', valueKind, isHierarchy, display: code });
-  const parent = prop('parent', 'concept', true);
-  const partProp = Object.fromEntries([...new Set(Object.values(PART_LINK)), 'CLASS'].map(c => [c, prop(c, 'concept')]));
-  const lit = Object.fromEntries(LITERALS.map(([c]) => [c, prop(c, 'literal')]));
-  const answer = prop('Answer', 'concept');
-  const answersFor = prop('answers-for', 'concept');
+  const { parent, partProp, lit, answer, answersFor } = loincProperties(b);
   const use = (code) => ({ system: LOINC, code, display: code });
   // Designations stay active when the term is DISCOURAGED (as tx.fhir.org reports them).
   const desig = (i, language, code, term, preferred = false) =>
@@ -320,17 +341,7 @@ async function importLoincV2(cfg) {
     return n;
   });
 
-  b.setConfig('caseSensitive', 1);
-  b.setConfig('defaultLanguage', 'en-US');
-  b.setConfig('hierarchyMeaning', 'is-a');
-  b.setConfig('inverseProperties', { child: 'parent', AnswerList: ['Answer', 'answers-for'] });
-  b.setConfig('propertyValueDescriptions', { CLASSTYPE: { 1: 'Laboratory class', 2: 'Clinical class', 3: 'Claims attachment', 4: 'Surveys' } });
-  b.setConfig('designationsAsProperties', ['RELATEDNAMES2']);
-  b.setConfig('implicitValueSets', [
-    { pattern: `${LOINC}/vs`, kind: 'all' },
-    { pattern: `${LOINC}/vs/{code}`, kind: 'refset' },
-    { pattern: `${LOINC}/vs?fhir_vs=isa/{code}`, kind: 'isa' },
-  ]);
+  applyLoincConfig(b);
   return b.finish(stats);
 }
 
@@ -354,4 +365,4 @@ class LoincV2Module extends BaseTerminologyModule {
   }
 }
 
-module.exports = { LoincV2Module, importLoincV2 };
+module.exports = { LoincV2Module, importLoincV2, loincProperties, applyLoincConfig, STATUS, KIND, LITERALS, LOINC };
